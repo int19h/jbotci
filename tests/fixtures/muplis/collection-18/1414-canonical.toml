@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma goĭ ko'a zo'u ge ko'a .espórte gi do nélci ko'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "esporte",
-    span: [25,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [45,49],
-  },
+  Cmavo "ma",
+  Cmavo "goĭ",
+  Cmavo "ko'a",
+  Cmavo "zo'u",
+  Cmavo "ge",
+  Cmavo "ko'a",
+  Fuhivla "espórte",
+  Cmavo "gi",
+  Cmavo "do",
+  Gismu "nélci",
+  Cmavo "ko'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[25,32],"phonemes":"esporte","kind":"fu'ivla"}},{"Bare":{"span":[33,35],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[45,49],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
@@ -85,77 +41,33 @@ tree = """
 Prenex {
   prenex_terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
+      base_argument: Cmavo "ma",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [3,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'a",
-            span: [7,11],
-          },
+          goi: Cmavo "goĭ",
+          Cmavo "ko'a",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
+  zohu: Cmavo "zo'u",
   Pair {
-    gek: Word {
-      kind: "cmavo",
-      phonemes: "ge",
-      span: [17,19],
-    },
+    gek: Cmavo "ge",
     first: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko'a",
-          span: [20,24],
-        },
+        Cmavo "ko'a",
       ],
-      Word {
-        kind: "fu'ivla",
-        phonemes: "esporte",
-        span: [25,32],
-      },
+      Fuhivla "espórte",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [33,35],
-    },
+    gik: Cmavo "gi",
     second: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [36,38],
-        },
+        Cmavo "do",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "nelci",
-          span: [39,44],
-        },
+        Gismu "nélci",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'a",
-            span: [45,49],
-          },
+          Cmavo "ko'a",
         ],
       },
     },

@@ -21,26 +21,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .eĭ do sísti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [10,15],
-  },
+  Cmavo "i",
+  Cmavo "eĭ",
+  Cmavo "do",
+  Gismu "sísti",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sisti","kind":"gismu"}}]'
 
@@ -49,30 +33,14 @@ brackets = "([.i .eĭ] [do sísti])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "eĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sisti",
-      span: [10,15],
-    },
+    Gismu "sísti",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"sisti","kind":"gismu"}}}}}}}}}}}]}]}'

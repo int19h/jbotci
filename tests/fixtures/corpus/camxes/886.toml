@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e di'u cu núnkla mi le zárci le zdáni le dárgu le kárce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunkla",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dargu",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [52,57],
-  },
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Cmavo "cu",
+  Lujvo "núnkla",
+  Cmavo "mi",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "le",
+  Gismu "dárgu",
+  Cmavo "le",
+  Gismu "kárce",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"nunkla","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"dargu","kind":"gismu"}},{"Bare":{"span":[49,51],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"karce","kind":"gismu"}}]"""
 
@@ -91,82 +39,30 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [4,8],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "di'u",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "nunkla",
-      span: [12,18],
-    },
+    Lujvo "núnkla",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [19,21],
+      Cmavo "mi",
+      Descriptor {
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [22,24],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [25,30],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zdáni",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [31,33],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zdani",
-          span: [34,39],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "dárgu",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [40,42],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "dargu",
-          span: [43,48],
-        },
-      },
-      Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [49,51],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "karce",
-          span: [52,57],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kárce",
       },
     ],
   },

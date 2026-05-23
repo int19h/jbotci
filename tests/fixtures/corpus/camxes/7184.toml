@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.er. pítsa)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "er",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pitsa",
-    span: [3,8],
-  },
+  Cmevla "er",
+  Gismu "pítsa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"pitsa","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "er",
-      span: [0,2],
-    },
+    Cmevla "er",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "pitsa",
-    span: [3,8],
-  },
+  Gismu "pítsa",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"pitsa","kind":"gismu"}}}}}}}}}}}]}]}'

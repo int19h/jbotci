@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li su'o pa no no)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,14],
-  },
+  Cmavo "li",
+  Cmavo "su'o",
+  Cmavo "pa",
+  Cmavo "no",
+  Cmavo "no",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}}]"""
 
@@ -51,32 +31,12 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [10,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [12,14],
-        },
+        Cmavo "su'o",
+        Cmavo "pa",
+        Cmavo "no",
+        Cmavo "no",
       },
     },
   ],

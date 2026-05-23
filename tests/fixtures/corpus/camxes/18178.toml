@@ -19,51 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.clsn. .i mi do jímpe .i ja'e xámgu nunpílno)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [26,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpilno",
-    span: [32,40],
-  },
+  Cmevla "clsn",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "do",
+  Gismu "jímpe",
+  Cmavo "i",
+  Cmavo "ja'e",
+  Gismu "xámgu",
+  Lujvo "nunpílno",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ja'e","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[32,40],"phonemes":"nunpilno","kind":"lujvo"}}]"""
 
@@ -71,64 +35,28 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "clsn",
-      span: [0,4],
-    },
+    Cmevla "clsn",
   ],
   Paragraph {
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [6,7],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [8,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [11,13],
-          },
+          Cmavo "mi",
+          Cmavo "do",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [14,19],
-        },
+        Gismu "jímpe",
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [20,21],
-      },
+      i: Cmavo "i",
       TenseModal {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ja'e",
-            span: [21,25],
-          },
+          bai: Cmavo "ja'e",
         },
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xamgu",
-            span: [26,31],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "nunpilno",
-            span: [32,40],
-          },
+          Gismu "xámgu",
+          Lujvo "nunpílno",
         },
       },
     },

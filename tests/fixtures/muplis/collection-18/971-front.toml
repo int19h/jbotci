@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gaŭ do .e'o sívni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sivni",
-    span: [12,17],
-  },
+  Cmavo "gaŭ",
+  Cmavo "do",
+  Cmavo "e'o",
+  Gismu "sívni",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sivni","kind":"gismu"}}]"""
 
@@ -51,30 +35,14 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [4,6],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "e'o",
-          span: [8,11],
-        },
+        Cmavo "do",
+        indicator: Cmavo "e'o",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "sivni",
-    span: [12,17],
-  },
+  Gismu "sívni",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}}}}},"argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}}},"indicator":{"span":[8,11],"phonemes":"e'o","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"sivni","kind":"gismu"}}}}}}}}}}}]}]}"""

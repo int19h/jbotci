@@ -18,21 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "joĭ"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [0,3],
-  },
+  Cmavo "joĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"joĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [0,3],
-  },
+  leading_connective: Cmavo "joĭ",
 }"""
 json = '{"leading_connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"joĭ","kind":"cmavo"}}}]}}}'

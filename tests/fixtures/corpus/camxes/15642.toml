@@ -19,31 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(na go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [6,10],
-  },
+  Cmavo "na",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [6,10],
-  },
+  na: Cmavo "na",
+  Cmavo "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,10],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

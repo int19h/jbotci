@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu rínka fa le za'i bílma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Gismu "rínka",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "za'i",
+  Gismu "bílma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"bilma","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rinka",
-      span: [3,8],
-    },
+    Gismu "rínka",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [9,11],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "za'i",
-              span: [14,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "bilma",
-              span: [19,24],
-            },
+            nu: Cmavo "za'i",
+            Gismu "bílma",
           },
         },
       },

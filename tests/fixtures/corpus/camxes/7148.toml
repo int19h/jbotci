@@ -18,54 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cásnu na'e bo deĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [13,16],
-  },
+  Gismu "cásnu",
+  Cmavo "na'e",
+  Cmavo "bo",
+  Cmavo "deĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"deĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [0,5],
-  },
+  Gismu "cásnu",
   terms: [
     NaheBo {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [6,10],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [10,12],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "deĭ",
-        span: [13,16],
-      },
+      nahe: Cmavo "na'e",
+      bo: Cmavo "bo",
+      Cmavo "deĭ",
     },
   ],
 }"""

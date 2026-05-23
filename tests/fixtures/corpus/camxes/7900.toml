@@ -19,56 +19,24 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cu se cméne ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "cméne",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [3,5],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [9,14],
-      },
+      se: Cmavo "se",
+      Gismu "cméne",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [15,17],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

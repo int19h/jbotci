@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu'a do lu'u cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [13,18],
-  },
+  Cmavo "tu'a",
+  Cmavo "do",
+  Cmavo "lu'u",
+  Gismu "cízra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"lu'u","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cizra","kind":"gismu"}}]"""
 
@@ -50,27 +34,11 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
-      luhu: Word {
-        kind: "cmavo",
-        phonemes: "lu'u",
-        span: [8,12],
-      },
+      lahe: Cmavo "tu'a",
+      Cmavo "do",
+      luhu: Cmavo "lu'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [13,18],
-  },
+  Gismu "cízra",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}}}},"luhu":{"Bare":{"Bare":{"span":[8,12],"phonemes":"lu'u","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"cizra","kind":"gismu"}}}}}}}}}}}]}]}"""

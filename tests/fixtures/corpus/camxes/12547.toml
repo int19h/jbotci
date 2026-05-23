@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi mi nélci le nu le cníno prénu cu cílre la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [46,52],
-  },
+  Cmavo "ŭi",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "le",
+  Gismu "cníno",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "cílre",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[46,52],"phonemes":"lojban","kind":"cmevla"}}]'
 
@@ -86,86 +38,38 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [7,12],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [16,18],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [19,21],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "cnino",
-                      span: [22,27],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "prenu",
-                      span: [28,33],
-                    },
+                    Gismu "cníno",
+                    Gismu "prénu",
                   },
                 },
               ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [34,36],
-              },
+              cu: Cmavo "cu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cilre",
-                  span: [37,42],
-                },
+                Gismu "cílre",
                 terms: [
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [43,45],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "lojban",
-                        span: [46,52],
-                      },
+                      Cmevla "lojban",
                     ],
                   },
                 ],

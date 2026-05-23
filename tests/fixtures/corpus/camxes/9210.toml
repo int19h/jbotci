@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fo'a jaĭ júnri .i ra jaĭ xájmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fo'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "junri",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xajmi",
-    span: [25,30],
-  },
+  Cmavo "fo'a",
+  Cmavo "jaĭ",
+  Gismu "júnri",
+  Cmavo "i",
+  Cmavo "ra",
+  Cmavo "jaĭ",
+  Gismu "xájmi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fo'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"junri","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"xajmi","kind":"gismu"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "fo'a",
-        span: [0,4],
-      },
+      Cmavo "fo'a",
     ],
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [5,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "junri",
-        span: [9,14],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "júnri",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ra",
-          span: [18,20],
-        },
+        Cmavo "ra",
       ],
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [21,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xajmi",
-          span: [25,30],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "xájmi",
       },
     },
   },

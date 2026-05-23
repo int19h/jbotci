@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i fo ma do kláma la .osakan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "osakan",
-    span: [21,27],
-  },
+  Cmavo "i",
+  Cmavo "fo",
+  Cmavo "ma",
+  Cmavo "do",
+  Gismu "kláma",
+  Cmavo "la",
+  Cmevla "osakan",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"osakan","kind":"cmevla"}}]'
 
@@ -63,50 +35,22 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{(fo ma) do} {kláma (la .osakan.)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [2,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [5,7],
-        },
+        fa: Cmavo "fo",
+        Cmavo "ma",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [11,16],
-      },
+      Gismu "kláma",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "osakan",
-              span: [21,27],
-            },
+            Cmevla "osakan",
           ],
         },
       ],

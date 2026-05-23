@@ -18,59 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i la .djordj. clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [6,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [14,19],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "djordj",
+  Gismu "clíva",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[14,19],"phonemes":"cliva","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djordj",
-            span: [6,12],
-          },
+          Cmevla "djordj",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cliva",
-      span: [14,19],
-    },
+    Gismu "clíva",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[6,12],"phonemes":"djordj","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"cliva","kind":"gismu"}}}}}}}}}}}]}]}'

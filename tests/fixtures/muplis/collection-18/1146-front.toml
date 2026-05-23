@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i do zúkte le ba'e fénki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "zúkte",
+  Cmavo "le",
+  Cmavo "ba'e",
+  Gismu "fénki",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"fenki","kind":"gismu"}}]"""
 
@@ -58,43 +34,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [do {zúkte (le [ba'e fénki])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zukte",
-        span: [6,11],
-      },
+      Gismu "zúkte",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [15,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "fenki",
-              span: [20,25],
-            },
+            bahe: Cmavo "ba'e",
+            Gismu "fénki",
           },
         },
       ],

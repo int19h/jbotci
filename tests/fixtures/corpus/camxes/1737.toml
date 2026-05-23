@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(re do cu nánmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [9,14],
-  },
+  Cmavo "re",
+  Cmavo "do",
+  Cmavo "cu",
+  Gismu "nánmu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nanmu","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "re",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      quantifier: Cmavo "re",
+      Cmavo "do",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [9,14],
-  },
+  cu: Cmavo "cu",
+  Gismu "nánmu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"nanmu","kind":"gismu"}}}}}}}}}}}]}]}'

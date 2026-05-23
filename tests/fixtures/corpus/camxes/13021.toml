@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .bypyfykyb. noĭ cníno ke bángu kámni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bypyfykyb",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kamni",
-    span: [33,38],
-  },
+  Cmavo "la",
+  Cmevla "bypyfykyb",
+  Cmavo "noĭ",
+  Gismu "cníno",
+  Cmavo "ke",
+  Gismu "bángu",
+  Gismu "kámni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"bypyfykyb","kind":"cmevla"}},{"Bare":{"span":[14,17],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"kamni","kind":"gismu"}}]'
 
@@ -62,49 +34,21 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "bypyfykyb",
-            span: [3,12],
-          },
+          Cmevla "bypyfykyb",
         ],
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [14,17],
-          },
+          noi: Cmavo "noĭ",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [18,23],
-            },
+            Gismu "cníno",
             Ke {
-              ke: Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [24,26],
-              },
+              ke: Cmavo "ke",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "bangu",
-                  span: [27,32],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "kamni",
-                  span: [33,38],
-                },
+                Gismu "bángu",
+                Gismu "kámni",
               },
             },
           },

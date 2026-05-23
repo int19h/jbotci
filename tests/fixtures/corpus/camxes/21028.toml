@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a mi ka'e pílno du'e fu'ívla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fu'ivla",
-    span: [24,31],
-  },
+  Cmavo "ru'a",
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Gismu "pílno",
+  Cmavo "du'e",
+  Lujvo "fu'ívla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[24,31],"phonemes":"fu'ivla","kind":"lujvo"}}]"""
 
@@ -56,48 +32,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [8,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [13,18],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "pílno",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "du'e",
-              span: [19,23],
-            },
+            Cmavo "du'e",
           ],
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "fu'ivla",
-            span: [24,31],
-          },
+          relation: Lujvo "fu'ívla",
         },
       ],
     },

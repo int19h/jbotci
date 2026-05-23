@@ -18,86 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ji'a la .nik. cu kákne le nu jdíce le du'u le jbópre cu práne cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nik",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [47,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prane",
-    span: [57,62],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [63,68],
-  },
+  Cmavo "i",
+  Cmavo "ji'a",
+  Cmavo "la",
+  Cmevla "nik",
+  Cmavo "cu",
+  Gismu "kákne",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "jdíce",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "le",
+  Lujvo "jbópre",
+  Cmavo "cu",
+  Gismu "práne",
+  Gismu "cértu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"nik","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,53],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[54,56],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"prane","kind":"gismu"}},{"Bare":{"span":[63,68],"phonemes":"certu","kind":"gismu"}}]"""
 
@@ -105,108 +41,44 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ji'a",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ji'a",
   },
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "nik",
-            span: [10,13],
-          },
+          Cmevla "nik",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [18,23],
-      },
+      Gismu "kákne",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [24,26],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [27,29],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "jdice",
-                span: [30,35],
-              },
+              Gismu "jdíce",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [36,38],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Abstraction {
-                    nu: Word {
-                      kind: "cmavo",
-                      phonemes: "du'u",
-                      span: [39,43],
-                    },
+                    nu: Cmavo "du'u",
                     Predicate {
                       leading_terms: [
                         Descriptor {
-                          descriptor: Word {
-                            kind: "cmavo",
-                            phonemes: "le",
-                            span: [44,46],
-                          },
-                          relation: Word {
-                            kind: "lujvo",
-                            phonemes: "jbopre",
-                            span: [47,53],
-                          },
+                          descriptor: Cmavo "le",
+                          relation: Lujvo "jbópre",
                         },
                       ],
-                      cu: Word {
-                        kind: "cmavo",
-                        phonemes: "cu",
-                        span: [54,56],
-                      },
+                      cu: Cmavo "cu",
                       Compound {
-                        Word {
-                          kind: "gismu",
-                          phonemes: "prane",
-                          span: [57,62],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "certu",
-                          span: [63,68],
-                        },
+                        Gismu "práne",
+                        Gismu "cértu",
                       },
                     },
                   },

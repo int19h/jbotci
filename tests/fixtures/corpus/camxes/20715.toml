@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .i no da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [9,11],
-  },
+  Cmavo "coĭ",
+  Cmavo "i",
+  Cmavo "no",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -47,33 +31,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [5,6],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [7,9],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [9,11],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
       ],
     },

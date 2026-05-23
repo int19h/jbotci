@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .rab. gi'e naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rab",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [12,15],
-  },
+  Cmavo "doĭ",
+  Cmevla "rab",
+  Cmavo "gi'e",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rab","kind":"cmevla"}},{"Bare":{"span":[8,12],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "rab",
-        span: [4,7],
-      },
+      argument: Cmevla "rab",
     },
   ],
   PredicateTail {
-    Word {
-      kind: "cmavo",
-      phonemes: "gi'e",
-      span: [8,12],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [12,15],
-    },
+    Cmavo "gi'e",
+    nai: Cmavo "naĭ",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,7],"phonemes":"rab","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"cmavo":[{"Bare":{"Bare":{"span":[8,12],"phonemes":"gi'e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}]}]}"""

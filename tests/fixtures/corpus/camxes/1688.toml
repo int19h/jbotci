@@ -19,81 +19,33 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(nu mi kláma le zárci keĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [22,25],
-  },
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "keĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[22,25],"phonemes":"keĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [0,2],
-  },
+  nu: Cmavo "nu",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [6,11],
-      },
+      Gismu "kláma",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zarci",
-            span: [15,20],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zárci",
         },
       ],
     },
   },
-  kei: Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [22,25],
-  },
+  kei: Cmavo "keĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"klama","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"zarci","kind":"gismu"}}}}}}}]}}}}}}},"kei":{"Bare":{"Bare":{"span":[22,25],"phonemes":"keĭ","kind":"cmavo"}}}}}}}}}}}}]}]}'

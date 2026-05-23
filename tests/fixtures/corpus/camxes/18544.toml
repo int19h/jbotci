@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'e bo lo prénu na ku ka'e djíca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [26,31],
-  },
+  Cmavo "na'e",
+  Cmavo "bo",
+  Cmavo "lo",
+  Gismu "prénu",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "ka'e",
+  Gismu "djíca",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"djica","kind":"gismu"}}]"""
 
@@ -66,53 +34,21 @@ tree = """
 Predicate {
   leading_terms: [
     NaheBo {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [0,4],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [4,6],
-      },
+      nahe: Cmavo "na'e",
+      bo: Cmavo "bo",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [7,9],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [10,15],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "prénu",
       },
     },
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [16,18],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [18,20],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ka'e",
-      span: [21,25],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [26,31],
-    },
+    tense_modal: Cmavo "ka'e",
+    Gismu "djíca",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"NaheBo":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}}},"bo":{"Bare":{"Bare":{"span":[4,6],"phonemes":"bo","kind":"cmavo"}}},"inner_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[7,9],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}}}}}}}}},{"NaKu":{"na":{"Bare":{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}}},"na_ku":{"Bare":{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[21,25],"phonemes":"ka'e","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[26,31],"phonemes":"djica","kind":"gismu"}}}}}}}}}}}}}]}]}"""

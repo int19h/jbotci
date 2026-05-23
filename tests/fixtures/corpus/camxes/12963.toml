@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na cízra ju selsréra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsrera",
-    span: [12,20],
-  },
+  Cmavo "na",
+  Gismu "cízra",
+  Cmavo "ju",
+  Lujvo "selsréra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"selsrera","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  na: Cmavo "na",
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "cizra",
-      span: [3,8],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ju",
-      span: [9,11],
-    },
-    trailing_relation: Word {
-      kind: "lujvo",
-      phonemes: "selsrera",
-      span: [12,20],
-    },
+    leading_relation: Gismu "cízra",
+    connective: Cmavo "ju",
+    trailing_relation: Lujvo "selsréra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"cizra","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"ju","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,20],"phonemes":"selsrera","kind":"lujvo"}}}}}}}}}}}}}}}]}]}'

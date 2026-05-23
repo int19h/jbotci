@@ -24,71 +24,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nélci la .djan. gi'e nélci la .martas. gi'a bo nélci la .meris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "martas",
-    span: [34,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'a",
-    span: [42,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [59,64],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "gi'e",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "martas",
+  Cmavo "gi'a",
+  Cmavo "bo",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "meris",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[19,23],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,40],"phonemes":"martas","kind":"cmevla"}},{"Bare":{"span":[42,46],"phonemes":"gi'a","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[59,64],"phonemes":"meris","kind":"cmevla"}}]"""
 
@@ -97,97 +45,45 @@ brackets = "(mi [{nélci (la .djan.)} {gi'e ([nélci {la .martas.}] [gi'a bo {n�
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [3,8],
-      },
+      Gismu "nélci",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [13,17],
-            },
+            Cmevla "djan",
           ],
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [19,23],
-        },
+        connective: Cmavo "gi'e",
         PredicateTail2 {
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "nelci",
-              span: [24,29],
-            },
+            Gismu "nélci",
             terms: [
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [30,32],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "martas",
-                    span: [34,40],
-                  },
+                  Cmevla "martas",
                 ],
               },
             ],
           },
           bo_continuation: BoPredicateTail {
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "gi'a",
-              span: [42,46],
-            },
-            bo: Word {
-              kind: "cmavo",
-              phonemes: "bo",
-              span: [46,48],
-            },
+            connective: Cmavo "gi'a",
+            bo: Cmavo "bo",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "nelci",
-                span: [49,54],
-              },
+              Gismu "nélci",
               terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [55,57],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "meris",
-                      span: [59,64],
-                    },
+                    Cmevla "meris",
                   ],
                 },
               ],

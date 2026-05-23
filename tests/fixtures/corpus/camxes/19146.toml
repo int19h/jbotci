@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi xájmi cílre fo pa da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xajmi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [20,22],
-  },
+  Cmavo "mi",
+  Gismu "xájmi",
+  Gismu "cílre",
+  Cmavo "fo",
+  Cmavo "pa",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xajmi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xajmi",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [9,14],
-      },
+      Gismu "xájmi",
+      Gismu "cílre",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [15,17],
-        },
+        fa: Cmavo "fo",
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [18,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [20,22],
-          },
+          quantifier: Cmavo "pa",
+          Cmavo "da",
         },
       },
     ],

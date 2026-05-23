@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(jaĭ zu'e bébna bébna fa mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Cmavo "jaĭ",
+  Cmavo "zu'e",
+  Gismu "bébna",
+  Gismu "bébna",
+  Cmavo "fa",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -60,42 +36,18 @@ tree = """
 Relation {
   Compound {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [0,3],
-      },
+      jai: Cmavo "jaĭ",
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [4,8],
-        },
+        bai: Cmavo "zu'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "bebna",
-        span: [9,14],
-      },
+      Gismu "bébna",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "bebna",
-      span: [15,20],
-    },
+    Gismu "bébna",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [21,23],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [24,26],
-      },
+      fa: Cmavo "fa",
+      Cmavo "mi",
     },
   ],
 }"""

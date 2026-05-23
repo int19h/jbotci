@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ke bákni réctu ke'e pánlo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bakni",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rectu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "panlo",
-    span: [20,25],
-  },
+  Cmavo "ke",
+  Gismu "bákni",
+  Gismu "réctu",
+  Cmavo "ke'e",
+  Gismu "pánlo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"bakni","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"rectu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"panlo","kind":"gismu"}}]"""
 
@@ -57,33 +37,13 @@ brackets = "([ke {bákni réctu} ke'e] pánlo)"
 tree = """
 Compound {
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [0,2],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "bakni",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "rectu",
-        span: [9,14],
-      },
+      Gismu "bákni",
+      Gismu "réctu",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [15,19],
-    },
+    kehe: Cmavo "ke'e",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "panlo",
-    span: [20,25],
-  },
+  Gismu "pánlo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Ke":{"ke":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"bakni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"rectu","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[15,19],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"panlo","kind":"gismu"}}}}]}}}}}}}}]}]}"""

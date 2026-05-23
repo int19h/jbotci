@@ -18,79 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi xrúti ca le cábdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [17,23],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "xrúti",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "cábdeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xruti","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"cabdeĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xruti",
-        span: [5,10],
-      },
+      Gismu "xrúti",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [11,13],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [14,16],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "cabdeĭ",
-              span: [17,23],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "cábdeĭ",
           },
         },
       ],

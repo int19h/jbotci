@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do se slábu la'e di'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [20,24],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "slábu",
+  Cmavo "la'e",
+  Cmavo "di'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"slabu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"di'e","kind":"cmavo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "slabu",
-          span: [9,14],
-        },
+        se: Cmavo "se",
+        Gismu "slábu",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [15,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "di'e",
-            span: [20,24],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "di'e",
         },
       ],
     },

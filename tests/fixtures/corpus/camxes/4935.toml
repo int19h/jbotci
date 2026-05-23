@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no roĭ zgána ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgana",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [12,14],
-  },
+  Cmavo "no",
+  Cmavo "roĭ",
+  Gismu "zgána",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zgana","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Relation {
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "roĭ",
-        span: [2,5],
-      },
+      Cmavo "no",
+      Cmavo "roĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "zgana",
-      span: [6,11],
-    },
+    Gismu "zgána",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [12,14],
-    },
+    Cmavo "ra",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[2,5],"phonemes":"roĭ","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zgana","kind":"gismu"}}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

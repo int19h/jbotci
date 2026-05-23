@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e mi bílga le nu cílva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilva",
-    span: [19,24],
-  },
+  Cmavo "je'e",
+  Cmavo "mi",
+  Gismu "bílga",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cílva",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cilva","kind":"gismu"}}]"""
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bilga",
-      span: [8,13],
-    },
+    Gismu "bílga",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cilva",
-            span: [19,24],
-          },
+          nu: Cmavo "nu",
+          Gismu "cílva",
         },
       },
     ],

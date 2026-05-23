@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to le cútci noĭ cníno cu nárju toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cutci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "narju",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [31,34],
-  },
+  Cmavo "to",
+  Cmavo "le",
+  Gismu "cútci",
+  Cmavo "noĭ",
+  Gismu "cníno",
+  Cmavo "cu",
+  Gismu "nárju",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cutci","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"narju","kind":"gismu"}},{"Bare":{"span":[31,34],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -66,56 +34,24 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "cutci",
-              span: [6,11],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "cútci",
             relative_clauses: [
               Noi {
-                noi: Word {
-                  kind: "cmavo",
-                  phonemes: "noĭ",
-                  span: [12,15],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cnino",
-                  span: [16,21],
-                },
+                noi: Cmavo "noĭ",
+                Gismu "cníno",
               },
             ],
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [22,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "narju",
-          span: [25,30],
-        },
+        cu: Cmavo "cu",
+        Gismu "nárju",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [31,34],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

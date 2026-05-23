@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .jboskes. pu velbé'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jboskes",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velbe'i",
-    span: [15,22],
-  },
+  Cmavo "la",
+  Cmevla "jboskes",
+  Cmavo "pu",
+  Lujvo "velbé'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"jboskes","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[15,22],"phonemes":"velbe'i","kind":"lujvo"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "jboskes",
-          span: [3,10],
-        },
+        Cmevla "jboskes",
       ],
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [12,14],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "velbe'i",
-      span: [15,22],
-    },
+    tense_modal: Cmavo "pu",
+    Lujvo "velbé'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,10],"phonemes":"jboskes","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,22],"phonemes":"velbe'i","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

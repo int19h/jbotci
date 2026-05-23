@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la [.djisus. zeĭ malglétu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
+  Cmavo "la",
   ZeiLujvo {
-    left: Word {
-      kind: "cmevla",
-      phonemes: "djisus",
-      span: [3,9],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [11,14],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "malgletu",
-      span: [15,23],
-    },
+    left: Cmevla "djisus",
+    zei: Cmavo "zeĭ",
+    Lujvo "malglétu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[3,9],"phonemes":"djisus","kind":"cmevla"}},"zei":{"span":[11,14],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[15,23],"phonemes":"malgletu","kind":"lujvo"}}}]'
@@ -48,27 +32,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: ZeiLujvo {
-        left: Word {
-          kind: "cmevla",
-          phonemes: "djisus",
-          span: [3,9],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [11,14],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "malgletu",
-          span: [15,23],
-        },
+        left: Cmevla "djisus",
+        zei: Cmavo "zeĭ",
+        Lujvo "malglétu",
       },
     },
   ],

@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xi xo xi xo mi gúnka kláma .ĭo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [28,30],
-  },
+  Cmavo "xi",
+  Cmavo "xo",
+  Cmavo "xi",
+  Cmavo "xo",
+  Cmavo "mi",
+  Gismu "gúnka",
+  Gismu "kláma",
+  Cmavo "ĭo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"ĭo","kind":"cmavo"}}]'
 
@@ -66,29 +34,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Xi {
-      xi: Word {
-        kind: "cmavo",
-        phonemes: "xi",
-        span: [0,2],
-      },
+      xi: Cmavo "xi",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [3,5],
-        },
+        Cmavo "xo",
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [6,8],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "xo",
-              span: [9,11],
-            },
+            xi: Cmavo "xi",
+            Cmavo "xo",
           },
         ],
       },
@@ -96,29 +48,13 @@ Text {
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [15,20],
-      },
+      Gismu "gúnka",
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [21,26],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭo",
-          span: [28,30],
-        },
+        Gismu "kláma",
+        indicator: Cmavo "ĭo",
       },
     },
   },

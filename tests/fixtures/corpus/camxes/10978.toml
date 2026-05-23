@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ tsáli kaĭ ma ca'o ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [22,27],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "kaĭ",
+  Cmavo "ma",
+  Cmavo "ca'o",
+  Gismu "ckúle",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,13],"phonemes":"kaĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"ckule","kind":"gismu"}}]"""
 
@@ -57,18 +33,10 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [4,9],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
@@ -76,30 +44,14 @@ Text {
     leading_terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "kaĭ",
-            span: [10,13],
-          },
+          bai: Cmavo "kaĭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [14,16],
-        },
+        Cmavo "ma",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [17,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [22,27],
-      },
+      tense_modal: Cmavo "ca'o",
+      Gismu "ckúle",
     },
   },
 }"""

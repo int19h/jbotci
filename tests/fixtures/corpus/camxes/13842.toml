@@ -18,67 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ma ca'a sátci múkti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satci",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "ca'a",
+  Gismu "sátci",
+  Gismu "múkti",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"satci","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"mukti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      Cmavo "ma",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'a",
-        span: [6,10],
-      },
+      tense_modal: Cmavo "ca'a",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "satci",
-          span: [11,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mukti",
-          span: [17,22],
-        },
+        Gismu "sátci",
+        Gismu "múkti",
       },
     },
   },

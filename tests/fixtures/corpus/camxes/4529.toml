@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma se cítka do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "cítka",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -45,31 +29,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "cítka",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
   },
 }"""

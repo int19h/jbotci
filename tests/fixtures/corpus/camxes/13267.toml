@@ -18,34 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to [la'o gy size one gy] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [3,7],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [8,10],
-    },
-    quoted_text: [10,19],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [21,23],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "size one",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [24,27],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,7],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"gy","kind":"cmavo"},"quoted_text":[10,19],"closing_delimiter":{"span":[21,23],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -54,38 +34,18 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [3,7],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [8,10],
-            },
-            quoted_text: [10,19],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [21,23],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "size one",
+            closing_delimiter: Cmavo "gy",
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [24,27],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

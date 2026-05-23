@@ -18,45 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bróda ceĭ co'e)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ceĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [10,14],
-  },
+  Gismu "bróda",
+  Cmavo "ceĭ",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"ceĭ","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"co'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Cei {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   assignments: [
     CeiAssignment {
-      cei: Word {
-        kind: "cmavo",
-        phonemes: "ceĭ",
-        span: [6,9],
-      },
+      cei: Cmavo "ceĭ",
       Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "co'e",
-          span: [10,14],
-        },
+        goha: Cmavo "co'e",
       },
     },
   ],

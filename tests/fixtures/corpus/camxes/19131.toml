@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu li re zásti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [12,17],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "li",
+  Cmavo "re",
+  Gismu "zásti",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zasti","kind":"gismu"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [9,11],
-        },
+        li: Cmavo "li",
+        Cmavo "re",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "zasti",
-      span: [12,17],
-    },
+    Gismu "zásti",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}}}]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"zasti","kind":"gismu"}}}}}}}}}}}]}]}'

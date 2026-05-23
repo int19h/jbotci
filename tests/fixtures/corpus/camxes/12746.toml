@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le po'o se gásnu poĭ ko'a nítcu cu nu zbásu co fágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [47,52],
-  },
+  Cmavo "le",
+  Cmavo "po'o",
+  Cmavo "se",
+  Gismu "gásnu",
+  Cmavo "poĭ",
+  Cmavo "ko'a",
+  Gismu "nítcu",
+  Cmavo "cu",
+  Cmavo "nu",
+  Gismu "zbásu",
+  Cmavo "co",
+  Gismu "fágri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"po'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[17,20],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"fagri","kind":"gismu"}}]"""
 
@@ -87,81 +39,33 @@ Predicate {
   leading_terms: [
     Descriptor {
       descriptor: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "po'o",
-          span: [3,7],
-        },
+        Cmavo "le",
+        indicator: Cmavo "po'o",
       },
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gasnu",
-          span: [11,16],
-        },
+        se: Cmavo "se",
+        Gismu "gásnu",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [17,20],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ko'a",
-                span: [21,25],
-              },
+              Cmavo "ko'a",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "nitcu",
-              span: [26,31],
-            },
+            Gismu "nítcu",
           },
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
+  cu: Cmavo "cu",
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [35,37],
-    },
+    nu: Cmavo "nu",
     Co {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [38,43],
-      },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [44,46],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "fagri",
-        span: [47,52],
-      },
+      leading_relation: Gismu "zbásu",
+      co: Cmavo "co",
+      trailing_relation: Gismu "fágri",
     },
   },
 }"""

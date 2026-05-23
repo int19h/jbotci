@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'o nalsánji ke jétnu xúsra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalsanji",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [23,28],
-  },
+  Cmavo "zo'o",
+  Lujvo "nalsánji",
+  Cmavo "ke",
+  Gismu "jétnu",
+  Gismu "xúsra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"nalsanji","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"jetnu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"xusra","kind":"gismu"}}]"""
 
@@ -51,36 +31,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "zo'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "zo'o",
     },
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "nalsanji",
-      span: [5,13],
-    },
+    Lujvo "nalsánji",
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [14,16],
-      },
+      ke: Cmavo "ke",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jetnu",
-          span: [17,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xusra",
-          span: [23,28],
-        },
+        Gismu "jétnu",
+        Gismu "xúsra",
       },
     },
   },

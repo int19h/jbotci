@@ -18,82 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la .tinkit. xrúti ge'e saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tinkit",
-    span: [5,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [22,25],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "tinkit",
+  Gismu "xrúti",
+  Cmavo "ge'e",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[5,11],"phonemes":"tinkit","kind":"cmevla"}},{"Bare":{"span":[12,17],"phonemes":"xruti","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ge'e","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [2,4],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "tinkit",
-            span: [5,11],
-          },
+          Cmevla "tinkit",
         ],
       },
     ],
     WithIndicator {
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "xruti",
-          span: [12,17],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ge'e",
-          span: [18,22],
-        },
+        Gismu "xrúti",
+        indicator: Cmavo "ge'e",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "saĭ",
-        span: [22,25],
-      },
+      indicator: Cmavo "saĭ",
     },
   },
 }"""

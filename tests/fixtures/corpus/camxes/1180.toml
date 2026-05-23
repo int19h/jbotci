@@ -19,67 +19,19 @@ brackets = "([lo'u mi du do du la .djan. le'u] na tergérna la .lojban.)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [11,13],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [14,16],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "djan",
-      span: [20,24],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [26,30],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "mi",
+    Cmavo "du",
+    Cmavo "do",
+    Cmavo "du",
+    Cmavo "la",
+    Cmevla "djan",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [31,33],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tergerna",
-    span: [34,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [46,52],
-  },
+  Cmavo "na",
+  Lujvo "tergérna",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"mi","kind":"cmavo"},{"span":[8,10],"phonemes":"du","kind":"cmavo"},{"span":[11,13],"phonemes":"do","kind":"cmavo"},{"span":[14,16],"phonemes":"du","kind":"cmavo"},{"span":[17,19],"phonemes":"la","kind":"cmavo"},{"span":[20,24],"phonemes":"djan","kind":"cmevla"}],"lehu":{"span":[26,30],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[31,33],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[34,42],"phonemes":"tergerna","kind":"lujvo"}},{"Bare":{"span":[43,45],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[46,52],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -88,74 +40,26 @@ tree = """
 Predicate {
   leading_terms: [
     LohuQuote {
-      lohu: Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [14,16],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [17,19],
-      },
-      Word {
-        kind: "cmevla",
-        phonemes: "djan",
-        span: [20,24],
-      },
-      lehu: Word {
-        kind: "cmavo",
-        phonemes: "le'u",
-        span: [26,30],
-      },
+      lohu: Cmavo "lo'u",
+      Cmavo "mi",
+      Cmavo "du",
+      Cmavo "do",
+      Cmavo "du",
+      Cmavo "la",
+      Cmevla "djan",
+      lehu: Cmavo "le'u",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [31,33],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "tergerna",
-        span: [34,42],
-      },
+      na: Cmavo "na",
+      Lujvo "tergérna",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [43,45],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "lojban",
-            span: [46,52],
-          },
+          Cmevla "lojban",
         ],
       },
     ],

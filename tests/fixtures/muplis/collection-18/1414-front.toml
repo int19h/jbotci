@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma .espórte gi'e se nélci do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "esporte",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
+  Cmavo "ma",
+  Fuhivla "espórte",
+  Cmavo "gi'e",
+  Cmavo "se",
+  Gismu "nélci",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"esporte","kind":"fu'ivla"}},{"Bare":{"span":[11,15],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -59,44 +35,20 @@ brackets = "(ma [.espórte {gi'e ([se nélci] do)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   PredicateTail1 {
-    Word {
-      kind: "fu'ivla",
-      phonemes: "esporte",
-      span: [3,10],
-    },
+    Fuhivla "espórte",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [11,15],
-        },
+        connective: Cmavo "gi'e",
         Relation {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [16,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nelci",
-              span: [19,24],
-            },
+            se: Cmavo "se",
+            Gismu "nélci",
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [25,27],
-            },
+            Cmavo "do",
           ],
         },
       },

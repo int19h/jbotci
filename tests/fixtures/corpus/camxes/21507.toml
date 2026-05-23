@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'o cpána)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpana",
-    span: [5,10],
-  },
+  Cmavo "fi'o",
+  Gismu "cpána",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cpana","kind":"gismu"}}]"""
 
@@ -37,16 +29,8 @@ Term {
   terms: [
     Tagged {
       tense_modal: Fiho {
-        fiho: Word {
-          kind: "cmavo",
-          phonemes: "fi'o",
-          span: [0,4],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cpana",
-          span: [5,10],
-        },
+        fiho: Cmavo "fi'o",
+        Gismu "cpána",
       },
       Zohe {},
     },

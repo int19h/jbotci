@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi kláma pa maĭ le zárci .e re maĭ le zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [36,41],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "pa",
+  Cmavo "maĭ",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "e",
+  Cmavo "re",
+  Cmavo "maĭ",
+  Cmavo "le",
+  Gismu "zdáni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[25,26],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"zdani","kind":"gismu"}}]'
 
@@ -80,84 +36,40 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Word {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [3,8],
-      },
+      Gismu "kláma",
       free_modifiers: [
         Mai {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [9,11],
-            },
+            Cmavo "pa",
           ],
-          mai: Word {
-            kind: "cmavo",
-            phonemes: "maĭ",
-            span: [11,14],
-          },
+          mai: Cmavo "maĭ",
         },
       ],
     },
     terms: [
       Connected {
         leading_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zarci",
-            span: [18,23],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zárci",
         },
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [25,26],
-          },
+          Cmavo "e",
           free_modifiers: [
             Mai {
               number: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [27,29],
-                },
+                Cmavo "re",
               ],
-              mai: Word {
-                kind: "cmavo",
-                phonemes: "maĭ",
-                span: [29,32],
-              },
+              mai: Cmavo "maĭ",
             },
           ],
         },
         trailing_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [33,35],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [36,41],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zdáni",
         },
       },
     ],

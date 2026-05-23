@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(leĭ dánlu ca glétu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danlu",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [13,18],
-  },
+  Cmavo "leĭ",
+  Gismu "dánlu",
+  Cmavo "ca",
+  Gismu "glétu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"danlu","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"gletu","kind":"gismu"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "leĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "danlu",
-        span: [4,9],
-      },
+      descriptor: Cmavo "leĭ",
+      relation: Gismu "dánlu",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gletu",
-      span: [13,18],
-    },
+    tense_modal: Cmavo "ca",
+    Gismu "glétu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"danlu","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[10,12],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"gletu","kind":"gismu"}}}}}}}}}}}}}]}]}'

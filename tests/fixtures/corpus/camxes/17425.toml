@@ -18,81 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ca'o zváti la .astn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "astn",
-    span: [21,25],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca'o",
+  Gismu "zváti",
+  Cmavo "la",
+  Cmevla "astn",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"astn","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [6,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "ca'o",
+        Gismu "zváti",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "astn",
-              span: [21,25],
-            },
+            Cmevla "astn",
           ],
         },
       ],

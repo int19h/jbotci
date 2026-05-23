@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ca naĭ djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [9,14],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "naĭ",
+  Gismu "djúno",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"djuno","kind":"gismu"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      Cmavo "ca",
+      Cmavo "naĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [9,14],
-    },
+    Gismu "djúno",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"djuno","kind":"gismu"}}}}}}}}}}}}}]}]}'

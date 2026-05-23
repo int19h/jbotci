@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(na da mi pánzi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "panzi",
-    span: [8,13],
-  },
+  Cmavo "na",
+  Cmavo "da",
+  Cmavo "mi",
+  Gismu "pánzi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"panzi","kind":"gismu"}}]'
 
@@ -46,26 +30,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
+    Cmavo "na",
+    Cmavo "da",
+    Cmavo "mi",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "panzi",
-    span: [8,13],
-  },
+  Gismu "pánzi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"BareNa":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"panzi","kind":"gismu"}}}}}}}}}}}]}]}'

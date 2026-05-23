@@ -18,95 +18,39 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ny mútce cízra gi'e mútce cúnso)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cunso",
-    span: [30,35],
-  },
+  Cmavo "i",
+  Cmavo "ny",
+  Gismu "mútce",
+  Gismu "cízra",
+  Cmavo "gi'e",
+  Gismu "mútce",
+  Gismu "cúnso",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"cunso","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ny",
-            span: [3,5],
-          },
+          Cmavo "ny",
         ],
       },
     ],
     PredicateTail1 {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cizra",
-          span: [13,18],
-        },
+        Gismu "mútce",
+        Gismu "cízra",
       },
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [19,23],
-          },
+          connective: Cmavo "gi'e",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "mutce",
-              span: [24,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cunso",
-              span: [30,35],
-            },
+            Gismu "mútce",
+            Gismu "cúnso",
           },
         },
       ],

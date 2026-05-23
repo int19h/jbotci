@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi te vécnu po'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [12,16],
-  },
+  Cmavo "mi",
+  Cmavo "te",
+  Gismu "vécnu",
+  Cmavo "po'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"po'o","kind":"cmavo"}}]"""
 
@@ -49,29 +33,13 @@ brackets = "(mi [te {vécnu po'o}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [3,5],
-    },
+    se: Cmavo "te",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "vecnu",
-        span: [6,11],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "po'o",
-        span: [12,16],
-      },
+      Gismu "vécnu",
+      indicator: Cmavo "po'o",
     },
   },
 }"""

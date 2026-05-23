@@ -18,121 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ci pi'e re re pi'e vo no su'i pi'e ci pi'e ci ci du li ci pi'e re xa pi'e pa ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [52,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [58,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [63,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [65,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [68,72],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [73,75],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [75,77],
-  },
+  Cmavo "li",
+  Cmavo "ci",
+  Cmavo "pi'e",
+  Cmavo "re",
+  Cmavo "re",
+  Cmavo "pi'e",
+  Cmavo "vo",
+  Cmavo "no",
+  Cmavo "su'i",
+  Cmavo "pi'e",
+  Cmavo "ci",
+  Cmavo "pi'e",
+  Cmavo "ci",
+  Cmavo "ci",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "ci",
+  Cmavo "pi'e",
+  Cmavo "re",
+  Cmavo "xa",
+  Cmavo "pi'e",
+  Cmavo "pa",
+  Cmavo "ci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[55,57],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[58,62],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[63,65],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[65,67],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[68,72],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[73,75],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[75,77],"phonemes":"ci","kind":"cmavo"}}]"""
 
@@ -141,133 +49,41 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [13,15],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [16,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "vo",
-            span: [21,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [23,25],
-          },
+          Cmavo "ci",
+          Cmavo "pi'e",
+          Cmavo "re",
+          Cmavo "re",
+          Cmavo "pi'e",
+          Cmavo "vo",
+          Cmavo "no",
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [26,30],
-        },
+        operator: Cmavo "su'i",
         right_expression: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [31,35],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [36,38],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [39,43],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [44,46],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [46,48],
-          },
+          Cmavo "pi'e",
+          Cmavo "ci",
+          Cmavo "pi'e",
+          Cmavo "ci",
+          Cmavo "ci",
         },
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [49,51],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [52,54],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [55,57],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [58,62],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [63,65],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [65,67],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [68,72],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [73,75],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [75,77],
-          },
+          Cmavo "ci",
+          Cmavo "pi'e",
+          Cmavo "re",
+          Cmavo "xa",
+          Cmavo "pi'e",
+          Cmavo "pa",
+          Cmavo "ci",
         },
       },
     ],

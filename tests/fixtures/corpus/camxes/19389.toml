@@ -18,57 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vítke le péndo cy)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [15,17],
-  },
+  Gismu "vítke",
+  Cmavo "le",
+  Gismu "péndo",
+  Cmavo "cy",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vitke","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [0,5],
-  },
+  Gismu "vítke",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "pendo",
-        span: [9,14],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "péndo",
     },
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [15,17],
-        },
+        Cmavo "cy",
       ],
     },
   ],

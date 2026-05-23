@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i my na cásnu leĭ tcíla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcila",
-    span: [22,27],
-  },
+  Cmavo "u'i",
+  Cmavo "my",
+  Cmavo "na",
+  Gismu "cásnu",
+  Cmavo "leĭ",
+  Gismu "tcíla",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"tcila","kind":"gismu"}}]"""
 
@@ -56,50 +32,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "my",
-            span: [6,8],
-          },
+          Cmavo "my",
         ],
       },
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [9,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "casnu",
-          span: [12,17],
-        },
+        na: Cmavo "na",
+        Gismu "cásnu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [18,21],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tcila",
-            span: [22,27],
-          },
+          descriptor: Cmavo "leĭ",
+          relation: Gismu "tcíla",
         },
       ],
     },

@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do ba ca'o zváti le zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [23,28],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ba",
+  Cmavo "ca'o",
+  Gismu "zváti",
+  Cmavo "le",
+  Gismu "zdáni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zdani","kind":"gismu"}}]"""
 
@@ -65,53 +37,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca'o",
-            span: [9,13],
-          },
+          Cmavo "ba",
+          Cmavo "ca'o",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [14,19],
-        },
+        Gismu "zváti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [23,28],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zdáni",
         },
       ],
     },

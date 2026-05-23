@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.or. la go'i)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ór",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [6,10],
-  },
+  Cmevla "or",
+  Cmavo "la",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ór","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -40,25 +28,13 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ór","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ór",
-      span: [0,2],
-    },
+    Cmevla "or",
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [6,10],
-        },
+        descriptor: Cmavo "la",
+        relation: Cmavo "go'i",
       },
     ],
   },

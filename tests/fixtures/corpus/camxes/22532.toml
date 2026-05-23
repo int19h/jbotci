@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o mi'e .dyg. .i xámgu pénmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dyg",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [23,28],
-  },
+  Cmavo "ta'o",
+  Cmavo "mi'e",
+  Cmevla "dyg",
+  Cmavo "i",
+  Gismu "xámgu",
+  Gismu "pénmi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"dyg","kind":"cmevla"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"penmi","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ta'o",
     },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi'e",
-          span: [5,9],
-        },
+        Cmavo "mi'e",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "dyg",
-        span: [10,13],
-      },
+      argument: Cmevla "dyg",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [17,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "penmi",
-        span: [23,28],
-      },
+      Gismu "xámgu",
+      Gismu "pénmi",
     },
   },
 }"""

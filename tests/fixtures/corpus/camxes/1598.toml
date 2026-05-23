@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi távla baŭ la .lojban. baĭ ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [29,31],
-  },
+  Cmavo "mi",
+  Gismu "távla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "baĭ",
+  Cmavo "ku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[24,27],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ku","kind":"cmavo"}}]'
 
@@ -61,56 +33,28 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [3,8],
-    },
+    Gismu "távla",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [9,12],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [13,15],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [16,22],
-            },
+            Cmevla "lojban",
           ],
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baĭ",
-            span: [24,27],
-          },
+          bai: Cmavo "baĭ",
         },
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [29,31],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],

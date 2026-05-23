@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .unril. poĭ nuncátra skámi sélkeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "unríl",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncatra",
-    span: [13,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [22,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selkeĭ",
-    span: [28,34],
-  },
+  Cmavo "la",
+  Cmevla "unril",
+  Cmavo "poĭ",
+  Lujvo "nuncátra",
+  Gismu "skámi",
+  Lujvo "sélkeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"unríl","kind":"cmevla"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"nuncatra","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[28,34],"phonemes":"selkeĭ","kind":"lujvo"}}]'
 
@@ -57,42 +33,18 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "unríl",
-            span: [3,8],
-          },
+          Cmevla "unril",
         ],
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [9,12],
-          },
+          poi: Cmavo "poĭ",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "nuncatra",
-              span: [13,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [22,27],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "selkeĭ",
-              span: [28,34],
-            },
+            Lujvo "nuncátra",
+            Gismu "skámi",
+            Lujvo "sélkeĭ",
           },
         },
       ],

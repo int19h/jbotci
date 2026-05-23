@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(brífe .oĭ ru'e .u'i)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "brife",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [17,20],
-  },
+  Gismu "brífe",
+  Cmavo "oĭ",
+  Cmavo "ru'e",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -47,27 +31,11 @@ tree = """
 WithIndicator {
   WithIndicator {
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "brife",
-        span: [3,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [10,12],
-      },
+      Gismu "brífe",
+      indicator: Cmavo "oĭ",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ru'e",
-      span: [12,16],
-    },
+    indicator: Cmavo "ru'e",
   },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [17,20],
-  },
+  indicator: Cmavo "u'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}}},"indicator":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}}},"indicator":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a ru'e mi ba za go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [18,22],
-  },
+  Cmavo "ru'a",
+  Cmavo "ru'e",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "za",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ru'a",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [4,8],
-        },
+        Cmavo "ru'a",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [9,11],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [12,14],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [15,17],
-        },
+        Cmavo "ba",
+        Cmavo "za",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [18,22],
-      },
+      Cmavo "go'i",
     },
   },
 }"""

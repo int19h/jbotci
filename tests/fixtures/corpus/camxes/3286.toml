@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le do ro roĭ spófu skámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Cmavo "ro",
+  Cmavo "roĭ",
+  Gismu "spófu",
+  Gismu "skámi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"skami","kind":"gismu"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
       relation: TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [8,11],
-          },
+          Cmavo "ro",
+          Cmavo "roĭ",
         },
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "spofu",
-            span: [12,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [18,23],
-          },
+          Gismu "spófu",
+          Gismu "skámi",
         },
       },
     },

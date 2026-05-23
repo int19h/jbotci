@@ -24,66 +24,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .teris. sátre le mlátu .i je la .teris. sátre le ráctu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "teris",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [27,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "teris",
-    span: [35,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [48,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ractu",
-    span: [51,56],
-  },
+  Cmavo "la",
+  Cmevla "teris",
+  Gismu "sátre",
+  Cmavo "le",
+  Gismu "mlátu",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "la",
+  Cmevla "teris",
+  Gismu "sátre",
+  Cmavo "le",
+  Gismu "ráctu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"teris","kind":"cmevla"}},{"Bare":{"span":[11,16],"phonemes":"satre","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[27,28],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"teris","kind":"cmevla"}},{"Bare":{"span":[42,47],"phonemes":"satre","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"ractu","kind":"gismu"}}]'
 
@@ -94,87 +46,39 @@ Connected {
   leading_statement: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "teris",
-            span: [4,9],
-          },
+          Cmevla "teris",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "satre",
-        span: [11,16],
-      },
+      Gismu "sátre",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mlatu",
-            span: [20,25],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "mlátu",
         },
       ],
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [27,28],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [28,30],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [31,33],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "teris",
-            span: [35,40],
-          },
+          Cmevla "teris",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "satre",
-        span: [42,47],
-      },
+      Gismu "sátre",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [48,50],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "ractu",
-            span: [51,56],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "ráctu",
         },
       ],
     },

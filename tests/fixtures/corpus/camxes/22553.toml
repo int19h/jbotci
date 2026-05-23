@@ -18,53 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cáfne mórji gúnka ki'a)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [18,22],
-  },
+  Gismu "cáfne",
+  Gismu "mórji",
+  Gismu "gúnka",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [6,11],
-  },
+  Gismu "cáfne",
+  Gismu "mórji",
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [12,17],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ki'a",
-      span: [18,22],
-    },
+    Gismu "gúnka",
+    indicator: Cmavo "ki'a",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cafne","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"morji","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"gunka","kind":"gismu"}}},"indicator":{"span":[18,22],"phonemes":"ki'a","kind":"cmavo"}}}}]}}}}}}}}]}]}"""

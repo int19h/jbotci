@@ -18,71 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i co'o do'u mi sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [15,20],
-  },
+  Cmavo "i",
+  Cmavo "co'o",
+  Cmavo "do'u",
+  Cmavo "mi",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"sipna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [3,7],
-        },
+        Cmavo "co'o",
       ],
-      dohu: Word {
-        kind: "cmavo",
-        phonemes: "do'u",
-        span: [7,11],
-      },
+      dohu: Cmavo "do'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [15,20],
-    },
+    Gismu "sípna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}}}],"dohu":{"Bare":{"Bare":{"span":[7,11],"phonemes":"do'u","kind":"cmavo"}}}}}],"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}]}]}"""

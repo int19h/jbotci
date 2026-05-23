@@ -18,41 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(crovú'i xíndo cídja)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "crovu'i",
-    span: [0,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xindo",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cidja",
-    span: [14,19],
-  },
+  Lujvo "crovú'i",
+  Gismu "xíndo",
+  Gismu "cídja",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"crovu'i","kind":"lujvo"}},{"Bare":{"span":[8,13],"phonemes":"xindo","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cidja","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "crovu'i",
-    span: [0,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xindo",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cidja",
-    span: [14,19],
-  },
+  Lujvo "crovú'i",
+  Gismu "xíndo",
+  Gismu "cídja",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,7],"phonemes":"crovu'i","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"xindo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"cidja","kind":"gismu"}}}}]}}}}}}}}]}]}"""

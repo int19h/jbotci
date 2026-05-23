@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi djúno fi la'e do'i lu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'u",
-    span: [22,26],
-  },
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "fi",
+  Cmavo "la'e",
+  Cmavo "do'i",
+  Cmavo "lu'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"do'i","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"lu'u","kind":"cmavo"}}]"""
 
@@ -59,41 +35,17 @@ brackets = "(mi [djúno {fi (la'e do'i lu'u)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [3,8],
-    },
+    Gismu "djúno",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [9,11],
-        },
+        fa: Cmavo "fi",
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [12,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do'i",
-            span: [17,21],
-          },
-          luhu: Word {
-            kind: "cmavo",
-            phonemes: "lu'u",
-            span: [22,26],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "do'i",
+          luhu: Cmavo "lu'u",
         },
       },
     ],

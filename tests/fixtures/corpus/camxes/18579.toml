@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o xágji .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xagji",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [12,14],
-  },
+  Cmavo "ni'o",
+  Gismu "xágji",
+  Cmavo "oĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xagji","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"oĭ","kind":"cmavo"}}]"""
 
@@ -40,23 +28,11 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "xagji",
-      span: [5,10],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [12,14],
-    },
+    Gismu "xágji",
+    indicator: Cmavo "oĭ",
   },
 }"""
 json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}}}],"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"xagji","kind":"gismu"}}},"indicator":{"span":[12,14],"phonemes":"oĭ","kind":"cmavo"}}}}}}}}}}}]}]}"""

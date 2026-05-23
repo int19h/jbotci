@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ doĭ .elron. poĭ xu ca xálka fénki ke'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elron",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalka",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [36,40],
-  },
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Cmevla "elron",
+  Cmavo "poĭ",
+  Cmavo "xu",
+  Cmavo "ca",
+  Gismu "xálka",
+  Gismu "fénki",
+  Cmavo "ke'a",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"elron","kind":"cmevla"}},{"Bare":{"span":[14,17],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"xalka","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
@@ -72,63 +36,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [4,7],
-        },
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
       argument: RelativeClause {
-        base_argument: Word {
-          kind: "cmevla",
-          phonemes: "elron",
-          span: [8,13],
-        },
+        base_argument: Cmevla "elron",
         relative_clauses: [
           Poi {
             poi: WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [14,17],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "xu",
-                span: [18,20],
-              },
+              Cmavo "poĭ",
+              indicator: Cmavo "xu",
             },
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ca",
-                  span: [21,23],
-                },
+                tense_modal: Cmavo "ca",
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "xalka",
-                    span: [24,29],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "fenki",
-                    span: [30,35],
-                  },
+                  Gismu "xálka",
+                  Gismu "fénki",
                 },
               },
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ke'a",
-                  span: [36,40],
-                },
+                Cmavo "ke'a",
               ],
             },
           },

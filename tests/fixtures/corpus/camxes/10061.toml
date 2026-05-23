@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no'e xámgu xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [11,13],
-  },
+  Cmavo "no'e",
+  Gismu "xámgu",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"xu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Nahe {
-  nahe: Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [0,4],
-  },
+  nahe: Cmavo "no'e",
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [5,10],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [11,13],
-    },
+    Gismu "xámgu",
+    indicator: Cmavo "xu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"no'e","kind":"cmavo"}}},"inner_unit":{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"xamgu","kind":"gismu"}}},"indicator":{"span":[11,13],"phonemes":"xu","kind":"cmavo"}}}}}}]}}}}}}}}]}]}"""

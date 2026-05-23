@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭe do na jímpe fi ro lójbo ke lógji válsi doĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [31,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [47,52],
-  },
+  Cmavo "ŭe",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "fi",
+  Cmavo "ro",
+  Gismu "lójbo",
+  Cmavo "ke",
+  Gismu "lógji",
+  Gismu "válsi",
+  Cmavo "doĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"logji","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"robin","kind":"cmevla"}}]'
 
@@ -86,87 +38,39 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭe",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [7,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [10,15],
-        },
+        na: Cmavo "na",
+        Gismu "jímpe",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [16,18],
-          },
+          fa: Cmavo "fi",
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ro",
-                span: [19,21],
-              },
+              Cmavo "ro",
             ],
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "lojbo",
-                span: [22,27],
-              },
+              Gismu "lójbo",
               Ke {
-                ke: Word {
-                  kind: "cmavo",
-                  phonemes: "ke",
-                  span: [28,30],
-                },
+                ke: Cmavo "ke",
                 Compound {
+                  Gismu "lógji",
                   Word {
-                    kind: "gismu",
-                    phonemes: "logji",
-                    span: [31,36],
-                  },
-                  Word {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "valsi",
-                      span: [37,42],
-                    },
+                    Gismu "válsi",
                     free_modifiers: [
                       Vocative {
                         vocative_markers: [
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "doĭ",
-                            span: [43,46],
-                          },
+                          Cmavo "doĭ",
                         ],
-                        argument: Word {
-                          kind: "cmevla",
-                          phonemes: "robin",
-                          span: [47,52],
-                        },
+                        argument: Cmevla "robin",
                       },
                     ],
                   },

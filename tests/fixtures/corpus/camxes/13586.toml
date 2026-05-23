@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o gléki cníno nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [17,22],
-  },
+  Cmavo "a'o",
+  Gismu "gléki",
+  Gismu "cníno",
+  Gismu "nánca",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"nanca","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "gleki",
-      span: [5,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cnino",
-      span: [11,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nanca",
-      span: [17,22],
-    },
+    Gismu "gléki",
+    Gismu "cníno",
+    Gismu "nánca",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"gleki","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"cnino","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"nanca","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}}}}]}"""

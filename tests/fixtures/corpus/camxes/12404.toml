@@ -19,68 +19,20 @@ brackets = "([zo cúsko] na'e gísmu .i ru'a naldráni ke lérfu pórsi [zo cús
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cusko",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "cúsko",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [21,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [23,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naldrani",
-    span: [28,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porsi",
-    span: [46,51],
-  },
+  Cmavo "na'e",
+  Gismu "gísmu",
+  Cmavo "i",
+  Cmavo "ru'a",
+  Lujvo "naldráni",
+  Cmavo "ke",
+  Gismu "lérfu",
+  Gismu "pórsi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [52,54],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cusko",
-      span: [55,60],
-    },
+    zo: Cmavo "zo",
+    Gismu "cúsko",
   },
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"cusko","kind":"gismu"}}},{"Bare":{"span":[9,13],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"gismu","kind":"gismu"}},{"Bare":{"span":[21,22],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[28,36],"phonemes":"naldrani","kind":"lujvo"}},{"Bare":{"span":[37,39],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"porsi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[52,54],"phonemes":"zo","kind":"cmavo"},"word":{"span":[55,60],"phonemes":"cusko","kind":"gismu"}}}]"""
@@ -91,83 +43,35 @@ Paragraph {
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusko",
-          span: [3,8],
-        },
+        zo: Cmavo "zo",
+        Gismu "cúsko",
       },
     ],
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gismu",
-        span: [14,19],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "gísmu",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [21,22],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [23,27],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ru'a",
     },
     Relation {
       Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "naldrani",
-          span: [28,36],
-        },
+        Lujvo "naldráni",
         Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [37,39],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lerfu",
-              span: [40,45],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "porsi",
-              span: [46,51],
-            },
+            Gismu "lérfu",
+            Gismu "pórsi",
           },
         },
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [52,54],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cusko",
-            span: [55,60],
-          },
+          zo: Cmavo "zo",
+          Gismu "cúsko",
         },
       ],
     },

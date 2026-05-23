@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kágni fi le nu skína gálfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skina",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [24,29],
-  },
+  Cmavo "le",
+  Gismu "kágni",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "skína",
+  Gismu "gálfi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kagni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"skina","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"galfi","kind":"gismu"}}]'
 
@@ -61,46 +33,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "kagni",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "kágni",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [9,11],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [15,17],
-          },
+          nu: Cmavo "nu",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skina",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "galfi",
-              span: [24,29],
-            },
+            Gismu "skína",
+            Gismu "gálfi",
           },
         },
       },

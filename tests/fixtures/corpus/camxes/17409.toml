@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i mi za'o na távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "za'o",
+  Cmavo "na",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "za'o",
-        span: [10,14],
-      },
+      tense_modal: Cmavo "za'o",
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [18,23],
-        },
+        na: Cmavo "na",
+        Gismu "távla",
       },
     },
   },

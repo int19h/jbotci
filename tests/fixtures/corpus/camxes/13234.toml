@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pu tcídu [zo cítka])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [9,14],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tcídu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [15,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "citka",
-      span: [18,23],
-    },
+    zo: Cmavo "zo",
+    Gismu "cítka",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"tcidu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[15,17],"phonemes":"zo","kind":"cmavo"},"word":{"span":[18,23],"phonemes":"citka","kind":"gismu"}}}]'
@@ -56,44 +32,20 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tcidu",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "tcídu",
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [15,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "citka",
-            span: [18,23],
-          },
+          zo: Cmavo "zo",
+          Gismu "cítka",
         },
       ],
     },

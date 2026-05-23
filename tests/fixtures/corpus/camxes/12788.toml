@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'e rémna kánla cu mánci mínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanla",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "manci",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [26,31],
-  },
+  Cmavo "lo'e",
+  Gismu "rémna",
+  Gismu "kánla",
+  Cmavo "cu",
+  Gismu "mánci",
+  Gismu "mínji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"kanla","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"manci","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"minji","kind":"gismu"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [0,4],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "remna",
-          span: [5,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kanla",
-          span: [11,16],
-        },
+        Gismu "rémna",
+        Gismu "kánla",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "manci",
-      span: [20,25],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "minji",
-      span: [26,31],
-    },
+    Gismu "mánci",
+    Gismu "mínji",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"remna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"kanla","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"manci","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"minji","kind":"gismu"}}}}]}}}}}}}}]}]}"""

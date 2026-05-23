@@ -18,27 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba'e [da bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [3,7],
-  },
+  Cmavo "mi",
+  Cmavo "ba'e",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [8,10],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [11,13],
-    },
+    Cmavo "da",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'e","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}},"bu":{"span":[11,13],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -47,30 +31,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     Letter {
       letter: [
         Emphasized {
-          bahe: Word {
-            kind: "cmavo",
-            phonemes: "ba'e",
-            span: [3,7],
-          },
+          bahe: Cmavo "ba'e",
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [8,10],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [11,13],
-            },
+            Cmavo "da",
+            bu: Cmavo "bu",
           },
         },
       ],

@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ke jórne se mífra bénji gérna ke'e dátni gírzu skámi císte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mifra",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [30,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [35,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [41,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [47,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [53,58],
-  },
+  Cmavo "ke",
+  Gismu "jórne",
+  Cmavo "se",
+  Gismu "mífra",
+  Gismu "bénji",
+  Gismu "gérna",
+  Cmavo "ke'e",
+  Gismu "dátni",
+  Gismu "gírzu",
+  Gismu "skámi",
+  Gismu "císte",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jorne","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mifra","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[41,46],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[47,52],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[53,58],"phonemes":"ciste","kind":"gismu"}}]"""
 
@@ -80,65 +36,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Compound {
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [0,2],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "jorne",
-        span: [3,8],
-      },
+      Gismu "jórne",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [9,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mifra",
-          span: [12,17],
-        },
+        se: Cmavo "se",
+        Gismu "mífra",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "benji",
-        span: [18,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gerna",
-        span: [24,29],
-      },
+      Gismu "bénji",
+      Gismu "gérna",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [30,34],
-    },
+    kehe: Cmavo "ke'e",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [35,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [41,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [47,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [53,58],
-  },
+  Gismu "dátni",
+  Gismu "gírzu",
+  Gismu "skámi",
+  Gismu "císte",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Ke":{"ke":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"jorne","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"mifra","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"benji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"gerna","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[30,34],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[35,40],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[41,46],"phonemes":"girzu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[47,52],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[53,58],"phonemes":"ciste","kind":"gismu"}}}}]}}}}}}}}]}]}"""

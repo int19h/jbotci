@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ce do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
+  Cmavo "mi",
+  Cmavo "ce",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ce","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -41,21 +29,9 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "ce",
-        span: [3,5],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      leading_argument: Cmavo "mi",
+      connective: Cmavo "ce",
+      trailing_argument: Cmavo "do",
     },
   ],
 }"""

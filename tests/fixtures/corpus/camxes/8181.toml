@@ -18,106 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sípna .i ju tátpi .i mu'i bo ba gúnka)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [29,34],
-  },
+  Gismu "sípna",
+  Cmavo "i",
+  Cmavo "ju",
+  Gismu "tátpi",
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "bo",
+  Cmavo "ba",
+  Gismu "gúnka",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"gunka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
+  leading_statement: Gismu "sípna",
+  i: Cmavo "i",
+  connective: Cmavo "ju",
   trailing_statement: Connected {
-    leading_statement: Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [11,16],
-    },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [18,19],
-    },
+    leading_statement: Gismu "tátpi",
+    i: Cmavo "i",
     connective: Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "mu'i",
-        span: [19,23],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [23,25],
-      },
+      Cmavo "mu'i",
+      Cmavo "bo",
     },
     trailing_statement: TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [26,28],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [29,34],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "gúnka",
     },
   },
 }"""

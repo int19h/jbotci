@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma'a cásnu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [11,13],
-  },
+  Cmavo "ma'a",
+  Gismu "cásnu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -40,24 +28,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma'a",
-      span: [0,4],
-    },
+    Cmavo "ma'a",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "casnu",
-      span: [5,10],
-    },
+    Gismu "cásnu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [11,13],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

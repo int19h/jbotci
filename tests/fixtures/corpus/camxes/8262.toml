@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gaŭ ku ca fárvi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farvi",
-    span: [10,15],
-  },
+  Cmavo "gaŭ",
+  Cmavo "ku",
+  Cmavo "ca",
+  Gismu "fárvi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"farvi","kind":"gismu"}}]'
 
@@ -47,32 +31,16 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [7,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "farvi",
-      span: [10,15],
-    },
+    tense_modal: Cmavo "ca",
+    Gismu "fárvi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"farvi","kind":"gismu"}}}}}}}}}}}}}]}]}'

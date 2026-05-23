@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭe sníme vi la .astyn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snime",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "astyn",
-    span: [17,22],
-  },
+  Cmavo "ŭe",
+  Gismu "sníme",
+  Cmavo "vi",
+  Cmavo "la",
+  Cmevla "astyn",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"snime","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"astyn","kind":"cmevla"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭe",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "snime",
-      span: [4,9],
-    },
+    Gismu "sníme",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [10,12],
-        },
+        tense_modal: Cmavo "vi",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [13,15],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "astyn",
-              span: [17,22],
-            },
+            Cmevla "astyn",
           ],
         },
       },

@@ -23,66 +23,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'a naĭ cy no prulámdeĭ .i ca cy no zo'u mi bílma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "prulamdeĭ",
-    span: [15,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [26,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [45,50],
-  },
+  Cmavo "ju'a",
+  Cmavo "naĭ",
+  Cmavo "cy",
+  Cmavo "no",
+  Lujvo "prulámdeĭ",
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "cy",
+  Cmavo "no",
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "bílma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"prulamdeĭ","kind":"lujvo"}},{"Bare":{"span":[26,27],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"bilma","kind":"gismu"}}]"""
 
@@ -92,16 +44,8 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ju'a",
-        span: [0,4],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      indicator: Cmavo "ju'a",
+      nai: Cmavo "naĭ",
     },
   ],
   Paragraph {
@@ -109,73 +53,33 @@ Text {
       leading_terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "cy",
-              span: [9,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [12,14],
-            },
+            Cmavo "cy",
+            Cmavo "no",
           ],
         },
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "prulamdeĭ",
-        span: [15,24],
-      },
+      Lujvo "prulámdeĭ",
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [26,27],
-      },
+      i: Cmavo "i",
       Prenex {
         prenex_terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [28,30],
-            },
+            tense_modal: Cmavo "ca",
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "cy",
-                  span: [31,33],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "no",
-                  span: [34,36],
-                },
+                Cmavo "cy",
+                Cmavo "no",
               ],
             },
           },
         ],
-        zohu: Word {
-          kind: "cmavo",
-          phonemes: "zo'u",
-          span: [37,41],
-        },
+        zohu: Cmavo "zo'u",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [42,44],
-            },
+            Cmavo "mi",
           ],
-          Word {
-            kind: "gismu",
-            phonemes: "bilma",
-            span: [45,50],
-          },
+          Gismu "bílma",
         },
       },
     },

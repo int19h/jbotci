@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.bad. practíce)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "bad",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [4,12],
-  },
+  Cmevla "bad",
+  Lujvo "practíce",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"bad","kind":"cmevla"}},{"Bare":{"span":[4,12],"phonemes":"practice","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"bad","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "bad",
-      span: [0,3],
-    },
+    Cmevla "bad",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [4,12],
-  },
+  Lujvo "practíce",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"bad","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,12],"phonemes":"practice","kind":"lujvo"}}}}}}}}}}}]}]}'

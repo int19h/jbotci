@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o la .and. ba xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "and",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [14,19],
-  },
+  Cmavo "a'o",
+  Cmavo "la",
+  Cmevla "and",
+  Cmavo "ba",
+  Gismu "xrúti",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xruti","kind":"gismu"}}]"""
 
@@ -51,41 +31,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [4,6],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "and",
-            span: [7,10],
-          },
+          Cmevla "and",
         ],
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xruti",
-        span: [14,19],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "xrúti",
     },
   },
 }"""

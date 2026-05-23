@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi le mi cméne ca lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [19,24],
-  },
+  Cmavo "ŭi",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "cméne",
+  Cmavo "ca",
+  Gismu "lójbo",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"lojbo","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [7,9],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cmene",
-          span: [10,15],
-        },
+        relation: Gismu "cméne",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [16,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [19,24],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "lójbo",
     },
   },
 }"""

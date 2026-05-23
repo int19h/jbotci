@@ -19,66 +19,18 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(je'e naĭ .i na mi cu smúni jímpe fi le pu préti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [41,46],
-  },
+  Cmavo "je'e",
+  Cmavo "naĭ",
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "mi",
+  Cmavo "cu",
+  Gismu "smúni",
+  Gismu "jímpe",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "pu",
+  Gismu "préti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"preti","kind":"gismu"}}]"""
 
@@ -88,80 +40,32 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "je'e",
+        Cmavo "naĭ",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [14,16],
-        },
+        Cmavo "na",
+        Cmavo "mi",
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [17,19],
-      },
+      cu: Cmavo "cu",
       Relation {
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "smuni",
-            span: [20,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jimpe",
-            span: [26,31],
-          },
+          Gismu "smúni",
+          Gismu "jímpe",
         },
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [32,34],
-            },
+            fa: Cmavo "fi",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [35,37],
-              },
+              descriptor: Cmavo "le",
               relation: TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "pu",
-                  span: [38,40],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "preti",
-                  span: [41,46],
-                },
+                tense_modal: Cmavo "pu",
+                Gismu "préti",
               },
             },
           },

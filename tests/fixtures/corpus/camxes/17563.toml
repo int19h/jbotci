@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o doĭ .clsn. zváti ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Cmavo "ta'o",
+  Cmavo "doĭ",
+  Cmevla "clsn",
+  Gismu "zváti",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[14,19],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -51,41 +31,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ta'o",
     },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [5,8],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "clsn",
-        span: [9,13],
-      },
+      argument: Cmevla "clsn",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [14,19],
-    },
+    Gismu "zváti",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [20,22],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

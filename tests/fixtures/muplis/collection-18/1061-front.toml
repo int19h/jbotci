@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.aŭ mi kláma lo dráta gúgde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gugde",
-    span: [21,26],
-  },
+  Cmavo "aŭ",
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "lo",
+  Gismu "dráta",
+  Gismu "gúgde",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"gugde","kind":"gismu"}}]'
 
@@ -60,45 +36,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "aŭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [6,11],
-      },
+      Gismu "kláma",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [12,14],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "drata",
-              span: [15,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gugde",
-              span: [21,26],
-            },
+            Gismu "dráta",
+            Gismu "gúgde",
           },
         },
       ],

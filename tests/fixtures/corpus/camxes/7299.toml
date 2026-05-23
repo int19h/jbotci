@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o .i mi ba zi xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [16,21],
-  },
+  Cmavo "co'o",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "xrúti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"xruti","kind":"gismu"}}]"""
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [8,10],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [13,15],
-          },
+          Cmavo "ba",
+          Cmavo "zi",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "xruti",
-          span: [16,21],
-        },
+        Gismu "xrúti",
       },
     },
   },

@@ -18,149 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ca le purlámdeĭ mrílu su'o ci ki'o da poĭ festrspáma mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "purlamdeĭ",
-    span: [9,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "festrspama",
-    span: [44,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [55,57],
-  },
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "purlámdeĭ",
+  Gismu "mrílu",
+  Cmavo "su'o",
+  Cmavo "ci",
+  Cmavo "ki'o",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Fuhivla "festrspáma",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,18],"phonemes":"purlamdeĭ","kind":"lujvo"}},{"Bare":{"span":[19,24],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[40,43],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[44,54],"phonemes":"festrspama","kind":"fu'ivla"}},{"Bare":{"span":[55,57],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [3,5],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [6,8],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "purlamdeĭ",
-              span: [9,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "mrilu",
-              span: [19,24],
-            },
+            Lujvo "purlámdeĭ",
+            Gismu "mrílu",
           },
         },
       },
       RelativeClause {
         base_argument: Quantified {
           quantifier: Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "su'o",
-              span: [25,29],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [30,32],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ki'o",
-              span: [32,36],
-            },
+            Cmavo "su'o",
+            Cmavo "ci",
+            Cmavo "ki'o",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [37,39],
-          },
+          Cmavo "da",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [40,43],
-            },
+            poi: Cmavo "poĭ",
             Relation {
-              Word {
-                kind: "fu'ivla",
-                phonemes: "festrspama",
-                span: [44,54],
-              },
+              Fuhivla "festrspáma",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [55,57],
-                },
+                Cmavo "mi",
               ],
             },
           },

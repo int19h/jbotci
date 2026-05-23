@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ ca vi gláre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [10,15],
-  },
+  Cmavo "oĭ",
+  Cmavo "ca",
+  Cmavo "vi",
+  Gismu "gláre",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"glare","kind":"gismu"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [4,6],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [7,9],
-      },
+      Cmavo "ca",
+      Cmavo "vi",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "glare",
-      span: [10,15],
-    },
+    Gismu "gláre",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[4,6],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,9],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"glare","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}}}]}'

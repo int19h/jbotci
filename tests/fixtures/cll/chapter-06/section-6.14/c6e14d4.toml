@@ -24,33 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi cúsku [zoĭ .kut. I'm John .kut.])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [3,8],
-  },
+  Cmavo "mi",
+  Gismu "cúsku",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [9,12],
-    },
-    opening_delimiter: Word {
-      kind: "cmevla",
-      phonemes: "kut",
-      span: [14,17],
-    },
-    quoted_text: [19,27],
-    closing_delimiter: Word {
-      kind: "cmevla",
-      phonemes: "kut",
-      span: [29,32],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmevla "kut",
+    quoted_text: Verbatim "I'm John",
+    closing_delimiter: Cmevla "kut",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[9,12],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[14,17],"phonemes":"kut","kind":"cmevla"},"quoted_text":[19,27],"closing_delimiter":{"span":[29,32],"phonemes":"kut","kind":"cmevla"}}}]'
@@ -60,36 +40,16 @@ brackets = "(mi [cúsku {zoĭ .kut. I'm John .kut.}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [3,8],
-    },
+    Gismu "cúsku",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [9,12],
-        },
-        opening_delimiter: Word {
-          kind: "cmevla",
-          phonemes: "kut",
-          span: [14,17],
-        },
-        quoted_text: [19,27],
-        closing_delimiter: Word {
-          kind: "cmevla",
-          phonemes: "kut",
-          span: [29,32],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmevla "kut",
+        quoted_text: Verbatim "I'm John",
+        closing_delimiter: Cmevla "kut",
       },
     ],
   },

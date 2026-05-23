@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a do cértu je baŭ sútra pénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [27,32],
-  },
+  Cmavo "za'a",
+  Cmavo "do",
+  Gismu "cértu",
+  Cmavo "je",
+  Cmavo "baŭ",
+  Gismu "sútra",
+  Gismu "pénsi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"pensi","kind":"gismu"}}]"""
 
@@ -61,53 +33,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "certu",
-        span: [8,13],
-      },
+      Gismu "cértu",
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [14,16],
-          },
+          connective: Cmavo "je",
           TenseModal {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baŭ",
-                span: [17,20],
-              },
+              bai: Cmavo "baŭ",
             },
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "sutra",
-                span: [21,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "pensi",
-                span: [27,32],
-              },
+              Gismu "sútra",
+              Gismu "pénsi",
             },
           },
         },

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do se prámi mi zo'o saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [37,40],
-  },
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "prámi",
+  Cmavo "mi",
+  Cmavo "zo'o",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
@@ -55,44 +31,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [21,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "prami",
-        span: [24,29],
-      },
+      se: Cmavo "se",
+      Gismu "prámi",
     },
     terms: [
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [30,32],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [33,37],
-          },
+          Cmavo "mi",
+          indicator: Cmavo "zo'o",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [37,40],
-        },
+        indicator: Cmavo "saĭ",
       },
     ],
   },

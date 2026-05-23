@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gy cfíka bángu ve du'o ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfika",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [23,25],
-  },
+  Cmavo "gy",
+  Gismu "cfíka",
+  Gismu "bángu",
+  Cmavo "ve",
+  Cmavo "du'o",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"gy","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cfika","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -57,46 +33,22 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [0,2],
-        },
+        Cmavo "gy",
       ],
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cfika",
-        span: [4,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "bangu",
-        span: [10,15],
-      },
+      Gismu "cfíka",
+      Gismu "bángu",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "ve",
-            span: [16,18],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "du'o",
-            span: [18,22],
-          },
+          se: Cmavo "ve",
+          bai: Cmavo "du'o",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [23,25],
-        },
+        Cmavo "ma",
       },
     ],
   },

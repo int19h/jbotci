@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le cíblu cu jaĭ jálge)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciblu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jalge",
-    span: [16,21],
-  },
+  Cmavo "le",
+  Gismu "cíblu",
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "jálge",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ciblu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jalge","kind":"gismu"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ciblu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "cíblu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [12,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jalge",
-      span: [16,21],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "jálge",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"ciblu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"jalge","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

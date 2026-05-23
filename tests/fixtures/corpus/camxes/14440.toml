@@ -18,148 +18,52 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ro da zo'u ga naĭ da jávni gi da na gírzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "javni",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "da",
+  Gismu "jávni",
+  Cmavo "gi",
+  Cmavo "da",
+  Cmavo "na",
+  Gismu "gírzu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"javni","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"girzu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Prenex {
     prenex_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [6,8],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
     ],
-    zohu: Word {
-      kind: "cmavo",
-      phonemes: "zo'u",
-      span: [9,13],
-    },
+    zohu: Cmavo "zo'u",
     Pair {
       gek: Forethought {
-        Word {
-          kind: "cmavo",
-          phonemes: "ga",
-          span: [14,16],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [16,19],
-        },
+        Cmavo "ga",
+        nai: Cmavo "naĭ",
       },
       first: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [20,22],
-          },
+          Cmavo "da",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "javni",
-          span: [23,28],
-        },
+        Gismu "jávni",
       },
-      gik: Word {
-        kind: "cmavo",
-        phonemes: "gi",
-        span: [29,31],
-      },
+      gik: Cmavo "gi",
       second: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [32,34],
-          },
+          Cmavo "da",
         ],
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [35,37],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "girzu",
-            span: [38,43],
-          },
+          na: Cmavo "na",
+          Gismu "gírzu",
         },
       },
     },

@@ -18,138 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i do préti le se du'u xu kaŭ ma gúgde cmíma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gugde",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "préti",
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "du'u",
+  Cmavo "xu",
+  Cmavo "kaŭ",
+  Cmavo "ma",
+  Gismu "gúgde",
+  Gismu "cmíma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"gugde","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"cmima","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [6,11],
-      },
+      Gismu "préti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [15,17],
-            },
+            se: Cmavo "se",
             Abstraction {
               nu: WithIndicator {
                 WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "du'u",
-                    span: [18,22],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "xu",
-                    span: [23,25],
-                  },
+                  Cmavo "du'u",
+                  indicator: Cmavo "xu",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "kaŭ",
-                  span: [25,28],
-                },
+                indicator: Cmavo "kaŭ",
               },
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ma",
-                    span: [29,31],
-                  },
+                  Cmavo "ma",
                 ],
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "gugde",
-                    span: [32,37],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "cmima",
-                    span: [38,43],
-                  },
+                  Gismu "gúgde",
+                  Gismu "cmíma",
                 },
               },
             },

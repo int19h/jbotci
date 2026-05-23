@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kójna bo gléki)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kojna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [9,14],
-  },
+  Gismu "kójna",
+  Cmavo "bo",
+  Gismu "gléki",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kojna","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"gleki","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Bo {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "kojna",
-    span: [0,5],
-  },
-  bo: Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [6,8],
-  },
-  trailing_relation: Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [9,14],
-  },
+  leading_relation: Gismu "kójna",
+  bo: Cmavo "bo",
+  trailing_relation: Gismu "gléki",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Bo":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"kojna","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[6,8],"phonemes":"bo","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"gleki","kind":"gismu"}}}}}}}}}}}}}]}]}'

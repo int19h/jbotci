@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .bancus. xu vu cermúrse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cermurse",
-    span: [18,26],
-  },
+  Cmavo "doĭ",
+  Cmevla "bancus",
+  Cmavo "xu",
+  Cmavo "vu",
+  Lujvo "cermúrse",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[18,26],"phonemes":"cermurse","kind":"lujvo"}}]'
 
@@ -52,37 +32,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "bancus",
-          span: [4,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [12,14],
-        },
+        Cmevla "bancus",
+        indicator: Cmavo "xu",
       },
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "vu",
-      span: [15,17],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "cermurse",
-      span: [18,26],
-    },
+    tense_modal: Cmavo "vu",
+    Lujvo "cermúrse",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}}},"indicator":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[15,17],"phonemes":"vu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[18,26],"phonemes":"cermurse","kind":"lujvo"}}}}}}}}}}}}}]}]}'

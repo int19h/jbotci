@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .camgusmis. xu do zváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "camgusmis",
-    span: [4,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [20,25],
-  },
+  Cmavo "doĭ",
+  Cmevla "camgusmis",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "zváti",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,13],"phonemes":"camgusmis","kind":"cmevla"}},{"Bare":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"zvati","kind":"gismu"}}]'
 
@@ -52,39 +32,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "camgusmis",
-          span: [4,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [14,16],
-        },
+        Cmevla "camgusmis",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [17,19],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [20,25],
-    },
+    Gismu "zváti",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,13],"phonemes":"camgusmis","kind":"cmevla"}}},"indicator":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"zvati","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -18,66 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma do cúsku [{zo .a} bu] .e naĭ [zo gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [11,16],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "do",
+  Gismu "cúsku",
   Letter {
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [17,19],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "a",
-        span: [20,21],
-      },
+      zo: Cmavo "zo",
+      Cmavo "a",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [21,23],
-    },
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [26,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [27,30],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [31,33],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [34,36],
-    },
+    zo: Cmavo "zo",
+    Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cusku","kind":"gismu"}},{"Letter":{"base":{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,21],"phonemes":"a","kind":"cmavo"}}},"bu":{"span":[21,23],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[26,27],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[31,33],"phonemes":"zo","kind":"cmavo"},"word":{"span":[34,36],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -88,78 +44,34 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [11,16],
-    },
+    Gismu "cúsku",
     terms: [
       Connected {
         leading_argument: Letter {
           letter: [
             Letter {
               ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [17,19],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "a",
-                  span: [20,21],
-                },
+                zo: Cmavo "zo",
+                Cmavo "a",
               },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [21,23],
-              },
+              bu: Cmavo "bu",
             },
           ],
         },
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [26,27],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [27,30],
-          },
+          Cmavo "e",
+          nai: Cmavo "naĭ",
         },
         trailing_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [31,33],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [34,36],
-          },
+          zo: Cmavo "zo",
+          Cmavo "gy",
         },
       },
     ],

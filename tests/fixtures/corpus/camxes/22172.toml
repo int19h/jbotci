@@ -18,83 +18,23 @@ error = { position = 13, allowed-next = [] }
 brackets = "(ga naĭ mi préti vi [la'o gy #Rhythmbox gy] gi le nu mi go'a keĭ lákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [15,17],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "préti",
+  Cmavo "vi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [18,22],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [23,25],
-    },
-    quoted_text: [27,37],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [39,41],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "#Rhythmbox",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [53,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [58,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [62,67],
-  },
+  Cmavo "gi",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Cmavo "go'a",
+  Cmavo "keĭ",
+  Gismu "lákne",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"vi","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[18,22],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"},"quoted_text":[27,37],"closing_delimiter":{"span":[39,41],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[42,44],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[53,57],"phonemes":"go'a","kind":"cmavo"}},{"Bare":{"span":[58,61],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[62,67],"phonemes":"lakne","kind":"gismu"}}]"""

@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ zy ji'a mi .e by na práne jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prane",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [32,37],
-  },
+  Cmavo "doĭ",
+  Cmavo "zy",
+  Cmavo "ji'a",
+  Cmavo "mi",
+  Cmavo "e",
+  Cmavo "by",
+  Cmavo "na",
+  Gismu "práne",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"prane","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -72,25 +36,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "zy",
-              span: [4,6],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ji'a",
-              span: [8,12],
-            },
+            Cmavo "zy",
+            indicator: Cmavo "ji'a",
           },
         ],
       },
@@ -99,44 +51,20 @@ Text {
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [13,15],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [17,18],
-        },
+        leading_argument: Cmavo "mi",
+        connective: Cmavo "e",
         trailing_argument: Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "by",
-              span: [19,21],
-            },
+            Cmavo "by",
           ],
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [23,25],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "prane",
-          span: [26,31],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [32,37],
-        },
+        Gismu "práne",
+        Gismu "jímpe",
       },
     },
   },

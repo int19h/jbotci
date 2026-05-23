@@ -19,41 +19,13 @@ brackets = "([.a bu] bílma fi bésna nu xráni)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [0,1],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [1,3],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "besna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [23,28],
-  },
+  Gismu "bílma",
+  Cmavo "fi",
+  Gismu "bésna",
+  Cmavo "nu",
+  Gismu "xráni",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,10],"phonemes":"bilma","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"besna","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"xrani","kind":"gismu"}}]'

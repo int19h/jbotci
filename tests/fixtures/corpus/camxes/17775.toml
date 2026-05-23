@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na slábu [la'o gy cormorant gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [6,11],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "slábu",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [12,16],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [17,19],
-    },
-    quoted_text: [21,30],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [32,34],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "cormorant",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"slabu","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[12,16],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[17,19],"phonemes":"gy","kind":"cmavo"},"quoted_text":[21,30],"closing_delimiter":{"span":[32,34],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -58,43 +34,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "slabu",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "slábu",
     },
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [12,16],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [17,19],
-        },
-        quoted_text: [21,30],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [32,34],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "cormorant",
+        closing_delimiter: Cmavo "gy",
       },
     ],
   },

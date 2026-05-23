@@ -19,31 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ráfsi li'o)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [9,13],
-  },
+  Gismu "ráfsi",
+  Cmavo "li'o",
 ]"""
 json = """[{"Bare":{"span":[3,8],"phonemes":"rafsi","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"li'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [3,8],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [9,13],
-  },
+  Gismu "ráfsi",
+  indicator: Cmavo "li'o",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"rafsi","kind":"gismu"}}},"indicator":{"span":[9,13],"phonemes":"li'o","kind":"cmavo"}}}}}}}}}}}]}]}"""

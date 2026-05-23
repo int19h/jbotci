@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i jo naĭ rígni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [8,13],
-  },
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "naĭ",
+  Gismu "rígni",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"rigni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "jo",
-      span: [2,4],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [4,7],
-    },
+    Cmavo "jo",
+    nai: Cmavo "naĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [8,13],
-  },
+  Gismu "rígni",
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[2,4],"phonemes":"jo","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"rigni","kind":"gismu"}}}}}}}}}}}]}]}'

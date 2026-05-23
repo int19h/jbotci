@@ -19,22 +19,10 @@ brackets = "([zo kaŭ] bánzu)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "kaŭ",
-      span: [3,6],
-    },
+    zo: Cmavo "zo",
+    Cmavo "kaŭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [7,12],
-  },
+  Gismu "bánzu",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"kaŭ","kind":"cmavo"}}},{"Bare":{"span":[7,12],"phonemes":"banzu","kind":"gismu"}}]'
 
@@ -43,22 +31,10 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "kaŭ",
-        span: [3,6],
-      },
+      zo: Cmavo "zo",
+      Cmavo "kaŭ",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [7,12],
-  },
+  Gismu "bánzu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"kaŭ","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}'

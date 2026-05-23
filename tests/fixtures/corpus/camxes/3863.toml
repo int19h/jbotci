@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ma se ckáji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckaji",
-    span: [9,14],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "ckáji",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"ckaji","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      Cmavo "ma",
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ckaji",
-        span: [9,14],
-      },
+      se: Cmavo "se",
+      Gismu "ckáji",
     },
   },
 }"""

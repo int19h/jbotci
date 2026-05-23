@@ -18,66 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i fánva fi ma ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
+  Cmavo "i",
+  Gismu "fánva",
+  Cmavo "fi",
+  Cmavo "ma",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "fanva",
-      span: [3,8],
-    },
+    Gismu "fánva",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [12,14],
-        },
+        fa: Cmavo "fi",
+        Cmavo "ma",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [15,17],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

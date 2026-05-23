@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .tal. do mútce cértu le ca kúsru cúsku .u'i .e'e daĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tal",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kusru",
-    span: [30,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [43,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'e",
-    span: [48,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "daĭ",
-    span: [51,54],
-  },
+  Cmavo "doĭ",
+  Cmevla "tal",
+  Cmavo "do",
+  Gismu "mútce",
+  Gismu "cértu",
+  Cmavo "le",
+  Cmavo "ca",
+  Gismu "kúsru",
+  Gismu "cúsku",
+  Cmavo "u'i",
+  Cmavo "e'e",
+  Cmavo "daĭ",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"kusru","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[48,51],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[51,54],"phonemes":"daĭ","kind":"cmavo"}}]"""
 
@@ -87,84 +39,36 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "tal",
-        span: [4,7],
-      },
+      argument: Cmevla "tal",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [9,11],
-      },
+      Cmavo "do",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "certu",
-          span: [18,23],
-        },
+        Gismu "mútce",
+        Gismu "cértu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [24,26],
-          },
+          descriptor: Cmavo "le",
           relation: TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [27,29],
-            },
+            tense_modal: Cmavo "ca",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "kusru",
-                span: [30,35],
-              },
+              Gismu "kúsru",
               WithIndicator {
                 WithIndicator {
                   WithIndicator {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "cusku",
-                      span: [36,41],
-                    },
-                    indicator: Word {
-                      kind: "cmavo",
-                      phonemes: "u'i",
-                      span: [43,46],
-                    },
+                    Gismu "cúsku",
+                    indicator: Cmavo "u'i",
                   },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "e'e",
-                    span: [48,51],
-                  },
+                  indicator: Cmavo "e'e",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "daĭ",
-                  span: [51,54],
-                },
+                indicator: Cmavo "daĭ",
               },
             },
           },

@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma goĭ ko'a zo'u ti mírli ko'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mirli",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [26,30],
-  },
+  Cmavo "ma",
+  Cmavo "goĭ",
+  Cmavo "ko'a",
+  Cmavo "zo'u",
+  Cmavo "ti",
+  Gismu "mírli",
+  Cmavo "ko'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mirli","kind":"gismu"}},{"Bare":{"span":[26,30],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
@@ -65,52 +37,24 @@ tree = """
 Prenex {
   prenex_terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
+      base_argument: Cmavo "ma",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [3,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'a",
-            span: [7,11],
-          },
+          goi: Cmavo "goĭ",
+          Cmavo "ko'a",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [17,19],
-      },
+      Cmavo "ti",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mirli",
-        span: [20,25],
-      },
+      Gismu "mírli",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko'a",
-          span: [26,30],
-        },
+        Cmavo "ko'a",
       ],
     },
   },

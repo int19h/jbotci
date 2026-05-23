@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo fétsi be ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fetsi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
+  Cmavo "lo",
+  Gismu "fétsi",
+  Cmavo "be",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fetsi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "fetsi",
-          span: [3,8],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [9,11],
-        },
-        first_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [12,14],
-        },
+        Gismu "fétsi",
+        be: Cmavo "be",
+        first_argument: Cmavo "ma",
       },
     },
   ],

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mútce gláre vi la .moskov.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "moskov",
-    span: [18,24],
-  },
+  Gismu "mútce",
+  Gismu "gláre",
+  Cmavo "vi",
+  Cmavo "la",
+  Cmevla "moskov",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"moskov","kind":"cmevla"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "glare",
-      span: [6,11],
-    },
+    Gismu "mútce",
+    Gismu "gláre",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [12,14],
-      },
+      tense_modal: Cmavo "vi",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "moskov",
-            span: [18,24],
-          },
+          Cmevla "moskov",
         ],
       },
     },

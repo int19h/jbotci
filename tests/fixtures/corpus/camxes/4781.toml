@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu lo dínju cu jélca li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dinju",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jelca",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [21,25],
-  },
+  Cmavo "lu",
+  Cmavo "lo",
+  Gismu "dínju",
+  Cmavo "cu",
+  Gismu "jélca",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"dinju","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jelca","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [3,5],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "dinju",
-              span: [6,11],
-            },
+            descriptor: Cmavo "lo",
+            relation: Gismu "dínju",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jelca",
-          span: [15,20],
-        },
+        cu: Cmavo "cu",
+        Gismu "jélca",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [21,25],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

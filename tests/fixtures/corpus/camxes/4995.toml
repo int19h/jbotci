@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ ro do .i mi dúnda le xámgu cérni ku do zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [44,48],
-  },
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "dúnda",
+  Cmavo "le",
+  Gismu "xámgu",
+  Gismu "cérni",
+  Cmavo "ku",
+  Cmavo "do",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[44,48],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -87,82 +39,34 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [6,8],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [13,15],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "dunda",
-          span: [16,21],
-        },
+        Gismu "dúnda",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [22,24],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "xamgu",
-                span: [25,30],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cerni",
-                span: [31,36],
-              },
+              Gismu "xámgu",
+              Gismu "cérni",
             },
-            ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [37,39],
-            },
+            ku: Cmavo "ku",
           },
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [40,42],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "zo'o",
-              span: [44,48],
-            },
+            Cmavo "do",
+            indicator: Cmavo "zo'o",
           },
         ],
       },

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(paŭ zu mo go'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [10,14],
-  },
+  Cmavo "paŭ",
+  Cmavo "zu",
+  Cmavo "mo",
+  Cmavo "go'a",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"go'a","kind":"cmavo"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "paŭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "paŭ",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "zu",
-      span: [4,6],
-    },
+    tense_modal: Cmavo "zu",
     Compound {
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [7,9],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [10,14],
-      },
+      Cmavo "mo",
+      Cmavo "go'a",
     },
   },
 }"""

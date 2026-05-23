@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ro da mi bílga le nu kláma [la'o gy colo gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [25,30],
-  },
+  Cmavo "co'o",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "mi",
+  Gismu "bílga",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "kláma",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [31,35],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [36,38],
-    },
-    quoted_text: [40,44],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [46,48],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "colo",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"klama","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[31,35],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[36,38],"phonemes":"gy","kind":"cmavo"},"quoted_text":[40,44],"closing_delimiter":{"span":[46,48],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -85,77 +41,33 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [7,9],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [10,12],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "bilga",
-        span: [13,18],
-      },
+      Gismu "bílga",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [22,24],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "klama",
-                span: [25,30],
-              },
+              Gismu "kláma",
               terms: [
                 ZoiQuote {
-                  zoi: Word {
-                    kind: "cmavo",
-                    phonemes: "la'o",
-                    span: [31,35],
-                  },
-                  opening_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [36,38],
-                  },
-                  quoted_text: [40,44],
-                  closing_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [46,48],
-                  },
+                  zoi: Cmavo "la'o",
+                  opening_delimiter: Cmavo "gy",
+                  quoted_text: Verbatim "colo",
+                  closing_delimiter: Cmavo "gy",
                 },
               ],
             },

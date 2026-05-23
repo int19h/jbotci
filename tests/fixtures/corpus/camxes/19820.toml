@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(re'i do'u fi'o se cásnu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [24,26],
-  },
+  Cmavo "re'i",
+  Cmavo "do'u",
+  Cmavo "fi'o",
+  Cmavo "se",
+  Gismu "cásnu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"re'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re'i",
-          span: [0,4],
-        },
+        Cmavo "re'i",
       ],
-      dohu: Word {
-        kind: "cmavo",
-        phonemes: "do'u",
-        span: [5,9],
-      },
+      dohu: Cmavo "do'u",
     },
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: Fiho {
-          fiho: Word {
-            kind: "cmavo",
-            phonemes: "fi'o",
-            span: [10,14],
-          },
+          fiho: Cmavo "fi'o",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [15,17],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "casnu",
-              span: [18,23],
-            },
+            se: Cmavo "se",
+            Gismu "cásnu",
           },
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [24,26],
-        },
+        Cmavo "ma",
       },
     ],
   },

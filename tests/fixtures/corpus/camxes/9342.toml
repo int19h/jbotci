@@ -19,39 +19,15 @@ brackets = "([zo lu] .e [zo li'u] dráni)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "lu",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "lu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [7,8],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "li'u",
-      span: [12,16],
-    },
+    zo: Cmavo "zo",
+    Cmavo "li'u",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [17,22],
-  },
+  Gismu "dráni",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"lu","kind":"cmavo"}}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,16],"phonemes":"li'u","kind":"cmavo"}}},{"Bare":{"span":[17,22],"phonemes":"drani","kind":"gismu"}}]"""
 
@@ -61,40 +37,16 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [3,5],
-        },
+        zo: Cmavo "zo",
+        Cmavo "lu",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [7,8],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [12,16],
-        },
+        zo: Cmavo "zo",
+        Cmavo "li'u",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [17,22],
-  },
+  Gismu "dráni",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"lu","kind":"cmavo"}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,16],"phonemes":"li'u","kind":"cmavo"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"drani","kind":"gismu"}}}}}}}}}}}]}]}"""

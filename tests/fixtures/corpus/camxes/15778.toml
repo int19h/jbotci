@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(peĭ le do cníno skári)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skari",
-    span: [16,21],
-  },
+  Cmavo "peĭ",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "cníno",
+  Gismu "skári",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"skari","kind":"gismu"}}]'
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "peĭ",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [7,9],
-          },
+          Cmavo "do",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "skari",
-            span: [16,21],
-          },
+          Gismu "cníno",
+          Gismu "skári",
         },
       },
     ],

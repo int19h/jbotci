@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .djos. te píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djos",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [11,16],
-  },
+  Cmavo "la",
+  Cmevla "djos",
+  Cmavo "te",
+  Gismu "píxra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djos","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"pixra","kind":"gismu"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djos",
-          span: [3,7],
-        },
+        Cmevla "djos",
       ],
     },
   ],
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [8,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pixra",
-      span: [11,16],
-    },
+    se: Cmavo "te",
+    Gismu "píxra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"djos","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[8,10],"phonemes":"te","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"pixra","kind":"gismu"}}}}}}}}}}}}}]}]}'

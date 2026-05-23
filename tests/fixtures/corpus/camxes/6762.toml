@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(da poĭ pálci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "palci",
-    span: [7,12],
-  },
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "pálci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"palci","kind":"gismu"}}]'
 
@@ -41,23 +29,11 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [0,2],
-      },
+      base_argument: Cmavo "da",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [3,6],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "palci",
-            span: [7,12],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "pálci",
         },
       ],
     },

@@ -18,44 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cfípu mi ji'a)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [9,13],
-  },
+  Gismu "cfípu",
+  Cmavo "mi",
+  Cmavo "ji'a",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ji'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [0,5],
-  },
+  Gismu "cfípu",
   terms: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [6,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [9,13],
-      },
+      Cmavo "mi",
+      indicator: Cmavo "ji'a",
     },
   ],
 }"""

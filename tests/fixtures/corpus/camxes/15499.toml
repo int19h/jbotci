@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. xu do na tcídu le ly ly gy játna líste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jatna",
-    span: [34,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [40,45],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "ly",
+  Cmavo "ly",
+  Cmavo "gy",
+  Gismu "játna",
+  Gismu "líste",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"gy","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"jatna","kind":"gismu"}},{"Bare":{"span":[40,45],"phonemes":"liste","kind":"gismu"}}]'
 
@@ -87,86 +39,38 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [4,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [9,11],
-        },
+        Cmevla "xod",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tcidu",
-          span: [18,23],
-        },
+        na: Cmavo "na",
+        Gismu "tcídu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [24,26],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ly",
-                  span: [27,29],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ly",
-                  span: [29,31],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [31,33],
-                },
+                Cmavo "ly",
+                Cmavo "ly",
+                Cmavo "gy",
               ],
             },
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "jatna",
-              span: [34,39],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "liste",
-              span: [40,45],
-            },
+            Gismu "játna",
+            Gismu "líste",
           },
         },
       ],

@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.print. .i loĭ cridrdrakóne cu jélcygaŭ loĭ cmacrída to cúmki fa)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "print",
-    span: [1,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cridrdrakone",
-    span: [15,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [28,30],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jelcygaŭ",
-    span: [31,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cmacrida",
-    span: [44,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [53,55],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cumki",
-    span: [56,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [62,64],
-  },
+  Cmevla "print",
+  Cmavo "i",
+  Cmavo "loĭ",
+  Fuhivla "cridrdrakóne",
+  Cmavo "cu",
+  Lujvo "jélcygaŭ",
+  Cmavo "loĭ",
+  Lujvo "cmacrída",
+  Cmavo "to",
+  Gismu "cúmki",
+  Cmavo "fa",
 ]"""
 json = """[{"Bare":{"span":[1,6],"phonemes":"print","kind":"cmevla"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[15,27],"phonemes":"cridrdrakone","kind":"fu'ivla"}},{"Bare":{"span":[28,30],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[31,39],"phonemes":"jelcygaŭ","kind":"lujvo"}},{"Bare":{"span":[40,43],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[44,52],"phonemes":"cmacrida","kind":"lujvo"}},{"Bare":{"span":[53,55],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[56,61],"phonemes":"cumki","kind":"gismu"}},{"Bare":{"span":[62,64],"phonemes":"fa","kind":"cmavo"}}]"""
 
@@ -80,77 +36,33 @@ json = """[{"Bare":{"span":[1,6],"phonemes":"print","kind":"cmevla"}},{"Bare":{"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "print",
-      span: [1,6],
-    },
+    Cmevla "print",
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [11,14],
-          },
-          relation: Word {
-            kind: "fu'ivla",
-            phonemes: "cridrdrakone",
-            span: [15,27],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Fuhivla "cridrdrakóne",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [28,30],
-      },
+      cu: Cmavo "cu",
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "jelcygaŭ",
-          span: [31,39],
-        },
+        Lujvo "jélcygaŭ",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [40,43],
-            },
+            descriptor: Cmavo "loĭ",
             relation: Word {
-              Word {
-                kind: "lujvo",
-                phonemes: "cmacrida",
-                span: [44,52],
-              },
+              Lujvo "cmacrída",
               free_modifiers: [
                 To {
-                  to: Word {
-                    kind: "cmavo",
-                    phonemes: "to",
-                    span: [53,55],
-                  },
+                  to: Cmavo "to",
                   Relation {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "cumki",
-                      span: [56,61],
-                    },
+                    Gismu "cúmki",
                     terms: [
                       Fa {
-                        fa: Word {
-                          kind: "cmavo",
-                          phonemes: "fa",
-                          span: [62,64],
-                        },
+                        fa: Cmavo "fa",
                         Zohe {},
                       },
                     ],

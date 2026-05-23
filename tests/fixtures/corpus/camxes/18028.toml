@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi mi mi du)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [7,9],
-  },
+  Cmavo "mi",
+  Cmavo "mi",
+  Cmavo "mi",
+  Cmavo "du",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"du","kind":"cmavo"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [4,6],
-    },
+    Cmavo "mi",
+    Cmavo "mi",
+    Cmavo "mi",
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [7,9],
-  },
+  Cmavo "du",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,9],"phonemes":"du","kind":"cmavo"}}}}}}}}}}}]}]}'

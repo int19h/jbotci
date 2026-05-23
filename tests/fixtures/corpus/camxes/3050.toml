@@ -18,27 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ĭi daĭ [zo ki'orgratretrefrinynidysnídu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "daĭ",
-    span: [2,5],
-  },
+  Cmavo "ĭi",
+  Cmavo "daĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "ki'orgratretrefrinynidysnidu",
-      span: [9,37],
-    },
+    zo: Cmavo "zo",
+    Lujvo "ki'orgratretrefrinynidysnídu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ĭi","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"daĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,37],"phonemes":"ki'orgratretrefrinynidysnidu","kind":"lujvo"}}}]"""
@@ -49,32 +33,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ĭi",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "daĭ",
-          span: [2,5],
-        },
+        Cmavo "ĭi",
+        indicator: Cmavo "daĭ",
       },
     },
   ],
   Term {
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [6,8],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "ki'orgratretrefrinynidysnidu",
-          span: [9,37],
-        },
+        zo: Cmavo "zo",
+        Lujvo "ki'orgratretrefrinynidysnídu",
       },
     ],
   },

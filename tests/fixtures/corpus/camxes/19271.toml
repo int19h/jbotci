@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'e mi jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [8,13],
-  },
+  Cmavo "ki'e",
+  Cmavo "mi",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -42,23 +30,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [0,4],
-        },
+        Cmavo "ki'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      argument: Cmavo "mi",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [8,13],
-  },
+  Gismu "jímpe",
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ki'e","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"jimpe","kind":"gismu"}}}}}}}}}}}]}]}"""

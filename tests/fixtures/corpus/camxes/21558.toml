@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na djíca le nu to'e flálu fúkpi .i ku'i tcétce fánza)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flalu",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fukpi",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [37,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tcetce",
-    span: [42,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanza",
-    span: [49,54],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "to'e",
+  Gismu "flálu",
+  Gismu "fúkpi",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Lujvo "tcétce",
+  Gismu "fánza",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"fukpi","kind":"gismu"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[42,48],"phonemes":"tcetce","kind":"lujvo"}},{"Bare":{"span":[49,54],"phonemes":"fanza","kind":"gismu"}}]"""
 
@@ -86,56 +38,24 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [6,11],
-        },
+        na: Cmavo "na",
+        Gismu "djíca",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [15,17],
-            },
+            nu: Cmavo "nu",
             Compound {
               Nahe {
-                nahe: Word {
-                  kind: "cmavo",
-                  phonemes: "to'e",
-                  span: [18,22],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "flalu",
-                  span: [23,28],
-                },
+                nahe: Cmavo "to'e",
+                Gismu "flálu",
               },
-              Word {
-                kind: "gismu",
-                phonemes: "fukpi",
-                span: [29,34],
-              },
+              Gismu "fúkpi",
             },
           },
         },
@@ -144,28 +64,12 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [36,37],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [37,41],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "tcetce",
-        span: [42,48],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fanza",
-        span: [49,54],
-      },
+      Lujvo "tcétce",
+      Gismu "fánza",
     },
   },
 }"""

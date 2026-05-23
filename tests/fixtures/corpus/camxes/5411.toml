@@ -19,74 +19,22 @@ brackets = "([zo pa] .e [zo re] cu námcu lérfu je válsi baŭ la .lojban.)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pa",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "pa",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [7,8],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "re",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "re",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namcu",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [39,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [46,52],
-  },
+  Cmavo "cu",
+  Gismu "námcu",
+  Gismu "lérfu",
+  Cmavo "je",
+  Gismu "válsi",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"namcu","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[39,42],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[46,52],"phonemes":"lojban","kind":"cmevla"}}]'
 
@@ -96,87 +44,35 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [3,5],
-        },
+        zo: Cmavo "zo",
+        Cmavo "pa",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [7,8],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [12,14],
-        },
+        zo: Cmavo "zo",
+        Cmavo "re",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "namcu",
-        span: [18,23],
-      },
+      Gismu "námcu",
       Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "lerfu",
-          span: [24,29],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [30,32],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "valsi",
-          span: [33,38],
-        },
+        leading_unit: Gismu "lérfu",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "válsi",
       },
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [39,42],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [43,45],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [46,52],
-            },
+            Cmevla "lojban",
           ],
         },
       },

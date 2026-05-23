@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .stefn. .i ma se gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "stefn",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [21,26],
-  },
+  Cmavo "coĭ",
+  Cmevla "stefn",
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "gásnu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"stefn","kind":"cmevla"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"gasnu","kind":"gismu"}}]'
 
@@ -57,44 +33,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "stefn",
-        span: [4,9],
-      },
+      argument: Cmevla "stefn",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [15,17],
-        },
+        Cmavo "ma",
       ],
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gasnu",
-          span: [21,26],
-        },
+        se: Cmavo "se",
+        Gismu "gásnu",
       },
     },
   },

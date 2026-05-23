@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.of. kláma)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "of",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
+  Cmevla "of",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"of","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"of","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "of",
-      span: [0,2],
-    },
+    Cmevla "of",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
+  Gismu "kláma",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"of","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}'

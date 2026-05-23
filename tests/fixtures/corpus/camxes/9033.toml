@@ -18,61 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda bróde bródi bródo bródu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodi",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodo",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [24,29],
-  },
+  Gismu "bróda",
+  Gismu "bróde",
+  Gismu "bródi",
+  Gismu "bródo",
+  Gismu "bródu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"brodi","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"brodo","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"brodu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodi",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodo",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [24,29],
-  },
+  Gismu "bróda",
+  Gismu "bróde",
+  Gismu "bródi",
+  Gismu "bródo",
+  Gismu "bródu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"brode","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"brodi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"brodo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"brodu","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -24,26 +24,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti blánu xúnre bólci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bolci",
-    span: [15,20],
-  },
+  Cmavo "ti",
+  Gismu "blánu",
+  Gismu "xúnre",
+  Gismu "bólci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"bolci","kind":"gismu"}}]'
 
@@ -52,28 +36,12 @@ brackets = "(ti [blánu xúnre bólci])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "blanu",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xunre",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bolci",
-      span: [15,20],
-    },
+    Gismu "blánu",
+    Gismu "xúnre",
+    Gismu "bólci",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"xunre","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"bolci","kind":"gismu"}}}}]}}}}}}}}]}]}'

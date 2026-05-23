@@ -19,33 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu [zo xótli] ja'a gísmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xotli",
-      span: [9,14],
-    },
+    zo: Cmavo "zo",
+    Gismu "xótli",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [20,25],
-  },
+  Cmavo "ja'a",
+  Gismu "gísmu",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,14],"phonemes":"xotli","kind":"gismu"}}},{"Bare":{"span":[15,19],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"gismu","kind":"gismu"}}]"""
 
@@ -54,39 +34,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [3,5],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xotli",
-          span: [9,14],
-        },
+        zo: Cmavo "zo",
+        Gismu "xótli",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "ja'a",
-        span: [15,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gismu",
-        span: [20,25],
-      },
+      na: Cmavo "ja'a",
+      Gismu "gísmu",
     },
   },
 }"""

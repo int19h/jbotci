@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi mimbí'o [la'o zoĭ phpbb zoĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mimbi'o",
-    span: [6,13],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "mimbí'o",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [14,18],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [19,22],
-    },
-    quoted_text: [24,29],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [31,34],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "phpbb",
+    closing_delimiter: Cmavo "zoĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,13],"phonemes":"mimbi'o","kind":"lujvo"}},{"ZoiQuote":{"zoi":{"span":[14,18],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[19,22],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[24,29],"closing_delimiter":{"span":[31,34],"phonemes":"zoĭ","kind":"cmavo"}}}]"""
@@ -57,43 +33,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "mimbi'o",
-        span: [6,13],
-      },
+      Lujvo "mimbí'o",
       terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "la'o",
-            span: [14,18],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [19,22],
-          },
-          quoted_text: [24,29],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [31,34],
-          },
+          zoi: Cmavo "la'o",
+          opening_delimiter: Cmavo "zoĭ",
+          quoted_text: Verbatim "phpbb",
+          closing_delimiter: Cmavo "zoĭ",
         },
       ],
     },

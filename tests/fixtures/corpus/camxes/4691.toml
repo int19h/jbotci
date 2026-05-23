@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi co'u cítka le kámpu sákta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kampu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sakta",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Cmavo "co'u",
+  Gismu "cítka",
+  Cmavo "le",
+  Gismu "kámpu",
+  Gismu "sákta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"kampu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"sakta","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'u",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "co'u",
+      Gismu "cítka",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "kampu",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "sakta",
-            span: [23,28],
-          },
+          Gismu "kámpu",
+          Gismu "sákta",
         },
       },
     ],

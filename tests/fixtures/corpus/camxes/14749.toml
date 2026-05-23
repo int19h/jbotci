@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi slílu .i je do slílu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [17,22],
-  },
+  Cmavo "mi",
+  Gismu "slílu",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "do",
+  Gismu "slílu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"slilu","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"slilu","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Connected {
   leading_statement: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "slilu",
-      span: [3,8],
-    },
+    Gismu "slílu",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [11,13],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [14,16],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "slilu",
-      span: [17,22],
-    },
+    Gismu "slílu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"slilu","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[11,13],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"slilu","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .konsept. do ca xábju ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "konsept",
-    span: [4,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [24,26],
-  },
+  Cmavo "doĭ",
+  Cmevla "konsept",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "xábju",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"konsept","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "konsept",
-        span: [4,11],
-      },
+      argument: Cmevla "konsept",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [18,23],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "xábju",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [24,26],
-        },
+        Cmavo "ma",
       ],
     },
   },

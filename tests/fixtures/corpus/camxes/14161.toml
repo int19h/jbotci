@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i cmálu .i mléca pa grádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mleca",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gradu",
-    span: [21,26],
-  },
+  Cmavo "i",
+  Gismu "cmálu",
+  Cmavo "i",
+  Gismu "mléca",
+  Cmavo "pa",
+  Gismu "grádu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mleca","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"gradu","kind":"gismu"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [3,8],
-    },
+    i: Cmavo "i",
+    Gismu "cmálu",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mleca",
-        span: [12,17],
-      },
+      Gismu "mléca",
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [18,20],
-            },
+            Cmavo "pa",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "gradu",
-            span: [21,26],
-          },
+          relation: Gismu "grádu",
         },
       ],
     },

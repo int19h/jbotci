@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'o xláli cúsku .i mílxe zmádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [20,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [28,33],
-  },
+  Cmavo "ca'o",
+  Gismu "xláli",
+  Gismu "cúsku",
+  Cmavo "i",
+  Gismu "mílxe",
+  Gismu "zmádu",
 ]"""
 json = """[{"Bare":{"span":[2,6],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"xlali","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"zmadu","kind":"gismu"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[2,6],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [2,6],
-    },
+    tense_modal: Cmavo "ca'o",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xlali",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [13,18],
-      },
+      Gismu "xláli",
+      Gismu "cúsku",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [20,21],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "milxe",
-        span: [22,27],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zmadu",
-        span: [28,33],
-      },
+      Gismu "mílxe",
+      Gismu "zmádu",
     },
   },
 }"""

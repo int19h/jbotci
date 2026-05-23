@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma pu fásnu ca le jbonúnsla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fasnu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [18,27],
-  },
+  Cmavo "ma",
+  Cmavo "pu",
+  Gismu "fásnu",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "jbonúnsla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"fasnu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,27],"phonemes":"jbonunsla","kind":"lujvo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fasnu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "fásnu",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [12,14],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "jbonunsla",
-            span: [18,27],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "jbonúnsla",
         },
       },
     ],

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ka'e ro roĭ távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [14,19],
-  },
+  Cmavo "do",
+  Cmavo "ka'e",
+  Cmavo "ro",
+  Cmavo "roĭ",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -50,38 +30,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [3,7],
-      },
+      tense_modal: Cmavo "ka'e",
       Zohe {},
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "roĭ",
-        span: [10,13],
-      },
+      Cmavo "ro",
+      Cmavo "roĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [14,19],
-    },
+    Gismu "távla",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}},{"Tagged":{"tense_modal":{"Caha":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ka'e","kind":"cmavo"}}}},"argument":{"Zohe":{}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"tavla","kind":"gismu"}}}}}}}}}}}}}]}]}"""

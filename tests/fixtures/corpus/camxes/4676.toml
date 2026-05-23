@@ -18,37 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ jémna go'i vi [.o bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jemna",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [15,17],
-  },
+  Cmavo "doĭ",
+  Gismu "jémna",
+  Cmavo "go'i",
+  Cmavo "vi",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "o",
-      span: [18,19],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [19,21],
-    },
+    Cmavo "o",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"jemna","kind":"gismu"}},{"Bare":{"span":[10,14],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"vi","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[18,19],"phonemes":"o","kind":"cmavo"}},"bu":{"span":[19,21],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -59,24 +35,12 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "jemna",
-            span: [4,9],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'i",
-            span: [10,14],
-          },
+          Gismu "jémna",
+          Cmavo "go'i",
         },
       },
     },
@@ -84,24 +48,12 @@ Text {
   Term {
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [15,17],
-        },
+        tense_modal: Cmavo "vi",
         Letter {
           letter: [
             Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "o",
-                span: [18,19],
-              },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [19,21],
-              },
+              Cmavo "o",
+              bu: Cmavo "bu",
             },
           ],
         },

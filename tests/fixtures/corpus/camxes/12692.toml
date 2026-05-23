@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ni gláre kláni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klani",
-    span: [12,17],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "gláre",
+  Gismu "kláni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"klani","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "glare",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "klani",
-            span: [12,17],
-          },
+          Gismu "gláre",
+          Gismu "kláni",
         },
       },
     },

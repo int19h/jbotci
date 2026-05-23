@@ -18,32 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro ko pílno [zo doĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [5,10],
-  },
+  Cmavo "ro",
+  Cmavo "ko",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "doĭ",
-      span: [14,17],
-    },
+    zo: Cmavo "zo",
+    Cmavo "doĭ",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,17],"phonemes":"doĭ","kind":"cmavo"}}}]'
@@ -53,36 +33,16 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [2,4],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "ko",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [5,10],
-    },
+    Gismu "pílno",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [14,17],
-        },
+        zo: Cmavo "zo",
+        Cmavo "doĭ",
       },
     ],
   },

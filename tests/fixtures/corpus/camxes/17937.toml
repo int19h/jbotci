@@ -18,57 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i .i mi skúdji [lo'u coĭ .i mi xrúti le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skudji",
-    span: [9,15],
-  },
+  Cmavo "u'i",
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "skúdji",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [16,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "coĭ",
-      span: [21,24],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [25,26],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [27,29],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xruti",
-      span: [30,35],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [36,40],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "coĭ",
+    Cmavo "i",
+    Cmavo "mi",
+    Gismu "xrúti",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"skudji","kind":"lujvo"}},{"LohuQuote":{"lohu":{"span":[16,20],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[21,24],"phonemes":"coĭ","kind":"cmavo"},{"span":[25,26],"phonemes":"i","kind":"cmavo"},{"span":[27,29],"phonemes":"mi","kind":"cmavo"},{"span":[30,35],"phonemes":"xruti","kind":"gismu"}],"lehu":{"span":[36,40],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -78,65 +38,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [4,5],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [6,8],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "skudji",
-          span: [9,15],
-        },
+        Lujvo "skúdji",
         terms: [
           LohuQuote {
-            lohu: Word {
-              kind: "cmavo",
-              phonemes: "lo'u",
-              span: [16,20],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "coĭ",
-              span: [21,24],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "i",
-              span: [25,26],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [27,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "xruti",
-              span: [30,35],
-            },
-            lehu: Word {
-              kind: "cmavo",
-              phonemes: "le'u",
-              span: [36,40],
-            },
+            lohu: Cmavo "lo'u",
+            Cmavo "coĭ",
+            Cmavo "i",
+            Cmavo "mi",
+            Gismu "xrúti",
+            lehu: Cmavo "le'u",
           },
         ],
       },

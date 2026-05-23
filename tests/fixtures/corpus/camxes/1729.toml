@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(py du xy boĭ zy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [14,16],
-  },
+  Cmavo "py",
+  Cmavo "du",
+  Cmavo "xy",
+  Cmavo "boĭ",
+  Cmavo "zy",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"zy","kind":"cmavo"}}]'
 
@@ -52,42 +32,22 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "py",
-          span: [0,2],
-        },
+        Cmavo "py",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [4,6],
-    },
+    Cmavo "du",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "xy",
-            span: [7,9],
-          },
+          Cmavo "xy",
         ],
-        boi: Word {
-          kind: "cmavo",
-          phonemes: "boĭ",
-          span: [10,13],
-        },
+        boi: Cmavo "boĭ",
       },
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "zy",
-            span: [14,16],
-          },
+          Cmavo "zy",
         ],
       },
     ],

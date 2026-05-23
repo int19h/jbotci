@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do na dánfu .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danfu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [15,18],
-  },
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "dánfu",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"danfu","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [2,4],
-    },
+    Cmavo "do",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [5,7],
-    },
+    na: Cmavo "na",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "danfu",
-        span: [8,13],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [15,18],
-      },
+      Gismu "dánfu",
+      indicator: Cmavo "u'i",
     },
   },
 }"""

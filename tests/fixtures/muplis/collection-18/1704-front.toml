@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu naĭ do térpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [12,17],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Gismu "térpa",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"terpa","kind":"gismu"}}]'
 
@@ -54,35 +34,15 @@ brackets = "([.i xu naĭ] [do térpa])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [5,8],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
+    nai: Cmavo "naĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [9,11],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "terpa",
-      span: [12,17],
-    },
+    Gismu "térpa",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,5],"phonemes":"xu","kind":"cmavo"},"nai":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"terpa","kind":"gismu"}}}}}}}}}}}]}]}'

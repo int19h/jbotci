@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i pe mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
+  Cmavo "pe'i",
+  Cmavo "pe",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   GoiRelativeClause {
-    goi: Word {
-      kind: "cmavo",
-      phonemes: "pe",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [8,10],
-    },
+    goi: Cmavo "pe",
+    Cmavo "mi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[5,7],"phonemes":"pe","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}}}}}}]}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}}}}]}"""

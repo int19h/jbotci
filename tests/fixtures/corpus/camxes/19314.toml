@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le selnírna di'i pórpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selnirna",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [17,22],
-  },
+  Cmavo "le",
+  Lujvo "selnírna",
+  Cmavo "di'i",
+  Gismu "pórpi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"selnirna","kind":"lujvo"}},{"Bare":{"span":[12,16],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"porpi","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "selnirna",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "selnírna",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "di'i",
-      span: [12,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "porpi",
-      span: [17,22],
-    },
+    tense_modal: Cmavo "di'i",
+    Gismu "pórpi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"selnirna","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"di'i","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"porpi","kind":"gismu"}}}}}}}}}}}}}]}]}"""

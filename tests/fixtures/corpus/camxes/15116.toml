@@ -18,69 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no da .i ku'i [zoĭ gy weasel gy] símsa válsi fi le glíbaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [7,11],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "i",
+  Cmavo "ku'i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [12,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
-    quoted_text: [18,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [26,28],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "weasel",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [29,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glibaŭ",
-    span: [47,53],
-  },
+  Gismu "símsa",
+  Gismu "válsi",
+  Cmavo "fi",
+  Cmavo "le",
+  Lujvo "glíbaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ku'i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[18,25],"closing_delimiter":{"span":[26,28],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[29,34],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[35,40],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,53],"phonemes":"glibaŭ","kind":"lujvo"}}]"""
 
@@ -90,84 +42,36 @@ Paragraph {
   Term {
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [2,4],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [6,7],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [7,11],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [12,15],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [16,18],
-          },
-          quoted_text: [18,25],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [26,28],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "weasel",
+          closing_delimiter: Cmavo "gy",
         },
       ],
       Relation {
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "simsa",
-            span: [29,34],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "valsi",
-            span: [35,40],
-          },
+          Gismu "símsa",
+          Gismu "válsi",
         },
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [41,43],
-            },
+            fa: Cmavo "fi",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [44,46],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "glibaŭ",
-                span: [47,53],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "glíbaŭ",
             },
           },
         ],

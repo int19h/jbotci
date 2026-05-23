@@ -18,49 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le xe fánva [zoĭ gy I meant gy] na vájni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [6,11],
-  },
+  Cmavo "le",
+  Cmavo "xe",
+  Gismu "fánva",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [12,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
-    quoted_text: [20,27],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "I meant",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [36,41],
-  },
+  Cmavo "na",
+  Gismu "vájni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"fanva","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[20,27],"closing_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[33,35],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"vajni","kind":"gismu"}}]'
 
@@ -69,54 +37,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "xe",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fanva",
-          span: [6,11],
-        },
+        se: Cmavo "xe",
+        Gismu "fánva",
       },
     },
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [12,15],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [16,18],
-      },
-      quoted_text: [20,27],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [29,31],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "I meant",
+      closing_delimiter: Cmavo "gy",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [33,35],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vajni",
-      span: [36,41],
-    },
+    na: Cmavo "na",
+    Gismu "vájni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"xe","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"fanva","kind":"gismu"}}}}}}}}},{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[20,27],"closing_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[33,35],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"vajni","kind":"gismu"}}}}}}}}}}}}}]}]}'

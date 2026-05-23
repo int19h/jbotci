@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi tróci re cníno se cpáre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "tróci",
+  Cmavo "re",
+  Gismu "cníno",
+  Cmavo "se",
+  Gismu "cpáre",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cpare","kind":"gismu"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "troci",
-      span: [3,8],
-    },
+    Gismu "tróci",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [9,11],
-          },
+          Cmavo "re",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [12,17],
-          },
+          Gismu "cníno",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [18,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cpare",
-              span: [21,26],
-            },
+            se: Cmavo "se",
+            Gismu "cpáre",
           },
         },
       },

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu pénsi le vi'e píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [17,22],
-  },
+  Cmavo "xu",
+  Gismu "pénsi",
+  Cmavo "le",
+  Cmavo "vi'e",
+  Gismu "píxra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"vi'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pixra","kind":"gismu"}}]"""
 
@@ -51,37 +31,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pensi",
-      span: [3,8],
-    },
+    Gismu "pénsi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi'e",
-            span: [12,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pixra",
-            span: [17,22],
-          },
+          tense_modal: Cmavo "vi'e",
+          Gismu "píxra",
         },
       },
     ],

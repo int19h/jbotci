@@ -18,157 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xágmaŭ ro le cídja blíku poĭ mi tróci zi'e poĭ na sákta blíku)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "xagmaŭ",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cidja",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bliku",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'e",
-    span: [38,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [47,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sakta",
-    span: [50,55],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bliku",
-    span: [56,61],
-  },
+  Lujvo "xágmaŭ",
+  Cmavo "ro",
+  Cmavo "le",
+  Gismu "cídja",
+  Gismu "blíku",
+  Cmavo "poĭ",
+  Cmavo "mi",
+  Gismu "tróci",
+  Cmavo "zi'e",
+  Cmavo "poĭ",
+  Cmavo "na",
+  Gismu "sákta",
+  Gismu "blíku",
 ]"""
 json = """[{"Bare":{"span":[0,6],"phonemes":"xagmaŭ","kind":"lujvo"}},{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cidja","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"bliku","kind":"gismu"}},{"Bare":{"span":[25,28],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[38,42],"phonemes":"zi'e","kind":"cmavo"}},{"Bare":{"span":[43,46],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"sakta","kind":"gismu"}},{"Bare":{"span":[56,61],"phonemes":"bliku","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "xagmaŭ",
-    span: [0,6],
-  },
+  Lujvo "xágmaŭ",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [10,12],
-      },
-      outer_quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [7,9],
-      },
+      descriptor: Cmavo "le",
+      outer_quantifier: Cmavo "ro",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cidja",
-          span: [13,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bliku",
-          span: [19,24],
-        },
+        Gismu "cídja",
+        Gismu "blíku",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [25,28],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [29,31],
-              },
+              Cmavo "mi",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "troci",
-              span: [32,37],
-            },
+            Gismu "tróci",
           },
         },
         Zihe {
-          zihe: Word {
-            kind: "cmavo",
-            phonemes: "zi'e",
-            span: [38,42],
-          },
+          zihe: Cmavo "zi'e",
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [43,46],
-            },
+            poi: Cmavo "poĭ",
             Na {
-              na: Word {
-                kind: "cmavo",
-                phonemes: "na",
-                span: [47,49],
-              },
+              na: Cmavo "na",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "sakta",
-                  span: [50,55],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "bliku",
-                  span: [56,61],
-                },
+                Gismu "sákta",
+                Gismu "blíku",
               },
             },
           },

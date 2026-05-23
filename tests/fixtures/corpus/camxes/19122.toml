@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.er. nu go'i)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "er",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [7,11],
-  },
+  Cmevla "er",
+  Cmavo "nu",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -40,23 +28,11 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "er",
-      span: [0,2],
-    },
+    Cmevla "er",
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [4,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [7,11],
-    },
+    nu: Cmavo "nu",
+    Cmavo "go'i",
   },
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"er","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[4,6],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,11],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}}}}}}}]}]}"""

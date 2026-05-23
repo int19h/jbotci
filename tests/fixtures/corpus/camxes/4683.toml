@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu la .lojban. cu sútra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [16,21],
-  },
+  Cmavo "xu",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "cu",
+  Gismu "sútra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"sutra","kind":"gismu"}}]'
 
@@ -51,40 +31,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "lojban",
-            span: [6,12],
-          },
+          Cmevla "lojban",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sutra",
-      span: [16,21],
-    },
+    cu: Cmavo "cu",
+    Gismu "sútra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[6,12],"phonemes":"lojban","kind":"cmevla"}}}]}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"sutra","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

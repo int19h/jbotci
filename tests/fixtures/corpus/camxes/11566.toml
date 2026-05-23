@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pu fácki cíkre le mu'e gúnta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "facki",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunta",
-    span: [23,28],
-  },
+  Cmavo "pu",
+  Gismu "fácki",
+  Gismu "cíkre",
+  Cmavo "le",
+  Cmavo "mu'e",
+  Gismu "gúnta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"facki","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"mu'e","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gunta","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [0,2],
-    },
+    tense_modal: Cmavo "pu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "facki",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cikre",
-        span: [9,14],
-      },
+      Gismu "fácki",
+      Gismu "cíkre",
     },
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [15,17],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "mu'e",
-          span: [18,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gunta",
-          span: [23,28],
-        },
+        nu: Cmavo "mu'e",
+        Gismu "gúnta",
       },
     },
   ],

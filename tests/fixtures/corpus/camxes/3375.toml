@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .nynex. se slábu [zo coĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nynex",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [12,17],
-  },
+  Cmavo "la",
+  Cmevla "nynex",
+  Cmavo "se",
+  Gismu "slábu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "coĭ",
-      span: [21,24],
-    },
+    zo: Cmavo "zo",
+    Cmavo "coĭ",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nynex","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"slabu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,24],"phonemes":"coĭ","kind":"cmavo"}}}]'
@@ -58,45 +34,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "nynex",
-          span: [3,8],
-        },
+        Cmevla "nynex",
       ],
     },
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "slabu",
-        span: [12,17],
-      },
+      se: Cmavo "se",
+      Gismu "slábu",
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [18,20],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [21,24],
-        },
+        zo: Cmavo "zo",
+        Cmavo "coĭ",
       },
     ],
   },

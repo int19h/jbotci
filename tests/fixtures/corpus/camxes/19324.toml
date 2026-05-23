@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu do kríci la rusflíra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rusflira",
-    span: [17,25],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "kríci",
+  Cmavo "la",
+  Lujvo "rusflíra",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,25],"phonemes":"rusflira","kind":"lujvo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [2,4],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "krici",
-        span: [8,13],
-      },
+      Gismu "kríci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [14,16],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "rusflira",
-            span: [17,25],
-          },
+          descriptor: Cmavo "la",
+          relation: Lujvo "rusflíra",
         },
       ],
     },

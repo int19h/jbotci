@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu zu vítke le díklo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "diklo",
-    span: [17,22],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zu",
+  Gismu "vítke",
+  Cmavo "le",
+  Gismu "díklo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vitke","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"diklo","kind":"gismu"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zu",
-          span: [5,7],
-        },
+        Cmavo "pu",
+        Cmavo "zu",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "vitke",
-        span: [8,13],
-      },
+      Gismu "vítke",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "diklo",
-          span: [17,22],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "díklo",
       },
     ],
   },

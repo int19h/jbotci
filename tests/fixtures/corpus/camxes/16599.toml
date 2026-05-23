@@ -18,22 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e [zo do])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    zo: Cmavo "zo",
+    Cmavo "do",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}]"""
@@ -43,22 +31,10 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
+      lahe: Cmavo "la'e",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [8,10],
-        },
+        zo: Cmavo "zo",
+        Cmavo "do",
       },
     },
   ],

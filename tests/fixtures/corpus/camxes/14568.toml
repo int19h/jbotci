@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mo mo mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [4,6],
-  },
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mo","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [4,6],
-  },
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[2,4],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[4,6],"phonemes":"mo","kind":"cmavo"}}}}]}}}}}}}}]}]}'

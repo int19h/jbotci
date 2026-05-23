@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'e tolkínli ka'ámru zmádu lo'e kínli ka'ámru le ni crógaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolkinli",
-    span: [5,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ka'amru",
-    span: [14,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [28,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kinli",
-    span: [33,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ka'amru",
-    span: [39,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [49,51],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "crogaŭ",
-    span: [52,58],
-  },
+  Cmavo "lo'e",
+  Lujvo "tolkínli",
+  Lujvo "ka'ámru",
+  Gismu "zmádu",
+  Cmavo "lo'e",
+  Gismu "kínli",
+  Lujvo "ka'ámru",
+  Cmavo "le",
+  Cmavo "ni",
+  Lujvo "crógaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"tolkinli","kind":"lujvo"}},{"Bare":{"span":[14,21],"phonemes":"ka'amru","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"kinli","kind":"gismu"}},{"Bare":{"span":[39,46],"phonemes":"ka'amru","kind":"lujvo"}},{"Bare":{"span":[47,49],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[52,58],"phonemes":"crogaŭ","kind":"lujvo"}}]"""
 
@@ -76,65 +36,25 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [0,4],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "tolkinli",
-          span: [5,13],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "ka'amru",
-          span: [14,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zmadu",
-          span: [22,27],
-        },
+        Lujvo "tolkínli",
+        Lujvo "ka'ámru",
+        Gismu "zmádu",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [28,32],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "kinli",
-          span: [33,38],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "ka'amru",
-          span: [39,46],
-        },
+        Gismu "kínli",
+        Lujvo "ka'ámru",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [47,49],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [49,51],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "crogaŭ",
-          span: [52,58],
-        },
+        nu: Cmavo "ni",
+        Lujvo "crógaŭ",
       },
     },
   ],

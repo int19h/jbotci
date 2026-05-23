@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i le rínka cu púrci caĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "purci",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [23,26],
-  },
+  Cmavo "ku'i",
+  Cmavo "le",
+  Gismu "rínka",
+  Cmavo "cu",
+  Gismu "púrci",
+  Cmavo "caĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"purci","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"caĭ","kind":"cmavo"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "ku'i",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "rinka",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "rínka",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    cu: Cmavo "cu",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "purci",
-        span: [17,22],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "caĭ",
-        span: [23,26],
-      },
+      Gismu "púrci",
+      indicator: Cmavo "caĭ",
     },
   },
 }"""

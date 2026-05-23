@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le túrnygri cu mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "turnygri",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [15,17],
-  },
+  Cmavo "le",
+  Lujvo "túrnygri",
+  Cmavo "cu",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"turnygri","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "turnygri",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "túrnygri",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"turnygri","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,17],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

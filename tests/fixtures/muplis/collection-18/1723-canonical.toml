@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'o cádzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [5,10],
-  },
+  Cmavo "mi'o",
+  Gismu "cádzu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cadzu","kind":"gismu"}}]"""
 
@@ -39,16 +31,8 @@ brackets = "(mi'o cádzu)"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi'o",
-      span: [0,4],
-    },
+    Cmavo "mi'o",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [5,10],
-  },
+  Gismu "cádzu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mi'o","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cadzu","kind":"gismu"}}}}}}}}}}}]}]}"""

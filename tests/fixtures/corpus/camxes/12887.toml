@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi pu na víska do vi le deĭ vélcku toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velcku",
-    span: [31,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [38,41],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "na",
+  Gismu "víska",
+  Cmavo "do",
+  Cmavo "vi",
+  Cmavo "le",
+  Cmavo "deĭ",
+  Lujvo "vélcku",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[31,37],"phonemes":"velcku","kind":"lujvo"}},{"Bare":{"span":[38,41],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -81,79 +37,35 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [6,8],
-            },
+            tense_modal: Cmavo "pu",
             Na {
-              na: Word {
-                kind: "cmavo",
-                phonemes: "na",
-                span: [9,11],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "viska",
-                span: [12,17],
-              },
+              na: Cmavo "na",
+              Gismu "víska",
             },
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [18,20],
-            },
+            Cmavo "do",
             Tagged {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "vi",
-                span: [21,23],
-              },
+              tense_modal: Cmavo "vi",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [24,26],
-                },
+                descriptor: Cmavo "le",
                 tail_elements: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "deĭ",
-                    span: [27,30],
-                  },
+                  Cmavo "deĭ",
                 ],
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "velcku",
-                  span: [31,37],
-                },
+                relation: Lujvo "vélcku",
               },
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [38,41],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na prámi .i .ŭa naĭ ma márde mi le nu glétu ny)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marde",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [41,43],
-  },
+  Cmavo "na",
+  Gismu "prámi",
+  Cmavo "i",
+  Cmavo "ŭa",
+  Cmavo "naĭ",
+  Cmavo "ma",
+  Gismu "márde",
+  Cmavo "mi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "glétu",
+  Cmavo "ny",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"marde","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"ny","kind":"cmavo"}}]'
 
@@ -85,81 +37,33 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Paragraph {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "prámi",
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [10,11],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [12,14],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [14,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ŭa",
+      nai: Cmavo "naĭ",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [18,20],
-        },
+        Cmavo "ma",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "marde",
-          span: [21,26],
-        },
+        Gismu "márde",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [27,29],
-          },
+          Cmavo "mi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [30,32],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [32,34],
-              },
+              nu: Cmavo "nu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "gletu",
-                  span: [35,40],
-                },
+                Gismu "glétu",
                 terms: [
                   Letter {
                     letter: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "ny",
-                        span: [41,43],
-                      },
+                      Cmavo "ny",
                     ],
                   },
                 ],

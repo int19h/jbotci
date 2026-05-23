@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ca se bríju le ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "briju",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [18,23],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "se",
+  Gismu "bríju",
+  Cmavo "le",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"briju","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "ca",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "briju",
-          span: [9,14],
-        },
+        se: Cmavo "se",
+        Gismu "bríju",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ckule",
-          span: [18,23],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "ckúle",
       },
     ],
   },

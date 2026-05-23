@@ -19,65 +19,21 @@ brackets = "([zo su'o] cu .aŭ mápti [zo kélci] .e naĭ [zo ca'a])"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "su'o",
-      span: [3,7],
-    },
+    zo: Cmavo "zo",
+    Cmavo "su'o",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapti",
-    span: [15,20],
-  },
+  Cmavo "cu",
+  Cmavo "aŭ",
+  Gismu "mápti",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kelci",
-      span: [24,29],
-    },
+    zo: Cmavo "zo",
+    Gismu "kélci",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [32,35],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [36,38],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ca'a",
-      span: [39,43],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ca'a",
   },
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}}},{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"mapti","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,29],"phonemes":"kelci","kind":"gismu"}}},{"Bare":{"span":[31,32],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[36,38],"phonemes":"zo","kind":"cmavo"},"word":{"span":[39,43],"phonemes":"ca'a","kind":"cmavo"}}}]"""
@@ -87,73 +43,29 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "su'o",
-        span: [3,7],
-      },
+      zo: Cmavo "zo",
+      Cmavo "su'o",
     },
   ],
   cu: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [8,10],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "aŭ",
-      span: [12,14],
-    },
+    Cmavo "cu",
+    indicator: Cmavo "aŭ",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mapti",
-      span: [15,20],
-    },
+    Gismu "mápti",
     terms: [
       Connected {
         leading_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [21,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kelci",
-            span: [24,29],
-          },
+          zo: Cmavo "zo",
+          Gismu "kélci",
         },
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [31,32],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [32,35],
-          },
+          Cmavo "e",
+          nai: Cmavo "naĭ",
         },
         trailing_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [36,38],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca'a",
-            span: [39,43],
-          },
+          zo: Cmavo "zo",
+          Cmavo "ca'a",
         },
       },
     ],

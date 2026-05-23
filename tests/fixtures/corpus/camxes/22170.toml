@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i mi na préti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [12,17],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "préti",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"preti","kind":"gismu"}}]"""
 
@@ -50,36 +30,16 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [1,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [6,8],
-      },
+      Cmavo "mi",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [12,17],
-      },
+      na: Cmavo "na",
+      Gismu "préti",
     },
   },
 }"""

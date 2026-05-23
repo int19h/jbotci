@@ -18,81 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi cfári tádni la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [21,27],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "cfári",
+  Gismu "tádni",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cfari","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"lojban","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cfari",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tadni",
-          span: [12,17],
-        },
+        Gismu "cfári",
+        Gismu "tádni",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [21,27],
-            },
+            Cmevla "lojban",
           ],
         },
       ],

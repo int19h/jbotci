@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'o pa cácra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [8,13],
-  },
+  Cmavo "ca'o",
+  Cmavo "pa",
+  Gismu "cácra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cacra","kind":"gismu"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "ca'o",
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [5,7],
-          },
+          Cmavo "pa",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cacra",
-          span: [8,13],
-        },
+        relation: Gismu "cácra",
       },
     },
   ],

@@ -21,91 +21,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ga naĭ bróda gi bróde .i jo se ni'i bo ga naĭ na bróde gi na bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [22,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'i",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [38,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [45,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [57,62],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Gismu "bróda",
+  Cmavo "gi",
+  Gismu "bróde",
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "se",
+  Cmavo "ni'i",
+  Cmavo "bo",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "na",
+  Gismu "bróde",
+  Cmavo "gi",
+  Cmavo "na",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[38,41],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[51,53],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -115,101 +47,33 @@ tree = """
 Connected {
   leading_statement: Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [0,2],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [2,5],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
-    first: Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [6,11],
-    },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [12,14],
-    },
-    second: Word {
-      kind: "gismu",
-      phonemes: "brode",
-      span: [15,20],
-    },
+    first: Gismu "bróda",
+    gik: Cmavo "gi",
+    second: Gismu "bróde",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [22,23],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "jo",
-      span: [23,25],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [26,28],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'i",
-      span: [28,32],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [33,35],
-    },
+    Cmavo "jo",
+    Cmavo "se",
+    Cmavo "ni'i",
+    Cmavo "bo",
   },
   trailing_statement: Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [36,38],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [38,41],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
     first: Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [42,44],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "brode",
-        span: [45,50],
-      },
+      na: Cmavo "na",
+      Gismu "bróde",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [51,53],
-    },
+    gik: Cmavo "gi",
     second: Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [54,56],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "broda",
-        span: [57,62],
-      },
+      na: Cmavo "na",
+      Gismu "bróda",
     },
   },
 }"""

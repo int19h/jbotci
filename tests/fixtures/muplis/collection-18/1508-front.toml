@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi kánsa no da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kansa",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [15,17],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "kánsa",
+  Cmavo "no",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -53,37 +33,17 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [mi {kánsa (no da)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kansa",
-        span: [6,11],
-      },
+      Gismu "kánsa",
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [15,17],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
       ],
     },

@@ -19,96 +19,24 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la .djeĭmyz. ce bo la .djordj. pi'u la .meris. ce bo la .martas. cu prámi se re meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭmyz",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [22,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'u",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "martas",
-    span: [54,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [63,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [66,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [72,74],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [75,77],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [77,80],
-  },
+  Cmavo "la",
+  Cmevla "djeĭmyz",
+  Cmavo "ce",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "djordj",
+  Cmavo "pi'u",
+  Cmavo "la",
+  Cmevla "meris",
+  Cmavo "ce",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "martas",
+  Cmavo "cu",
+  Gismu "prámi",
+  Cmavo "se",
+  Cmavo "re",
+  Cmavo "meĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"djeĭmyz","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"ce","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[31,35],"phonemes":"pi'u","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"meris","kind":"cmevla"}},{"Bare":{"span":[46,48],"phonemes":"ce","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[54,60],"phonemes":"martas","kind":"cmevla"}},{"Bare":{"span":[63,65],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[72,74],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[75,77],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[77,80],"phonemes":"meĭ","kind":"cmavo"}}]"""
 
@@ -119,121 +47,49 @@ Predicate {
     Connected {
       leading_argument: Bo {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [0,2],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djeĭmyz",
-              span: [3,10],
-            },
+            Cmevla "djeĭmyz",
           ],
         },
-        bo_connective: Word {
-          kind: "cmavo",
-          phonemes: "ce",
-          span: [12,14],
-        },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [15,17],
-        },
+        bo_connective: Cmavo "ce",
+        bo: Cmavo "bo",
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [19,21],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djordj",
-              span: [22,28],
-            },
+            Cmevla "djordj",
           ],
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "pi'u",
-        span: [31,35],
-      },
+      connective: Cmavo "pi'u",
       trailing_argument: Bo {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [36,38],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "meris",
-              span: [39,44],
-            },
+            Cmevla "meris",
           ],
         },
-        bo_connective: Word {
-          kind: "cmavo",
-          phonemes: "ce",
-          span: [46,48],
-        },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [48,50],
-        },
+        bo_connective: Cmavo "ce",
+        bo: Cmavo "bo",
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [51,53],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "martas",
-              span: [54,60],
-            },
+            Cmevla "martas",
           ],
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [63,65],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [66,71],
-    },
+    Gismu "prámi",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [72,74],
-      },
+      se: Cmavo "se",
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [75,77],
-          },
+          Cmavo "re",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "meĭ",
-          span: [77,80],
-        },
+        moi: Cmavo "meĭ",
       },
     },
   },

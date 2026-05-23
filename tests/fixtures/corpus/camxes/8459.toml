@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ni blánu du li pa re re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [24,26],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "blánu",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "re",
+  Cmavo "re",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"re","kind":"cmavo"}}]'
 
@@ -66,53 +34,21 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "blanu",
-              span: [6,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "du",
-              span: [12,14],
-            },
+            Gismu "blánu",
+            Cmavo "du",
           },
           terms: [
             MathExpression {
-              li: Word {
-                kind: "cmavo",
-                phonemes: "li",
-                span: [15,17],
-              },
+              li: Cmavo "li",
               Number {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [21,23],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [24,26],
-                },
+                Cmavo "pa",
+                Cmavo "re",
+                Cmavo "re",
               },
             },
           ],

@@ -192,9 +192,15 @@ fn render_word(word: &Word) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn render_word_without_pause(word: &Word) -> String {
-    match word.kind {
-        WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(&word.phonemes)),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(&word.phonemes),
+    render_word_phonemes_without_pause(word.kind, &word.phonemes)
+}
+
+#[requires(!phonemes.is_empty())]
+#[ensures(true)]
+pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &str) -> String {
+    match kind {
+        WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(phonemes)),
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(phonemes),
     }
 }
 

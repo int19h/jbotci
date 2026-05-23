@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.uses. ma kaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "uses",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [7,10],
-  },
+  Cmevla "uses",
+  Cmavo "ma",
+  Cmavo "kaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"uses","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"kaŭ","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"uses","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "uses",
-      span: [0,4],
-    },
+    Cmevla "uses",
   ],
   Term {
     terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [5,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "kaŭ",
-          span: [7,10],
-        },
+        Cmavo "ma",
+        indicator: Cmavo "kaŭ",
       },
     ],
   },

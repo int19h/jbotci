@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na kákne le se go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [18,22],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "kákne",
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "kákne",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'i",
-            span: [18,22],
-          },
+          se: Cmavo "se",
+          Cmavo "go'i",
         },
       },
     ],

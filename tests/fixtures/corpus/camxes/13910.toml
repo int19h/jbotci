@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma do na kákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [14,19],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "kákne",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"kakne","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    Cmavo "do",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [11,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kakne",
-      span: [14,19],
-    },
+    na: Cmavo "na",
+    Gismu "kákne",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"kakne","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.closer. to sínxa)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "closer",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sinxa",
-    span: [10,15],
-  },
+  Cmevla "closer",
+  Cmavo "to",
+  Gismu "sínxa",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"closer","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sinxa","kind":"gismu"}}]'
 
@@ -40,24 +28,12 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"closer","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "closer",
-      span: [0,6],
-    },
+    Cmevla "closer",
   ],
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [7,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sinxa",
-        span: [10,15],
-      },
+      to: Cmavo "to",
+      Gismu "sínxa",
     },
   ],
 }"""

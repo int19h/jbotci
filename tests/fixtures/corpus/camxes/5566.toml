@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo cmávo la'e [zo nu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [9,13],
-  },
+  Cmavo "lo",
+  Gismu "cmávo",
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [14,16],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [17,19],
-    },
+    zo: Cmavo "zo",
+    Cmavo "nu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmavo","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[14,16],"phonemes":"zo","kind":"cmavo"},"word":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}}}]"""
@@ -53,34 +33,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cmavo",
-        span: [3,8],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "cmávo",
     },
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [9,13],
-      },
+      lahe: Cmavo "la'e",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [17,19],
-        },
+        zo: Cmavo "zo",
+        Cmavo "nu",
       },
     },
   ],

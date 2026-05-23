@@ -18,127 +18,47 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ge ro rígni cu plúka gi ro plúka cu rígni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [36,41],
-  },
+  Cmavo "ge",
+  Cmavo "ro",
+  Gismu "rígni",
+  Cmavo "cu",
+  Gismu "plúka",
+  Cmavo "gi",
+  Cmavo "ro",
+  Gismu "plúka",
+  Cmavo "cu",
+  Gismu "rígni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"rigni","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"rigni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Pair {
-  gek: Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
+  gek: Cmavo "ge",
   first: Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [3,5],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "rigni",
-          span: [6,11],
-        },
+        relation: Gismu "rígni",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [12,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [15,20],
-    },
+    cu: Cmavo "cu",
+    Gismu "plúka",
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [21,23],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [24,26],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "pluka",
-          span: [27,32],
-        },
+        relation: Gismu "plúka",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [33,35],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "rigni",
-      span: [36,41],
-    },
+    cu: Cmavo "cu",
+    Gismu "rígni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}}}]}},"first":{"Plain":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"rigni","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"pluka","kind":"gismu"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[21,23],"phonemes":"gi","kind":"cmavo"}}}]}},"second":{"Plain":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[24,26],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"pluka","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"rigni","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

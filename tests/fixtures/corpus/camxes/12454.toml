@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o ko nélci le nu do sípna ku .e ba bo le bavlámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamdeĭ",
-    span: [42,51],
-  },
+  Cmavo "a'o",
+  Cmavo "ko",
+  Gismu "nélci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "sípna",
+  Cmavo "ku",
+  Cmavo "e",
+  Cmavo "ba",
+  Cmavo "bo",
+  Cmavo "le",
+  Lujvo "bavlámdeĭ",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[33,34],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,51],"phonemes":"bavlamdeĭ","kind":"lujvo"}}]"""
 
@@ -91,88 +39,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [5,7],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [8,13],
-      },
+      Gismu "nélci",
       terms: [
         Bo {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [14,16],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [17,19],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [20,22],
-                  },
+                  Cmavo "do",
                 ],
-                Word {
-                  kind: "gismu",
-                  phonemes: "sipna",
-                  span: [23,28],
-                },
+                Gismu "sípna",
               },
             },
-            ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [29,31],
-            },
+            ku: Cmavo "ku",
           },
-          bo_connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [33,34],
-          },
-          bo_tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [34,36],
-          },
-          bo: Word {
-            kind: "cmavo",
-            phonemes: "bo",
-            span: [36,38],
-          },
+          bo_connective: Cmavo "e",
+          bo_tense_modal: Cmavo "ba",
+          bo: Cmavo "bo",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [39,41],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "bavlamdeĭ",
-              span: [42,51],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "bavlámdeĭ",
           },
         },
       ],

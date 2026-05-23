@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma pónse le lójbo me la ckafybárja prína ku ke pe'a zárci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ckafybarja",
-    span: [24,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prina",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [47,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [52,57],
-  },
+  Cmavo "ma",
+  Gismu "pónse",
+  Cmavo "le",
+  Gismu "lójbo",
+  Cmavo "me",
+  Cmavo "la",
+  Lujvo "ckafybárja",
+  Gismu "prína",
+  Cmavo "ku",
+  Cmavo "ke",
+  Cmavo "pe'a",
+  Gismu "zárci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,34],"phonemes":"ckafybarja","kind":"lujvo"}},{"Bare":{"span":[35,40],"phonemes":"prina","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[47,51],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"zarci","kind":"gismu"}}]"""
 
@@ -85,80 +37,32 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ponse",
-      span: [3,8],
-    },
+    Gismu "pónse",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [12,17],
-          },
+          Gismu "lójbo",
           Me {
-            me: Word {
-              kind: "cmavo",
-              phonemes: "me",
-              span: [18,20],
-            },
+            me: Cmavo "me",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [21,23],
-              },
+              descriptor: Cmavo "la",
               relation: Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "ckafybarja",
-                  span: [24,34],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "prina",
-                  span: [35,40],
-                },
+                Lujvo "ckafybárja",
+                Gismu "prína",
               },
-              ku: Word {
-                kind: "cmavo",
-                phonemes: "ku",
-                span: [41,43],
-              },
+              ku: Cmavo "ku",
             },
           },
           Ke {
             ke: WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [44,46],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "pe'a",
-                span: [47,51],
-              },
+              Cmavo "ke",
+              indicator: Cmavo "pe'a",
             },
-            Word {
-              kind: "gismu",
-              phonemes: "zarci",
-              span: [52,57],
-            },
+            Gismu "zárci",
           },
         },
       },

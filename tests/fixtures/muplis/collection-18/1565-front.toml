@@ -21,21 +21,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a ba dénpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [8,13],
-  },
+  Cmavo "mi'a",
+  Cmavo "ba",
+  Gismu "dénpa",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"denpa","kind":"gismu"}}]"""
 
@@ -44,23 +32,11 @@ brackets = "(mi'a [ba dénpa])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi'a",
-      span: [0,4],
-    },
+    Cmavo "mi'a",
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "denpa",
-      span: [8,13],
-    },
+    tense_modal: Cmavo "ba",
+    Gismu "dénpa",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"denpa","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.makes. sénse)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "makes",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sense",
-    span: [6,11],
-  },
+  Cmevla "makes",
+  Gismu "sénse",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"sense","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "makes",
-      span: [0,5],
-    },
+    Cmevla "makes",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "sense",
-    span: [6,11],
-  },
+  Gismu "sénse",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,5],"phonemes":"makes","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"sense","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -18,86 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi djíca le nu ti samsélpla baŭ la .xaskel. távla le dráta samsélpla baŭ la .paĭtan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [17,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xaskel",
-    span: [34,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [41,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [47,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [50,55],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [56,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [66,69],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [70,72],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "paĭtan",
-    span: [73,79],
-  },
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ti",
+  Lujvo "samsélpla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "xaskel",
+  Gismu "távla",
+  Cmavo "le",
+  Gismu "dráta",
+  Lujvo "samsélpla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "paĭtan",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[17,26],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[27,30],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,40],"phonemes":"xaskel","kind":"cmevla"}},{"Bare":{"span":[41,46],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[47,49],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[56,65],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[66,69],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[70,72],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[73,79],"phonemes":"paĭtan","kind":"cmevla"}}]'
 
@@ -105,67 +41,31 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [3,8],
-    },
+    Gismu "djíca",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [11,13],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ti",
-                  span: [14,16],
-                },
+                Cmavo "ti",
               ],
               Relation {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "samselpla",
-                  span: [17,26],
-                },
+                Lujvo "samsélpla",
                 terms: [
                   Tagged {
                     tense_modal: Simple {
-                      bai: Word {
-                        kind: "cmavo",
-                        phonemes: "baŭ",
-                        span: [27,30],
-                      },
+                      bai: Cmavo "baŭ",
                     },
                     Name {
-                      la: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [31,33],
-                      },
+                      la: Cmavo "la",
                       names: [
-                        Word {
-                          kind: "cmevla",
-                          phonemes: "xaskel",
-                          span: [34,40],
-                        },
+                        Cmevla "xaskel",
                       ],
                     },
                   },
@@ -173,52 +73,24 @@ Predicate {
               },
             },
           },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [41,46],
-          },
+          Gismu "távla",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [47,49],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "drata",
-            span: [50,55],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "samselpla",
-            span: [56,65],
-          },
+          Gismu "dráta",
+          Lujvo "samsélpla",
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [66,69],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [70,72],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "paĭtan",
-              span: [73,79],
-            },
+            Cmevla "paĭtan",
           ],
         },
       },

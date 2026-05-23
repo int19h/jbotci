@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ge naĭ márji gi naĭ prúxi .i ba'e ménli je naĭ dégji fátci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marji",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pruxi",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [27,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "degji",
-    span: [44,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fatci",
-    span: [50,55],
-  },
+  Cmavo "ge",
+  Cmavo "naĭ",
+  Gismu "márji",
+  Cmavo "gi",
+  Cmavo "naĭ",
+  Gismu "prúxi",
+  Cmavo "i",
+  Cmavo "ba'e",
+  Gismu "ménli",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "dégji",
+  Gismu "fátci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"marji","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"pruxi","kind":"gismu"}},{"Bare":{"span":[25,26],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[40,43],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"degji","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"fatci","kind":"gismu"}}]"""
 
@@ -91,83 +39,31 @@ tree = """
 Paragraph {
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ge",
-        span: [0,2],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [2,5],
-      },
+      Cmavo "ge",
+      nai: Cmavo "naĭ",
     },
-    first: Word {
-      kind: "gismu",
-      phonemes: "marji",
-      span: [6,11],
-    },
+    first: Gismu "márji",
     gik: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "gi",
-        span: [12,14],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [14,17],
-      },
+      Cmavo "gi",
+      nai: Cmavo "naĭ",
     },
-    second: Word {
-      kind: "gismu",
-      phonemes: "pruxi",
-      span: [18,23],
-    },
+    second: Gismu "prúxi",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [25,26],
-    },
+    i: Cmavo "i",
     Compound {
       Connected {
         leading_unit: Emphasized {
-          bahe: Word {
-            kind: "cmavo",
-            phonemes: "ba'e",
-            span: [27,31],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "menli",
-            span: [32,37],
-          },
+          bahe: Cmavo "ba'e",
+          Gismu "ménli",
         },
         connective: Relation {
-          Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [38,40],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [40,43],
-          },
+          Cmavo "je",
+          nai: Cmavo "naĭ",
         },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "degji",
-          span: [44,49],
-        },
+        trailing_unit: Gismu "dégji",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "fatci",
-        span: [50,55],
-      },
+      Gismu "fátci",
     },
   },
 }"""

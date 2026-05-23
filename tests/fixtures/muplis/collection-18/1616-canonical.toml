@@ -21,71 +21,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu kaŭ ca ku na'o ku no da zo'u la .tom. kánsa da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tom",
-    span: [35,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kansa",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [46,48],
-  },
+  Cmavo "xu",
+  Cmavo "kaŭ",
+  Cmavo "ca",
+  Cmavo "ku",
+  Cmavo "na'o",
+  Cmavo "ku",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "la",
+  Cmevla "tom",
+  Gismu "kánsa",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"tom","kind":"cmevla"}},{"Bare":{"span":[40,45],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -96,96 +44,44 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "kaŭ",
-          span: [3,6],
-        },
+        Cmavo "xu",
+        indicator: Cmavo "kaŭ",
       },
     },
   ],
   Prenex {
     prenex_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [10,12],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "na'o",
-          span: [13,17],
-        },
+        tense_modal: Cmavo "na'o",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [18,20],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [21,23],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [24,26],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
-    zohu: Word {
-      kind: "cmavo",
-      phonemes: "zo'u",
-      span: [27,31],
-    },
+    zohu: Cmavo "zo'u",
     Predicate {
       leading_terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [32,34],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "tom",
-              span: [35,38],
-            },
+            Cmevla "tom",
           ],
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "kansa",
-          span: [40,45],
-        },
+        Gismu "kánsa",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [46,48],
-          },
+          Cmavo "da",
         ],
       },
     },

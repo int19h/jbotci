@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca je pu cándo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cando",
-    span: [7,12],
-  },
+  Cmavo "ca",
+  Cmavo "je",
+  Cmavo "pu",
+  Gismu "cándo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"cando","kind":"gismu"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [4,6],
-    },
+    Cmavo "ca",
+    Cmavo "je",
+    Cmavo "pu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cando",
-    span: [7,12],
-  },
+  Gismu "cándo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[2,4],"phonemes":"je","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[4,6],"phonemes":"pu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"cando","kind":"gismu"}}}}}}}}}}}}}]}]}'

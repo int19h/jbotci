@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na ro'o stúzi págbu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stuzi",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [14,19],
-  },
+  Cmavo "na",
+  Cmavo "ro'o",
+  Gismu "stúzi",
+  Gismu "págbu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ro'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"stuzi","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"pagbu","kind":"gismu"}}]"""
 
@@ -45,28 +29,12 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Na {
   na: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ro'o",
-      span: [3,7],
-    },
+    Cmavo "na",
+    indicator: Cmavo "ro'o",
   },
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "stuzi",
-      span: [8,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pagbu",
-      span: [14,19],
-    },
+    Gismu "stúzi",
+    Gismu "págbu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"ro'o","kind":"cmavo"}}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"stuzi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"pagbu","kind":"gismu"}}}}]}}}}}}}}}}]}]}"""

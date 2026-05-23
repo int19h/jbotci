@@ -24,66 +24,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ce do gírzu .i lu'o ri gúnma .i vu'i ri pórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunma",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu'i",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porsi",
-    span: [43,48],
-  },
+  Cmavo "mi",
+  Cmavo "ce",
+  Cmavo "do",
+  Gismu "gírzu",
+  Cmavo "i",
+  Cmavo "lu'o",
+  Cmavo "ri",
+  Gismu "gúnma",
+  Cmavo "i",
+  Cmavo "vu'i",
+  Cmavo "ri",
+  Gismu "pórsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ce","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"lu'o","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"gunma","kind":"gismu"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"vu'i","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"porsi","kind":"gismu"}}]"""
 
@@ -94,83 +46,35 @@ Paragraph {
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [0,2],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ce",
-          span: [3,5],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [6,8],
-        },
+        leading_argument: Cmavo "mi",
+        connective: Cmavo "ce",
+        trailing_argument: Cmavo "do",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "girzu",
-      span: [9,14],
-    },
+    Gismu "gírzu",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "lu'o",
-            span: [18,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [23,25],
-          },
+          lahe: Cmavo "lu'o",
+          Cmavo "ri",
         },
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "gunma",
-        span: [26,31],
-      },
+      Gismu "gúnma",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [33,34],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "vu'i",
-            span: [35,39],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [40,42],
-          },
+          lahe: Cmavo "vu'i",
+          Cmavo "ri",
         },
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "porsi",
-        span: [43,48],
-      },
+      Gismu "pórsi",
     },
   },
 }"""

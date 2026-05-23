@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .i fánva nándu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [14,19],
-  },
+  Cmavo "je'e",
+  Cmavo "i",
+  Gismu "fánva",
+  Gismu "nándu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"nandu","kind":"gismu"}}]"""
 
@@ -47,31 +31,15 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nandu",
-        span: [14,19],
-      },
+      Gismu "fánva",
+      Gismu "nándu",
     },
   },
 }"""

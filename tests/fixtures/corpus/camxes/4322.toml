@@ -18,67 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(poĭ ke'a na ca jdíce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [15,20],
-  },
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Cmavo "na",
+  Cmavo "ca",
+  Gismu "jdíce",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jdice","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
+  poi: Cmavo "poĭ",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ke'a",
-        span: [4,8],
-      },
+      Cmavo "ke'a",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [9,11],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jdice",
-          span: [15,20],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "jdíce",
       },
     },
   },

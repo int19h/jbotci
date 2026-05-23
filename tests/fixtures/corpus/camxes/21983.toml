@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .norpan. do se túrni xábju ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "norpan",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [29,31],
-  },
+  Cmavo "doĭ",
+  Cmevla "norpan",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "túrni",
+  Gismu "xábju",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"norpan","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"turni","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -62,53 +34,25 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "norpan",
-        span: [4,10],
-      },
+      argument: Cmevla "norpan",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
+      Cmavo "do",
     ],
     Relation {
       Compound {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "turni",
-            span: [17,22],
-          },
+          se: Cmavo "se",
+          Gismu "túrni",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [23,28],
-        },
+        Gismu "xábju",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [29,31],
-        },
+        Cmavo "ma",
       ],
     },
   },

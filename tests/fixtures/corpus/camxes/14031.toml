@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do préti le mrílu poĭ se cásnu le lójbo cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [43,48],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "préti",
+  Cmavo "le",
+  Gismu "mrílu",
+  Cmavo "poĭ",
+  Cmavo "se",
+  Gismu "cásnu",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "cértu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"certu","kind":"gismu"}}]'
 
@@ -81,77 +37,33 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [6,11],
-      },
+      Gismu "préti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mrilu",
-            span: [15,20],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "mrílu",
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [21,24],
-              },
+              poi: Cmavo "poĭ",
               Relation {
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [25,27],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "casnu",
-                    span: [28,33],
-                  },
+                  se: Cmavo "se",
+                  Gismu "cásnu",
                 },
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [34,36],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "lojbo",
-                        span: [37,42],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "certu",
-                        span: [43,48],
-                      },
+                      Gismu "lójbo",
+                      Gismu "cértu",
                     },
                   },
                 ],

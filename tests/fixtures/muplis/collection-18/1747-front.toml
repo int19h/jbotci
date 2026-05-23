@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i za'u mu no níxli pu sálci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "za'u",
+  Cmavo "mu",
+  Cmavo "no",
+  Gismu "níxli",
+  Cmavo "pu",
+  Gismu "sálci",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"salci","kind":"gismu"}}]"""
 
@@ -63,51 +35,23 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{(za'u mu no) níxli} {pu sálci}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [3,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [8,10],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [11,13],
-            },
+            Cmavo "za'u",
+            Cmavo "mu",
+            Cmavo "no",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [14,19],
-        },
+        relation: Gismu "níxli",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [20,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "salci",
-        span: [23,28],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "sálci",
     },
   },
 }"""

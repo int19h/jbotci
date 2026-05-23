@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ bébna távla ca ku .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [22,25],
-  },
+  Cmavo "oĭ",
+  Gismu "bébna",
+  Gismu "távla",
+  Cmavo "ca",
+  Cmavo "ku",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "bebna",
-        span: [4,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [10,15],
-      },
+      Gismu "bébna",
+      Gismu "távla",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [16,18],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
           maybe_ku: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [18,20],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'i",
-              span: [22,25],
-            },
+            Cmavo "ku",
+            indicator: Cmavo "u'i",
           },
         },
       },

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u mi'o brédi da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [22,24],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "mi'o",
+  Gismu "brédi",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"bredi","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -60,43 +36,19 @@ tree = """
 Prenex {
   prenex_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'o",
-        span: [11,15],
-      },
+      Cmavo "mi'o",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "bredi",
-        span: [16,21],
-      },
+      Gismu "brédi",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [22,24],
-        },
+        Cmavo "da",
       ],
     },
   },

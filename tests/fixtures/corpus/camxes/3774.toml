@@ -19,16 +19,8 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(to .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [7,9],
-  },
+  Cmavo "to",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -38,16 +30,8 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [7,9],
-        },
+        Cmavo "to",
+        indicator: Cmavo "oĭ",
       },
       Text {},
     },

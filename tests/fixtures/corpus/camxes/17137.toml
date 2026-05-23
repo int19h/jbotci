@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu lu ja'o li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [11,15],
-  },
+  Cmavo "xu",
+  Cmavo "lu",
+  Cmavo "ja'o",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ja'o","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -46,34 +30,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Lu {
         lu: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [3,5],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ja'o",
-            span: [6,10],
-          },
+          Cmavo "lu",
+          indicator: Cmavo "ja'o",
         },
         Text {},
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [11,15],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

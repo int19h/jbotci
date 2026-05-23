@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca gúnka la jbovláste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovlaste",
-    span: [12,21],
-  },
+  Cmavo "ca",
+  Gismu "gúnka",
+  Cmavo "la",
+  Lujvo "jbovláste",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,21],"phonemes":"jbovlaste","kind":"lujvo"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [3,8],
-    },
+    tense_modal: Cmavo "ca",
+    Gismu "gúnka",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [9,11],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "jbovlaste",
-        span: [12,21],
-      },
+      descriptor: Cmavo "la",
+      relation: Lujvo "jbovláste",
     },
   ],
 }"""

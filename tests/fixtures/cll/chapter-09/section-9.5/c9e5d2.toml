@@ -24,51 +24,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi víska do fi'o se pílno le zúnle kánla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zunle",
-    span: [29,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanla",
-    span: [35,40],
-  },
+  Cmavo "mi",
+  Gismu "víska",
+  Cmavo "do",
+  Cmavo "fi'o",
+  Cmavo "se",
+  Gismu "pílno",
+  Cmavo "le",
+  Gismu "zúnle",
+  Gismu "kánla",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"zunle","kind":"gismu"}},{"Bare":{"span":[35,40],"phonemes":"kanla","kind":"gismu"}}]"""
 
@@ -77,61 +41,25 @@ brackets = "(mi [víska {do ([fi'o {se pílno}] [le {zúnle kánla}])}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [9,11],
-      },
+      Cmavo "do",
       Tagged {
         tense_modal: Fiho {
-          fiho: Word {
-            kind: "cmavo",
-            phonemes: "fi'o",
-            span: [12,16],
-          },
+          fiho: Cmavo "fi'o",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [17,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [20,25],
-            },
+            se: Cmavo "se",
+            Gismu "pílno",
           },
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [26,28],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "zunle",
-              span: [29,34],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kanla",
-              span: [35,40],
-            },
+            Gismu "zúnle",
+            Gismu "kánla",
           },
         },
       },

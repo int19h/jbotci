@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ty bénde cu .eĭ ckíre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ty",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bende",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckire",
-    span: [20,25],
-  },
+  Cmavo "le",
+  Cmavo "ty",
+  Gismu "bénde",
+  Cmavo "cu",
+  Cmavo "eĭ",
+  Gismu "ckíre",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"bende","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"ckire","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ty",
-              span: [3,5],
-            },
+            Cmavo "ty",
           ],
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "bende",
-        span: [7,12],
-      },
+      relation: Gismu "bénde",
     },
   ],
   cu: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [17,19],
-    },
+    Cmavo "cu",
+    indicator: Cmavo "eĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "ckire",
-    span: [20,25],
-  },
+  Gismu "ckíre",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ty","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"bende","kind":"gismu"}}}}}}}],"cu":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"indicator":{"span":[17,19],"phonemes":"eĭ","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"ckire","kind":"gismu"}}}}}}}}}}}]}]}'

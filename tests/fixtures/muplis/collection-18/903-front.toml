@@ -22,52 +22,16 @@ brackets = "([.a bu] ráŭnzu .i je ku'i by na go'i)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [1,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [2,4],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "raŭnzu",
-    span: [5,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [30,34],
-  },
+  Fuhivla "ráŭnzu",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "ku'i",
+  Cmavo "by",
+  Cmavo "na",
+  Cmavo "go'i",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,11],"phonemes":"raŭnzu","kind":"fu'ivla"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -80,66 +44,30 @@ Connected {
       Letter {
         letter: [
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [1,2],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [2,4],
-            },
+            Cmavo "a",
+            bu: Cmavo "bu",
           },
         ],
       },
     ],
-    Word {
-      kind: "fu'ivla",
-      phonemes: "raŭnzu",
-      span: [5,11],
-    },
+    Fuhivla "ráŭnzu",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
+  i: Cmavo "i",
   connective: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [15,17],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [18,22],
-    },
+    Cmavo "je",
+    indicator: Cmavo "ku'i",
   },
   trailing_statement: Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [23,25],
-          },
+          Cmavo "by",
         ],
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [27,29],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [30,34],
-      },
+      na: Cmavo "na",
+      Cmavo "go'i",
     },
   },
 }"""

@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le selmá'o be [zo nu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selma'o",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [11,13],
-  },
+  Cmavo "le",
+  Lujvo "selmá'o",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [14,16],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [17,19],
-    },
+    zo: Cmavo "zo",
+    Cmavo "nu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"selma'o","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[14,16],"phonemes":"zo","kind":"cmavo"},"word":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}}}]"""
@@ -53,33 +33,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "lujvo",
-          phonemes: "selma'o",
-          span: [3,10],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [11,13],
-        },
+        Lujvo "selmá'o",
+        be: Cmavo "be",
         first_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [17,19],
-          },
+          zo: Cmavo "zo",
+          Cmavo "nu",
         },
       },
     },

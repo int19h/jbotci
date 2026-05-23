@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'o pi ro leĭ ca djédi mi mútce tátpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [32,37],
-  },
+  Cmavo "ca'o",
+  Cmavo "pi",
+  Cmavo "ro",
+  Cmavo "leĭ",
+  Cmavo "ca",
+  Gismu "djédi",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "tátpi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"tatpi","kind":"gismu"}}]"""
 
@@ -71,60 +35,24 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "ca'o",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [10,13],
-        },
+        descriptor: Cmavo "leĭ",
         outer_quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [7,9],
-          },
+          Cmavo "pi",
+          Cmavo "ro",
         },
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djedi",
-            span: [17,22],
-          },
+          tense_modal: Cmavo "ca",
+          Gismu "djédi",
         },
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [23,25],
-    },
+    Cmavo "mi",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [26,31],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [32,37],
-    },
+    Gismu "mútce",
+    Gismu "tátpi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}}}}]}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[10,13],"phonemes":"leĭ","kind":"cmavo"}}},"outer_quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}}}]}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[14,16],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"djedi","kind":"gismu"}}}}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[32,37],"phonemes":"tatpi","kind":"gismu"}}}}]}}}}}}}}]}]}"""

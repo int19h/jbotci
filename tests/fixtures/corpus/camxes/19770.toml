@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.djonman. mu'o)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "djonman",
-    span: [1,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'o",
-    span: [10,14],
-  },
+  Cmevla "djonman",
+  Cmavo "mu'o",
 ]"""
 json = """[{"Bare":{"span":[1,8],"phonemes":"djonman","kind":"cmevla"}},{"Bare":{"span":[10,14],"phonemes":"mu'o","kind":"cmavo"}}]"""
 
@@ -35,20 +27,12 @@ json = """[{"Bare":{"span":[1,8],"phonemes":"djonman","kind":"cmevla"}},{"Bare":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "djonman",
-      span: [1,8],
-    },
+    Cmevla "djonman",
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mu'o",
-          span: [10,14],
-        },
+        Cmavo "mu'o",
       ],
     },
   ],

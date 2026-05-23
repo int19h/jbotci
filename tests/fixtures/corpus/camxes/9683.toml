@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(djúno fi le smúni [zo jy])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [12,17],
-  },
+  Gismu "djúno",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "smúni",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "jy",
-      span: [21,23],
-    },
+    zo: Cmavo "zo",
+    Cmavo "jy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"smuni","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,23],"phonemes":"jy","kind":"cmavo"}}}]'
@@ -56,42 +32,18 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"spa
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [0,5],
-  },
+  Gismu "djúno",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "smuni",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "smúni",
       },
     },
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [18,20],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "jy",
-        span: [21,23],
-      },
+      zo: Cmavo "zo",
+      Cmavo "jy",
     },
   ],
 }"""

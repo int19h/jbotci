@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ze'a clíva mu'i le mijysánmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mijysanmi",
-    span: [22,31],
-  },
+  Cmavo "mi",
+  Cmavo "ze'a",
+  Gismu "clíva",
+  Cmavo "mu'i",
+  Cmavo "le",
+  Lujvo "mijysánmi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,31],"phonemes":"mijysanmi","kind":"lujvo"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ze'a",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cliva",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "ze'a",
+      Gismu "clíva",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "mu'i",
-            span: [14,18],
-          },
+          bai: Cmavo "mu'i",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "mijysanmi",
-            span: [22,31],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "mijysánmi",
         },
       },
     ],

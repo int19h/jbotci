@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i bu'u ma do co'a cífnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cifnu",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "bu'u",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "co'a",
+  Gismu "cífnu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cifnu","kind":"gismu"}}]"""
 
@@ -58,42 +34,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{(bu'u ma) do} {co'a cífnu}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "bu'u",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [8,10],
-        },
+        tense_modal: Cmavo "bu'u",
+        Cmavo "ma",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
+      Cmavo "do",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [14,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cifnu",
-        span: [19,24],
-      },
+      tense_modal: Cmavo "co'a",
+      Gismu "cífnu",
     },
   },
 }"""

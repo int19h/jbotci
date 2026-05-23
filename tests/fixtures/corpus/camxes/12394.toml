@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi mútce nélci lo mílxe bírji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birji",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "nélci",
+  Cmavo "lo",
+  Gismu "mílxe",
+  Gismu "bírji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"birji","kind":"gismu"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [9,14],
-      },
+      Gismu "mútce",
+      Gismu "nélci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [15,17],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "milxe",
-            span: [18,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "birji",
-            span: [24,29],
-          },
+          Gismu "mílxe",
+          Gismu "bírji",
         },
       },
     ],

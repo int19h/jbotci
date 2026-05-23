@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi zásti mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
+  Cmavo "mi",
+  Gismu "zásti",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -40,24 +28,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zasti",
-      span: [3,8],
-    },
+    Gismu "zásti",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [9,11],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

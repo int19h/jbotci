@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ni la .djeĭn. cu mámta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭn",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [20,25],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Cmavo "la",
+  Cmevla "djeĭn",
+  Cmavo "cu",
+  Gismu "mámta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"djeĭn","kind":"cmevla"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mamta","kind":"gismu"}}]'
 
@@ -63,44 +39,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Predicate {
           leading_terms: [
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [6,8],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "djeĭn",
-                  span: [10,15],
-                },
+                Cmevla "djeĭn",
               ],
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [17,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mamta",
-            span: [20,25],
-          },
+          cu: Cmavo "cu",
+          Gismu "mámta",
         },
       },
     },

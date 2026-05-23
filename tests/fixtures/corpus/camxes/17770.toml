@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'o vámtu .i co'a sípna .i co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vamtu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [26,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [28,32],
-  },
+  Cmavo "mu'o",
+  Gismu "vámtu",
+  Cmavo "i",
+  Cmavo "co'a",
+  Gismu "sípna",
+  Cmavo "i",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"vamtu","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[26,27],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -62,55 +34,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mu'o",
-          span: [0,4],
-        },
+        Cmavo "mu'o",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "vamtu",
-          span: [5,10],
-        },
+        relation: Gismu "vámtu",
       },
     },
   ],
   Paragraph {
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [12,13],
-      },
+      i: Cmavo "i",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "co'a",
-          span: [14,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sipna",
-          span: [19,24],
-        },
+        tense_modal: Cmavo "co'a",
+        Gismu "sípna",
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [26,27],
-      },
+      i: Cmavo "i",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "co'o",
-              span: [28,32],
-            },
+            Cmavo "co'o",
           ],
         },
       ],

@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je [zo noĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [2,4],
-  },
+  Cmavo "i",
+  Cmavo "je",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "noĭ",
-      span: [8,11],
-    },
+    zo: Cmavo "zo",
+    Cmavo "noĭ",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"je","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,11],"phonemes":"noĭ","kind":"cmavo"}}}]'
@@ -46,29 +30,13 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [2,4],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   Term {
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "noĭ",
-          span: [8,11],
-        },
+        zo: Cmavo "zo",
+        Cmavo "noĭ",
       },
     ],
   },

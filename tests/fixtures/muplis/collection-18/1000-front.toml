@@ -21,26 +21,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.aĭ saĭ mi jínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [11,16],
-  },
+  Cmavo "aĭ",
+  Cmavo "saĭ",
+  Cmavo "mi",
+  Gismu "jínga",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"jinga","kind":"gismu"}}]'
 
@@ -51,32 +35,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "aĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [4,7],
-        },
+        Cmavo "aĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "jinga",
-      span: [11,16],
-    },
+    Gismu "jínga",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"jinga","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}}},"indicator":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

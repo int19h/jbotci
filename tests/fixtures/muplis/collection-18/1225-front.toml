@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i do xábju le plíni poĭ mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plini",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [25,27],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "xábju",
+  Cmavo "le",
+  Gismu "plíni",
+  Cmavo "poĭ",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"plini","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -63,49 +35,21 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [do {xábju (le plíni [poĭ mo])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xabju",
-        span: [6,11],
-      },
+      Gismu "xábju",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "plini",
-            span: [15,20],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "plíni",
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [21,24],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "mo",
-                span: [25,27],
-              },
+              poi: Cmavo "poĭ",
+              Cmavo "mo",
             },
           ],
         },

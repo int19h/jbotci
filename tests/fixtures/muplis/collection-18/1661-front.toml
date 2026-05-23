@@ -21,21 +21,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lénku bu'u tu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [11,13],
-  },
+  Gismu "lénku",
+  Cmavo "bu'u",
+  Cmavo "tu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"tu","kind":"cmavo"}}]"""
 
@@ -43,23 +31,11 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"s
 brackets = "(lénku [bu'u tu])"
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [0,5],
-  },
+  Gismu "lénku",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "bu'u",
-        span: [6,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "tu",
-        span: [11,13],
-      },
+      tense_modal: Cmavo "bu'u",
+      Cmavo "tu",
     },
   ],
 }"""

@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu [se'i zeĭ saĭ] li'u cu cméne le kárni be fi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
+  Cmavo "lu",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "se'i",
-      span: [19,23],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [24,27],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [28,31],
-    },
+    left: Cmavo "se'i",
+    zei: Cmavo "zeĭ",
+    Cmavo "saĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karni",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [58,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [61,63],
-  },
+  Cmavo "li'u",
+  Cmavo "cu",
+  Gismu "cméne",
+  Cmavo "le",
+  Gismu "kárni",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[19,23],"phonemes":"se'i","kind":"cmavo"}},"zei":{"span":[24,27],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[28,31],"phonemes":"saĭ","kind":"cmavo"}}},{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"karni","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[58,60],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -88,74 +40,26 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       ZeiLujvo {
-        left: Word {
-          kind: "cmavo",
-          phonemes: "se'i",
-          span: [19,23],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [24,27],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [28,31],
-        },
+        left: Cmavo "se'i",
+        zei: Cmavo "zeĭ",
+        Cmavo "saĭ",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [32,36],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [40,45],
-    },
+    Gismu "cméne",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [46,48],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "karni",
-            span: [49,54],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [55,57],
-          },
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [58,60],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [61,63],
-          },
+          Gismu "kárni",
+          be: Cmavo "be",
+          fa: Cmavo "fi",
+          first_argument: Cmavo "mi",
         },
       },
     ],

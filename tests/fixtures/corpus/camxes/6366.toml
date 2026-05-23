@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ saĭ mi pónse no sódva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [19,24],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Cmavo "mi",
+  Gismu "pónse",
+  Cmavo "no",
+  Gismu "sódva",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"sodva","kind":"gismu"}}]'
 
@@ -57,47 +33,23 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "ponse",
-        span: [10,15],
-      },
+      Gismu "pónse",
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [16,18],
-            },
+            Cmavo "no",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "sodva",
-            span: [19,24],
-          },
+          relation: Gismu "sódva",
         },
       ],
     },

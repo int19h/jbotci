@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le rémna pu fínti le lísri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lisri",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Gismu "rémna",
+  Cmavo "pu",
+  Gismu "fínti",
+  Cmavo "le",
+  Gismu "lísri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"lisri","kind":"gismu"}}]'
 
@@ -63,43 +39,19 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "remna",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "rémna",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "fínti",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "lisri",
-          span: [21,26],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "lísri",
       },
     ],
   },

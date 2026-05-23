@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do cfípu je selcfípu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selcfipu",
-    span: [12,20],
-  },
+  Cmavo "do",
+  Gismu "cfípu",
+  Cmavo "je",
+  Lujvo "selcfípu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"selcfipu","kind":"lujvo"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "cfipu",
-      span: [3,8],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [9,11],
-    },
-    trailing_relation: Word {
-      kind: "lujvo",
-      phonemes: "selcfipu",
-      span: [12,20],
-    },
+    leading_relation: Gismu "cfípu",
+    connective: Cmavo "je",
+    trailing_relation: Lujvo "selcfípu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"cfipu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,20],"phonemes":"selcfipu","kind":"lujvo"}}}}}}}}}}}}}]}]}'

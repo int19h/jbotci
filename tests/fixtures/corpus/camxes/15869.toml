@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mu núzba le gérna cártu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cartu",
-    span: [18,23],
-  },
+  Cmavo "mu",
+  Gismu "núzba",
+  Cmavo "le",
+  Gismu "gérna",
+  Gismu "cártu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"cartu","kind":"gismu"}}]'
 
@@ -52,35 +32,15 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mu",
-          span: [0,2],
-        },
+        Cmavo "mu",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nuzba",
-        span: [3,8],
-      },
+      relation: Gismu "núzba",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "gerna",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cartu",
-          span: [18,23],
-        },
+        Gismu "gérna",
+        Gismu "cártu",
       },
     },
   ],

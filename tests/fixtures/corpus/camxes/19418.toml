@@ -18,91 +18,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le júngo cu mílxe bángu mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jungo",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "júngo",
+  Cmavo "cu",
+  Gismu "mílxe",
+  Gismu "bángu",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jungo","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "jungo",
-          span: [6,11],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "júngo",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [12,14],
-    },
+    cu: Cmavo "cu",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "milxe",
-          span: [15,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [21,26],
-        },
+        Gismu "mílxe",
+        Gismu "bángu",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [27,29],
-        },
+        Cmavo "mi",
       ],
     },
   },

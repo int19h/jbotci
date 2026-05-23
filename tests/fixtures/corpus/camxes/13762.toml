@@ -18,69 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ma'a bílga cásnu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Cmavo "i",
+  Cmavo "ma'a",
+  Gismu "bílga",
+  Gismu "cásnu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma'a",
-        span: [3,7],
-      },
+      Cmavo "ma'a",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "bilga",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "casnu",
-          span: [14,19],
-        },
+        Gismu "bílga",
+        Gismu "cásnu",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [20,22],
-        },
+        Cmavo "ma",
       ],
     },
   },

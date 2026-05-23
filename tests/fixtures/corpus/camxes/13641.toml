@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca le na'e seljibrygúnka djédi ma tcíka xámgu .i xu le míntu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seljibrygunka",
-    span: [11,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcika",
-    span: [34,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [47,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [52,54],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mintu",
-    span: [55,60],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "na'e",
+  Lujvo "seljibrygúnka",
+  Gismu "djédi",
+  Cmavo "ma",
+  Gismu "tcíka",
+  Gismu "xámgu",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "míntu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[11,24],"phonemes":"seljibrygunka","kind":"lujvo"}},{"Bare":{"span":[25,30],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"tcika","kind":"gismu"}},{"Bare":{"span":[40,45],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[47,48],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[55,60],"phonemes":"mintu","kind":"gismu"}}]"""
 
@@ -87,83 +39,35 @@ Paragraph {
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [0,2],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [3,5],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Nahe {
-              nahe: Word {
-                kind: "cmavo",
-                phonemes: "na'e",
-                span: [6,10],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "seljibrygunka",
-                span: [11,24],
-              },
+              nahe: Cmavo "na'e",
+              Lujvo "seljibrygúnka",
             },
-            Word {
-              kind: "gismu",
-              phonemes: "djedi",
-              span: [25,30],
-            },
+            Gismu "djédi",
           },
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [31,33],
-      },
+      Cmavo "ma",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "tcika",
-        span: [34,39],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [40,45],
-      },
+      Gismu "tcíka",
+      Gismu "xámgu",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [47,48],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [49,51],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Term {
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [52,54],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mintu",
-            span: [55,60],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "míntu",
         },
       ],
     },

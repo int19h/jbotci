@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pínxe loĭ ckáfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [16,21],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "pínxe",
+  Cmavo "loĭ",
+  Gismu "ckáfi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"ckafi","kind":"gismu"}}]'
 
@@ -53,37 +33,17 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [mi {pínxe (loĭ ckáfi)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pinxe",
-        span: [6,11],
-      },
+      Gismu "pínxe",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [12,15],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "ckafi",
-            span: [16,21],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Gismu "ckáfi",
         },
       ],
     },

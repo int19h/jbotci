@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le neĭ xi raŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "neĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "raŭ",
-    span: [7,10],
-  },
+  Cmavo "le",
+  Cmavo "neĭ",
+  Cmavo "xi",
+  Cmavo "raŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"neĭ","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"raŭ","kind":"cmavo"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "neĭ",
-          span: [2,5],
-        },
+        goha: Cmavo "neĭ",
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [5,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "raŭ",
-              span: [7,10],
-            },
+            xi: Cmavo "xi",
+            Cmavo "raŭ",
           },
         ],
       },

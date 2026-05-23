@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko gúbgaŭ le cabnánca jbonúnsla píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gubgaŭ",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabnanca",
-    span: [13,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [22,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [32,37],
-  },
+  Cmavo "ko",
+  Lujvo "gúbgaŭ",
+  Cmavo "le",
+  Lujvo "cabnánca",
+  Lujvo "jbonúnsla",
+  Gismu "píxra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"gubgaŭ","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"cabnanca","kind":"lujvo"}},{"Bare":{"span":[22,31],"phonemes":"jbonunsla","kind":"lujvo"}},{"Bare":{"span":[32,37],"phonemes":"pixra","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "gubgaŭ",
-      span: [3,9],
-    },
+    Lujvo "gúbgaŭ",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "cabnanca",
-            span: [13,21],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "jbonunsla",
-            span: [22,31],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pixra",
-            span: [32,37],
-          },
+          Lujvo "cabnánca",
+          Lujvo "jbonúnsla",
+          Gismu "píxra",
         },
       },
     ],

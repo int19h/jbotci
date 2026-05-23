@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le pónjo bángu cu jaĭ cínri mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
+  Cmavo "le",
+  Gismu "pónjo",
+  Gismu "bángu",
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "cínri",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponjo","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "ponjo",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [9,14],
-        },
+        Gismu "pónjo",
+        Gismu "bángu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [18,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [22,27],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "cínri",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [28,30],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

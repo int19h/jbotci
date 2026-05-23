@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma le stéci stúzi cu se nítcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "steci",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stuzi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [29,34],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "le",
+  Gismu "stéci",
+  Gismu "stúzi",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "nítcu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"steci","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"stuzi","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"nitcu","kind":"gismu"}}]"""
 
@@ -67,54 +35,22 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [8,10],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "steci",
-          span: [11,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "stuzi",
-          span: [17,22],
-        },
+        Gismu "stéci",
+        Gismu "stúzi",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
+  cu: Cmavo "cu",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [26,28],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nitcu",
-      span: [29,34],
-    },
+    se: Cmavo "se",
+    Gismu "nítcu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"steci","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"stuzi","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[26,28],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[29,34],"phonemes":"nitcu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

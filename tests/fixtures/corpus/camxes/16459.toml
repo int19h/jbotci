@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e di'u xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [10,15],
-  },
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"xamgu","kind":"gismu"}}]"""
 
@@ -41,22 +29,10 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [5,9],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "di'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [10,15],
-  },
+  Gismu "xámgu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[5,9],"phonemes":"di'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"xamgu","kind":"gismu"}}}}}}}}}}}]}]}"""

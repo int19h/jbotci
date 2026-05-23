@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ti xámgu be fi mi be'o zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'o",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [25,30],
-  },
+  Cmavo "ti",
+  Gismu "xámgu",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "mi",
+  Cmavo "be'o",
+  Gismu "zdáni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"zdani","kind":"gismu"}}]"""
 
@@ -61,45 +33,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
     Be {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [3,8],
-      },
-      be: Word {
-        kind: "cmavo",
-        phonemes: "be",
-        span: [9,11],
-      },
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [12,14],
-      },
-      first_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [15,17],
-      },
-      beho: Word {
-        kind: "cmavo",
-        phonemes: "be'o",
-        span: [19,23],
-      },
+      Gismu "xámgu",
+      be: Cmavo "be",
+      fa: Cmavo "fi",
+      first_argument: Cmavo "mi",
+      beho: Cmavo "be'o",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "zdani",
-      span: [25,30],
-    },
+    Gismu "zdáni",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}}},"fa":{"Bare":{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}}},"beho":{"Bare":{"Bare":{"span":[19,23],"phonemes":"be'o","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[25,30],"phonemes":"zdani","kind":"gismu"}}}}]}}}}}}}}]}]}"""

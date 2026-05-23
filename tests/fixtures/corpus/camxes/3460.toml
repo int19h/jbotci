@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do kríci le du'u le lójbo távla cu ji'i xo meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'i",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [43,46],
-  },
+  Cmavo "do",
+  Gismu "kríci",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "távla",
+  Cmavo "cu",
+  Cmavo "ji'i",
+  Cmavo "xo",
+  Cmavo "meĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"ji'i","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[43,46],"phonemes":"meĭ","kind":"cmavo"}}]"""
 
@@ -80,76 +36,32 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "krici",
-      span: [3,8],
-    },
+    Gismu "kríci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [12,16],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [17,19],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "lojbo",
-                    span: [20,25],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "tavla",
-                    span: [26,31],
-                  },
+                  Gismu "lójbo",
+                  Gismu "távla",
                 },
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [32,34],
-            },
+            cu: Cmavo "cu",
             Moi {
               number: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ji'i",
-                  span: [35,39],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "xo",
-                  span: [40,42],
-                },
+                Cmavo "ji'i",
+                Cmavo "xo",
               ],
-              moi: Word {
-                kind: "cmavo",
-                phonemes: "meĭ",
-                span: [43,46],
-              },
+              moi: Cmavo "meĭ",
             },
           },
         },

@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do pónse ti voĭ cúkta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [16,21],
-  },
+  Cmavo "do",
+  Gismu "pónse",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "cúkta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cukta","kind":"gismu"}}]'
 
@@ -54,37 +34,17 @@ brackets = "(do [pónse {ti (voĭ cúkta)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ponse",
-      span: [3,8],
-    },
+    Gismu "pónse",
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [9,11],
-        },
+        base_argument: Cmavo "ti",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "voĭ",
-              span: [12,15],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cukta",
-              span: [16,21],
-            },
+            noi: Cmavo "voĭ",
+            Gismu "cúkta",
           },
         ],
       },

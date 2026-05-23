@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi xékri ro fónxa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xekri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [12,17],
-  },
+  Cmavo "mi",
+  Gismu "xékri",
+  Cmavo "ro",
+  Gismu "fónxa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xekri","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"fonxa","kind":"gismu"}}]'
 
@@ -45,32 +29,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xekri",
-      span: [3,8],
-    },
+    Gismu "xékri",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [9,11],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "fonxa",
-          span: [12,17],
-        },
+        relation: Gismu "fónxa",
       },
     ],
   },

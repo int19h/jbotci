@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u le skámi ke xálbo gírzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [23,28],
-  },
+  Cmavo "e'u",
+  Cmavo "le",
+  Gismu "skámi",
+  Cmavo "ke",
+  Gismu "xálbo",
+  Gismu "gírzu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"xalbo","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"girzu","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [8,13],
-          },
+          Gismu "skámi",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [14,16],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "xalbo",
-                span: [17,22],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "girzu",
-                span: [23,28],
-              },
+              Gismu "xálbo",
+              Gismu "gírzu",
             },
           },
         },

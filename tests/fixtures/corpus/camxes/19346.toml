@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi gúnka cílre tu'a [la'o gy 3-DNS gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [15,19],
-  },
+  Cmavo "mi",
+  Gismu "gúnka",
+  Gismu "cílre",
+  Cmavo "tu'a",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [20,24],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [25,27],
-    },
-    quoted_text: [29,34],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [35,37],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "3-DNS",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"tu'a","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[20,24],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[25,27],"phonemes":"gy","kind":"cmavo"},"quoted_text":[29,34],"closing_delimiter":{"span":[35,37],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -63,49 +35,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [9,14],
-      },
+      Gismu "gúnka",
+      Gismu "cílre",
     },
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [15,19],
-        },
+        lahe: Cmavo "tu'a",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "la'o",
-            span: [20,24],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [25,27],
-          },
-          quoted_text: [29,34],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [35,37],
-          },
+          zoi: Cmavo "la'o",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "3-DNS",
+          closing_delimiter: Cmavo "gy",
         },
       },
     ],

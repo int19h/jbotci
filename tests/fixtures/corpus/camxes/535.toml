@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ xúnre pástu níxli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pastu",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [16,21],
-  },
+  Cmavo "coĭ",
+  Gismu "xúnre",
+  Gismu "pástu",
+  Gismu "níxli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"pastu","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"nixli","kind":"gismu"}}]'
 
@@ -47,29 +31,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xunre",
-            span: [4,9],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pastu",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nixli",
-            span: [16,21],
-          },
+          Gismu "xúnre",
+          Gismu "pástu",
+          Gismu "níxli",
         },
       },
     },

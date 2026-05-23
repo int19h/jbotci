@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o ma ro do tcíma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcima",
-    span: [13,18],
-  },
+  Cmavo "ni'o",
+  Cmavo "ma",
+  Cmavo "ro",
+  Cmavo "do",
+  Gismu "tcíma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tcima","kind":"gismu"}}]"""
 
@@ -50,37 +30,17 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "tcima",
-      span: [13,18],
-    },
+    Gismu "tcíma",
   },
 }"""
 json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}}}],"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}},{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"tcima","kind":"gismu"}}}}}}}}}}}]}]}"""

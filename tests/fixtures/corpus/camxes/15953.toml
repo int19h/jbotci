@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(paŭ mi djíca le nu mi te vécnu ma poĭ kárce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [37,42],
-  },
+  Cmavo "paŭ",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Cmavo "te",
+  Gismu "vécnu",
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Gismu "kárce",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[33,36],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"karce","kind":"gismu"}}]'
 
@@ -81,80 +37,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "paŭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "paŭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [7,12],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [15,17],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [18,20],
-                },
+                Cmavo "mi",
               ],
               Relation {
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "te",
-                    span: [21,23],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "vecnu",
-                    span: [24,29],
-                  },
+                  se: Cmavo "te",
+                  Gismu "vécnu",
                 },
                 terms: [
                   RelativeClause {
-                    base_argument: Word {
-                      kind: "cmavo",
-                      phonemes: "ma",
-                      span: [30,32],
-                    },
+                    base_argument: Cmavo "ma",
                     relative_clauses: [
                       Poi {
-                        poi: Word {
-                          kind: "cmavo",
-                          phonemes: "poĭ",
-                          span: [33,36],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "karce",
-                          span: [37,42],
-                        },
+                        poi: Cmavo "poĭ",
+                        Gismu "kárce",
                       },
                     ],
                   },

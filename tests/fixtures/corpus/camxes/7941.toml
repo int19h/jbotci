@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .konsept. ma lójbo ke skámi mrílu líste ke'e cméne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "konsept",
-    span: [4,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [30,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [42,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [47,52],
-  },
+  Cmavo "doĭ",
+  Cmevla "konsept",
+  Cmavo "ma",
+  Gismu "lójbo",
+  Cmavo "ke",
+  Gismu "skámi",
+  Gismu "mrílu",
+  Gismu "líste",
+  Cmavo "ke'e",
+  Gismu "cméne",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"konsept","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[42,46],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"cmene","kind":"gismu"}}]"""
 
@@ -77,67 +37,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "konsept",
-        span: [4,11],
-      },
+      argument: Cmevla "konsept",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [12,14],
-      },
+      Cmavo "ma",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [15,20],
-      },
+      Gismu "lójbo",
       Ke {
-        ke: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [21,23],
-        },
+        ke: Cmavo "ke",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [24,29],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mrilu",
-            span: [30,35],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "liste",
-            span: [36,41],
-          },
+          Gismu "skámi",
+          Gismu "mrílu",
+          Gismu "líste",
         },
-        kehe: Word {
-          kind: "cmavo",
-          phonemes: "ke'e",
-          span: [42,46],
-        },
+        kehe: Cmavo "ke'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [47,52],
-      },
+      Gismu "cméne",
     },
   },
 }"""

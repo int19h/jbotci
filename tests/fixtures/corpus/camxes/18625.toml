@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i .araĭzen. re'i peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "araĭzen",
-    span: [5,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [18,21],
-  },
+  Cmavo "ju'i",
+  Cmevla "araĭzen",
+  Cmavo "re'i",
+  Cmavo "peĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,12],"phonemes":"araĭzen","kind":"cmevla"}},{"Bare":{"span":[14,18],"phonemes":"re'i","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
@@ -47,32 +31,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
+        Cmavo "ju'i",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "araĭzen",
-          span: [5,12],
-        },
+        Cmevla "araĭzen",
         free_modifiers: [
           Vocative {
             vocative_markers: [
               WithIndicator {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "re'i",
-                  span: [14,18],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "peĭ",
-                  span: [18,21],
-                },
+                Cmavo "re'i",
+                indicator: Cmavo "peĭ",
               },
             ],
           },

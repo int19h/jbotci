@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no mi jaĭ se dícra mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dicra",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [20,22],
-  },
+  Cmavo "no",
+  Cmavo "mi",
+  Cmavo "jaĭ",
+  Cmavo "se",
+  Gismu "dícra",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"dicra","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      quantifier: Cmavo "no",
+      Cmavo "mi",
     },
   ],
   Relation {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [7,10],
-      },
+      jai: Cmavo "jaĭ",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dicra",
-          span: [14,19],
-        },
+        se: Cmavo "se",
+        Gismu "dícra",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [20,22],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

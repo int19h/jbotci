@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'u mi ji'a déjni doĭ .camgusmis.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dejni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "camgusmis",
-    span: [22,31],
-  },
+  Cmavo "u'u",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Gismu "déjni",
+  Cmavo "doĭ",
+  Cmevla "camgusmis",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"dejni","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[22,31],"phonemes":"camgusmis","kind":"cmevla"}}]"""
 
@@ -56,48 +32,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'u",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'u",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [4,6],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [7,11],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
     Word {
-      Word {
-        kind: "gismu",
-        phonemes: "dejni",
-        span: [12,17],
-      },
+      Gismu "déjni",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [18,21],
-            },
+            Cmavo "doĭ",
           ],
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "camgusmis",
-            span: [22,31],
-          },
+          argument: Cmevla "camgusmis",
         },
       ],
     },

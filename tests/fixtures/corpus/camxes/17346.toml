@@ -18,81 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mo mo mo mo mo mo mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [18,20],
-  },
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mo","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [18,20],
-  },
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,11],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[15,17],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[18,20],"phonemes":"mo","kind":"cmavo"}}}}]}}}}}}}}]}]}'

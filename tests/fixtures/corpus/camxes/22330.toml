@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [5,10],
-  },
+  Cmavo "za'a",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -36,17 +28,9 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [5,10],
-  },
+  Gismu "cínri",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cinri","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}}}}]}"""

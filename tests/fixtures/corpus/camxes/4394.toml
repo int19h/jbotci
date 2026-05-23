@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(snáda ma .i do na spúda)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "snada",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [18,23],
-  },
+  Gismu "snáda",
+  Cmavo "ma",
+  Cmavo "i",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "spúda",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"snada","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"spuda","kind":"gismu"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"snada","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "snada",
-      span: [0,5],
-    },
+    Gismu "snáda",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [6,8],
-      },
+      Cmavo "ma",
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [12,14],
-        },
+        Cmavo "do",
       ],
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "spuda",
-          span: [18,23],
-        },
+        na: Cmavo "na",
+        Gismu "spúda",
       },
     },
   },

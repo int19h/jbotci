@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(dy sy to'e cníno je múlno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [19,24],
-  },
+  Cmavo "dy",
+  Cmavo "sy",
+  Cmavo "to'e",
+  Gismu "cníno",
+  Cmavo "je",
+  Gismu "múlno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}}]"""
 
@@ -57,42 +33,18 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "dy",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "sy",
-          span: [2,4],
-        },
+        Cmavo "dy",
+        Cmavo "sy",
       ],
     },
   ],
   Connected {
     leading_relation: Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "to'e",
-        span: [5,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cnino",
-        span: [10,15],
-      },
+      nahe: Cmavo "to'e",
+      Gismu "cníno",
     },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [16,18],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "mulno",
-      span: [19,24],
-    },
+    connective: Cmavo "je",
+    trailing_relation: Gismu "múlno",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"dy","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[5,9],"phonemes":"to'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"cnino","kind":"gismu"}}}}}}]},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[16,18],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}}}}}}}}}}}}}]}]}"""

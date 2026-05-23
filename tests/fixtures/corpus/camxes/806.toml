@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .djan. víska le trícu .i ri se jádni le ri jímca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tricu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jadni",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimca",
-    span: [45,50],
-  },
+  Cmavo "la",
+  Cmevla "djan",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "trícu",
+  Cmavo "i",
+  Cmavo "ri",
+  Cmavo "se",
+  Gismu "jádni",
+  Cmavo "le",
+  Cmavo "ri",
+  Gismu "jímca",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tricu","kind":"gismu"}},{"Bare":{"span":[25,26],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"jadni","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"jimca","kind":"gismu"}}]'
 
@@ -87,88 +39,40 @@ Paragraph {
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [3,7],
-          },
+          Cmevla "djan",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [9,14],
-      },
+      Gismu "víska",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tricu",
-            span: [18,23],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "trícu",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [25,26],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ri",
-          span: [27,29],
-        },
+        Cmavo "ri",
       ],
       Relation {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [30,32],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jadni",
-            span: [33,38],
-          },
+          se: Cmavo "se",
+          Gismu "jádni",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [39,41],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ri",
-                span: [42,44],
-              },
+              Cmavo "ri",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "jimca",
-              span: [45,50],
-            },
+            relation: Gismu "jímca",
           },
         ],
       },

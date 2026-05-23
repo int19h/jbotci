@@ -18,79 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi nítcu le lójbo cméne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [21,26],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "nítcu",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "cméne",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"cmene","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [6,11],
-      },
+      Gismu "nítcu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [15,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cmene",
-              span: [21,26],
-            },
+            Gismu "lójbo",
+            Gismu "cméne",
           },
         },
       ],

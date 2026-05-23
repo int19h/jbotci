@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do gásnu le nu ro ti clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [19,24],
-  },
+  Cmavo "do",
+  Gismu "gásnu",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ro",
+  Cmavo "ti",
+  Gismu "clíva",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cliva","kind":"gismu"}}]'
 
@@ -60,51 +32,23 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "gasnu",
-      span: [3,8],
-    },
+    Gismu "gásnu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
               Quantified {
-                quantifier: Word {
-                  kind: "cmavo",
-                  phonemes: "ro",
-                  span: [14,16],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ti",
-                  span: [16,18],
-                },
+                quantifier: Cmavo "ro",
+                Cmavo "ti",
               },
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "cliva",
-              span: [19,24],
-            },
+            Gismu "clíva",
           },
         },
       },

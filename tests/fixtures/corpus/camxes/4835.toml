@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cílre se caŭ la cmafí'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caŭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cmafi'e",
-    span: [18,25],
-  },
+  Cmavo "mi",
+  Gismu "cílre",
+  Cmavo "se",
+  Cmavo "caŭ",
+  Cmavo "la",
+  Lujvo "cmafí'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"caŭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,25],"phonemes":"cmafi'e","kind":"lujvo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cilre",
-      span: [3,8],
-    },
+    Gismu "cílre",
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [9,11],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "caŭ",
-            span: [11,14],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "caŭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "cmafi'e",
-            span: [18,25],
-          },
+          descriptor: Cmavo "la",
+          relation: Lujvo "cmafí'e",
         },
       },
     ],

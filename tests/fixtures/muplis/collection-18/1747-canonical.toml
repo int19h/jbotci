@@ -21,76 +21,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'u mu no boĭ da poĭ ke'a níxli ku'o pu ku zo'u da sálci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [22,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [44,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [52,57],
-  },
+  Cmavo "za'u",
+  Cmavo "mu",
+  Cmavo "no",
+  Cmavo "boĭ",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Gismu "níxli",
+  Cmavo "ku'o",
+  Cmavo "pu",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "da",
+  Gismu "sálci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[44,48],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"salci","kind":"gismu"}}]"""
 
@@ -102,95 +46,39 @@ Prenex {
     RelativeClause {
       base_argument: Quantified {
         quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [0,4],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [8,10],
-          },
-          boi: Word {
-            kind: "cmavo",
-            phonemes: "boĭ",
-            span: [11,14],
-          },
+          Cmavo "za'u",
+          Cmavo "mu",
+          Cmavo "no",
+          boi: Cmavo "boĭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [15,17],
-        },
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [18,21],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [22,26],
-              },
+              Cmavo "ke'a",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "nixli",
-              span: [27,32],
-            },
+            Gismu "níxli",
           },
-          kuho: Word {
-            kind: "cmavo",
-            phonemes: "ku'o",
-            span: [33,37],
-          },
+          kuho: Cmavo "ku'o",
         },
       ],
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [38,40],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [41,43],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [44,48],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [49,51],
-      },
+      Cmavo "da",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "salci",
-      span: [52,57],
-    },
+    Gismu "sálci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"za'u","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"no","kind":"cmavo"}}}],"boi":{"Bare":{"Bare":{"span":[11,14],"phonemes":"boĭ","kind":"cmavo"}}}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}}}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[22,26],"phonemes":"ke'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"nixli","kind":"gismu"}}}}}}}}}},"kuho":{"Bare":{"Bare":{"span":[33,37],"phonemes":"ku'o","kind":"cmavo"}}}}}]}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[38,40],"phonemes":"pu","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[41,43],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[44,48],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[49,51],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[52,57],"phonemes":"salci","kind":"gismu"}}}}}}}}}}}}}]}]}"""

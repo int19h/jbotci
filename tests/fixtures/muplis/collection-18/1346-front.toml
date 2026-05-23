@@ -22,44 +22,16 @@ brackets = "([la'oĭ Jiro] djíca le nu ri pínxe [la'oĭ Coke])"
 tree = """
 [
   SingleWordQuote {
-    marker: Word {
-      kind: "cmavo",
-      phonemes: "la'oĭ",
-      span: [0,5],
-    },
+    marker: Cmavo "la'oĭ",
     [6,10],
   },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [26,31],
-  },
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ri",
+  Gismu "pínxe",
   SingleWordQuote {
-    marker: Word {
-      kind: "cmavo",
-      phonemes: "la'oĭ",
-      span: [32,37],
-    },
+    marker: Cmavo "la'oĭ",
     [38,42],
   },
 ]"""
@@ -71,54 +43,26 @@ tree = """
 Predicate {
   leading_terms: [
     SingleWordQuote {
-      marker: Word {
-        kind: "cmavo",
-        phonemes: "la'oĭ",
-        span: [0,5],
-      },
+      marker: Cmavo "la'oĭ",
       [6,10],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [11,16],
-    },
+    Gismu "djíca",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [20,22],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ri",
-                span: [23,25],
-              },
+              Cmavo "ri",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "pinxe",
-                span: [26,31],
-              },
+              Gismu "pínxe",
               terms: [
                 SingleWordQuote {
-                  marker: Word {
-                    kind: "cmavo",
-                    phonemes: "la'oĭ",
-                    span: [32,37],
-                  },
+                  marker: Cmavo "la'oĭ",
                   [38,42],
                 },
               ],

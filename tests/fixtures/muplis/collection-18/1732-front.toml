@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu du le se djíca do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "du",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "djíca",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -64,48 +36,20 @@ brackets = "([.i xu] [du {(le [se djíca]) do}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [6,8],
-    },
+    Cmavo "du",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [12,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djica",
-            span: [15,20],
-          },
+          se: Cmavo "se",
+          Gismu "djíca",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [21,23],
-      },
+      Cmavo "do",
     ],
   },
 }"""

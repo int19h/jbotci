@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo níxli be li pa xa poĭ spéni mílxe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [31,36],
-  },
+  Cmavo "lo",
+  Gismu "níxli",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "xa",
+  Cmavo "poĭ",
+  Gismu "spéni",
+  Gismu "mílxe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"milxe","kind":"gismu"}}]'
 
@@ -71,60 +35,24 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [3,8],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [10,12],
-        },
+        Gismu "níxli",
+        be: Cmavo "be",
         first_argument: RelativeClause {
           base_argument: MathExpression {
-            li: Word {
-              kind: "cmavo",
-              phonemes: "li",
-              span: [13,15],
-            },
+            li: Cmavo "li",
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [16,18],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "xa",
-                span: [18,20],
-              },
+              Cmavo "pa",
+              Cmavo "xa",
             },
           },
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [21,24],
-              },
+              poi: Cmavo "poĭ",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "speni",
-                  span: [25,30],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "milxe",
-                  span: [31,36],
-                },
+                Gismu "spéni",
+                Gismu "mílxe",
               },
             },
           ],

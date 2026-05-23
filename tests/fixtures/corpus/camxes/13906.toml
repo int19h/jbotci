@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(rúble térsli fi le ni lójbo)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ruble",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tersli",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [22,27],
-  },
+  Gismu "rúble",
+  Lujvo "térsli",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "lójbo",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ruble","kind":"gismu"}},{"Bare":{"span":[6,12],"phonemes":"tersli","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"lojbo","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"ruble","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ruble",
-      span: [0,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "tersli",
-      span: [6,12],
-    },
+    Gismu "rúble",
+    Lujvo "térsli",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [13,15],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [16,18],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ni",
-            span: [19,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [22,27],
-          },
+          nu: Cmavo "ni",
+          Gismu "lójbo",
         },
       },
     },

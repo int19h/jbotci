@@ -18,93 +18,37 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ma pu te vítke la .cylysyn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "cylysyn",
-    span: [21,28],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "pu",
+  Cmavo "te",
+  Gismu "vítke",
+  Cmavo "la",
+  Cmevla "cylysyn",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vitke","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,28],"phonemes":"cylysyn","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      Cmavo "ma",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "pu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [9,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vitke",
-            span: [12,17],
-          },
+          se: Cmavo "te",
+          Gismu "vítke",
         },
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "cylysyn",
-              span: [21,28],
-            },
+            Cmevla "cylysyn",
           ],
         },
       ],

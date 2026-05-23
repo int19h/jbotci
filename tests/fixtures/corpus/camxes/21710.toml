@@ -19,33 +19,13 @@ brackets = "([zo dónri] .e [zo mídju])"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "donri",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "dónri",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [12,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "midju",
-      span: [15,20],
-    },
+    zo: Cmavo "zo",
+    Gismu "mídju",
   },
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"donri","kind":"gismu"}}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[12,14],"phonemes":"zo","kind":"cmavo"},"word":{"span":[15,20],"phonemes":"midju","kind":"gismu"}}}]'
@@ -56,33 +36,13 @@ Term {
   terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "donri",
-          span: [3,8],
-        },
+        zo: Cmavo "zo",
+        Gismu "dónri",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [10,11],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "midju",
-          span: [15,20],
-        },
+        zo: Cmavo "zo",
+        Gismu "mídju",
       },
     },
   ],

@@ -19,101 +19,37 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.i mu'i bo ra djíca le nu cárvi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "bo",
+  Cmavo "ra",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cárvi",
 ]"""
 json = """[{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"carvi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [4,5],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'i",
-      span: [5,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [9,11],
-    },
+    Cmavo "mu'i",
+    Cmavo "bo",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [12,14],
-      },
+      Cmavo "ra",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [15,20],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [23,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "carvi",
-              span: [26,31],
-            },
+            nu: Cmavo "nu",
+            Gismu "cárvi",
           },
         },
       ],

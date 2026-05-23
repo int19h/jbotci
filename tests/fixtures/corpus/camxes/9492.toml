@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi tcídu la núzba co cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "tcídu",
+  Cmavo "la",
+  Gismu "núzba",
+  Cmavo "co",
+  Gismu "cízra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cizra","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tcidu",
-      span: [3,8],
-    },
+    Gismu "tcídu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        descriptor: Cmavo "la",
         relation: Co {
-          leading_relation: Word {
-            kind: "gismu",
-            phonemes: "nuzba",
-            span: [12,17],
-          },
-          co: Word {
-            kind: "cmavo",
-            phonemes: "co",
-            span: [18,20],
-          },
-          trailing_relation: Word {
-            kind: "gismu",
-            phonemes: "cizra",
-            span: [21,26],
-          },
+          leading_relation: Gismu "núzba",
+          co: Cmavo "co",
+          trailing_relation: Gismu "cízra",
         },
       },
     ],

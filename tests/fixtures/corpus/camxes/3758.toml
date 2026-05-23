@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na ju'o cu'i vréji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [12,17],
-  },
+  Cmavo "na",
+  Cmavo "ju'o",
+  Cmavo "cu'i",
+  Gismu "vréji",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vreji","kind":"gismu"}}]"""
 
@@ -46,27 +30,11 @@ tree = """
 Na {
   na: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ju'o",
-        span: [3,7],
-      },
+      Cmavo "na",
+      indicator: Cmavo "ju'o",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "cu'i",
-      span: [7,11],
-    },
+    indicator: Cmavo "cu'i",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [12,17],
-  },
+  Gismu "vréji",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"ju'o","kind":"cmavo"}}},"indicator":{"span":[7,11],"phonemes":"cu'i","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"vreji","kind":"gismu"}}}}}}}}}}}}}]}]}"""

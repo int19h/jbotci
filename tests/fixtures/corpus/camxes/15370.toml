@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu ri xámgu keĭ spáji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spaji",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ri",
+  Gismu "xámgu",
+  Cmavo "keĭ",
+  Gismu "spáji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"spaji","kind":"gismu"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [2,4],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ri",
-                span: [5,7],
-              },
+              Cmavo "ri",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "xamgu",
-              span: [8,13],
-            },
+            Gismu "xámgu",
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [14,17],
-          },
+          kei: Cmavo "keĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "spaji",
-          span: [18,23],
-        },
+        Gismu "spáji",
       },
     },
   ],

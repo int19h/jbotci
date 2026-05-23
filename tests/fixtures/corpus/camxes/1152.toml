@@ -18,86 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li xy boĭ xi ci du li xy boĭ xi pa su'i xy boĭ xi re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [39,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [44,46],
-  },
+  Cmavo "li",
+  Cmavo "xy",
+  Cmavo "boĭ",
+  Cmavo "xi",
+  Cmavo "ci",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "xy",
+  Cmavo "boĭ",
+  Cmavo "xi",
+  Cmavo "pa",
+  Cmavo "su'i",
+  Cmavo "xy",
+  Cmavo "boĭ",
+  Cmavo "xi",
+  Cmavo "re",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"re","kind":"cmavo"}}]"""
 
@@ -106,107 +42,43 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Letter {
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [3,5],
-        },
-        boi: Word {
-          kind: "cmavo",
-          phonemes: "boĭ",
-          span: [6,9],
-        },
+        Cmavo "xy",
+        boi: Cmavo "boĭ",
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [9,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [11,13],
-            },
+            xi: Cmavo "xi",
+            Cmavo "ci",
           },
         ],
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [14,16],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [17,19],
-        },
+        li: Cmavo "li",
         Binary {
           left_expression: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [20,22],
-            },
-            boi: Word {
-              kind: "cmavo",
-              phonemes: "boĭ",
-              span: [23,26],
-            },
+            Cmavo "xy",
+            boi: Cmavo "boĭ",
             free_modifiers: [
               Xi {
-                xi: Word {
-                  kind: "cmavo",
-                  phonemes: "xi",
-                  span: [26,28],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [28,30],
-                },
+                xi: Cmavo "xi",
+                Cmavo "pa",
               },
             ],
           },
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "su'i",
-            span: [31,35],
-          },
+          operator: Cmavo "su'i",
           right_expression: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [36,38],
-            },
-            boi: Word {
-              kind: "cmavo",
-              phonemes: "boĭ",
-              span: [39,42],
-            },
+            Cmavo "xy",
+            boi: Cmavo "boĭ",
             free_modifiers: [
               Xi {
-                xi: Word {
-                  kind: "cmavo",
-                  phonemes: "xi",
-                  span: [42,44],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [44,46],
-                },
+                xi: Cmavo "xi",
+                Cmavo "re",
               },
             ],
           },

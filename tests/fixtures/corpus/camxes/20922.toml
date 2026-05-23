@@ -19,43 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tsáli .i practíce)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [9,17],
-  },
+  Gismu "tsáli",
+  Cmavo "i",
+  Lujvo "practíce",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"practice","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [0,5],
-  },
+  Gismu "tsáli",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "practice",
-      span: [9,17],
-    },
+    i: Cmavo "i",
+    Lujvo "practíce",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"tsali","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,17],"phonemes":"practice","kind":"lujvo"}}}}}}}}}}}]}]}'

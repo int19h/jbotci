@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le gérku poĭ nu'o se cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Gismu "gérku",
+  Cmavo "poĭ",
+  Cmavo "nu'o",
+  Cmavo "se",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"nu'o","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -56,40 +32,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "gérku",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [9,12],
-          },
+          poi: Cmavo "poĭ",
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "nu'o",
-              span: [13,17],
-            },
+            tense_modal: Cmavo "nu'o",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [18,20],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "citka",
-                span: [21,26],
-              },
+              se: Cmavo "se",
+              Gismu "cítka",
             },
           },
         },

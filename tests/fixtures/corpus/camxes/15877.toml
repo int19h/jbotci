@@ -19,31 +19,11 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu le xótli zváti ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xotli",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [21,23],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "xótli",
+  Gismu "zváti",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xotli","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -52,39 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [3,5],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xotli",
-            span: [9,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zvati",
-            span: [15,20],
-          },
+          Gismu "xótli",
+          Gismu "zváti",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [21,23],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

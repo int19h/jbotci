@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(de na da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
+  Cmavo "de",
+  Cmavo "na",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -41,21 +29,9 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "de",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [5,7],
-    },
+    Cmavo "de",
+    Cmavo "na",
+    Cmavo "da",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}}}}},{"BareNa":{"Bare":{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}}}}}]}}}}]}]}'

@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi bájykla ti soĭ vo'i se'u ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bajykla",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "soĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'u",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [28,30],
-  },
+  Cmavo "mi",
+  Lujvo "bájykla",
+  Cmavo "ti",
+  Cmavo "soĭ",
+  Cmavo "vo'i",
+  Cmavo "se'u",
+  Cmavo "ta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"bajykla","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"soĭ","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"vo'i","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"se'u","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ta","kind":"cmavo"}}]"""
 
@@ -67,50 +39,22 @@ brackets = "(mi [bájykla {(ti [soĭ vo'i se'u]) ta}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "bajykla",
-      span: [3,10],
-    },
+    Lujvo "bájykla",
     terms: [
       Koha {
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [11,13],
-        },
+        Cmavo "ti",
         free_modifiers: [
           Soi {
-            soi: Word {
-              kind: "cmavo",
-              phonemes: "soĭ",
-              span: [14,17],
-            },
-            leading_argument: Word {
-              kind: "cmavo",
-              phonemes: "vo'i",
-              span: [18,22],
-            },
-            sehu: Word {
-              kind: "cmavo",
-              phonemes: "se'u",
-              span: [23,27],
-            },
+            soi: Cmavo "soĭ",
+            leading_argument: Cmavo "vo'i",
+            sehu: Cmavo "se'u",
           },
         ],
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ta",
-        span: [28,30],
-      },
+      Cmavo "ta",
     ],
   },
 }"""

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ca ca'a kákne le nu pílno .i ku'i so'i meĭ nábmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [44,49],
-  },
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "ca'a",
+  Gismu "kákne",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "so'i",
+  Cmavo "meĭ",
+  Gismu "nábmi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[40,43],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"nabmi","kind":"gismu"}}]"""
 
@@ -85,49 +37,21 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca'a",
-            span: [6,10],
-          },
+          Cmavo "ca",
+          Cmavo "ca'a",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "kakne",
-          span: [11,16],
-        },
+        Gismu "kákne",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [20,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [23,28],
-            },
+            nu: Cmavo "nu",
+            Gismu "pílno",
           },
         },
       ],
@@ -135,37 +59,17 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [30,31],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [31,35],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Compound {
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'i",
-            span: [36,40],
-          },
+          Cmavo "so'i",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "meĭ",
-          span: [40,43],
-        },
+        moi: Cmavo "meĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "nabmi",
-        span: [44,49],
-      },
+      Gismu "nábmi",
     },
   },
 }"""

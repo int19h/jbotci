@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o .i ba za xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [12,17],
-  },
+  Cmavo "co'o",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "za",
+  Gismu "xrúti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xruti","kind":"gismu"}}]"""
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [7,9],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [9,11],
-        },
+        Cmavo "ba",
+        Cmavo "za",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "xruti",
-        span: [12,17],
-      },
+      Gismu "xrúti",
     },
   },
 }"""

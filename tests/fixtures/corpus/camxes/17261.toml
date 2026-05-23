@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o coĭ .clsn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [9,13],
-  },
+  Cmavo "ta'o",
+  Cmavo "coĭ",
+  Cmevla "clsn",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"clsn","kind":"cmevla"}}]"""
 
@@ -41,27 +29,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ta'o",
     },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [5,8],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "clsn",
-        span: [9,13],
-      },
+      argument: Cmevla "clsn",
     },
   ],
 }"""

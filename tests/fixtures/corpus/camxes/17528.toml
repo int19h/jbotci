@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.damn. .u)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "damn",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u",
-    span: [5,6],
-  },
+  Cmevla "damn",
+  Cmavo "u",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"span":[5,6],"phonemes":"u","kind":"cmavo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "damn",
-      span: [0,4],
-    },
+    Cmevla "damn",
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "u",
-    span: [5,6],
-  },
+  Cmavo "u",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[5,6],"phonemes":"u","kind":"cmavo"}}}]}}}}}]}]}'

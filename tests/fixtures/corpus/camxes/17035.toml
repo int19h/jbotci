@@ -18,33 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko [zo júbme] ka'e pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
+  Cmavo "ko",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jubme",
-      span: [6,11],
-    },
+    zo: Cmavo "zo",
+    Gismu "júbme",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [17,22],
-  },
+  Cmavo "ka'e",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,11],"phonemes":"jubme","kind":"gismu"}}},{"Bare":{"span":[12,16],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"ZoQuote":{"z
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jubme",
-        span: [6,11],
-      },
+      zo: Cmavo "zo",
+      Gismu "júbme",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ka'e",
-      span: [12,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [17,22],
-    },
+    tense_modal: Cmavo "ka'e",
+    Gismu "pílno",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}}}}},{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,11],"phonemes":"jubme","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"ka'e","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"pilno","kind":"gismu"}}}}}}}}}}}}}]}]}"""

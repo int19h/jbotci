@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .frank. poĭ xúnre se bénde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bende",
-    span: [25,30],
-  },
+  Cmavo "coĭ",
+  Cmevla "frank",
+  Cmavo "poĭ",
+  Gismu "xúnre",
+  Cmavo "se",
+  Gismu "bénde",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"bende","kind":"gismu"}}]'
 
@@ -64,42 +40,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelativeClause {
-        base_argument: Word {
-          kind: "cmevla",
-          phonemes: "frank",
-          span: [5,10],
-        },
+        base_argument: Cmevla "frank",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [12,15],
-            },
+            poi: Cmavo "poĭ",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "xunre",
-                span: [16,21],
-              },
+              Gismu "xúnre",
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [22,24],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "bende",
-                  span: [25,30],
-                },
+                se: Cmavo "se",
+                Gismu "bénde",
               },
             },
           },

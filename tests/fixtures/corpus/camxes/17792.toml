@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi bílga co cítka da po'u ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
+  Cmavo "mi",
+  Gismu "bílga",
+  Cmavo "co",
+  Gismu "cítka",
+  Cmavo "da",
+  Cmavo "po'u",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -60,49 +32,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Co {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "bilga",
-        span: [3,8],
-      },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [9,11],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [12,17],
-      },
+      leading_relation: Gismu "bílga",
+      co: Cmavo "co",
+      trailing_relation: Gismu "cítka",
     },
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [18,20],
-        },
+        base_argument: Cmavo "da",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "po'u",
-              span: [21,25],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [26,28],
-            },
+            goi: Cmavo "po'u",
+            Cmavo "ma",
           },
         ],
       },

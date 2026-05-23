@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .i mi ju'o cu'i jórne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [20,25],
-  },
+  Cmavo "je'e",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ju'o",
+  Cmavo "cu'i",
+  Gismu "jórne",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"jorne","kind":"gismu"}}]"""
 
@@ -57,47 +33,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [8,10],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ju'o",
-              span: [11,15],
-            },
+            Cmavo "mi",
+            indicator: Cmavo "ju'o",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "cu'i",
-            span: [15,19],
-          },
+          indicator: Cmavo "cu'i",
         },
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "jorne",
-        span: [20,25],
-      },
+      Gismu "jórne",
     },
   },
 }"""

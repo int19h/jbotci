@@ -18,138 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i do pu cúsku le se du'u do pílno loĭ rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [37,42],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "cúsku",
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "du'u",
+  Cmavo "do",
+  Gismu "pílno",
+  Cmavo "loĭ",
+  Gismu "rókci",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[33,36],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"rokci","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [2,4],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "cúsku",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [17,19],
-            },
+            se: Cmavo "se",
             Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "du'u",
-                span: [19,23],
-              },
+              nu: Cmavo "du'u",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [24,26],
-                  },
+                  Cmavo "do",
                 ],
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "pilno",
-                    span: [27,32],
-                  },
+                  Gismu "pílno",
                   terms: [
                     Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "loĭ",
-                        span: [33,36],
-                      },
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "rokci",
-                        span: [37,42],
-                      },
+                      descriptor: Cmavo "loĭ",
+                      relation: Gismu "rókci",
                     },
                   ],
                 },

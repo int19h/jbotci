@@ -18,90 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi cúsku fi da fo deĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [21,24],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "cúsku",
+  Cmavo "fi",
+  Cmavo "da",
+  Cmavo "fo",
+  Cmavo "deĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"deĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [6,11],
-      },
+      Gismu "cúsku",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [15,17],
-          },
+          fa: Cmavo "fi",
+          Cmavo "da",
         },
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fo",
-            span: [18,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "deĭ",
-            span: [21,24],
-          },
+          fa: Cmavo "fo",
+          Cmavo "deĭ",
         },
       ],
     },

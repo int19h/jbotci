@@ -18,45 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cmálu me by)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [9,11],
-  },
+  Gismu "cmálu",
+  Cmavo "me",
+  Cmavo "by",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"by","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [0,5],
-  },
+  Gismu "cmálu",
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [6,8],
-    },
+    me: Cmavo "me",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "by",
-          span: [9,11],
-        },
+        Cmavo "by",
       ],
     },
   },

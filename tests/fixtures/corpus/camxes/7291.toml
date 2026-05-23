@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'o ru'e fáncu le jaĭ skámi sútra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [28,33],
-  },
+  Cmavo "zo'o",
+  Cmavo "ru'e",
+  Gismu "fáncu",
+  Cmavo "le",
+  Cmavo "jaĭ",
+  Gismu "skámi",
+  Gismu "sútra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"fancu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"sutra","kind":"gismu"}}]"""
 
@@ -62,50 +34,22 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [4,8],
-        },
+        Cmavo "zo'o",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "fancu",
-      span: [9,14],
-    },
+    Gismu "fáncu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Jai {
-            jai: Word {
-              kind: "cmavo",
-              phonemes: "jaĭ",
-              span: [18,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [22,27],
-            },
+            jai: Cmavo "jaĭ",
+            Gismu "skámi",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "sutra",
-            span: [28,33],
-          },
+          Gismu "sútra",
         },
       },
     ],

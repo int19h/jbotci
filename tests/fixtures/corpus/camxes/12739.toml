@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu do taĭ la .xorxes. na cúxnygaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xorxes",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cuxnygaŭ",
-    span: [27,35],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "taĭ",
+  Cmavo "la",
+  Cmevla "xorxes",
+  Cmavo "na",
+  Lujvo "cúxnygaŭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"xorxes","kind":"cmevla"}},{"Bare":{"span":[24,26],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"cuxnygaŭ","kind":"lujvo"}}]'
 
@@ -65,59 +33,27 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "do",
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "taĭ",
-            span: [9,12],
-          },
+          bai: Cmavo "taĭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [13,15],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "xorxes",
-              span: [16,22],
-            },
+            Cmevla "xorxes",
           ],
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [24,26],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "cuxnygaŭ",
-        span: [27,35],
-      },
+      na: Cmavo "na",
+      Lujvo "cúxnygaŭ",
     },
   },
 }"""

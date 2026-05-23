@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'a nítcu le crádi fónxa ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cradi",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
+  Cmavo "ki'a",
+  Gismu "nítcu",
+  Cmavo "le",
+  Gismu "crádi",
+  Gismu "fónxa",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cradi","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ki'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nitcu",
-      span: [5,10],
-    },
+    Gismu "nítcu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cradi",
-            span: [14,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fonxa",
-            span: [20,25],
-          },
+          Gismu "crádi",
+          Gismu "fónxa",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [26,28],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ no pi ze mu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [10,12],
-  },
+  Cmavo "coĭ",
+  Cmavo "no",
+  Cmavo "pi",
+  Cmavo "ze",
+  Cmavo "mu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mu","kind":"cmavo"}}]'
 
@@ -52,35 +32,15 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
     },
   ],
   Number {
-    Word {
-      kind: "cmavo",
-      phonemes: "no",
-      span: [4,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pi",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ze",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mu",
-      span: [10,12],
-    },
+    Cmavo "no",
+    Cmavo "pi",
+    Cmavo "ze",
+    Cmavo "mu",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}]}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"no","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"ze","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[10,12],"phonemes":"mu","kind":"cmavo"}}}]}}}}}}]}]}'

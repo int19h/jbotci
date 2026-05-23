@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la námba dánsu sánga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namba",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dansu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [15,20],
-  },
+  Cmavo "la",
+  Gismu "námba",
+  Gismu "dánsu",
+  Gismu "sánga",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"namba","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"dansu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"sanga","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "namba",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dansu",
-          span: [9,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sanga",
-          span: [15,20],
-        },
+        Gismu "námba",
+        Gismu "dánsu",
+        Gismu "sánga",
       },
     },
   ],

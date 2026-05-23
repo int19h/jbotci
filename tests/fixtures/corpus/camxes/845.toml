@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .frank. pu'i víska)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [15,20],
-  },
+  Cmavo "la",
+  Cmevla "frank",
+  Cmavo "pu'i",
+  Gismu "víska",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[10,14],"phonemes":"pu'i","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"viska","kind":"gismu"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "frank",
-          span: [3,8],
-        },
+        Cmevla "frank",
       ],
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu'i",
-      span: [10,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [15,20],
-    },
+    tense_modal: Cmavo "pu'i",
+    Gismu "víska",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,8],"phonemes":"frank","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[10,14],"phonemes":"pu'i","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"viska","kind":"gismu"}}}}}}}}}}}}}]}]}"""

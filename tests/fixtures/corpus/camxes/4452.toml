@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu gérna ke na'e múlno dráli cu lákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drali",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [34,39],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "gérna",
+  Cmavo "ke",
+  Cmavo "na'e",
+  Gismu "múlno",
+  Gismu "dráli",
+  Cmavo "cu",
+  Gismu "lákne",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"drali","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"lakne","kind":"gismu"}}]"""
 
@@ -71,62 +35,26 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [2,4],
-        },
+        nu: Cmavo "nu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "gerna",
-            span: [5,10],
-          },
+          Gismu "gérna",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [11,13],
-            },
+            ke: Cmavo "ke",
             Compound {
               Nahe {
-                nahe: Word {
-                  kind: "cmavo",
-                  phonemes: "na'e",
-                  span: [14,18],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "mulno",
-                  span: [19,24],
-                },
+                nahe: Cmavo "na'e",
+                Gismu "múlno",
               },
-              Word {
-                kind: "gismu",
-                phonemes: "drali",
-                span: [25,30],
-              },
+              Gismu "dráli",
             },
           },
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [34,39],
-  },
+  cu: Cmavo "cu",
+  Gismu "lákne",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[2,4],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"gerna","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[11,13],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[14,18],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[25,30],"phonemes":"drali","kind":"gismu"}}}}]}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[34,39],"phonemes":"lakne","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i deĭ tolspófu .u'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolspofu",
-    span: [7,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [16,19],
-  },
+  Cmavo "i",
+  Cmavo "deĭ",
+  Lujvo "tolspófu",
+  Cmavo "u'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[7,15],"phonemes":"tolspofu","kind":"lujvo"}},{"Bare":{"span":[16,19],"phonemes":"u'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "deĭ",
-        span: [3,6],
-      },
+      Cmavo "deĭ",
     ],
     WithIndicator {
-      Word {
-        kind: "lujvo",
-        phonemes: "tolspofu",
-        span: [7,15],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [16,19],
-      },
+      Lujvo "tolspófu",
+      indicator: Cmavo "u'e",
     },
   },
 }"""

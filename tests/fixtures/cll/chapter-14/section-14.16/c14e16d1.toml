@@ -24,46 +24,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca sánli la .drezdn. bi'i la .frankfurt.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanli",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "drezdn",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'i",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frankfurt",
-    span: [33,42],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "sánli",
+  Cmavo "la",
+  Cmevla "drezdn",
+  Cmavo "bi'i",
+  Cmavo "la",
+  Cmevla "frankfurt",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"sanli","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"drezdn","kind":"cmevla"}},{"Bare":{"span":[24,28],"phonemes":"bi'i","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[33,42],"phonemes":"frankfurt","kind":"cmevla"}}]"""
 
@@ -72,58 +40,26 @@ brackets = "(mi [{ca sánli} {(la .drezdn.) bi'i (la .frankfurt.)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sanli",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "sánli",
     },
     terms: [
       Connected {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "drezdn",
-              span: [16,22],
-            },
+            Cmevla "drezdn",
           ],
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "bi'i",
-          span: [24,28],
-        },
+        connective: Cmavo "bi'i",
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [29,31],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "frankfurt",
-              span: [33,42],
-            },
+            Cmevla "frankfurt",
           ],
         },
       },

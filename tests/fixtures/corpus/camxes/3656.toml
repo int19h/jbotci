@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu rúble ke skámi bángu ke'e zúkte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ruble",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [29,34],
-  },
+  Cmavo "xu",
+  Gismu "rúble",
+  Cmavo "ke",
+  Gismu "skámi",
+  Gismu "bángu",
+  Cmavo "ke'e",
+  Gismu "zúkte",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ruble","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"zukte","kind":"gismu"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ruble",
-      span: [3,8],
-    },
+    Gismu "rúble",
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [9,11],
-      },
+      ke: Cmavo "ke",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [18,23],
-        },
+        Gismu "skámi",
+        Gismu "bángu",
       },
-      kehe: Word {
-        kind: "cmavo",
-        phonemes: "ke'e",
-        span: [24,28],
-      },
+      kehe: Cmavo "ke'e",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "zukte",
-      span: [29,34],
-    },
+    Gismu "zúkte",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"ruble","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"bangu","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[24,28],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[29,34],"phonemes":"zukte","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}"""

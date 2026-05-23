@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .tal. lo jínzi ka zífre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tal",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinzi",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zifre",
-    span: [20,25],
-  },
+  Cmavo "doĭ",
+  Cmevla "tal",
+  Cmavo "lo",
+  Gismu "jínzi",
+  Cmavo "ka",
+  Gismu "zífre",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"jinzi","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"zifre","kind":"gismu"}}]'
 
@@ -57,44 +33,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "tal",
-        span: [4,7],
-      },
+      argument: Cmevla "tal",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [8,10],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "jinzi",
-            span: [11,16],
-          },
+          Gismu "jínzi",
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [17,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "zifre",
-              span: [20,25],
-            },
+            nu: Cmavo "ka",
+            Gismu "zífre",
           },
         },
       },

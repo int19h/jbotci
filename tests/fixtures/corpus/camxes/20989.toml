@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do jímpe le ni plíxaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "plixaŭ",
-    span: [17,23],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "jímpe",
+  Cmavo "le",
+  Cmavo "ni",
+  Lujvo "plíxaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"plixaŭ","kind":"lujvo"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [6,11],
-      },
+      Gismu "jímpe",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ni",
-              span: [14,16],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "plixaŭ",
-              span: [17,23],
-            },
+            nu: Cmavo "ni",
+            Lujvo "plíxaŭ",
           },
         },
       ],

@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'e lénku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [4,9],
-  },
+  Cmavo "u'e",
+  Gismu "lénku",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'e","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"lenku","kind":"gismu"}}]"""
 
@@ -40,17 +32,9 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'e",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [4,9],
-  },
+  Gismu "lénku",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"lenku","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,3],"phonemes":"u'e","kind":"cmavo"}}}}]}"""

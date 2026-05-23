@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro rútni bángu la .lojban. zmádu le ka símsa le glíco bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rutni",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [18,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [52,57],
-  },
+  Cmavo "ro",
+  Gismu "rútni",
+  Gismu "bángu",
+  Cmavo "la",
+  Cmevla "lojban",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "símsa",
+  Cmavo "le",
+  Gismu "glíco",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"rutni","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[25,30],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"bangu","kind":"gismu"}}]'
 
@@ -87,83 +39,35 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "rutni",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [9,14],
-        },
+        Gismu "rútni",
+        Gismu "bángu",
       },
     },
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [15,17],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [18,24],
-        },
+        Cmevla "lojban",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zmadu",
-      span: [25,30],
-    },
+    Gismu "zmádu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [31,33],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [34,36],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "simsa",
-              span: [37,42],
-            },
+            Gismu "símsa",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [43,45],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "glico",
-                    span: [46,51],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "bangu",
-                    span: [52,57],
-                  },
+                  Gismu "glíco",
+                  Gismu "bángu",
                 },
               },
             ],

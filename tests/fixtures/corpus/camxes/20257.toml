@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro do xábju ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
+  Cmavo "ro",
+  Cmavo "do",
+  Gismu "xábju",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "do",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xabju",
-      span: [6,11],
-    },
+    Gismu "xábju",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [12,14],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

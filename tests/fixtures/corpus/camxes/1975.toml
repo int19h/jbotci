@@ -19,32 +19,12 @@ brackets = "([zo si] cu lójbo válsi)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [15,20],
-  },
+  Cmavo "cu",
+  Gismu "lójbo",
+  Gismu "válsi",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}}]'
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [3,5],
-      },
+      zo: Cmavo "zo",
+      Cmavo "si",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "lojbo",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [15,20],
-    },
+    Gismu "lójbo",
+    Gismu "válsi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"si","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}}}}]}}}}}}}}]}]}'

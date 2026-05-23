@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi raŭ moĭ le velskína pórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "raŭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velskina",
-    span: [13,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porsi",
-    span: [22,27],
-  },
+  Cmavo "mi",
+  Cmavo "raŭ",
+  Cmavo "moĭ",
+  Cmavo "le",
+  Lujvo "velskína",
+  Gismu "pórsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"raŭ","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"velskina","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"porsi","kind":"gismu"}}]'
 
@@ -55,45 +31,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "raŭ",
-          span: [3,6],
-        },
+        Cmavo "raŭ",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [6,9],
-      },
+      moi: Cmavo "moĭ",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "velskina",
-            span: [13,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "porsi",
-            span: [22,27],
-          },
+          Lujvo "velskína",
+          Gismu "pórsi",
         },
       },
     ],

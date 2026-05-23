@@ -21,46 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.eĭ mi skícu fi do fe no cníno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skicu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [24,29],
-  },
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Gismu "skícu",
+  Cmavo "fi",
+  Cmavo "do",
+  Cmavo "fe",
+  Cmavo "no",
+  Gismu "cníno",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cnino","kind":"gismu"}}]'
 
@@ -70,59 +38,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "skicu",
-        span: [6,11],
-      },
+      Gismu "skícu",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [15,17],
-          },
+          fa: Cmavo "fi",
+          Cmavo "do",
         },
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fe",
-            span: [18,20],
-          },
+          fa: Cmavo "fe",
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [21,23],
-              },
+              Cmavo "no",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [24,29],
-            },
+            relation: Gismu "cníno",
           },
         },
       ],

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi zmáneĭ le si'o clíva gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zmaneĭ",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Lujvo "zmáneĭ",
+  Cmavo "le",
+  Cmavo "si'o",
+  Gismu "clíva",
+  Gismu "gásnu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"zmaneĭ","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"gasnu","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "zmaneĭ",
-      span: [3,9],
-    },
+    Lujvo "zmáneĭ",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "si'o",
-            span: [13,17],
-          },
+          nu: Cmavo "si'o",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cliva",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gasnu",
-              span: [24,29],
-            },
+            Gismu "clíva",
+            Gismu "gásnu",
           },
         },
       },

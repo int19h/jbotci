@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu zu cúsku baŭ la .lojban. .i ku'i .oĭ na spúda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [21,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [29,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [42,47],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zu",
+  Gismu "cúsku",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "oĭ",
+  Cmavo "na",
+  Gismu "spúda",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[29,30],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"spuda","kind":"gismu"}}]"""
 
@@ -86,53 +38,25 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zu",
-            span: [5,7],
-          },
+          Cmavo "pu",
+          Cmavo "zu",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [8,13],
-        },
+        Gismu "cúsku",
       },
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "baŭ",
-              span: [14,17],
-            },
+            bai: Cmavo "baŭ",
           },
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [18,20],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "lojban",
-                span: [21,27],
-              },
+              Cmevla "lojban",
             ],
           },
         },
@@ -142,34 +66,14 @@ Paragraph {
   ParagraphStatement {
     i: WithIndicator {
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [29,30],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [30,34],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ku'i",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [36,38],
-      },
+      indicator: Cmavo "oĭ",
     },
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [39,41],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "spuda",
-        span: [42,47],
-      },
+      na: Cmavo "na",
+      Gismu "spúda",
     },
   },
 }"""

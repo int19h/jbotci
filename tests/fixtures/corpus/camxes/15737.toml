@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭu .i ko kánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanro",
-    span: [13,18],
-  },
+  Cmavo "ŭu",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "kánro",
 ]"""
 json = '[{"Bare":{"span":[4,6],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"kanro","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭu",
-        span: [4,6],
-      },
+      indicator: Cmavo "ŭu",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [10,12],
-        },
+        Cmavo "ko",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "kanro",
-        span: [13,18],
-      },
+      Gismu "kánro",
     },
   },
 }"""

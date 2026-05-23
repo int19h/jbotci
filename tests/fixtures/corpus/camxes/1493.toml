@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na'e sútra cádzu be fi le bírka be'o kláma le zárci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birka",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'o",
-    span: [35,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [49,54],
-  },
+  Cmavo "mi",
+  Cmavo "na'e",
+  Gismu "sútra",
+  Gismu "cádzu",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "bírka",
+  Cmavo "be'o",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"birka","kind":"gismu"}},{"Bare":{"span":[35,39],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"zarci","kind":"gismu"}}]"""
 
@@ -85,78 +37,30 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [8,13],
-        },
+        nahe: Cmavo "na'e",
+        Gismu "sútra",
       },
       Be {
-        Word {
-          kind: "gismu",
-          phonemes: "cadzu",
-          span: [14,19],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [20,22],
-        },
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [23,25],
-        },
+        Gismu "cádzu",
+        be: Cmavo "be",
+        fa: Cmavo "fi",
         first_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [26,28],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "birka",
-            span: [29,34],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "bírka",
         },
-        beho: Word {
-          kind: "cmavo",
-          phonemes: "be'o",
-          span: [35,39],
-        },
+        beho: Cmavo "be'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [40,45],
-      },
+      Gismu "kláma",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [46,48],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [49,54],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
     ],
   },

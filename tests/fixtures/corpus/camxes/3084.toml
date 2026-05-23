@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu cúsku lu ma zgíke .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [24,27],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cúsku",
+  Cmavo "lu",
+  Cmavo "ma",
+  Gismu "zgíke",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -60,51 +32,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cúsku",
     },
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [12,14],
-        },
+        lu: Cmavo "lu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [15,17],
-            },
+            Cmavo "ma",
           ],
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "zgike",
-              span: [18,23],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'i",
-              span: [24,27],
-            },
+            Gismu "zgíke",
+            indicator: Cmavo "u'i",
           },
         },
       },

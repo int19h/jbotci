@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se'o túnta le mi támji .i da poĭ pálci cu kláma jíbni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tunta",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tamji",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "palci",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [42,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibni",
-    span: [48,53],
-  },
+  Cmavo "se'o",
+  Gismu "túnta",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "támji",
+  Cmavo "i",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "pálci",
+  Cmavo "cu",
+  Gismu "kláma",
+  Gismu "jíbni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"se'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tunta","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tamji","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"palci","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[48,53],"phonemes":"jibni","kind":"gismu"}}]"""
 
@@ -86,88 +38,40 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "se'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "se'o",
     },
   ],
   Paragraph {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tunta",
-        span: [5,10],
-      },
+      Gismu "túnta",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [14,16],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tamji",
-            span: [17,22],
-          },
+          relation: Gismu "támji",
         },
       ],
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [24,25],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [26,28],
-            },
+            base_argument: Cmavo "da",
             relative_clauses: [
               Poi {
-                poi: Word {
-                  kind: "cmavo",
-                  phonemes: "poĭ",
-                  span: [29,32],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "palci",
-                  span: [33,38],
-                },
+                poi: Cmavo "poĭ",
+                Gismu "pálci",
               },
             ],
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [39,41],
-        },
+        cu: Cmavo "cu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "klama",
-            span: [42,47],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jibni",
-            span: [48,53],
-          },
+          Gismu "kláma",
+          Gismu "jíbni",
         },
       },
     },

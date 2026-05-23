@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i plúka sánce bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [15,20],
-  },
+  Cmavo "i",
+  Gismu "plúka",
+  Gismu "sánce",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"bangu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sance",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bangu",
-      span: [15,20],
-    },
+    Gismu "plúka",
+    Gismu "sánce",
+    Gismu "bángu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"pluka","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"sance","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"bangu","kind":"gismu"}}}}]}}}}}}}}]}]}'

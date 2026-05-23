@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i peĭ xu cu'e xo ma mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [20,22],
-  },
+  Cmavo "i",
+  Cmavo "peĭ",
+  Cmavo "xu",
+  Cmavo "cu'e",
+  Cmavo "xo",
+  Cmavo "ma",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"cu'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [0,1],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [2,5],
-      },
+      Cmavo "i",
+      indicator: Cmavo "peĭ",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [6,8],
-    },
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "cu'e",
-          span: [9,13],
-        },
+        tense_modal: Cmavo "cu'e",
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "xo",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [17,19],
-          },
+          quantifier: Cmavo "xo",
+          Cmavo "ma",
         },
       },
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [20,22],
-    },
+    Cmavo "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,5],"phonemes":"peĭ","kind":"cmavo"}}},"indicator":{"span":[6,8],"phonemes":"xu","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[9,13],"phonemes":"cu'e","kind":"cmavo"}}}}]}},"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[14,16],"phonemes":"xo","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,22],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}"""

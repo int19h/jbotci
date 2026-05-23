@@ -18,33 +18,13 @@ error = { position = 0, allowed-next = [] }
 brackets = "(co [zoĭ si si] bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [0,2],
-  },
+  Cmavo "co",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [7,9],
-    },
-    quoted_text: [9,9],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [10,12],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "si",
+    quoted_text: Verbatim "",
+    closing_delimiter: Cmavo "si",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [13,18],
-  },
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"co","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,9],"phonemes":"si","kind":"cmavo"},"quoted_text":[9,9],"closing_delimiter":{"span":[10,12],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[13,18],"phonemes":"broda","kind":"gismu"}}]'

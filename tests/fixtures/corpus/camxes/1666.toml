@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na ku de zo'u de zútse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zutse",
-    span: [16,21],
-  },
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "de",
+  Cmavo "zo'u",
+  Cmavo "de",
+  Gismu "zútse",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zutse","kind":"gismu"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Prenex {
   prenex_terms: [
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [2,4],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "de",
-      span: [5,7],
-    },
+    Cmavo "de",
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [13,15],
-      },
+      Cmavo "de",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "zutse",
-      span: [16,21],
-    },
+    Gismu "zútse",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"NaKu":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"na_ku":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ku","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"de","kind":"cmavo"}}}}}],"zohu":{"Bare":{"Bare":{"span":[8,12],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[13,15],"phonemes":"de","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"zutse","kind":"gismu"}}}}}}}}}}}}}]}]}"""

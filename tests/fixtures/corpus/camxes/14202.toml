@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(córtu fi le stédu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stedu",
-    span: [12,17],
-  },
+  Gismu "córtu",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "stédu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"stedu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
+  Gismu "córtu",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "stedu",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "stédu",
       },
     },
   ],

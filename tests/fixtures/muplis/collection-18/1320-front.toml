@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko na co'u tróci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [11,16],
-  },
+  Cmavo "ko",
+  Cmavo "na",
+  Cmavo "co'u",
+  Gismu "tróci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"troci","kind":"gismu"}}]"""
 
@@ -49,29 +33,13 @@ brackets = "(ko [na {co'u tróci}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [3,5],
-    },
+    na: Cmavo "na",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'u",
-        span: [6,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "troci",
-        span: [11,16],
-      },
+      tense_modal: Cmavo "co'u",
+      Gismu "tróci",
     },
   },
 }"""

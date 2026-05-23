@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ na'e la .grizis.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "grizis",
-    span: [12,18],
-  },
+  Cmavo "doĭ",
+  Cmavo "na'e",
+  Cmavo "la",
+  Cmevla "grizis",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"grizis","kind":"cmevla"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [4,8],
-        },
+        nahe: Cmavo "na'e",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "grizis",
-              span: [12,18],
-            },
+            Cmevla "grizis",
           ],
         },
       },

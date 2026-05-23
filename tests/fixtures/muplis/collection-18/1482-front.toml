@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi na nélci ti voĭ kósta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kosta",
-    span: [19,24],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "nélci",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "kósta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"kosta","kind":"gismu"}}]'
 
@@ -59,44 +35,20 @@ brackets = "(mi [{na nélci} {ti (voĭ kósta)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "nélci",
     },
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [12,14],
-        },
+        base_argument: Cmavo "ti",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "voĭ",
-              span: [15,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kosta",
-              span: [19,24],
-            },
+            noi: Cmavo "voĭ",
+            Gismu "kósta",
           },
         ],
       },

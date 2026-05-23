@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cníno je to'e cníno ke jíbri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [23,28],
-  },
+  Gismu "cníno",
+  Cmavo "je",
+  Cmavo "to'e",
+  Gismu "cníno",
+  Cmavo "ke",
+  Gismu "jíbri",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"jibri","kind":"gismu"}}]"""
 
@@ -55,40 +31,16 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"s
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "cnino",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [6,8],
-    },
+    leading_unit: Gismu "cníno",
+    connective: Cmavo "je",
     trailing_unit: Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "to'e",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cnino",
-        span: [14,19],
-      },
+      nahe: Cmavo "to'e",
+      Gismu "cníno",
     },
   },
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jibri",
-      span: [23,28],
-    },
+    ke: Cmavo "ke",
+    Gismu "jíbri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cnino","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[9,13],"phonemes":"to'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"cnino","kind":"gismu"}}}}}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[20,22],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"jibri","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

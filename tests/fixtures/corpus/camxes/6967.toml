@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ tásli du'o nénri ka bénji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tasli",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [24,29],
-  },
+  Cmavo "doĭ",
+  Gismu "tásli",
+  Cmavo "du'o",
+  Gismu "nénri",
+  Cmavo "ka",
+  Gismu "bénji",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tasli","kind":"gismu"}},{"Bare":{"span":[10,14],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"benji","kind":"gismu"}}]"""
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tasli",
-          span: [4,9],
-        },
+        relation: Gismu "tásli",
       },
     },
   ],
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "du'o",
-        span: [10,14],
-      },
+      bai: Cmavo "du'o",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "nenri",
-        span: [15,20],
-      },
+      Gismu "nénri",
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [21,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "benji",
-          span: [24,29],
-        },
+        nu: Cmavo "ka",
+        Gismu "bénji",
       },
     },
   },

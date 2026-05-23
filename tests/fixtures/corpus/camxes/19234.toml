@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do ca'o tádni le'a le ba'o tádni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [30,35],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ca'o",
+  Gismu "tádni",
+  Cmavo "le'a",
+  Cmavo "le",
+  Cmavo "ba'o",
+  Gismu "tádni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"le'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"tadni","kind":"gismu"}}]"""
 
@@ -66,60 +34,28 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [6,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tadni",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "ca'o",
+        Gismu "tádni",
       },
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "le'a",
-              span: [17,21],
-            },
+            bai: Cmavo "le'a",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [22,24],
-            },
+            descriptor: Cmavo "le",
             relation: TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ba'o",
-                span: [25,29],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "tadni",
-                span: [30,35],
-              },
+              tense_modal: Cmavo "ba'o",
+              Gismu "tádni",
             },
           },
         },

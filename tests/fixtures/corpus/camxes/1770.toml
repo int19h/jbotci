@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro dátka ca ca'a flulímna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "flulimna",
-    span: [17,25],
-  },
+  Cmavo "ro",
+  Gismu "dátka",
+  Cmavo "ca",
+  Cmavo "ca'a",
+  Lujvo "flulímna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"datka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[17,25],"phonemes":"flulimna","kind":"lujvo"}}]"""
 
@@ -52,37 +32,17 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "datka",
-        span: [3,8],
-      },
+      relation: Gismu "dátka",
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [9,11],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ca'a",
-        span: [12,16],
-      },
+      Cmavo "ca",
+      Cmavo "ca'a",
     },
-    Word {
-      kind: "lujvo",
-      phonemes: "flulimna",
-      span: [17,25],
-    },
+    Lujvo "flulímna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"datka","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"ca'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,25],"phonemes":"flulimna","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

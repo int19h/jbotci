@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu ca naĭ je ba fátci símlu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fatci",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simlu",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Cmavo "ca",
+  Cmavo "naĭ",
+  Cmavo "je",
+  Cmavo "ba",
+  Gismu "fátci",
+  Gismu "símlu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"fatci","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"simlu","kind":"gismu"}}]'
 
@@ -61,47 +33,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [10,12],
-      },
+      Cmavo "ca",
+      Cmavo "naĭ",
+      Cmavo "je",
+      Cmavo "ba",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "fatci",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "simlu",
-        span: [19,24],
-      },
+      Gismu "fátci",
+      Gismu "símlu",
     },
   },
 }"""

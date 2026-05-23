@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gu'e bárda gi xúnre gérku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gu'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [20,25],
-  },
+  Cmavo "gu'e",
+  Gismu "bárda",
+  Cmavo "gi",
+  Gismu "xúnre",
+  Gismu "gérku",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"gu'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"gerku","kind":"gismu"}}]"""
 
@@ -57,31 +37,11 @@ brackets = "([gu'e bárda gi xúnre] gérku)"
 tree = """
 Compound {
   Guha {
-    guhek: Word {
-      kind: "cmavo",
-      phonemes: "gu'e",
-      span: [0,4],
-    },
-    leading_predicate: Word {
-      kind: "gismu",
-      phonemes: "barda",
-      span: [5,10],
-    },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [11,13],
-    },
-    trailing_predicate: Word {
-      kind: "gismu",
-      phonemes: "xunre",
-      span: [14,19],
-    },
+    guhek: Cmavo "gu'e",
+    leading_predicate: Gismu "bárda",
+    gik: Cmavo "gi",
+    trailing_predicate: Gismu "xúnre",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [20,25],
-  },
+  Gismu "gérku",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Wrapped":{"Guha":{"guhek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"gu'e","kind":"cmavo"}}}]}},"leading_predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"barda","kind":"gismu"}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[11,13],"phonemes":"gi","kind":"cmavo"}}}]}},"trailing_predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"xunre","kind":"gismu"}}}}}}}}}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"gerku","kind":"gismu"}}}}]}}}}}}}}]}]}"""

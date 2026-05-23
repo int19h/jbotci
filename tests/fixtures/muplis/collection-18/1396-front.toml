@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa krokodílo pu cítka pa gérku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "krokodilo",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [25,30],
-  },
+  Cmavo "pa",
+  Fuhivla "krokodílo",
+  Cmavo "pu",
+  Gismu "cítka",
+  Cmavo "pa",
+  Gismu "gérku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"krokodilo","kind":"fu'ivla"}},{"Bare":{"span":[13,15],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"gerku","kind":"gismu"}}]"""
 
@@ -61,46 +37,22 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
       ],
-      relation: Word {
-        kind: "fu'ivla",
-        phonemes: "krokodilo",
-        span: [3,12],
-      },
+      relation: Fuhivla "krokodílo",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [13,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [16,21],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cítka",
     },
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [22,24],
-          },
+          Cmavo "pa",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gerku",
-          span: [25,30],
-        },
+        relation: Gismu "gérku",
       },
     ],
   },

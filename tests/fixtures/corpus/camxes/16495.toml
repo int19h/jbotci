@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cármi co córtu le beftí'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "befti'e",
-    span: [21,28],
-  },
+  Cmavo "mi",
+  Gismu "cármi",
+  Cmavo "co",
+  Gismu "córtu",
+  Cmavo "le",
+  Lujvo "beftí'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"carmi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,28],"phonemes":"befti'e","kind":"lujvo"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Co {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "carmi",
-        span: [3,8],
-      },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [9,11],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "cortu",
-        span: [12,17],
-      },
+      leading_relation: Gismu "cármi",
+      co: Cmavo "co",
+      trailing_relation: Gismu "córtu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "befti'e",
-          span: [21,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "beftí'e",
       },
     ],
   },

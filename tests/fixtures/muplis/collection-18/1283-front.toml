@@ -21,71 +21,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.aĭ ga naĭ mi xábju su'o dráta gúgde gi mi xábju le ritygú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gugde",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [41,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [47,49],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ritygu'e",
-    span: [50,58],
-  },
+  Cmavo "aĭ",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "xábju",
+  Cmavo "su'o",
+  Gismu "dráta",
+  Gismu "gúgde",
+  Cmavo "gi",
+  Cmavo "mi",
+  Gismu "xábju",
+  Cmavo "le",
+  Lujvo "ritygú'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"gugde","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[47,49],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[50,58],"phonemes":"ritygu'e","kind":"lujvo"}}]"""
 
@@ -95,96 +43,44 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [3,5],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
     first: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [9,11],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [12,17],
-        },
+        Gismu "xábju",
         terms: [
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "su'o",
-                span: [18,22],
-              },
+              Cmavo "su'o",
             ],
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "drata",
-                span: [23,28],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gugde",
-                span: [29,34],
-              },
+              Gismu "dráta",
+              Gismu "gúgde",
             },
           },
         ],
       },
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [35,37],
-    },
+    gik: Cmavo "gi",
     second: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [38,40],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [41,46],
-        },
+        Gismu "xábju",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [47,49],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "ritygu'e",
-              span: [50,58],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "ritygú'e",
           },
         ],
       },

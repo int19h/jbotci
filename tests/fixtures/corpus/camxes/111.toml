@@ -19,22 +19,10 @@ brackets = "(zoĭ si si)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [29,32],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [33,35],
-    },
-    quoted_text: [35,35],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [36,38],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "si",
+    quoted_text: Verbatim "",
+    closing_delimiter: Cmavo "si",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[29,32],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[33,35],"phonemes":"si","kind":"cmavo"},"quoted_text":[35,35],"closing_delimiter":{"span":[36,38],"phonemes":"si","kind":"cmavo"}}}]'
@@ -44,22 +32,10 @@ tree = """
 Term {
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [29,32],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [33,35],
-      },
-      quoted_text: [35,35],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [36,38],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "si",
+      quoted_text: Verbatim "",
+      closing_delimiter: Cmavo "si",
     },
   ],
 }"""

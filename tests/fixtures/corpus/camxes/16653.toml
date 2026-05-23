@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i la .lobyfest. na go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lobyfest",
-    span: [10,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [23,27],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "la",
+  Cmevla "lobyfest",
+  Cmavo "na",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,18],"phonemes":"lobyfest","kind":"cmevla"}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "lobyfest",
-            span: [10,18],
-          },
+          Cmevla "lobyfest",
         ],
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [20,22],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [23,27],
-      },
+      na: Cmavo "na",
+      Cmavo "go'i",
     },
   },
 }"""

@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo cukmakyvélveĭ cu lámji le mi zúnle jámfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cukmakyvelveĭ",
-    span: [3,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lamji",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zunle",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamfu",
-    span: [38,43],
-  },
+  Cmavo "lo",
+  Lujvo "cukmakyvélveĭ",
+  Cmavo "cu",
+  Gismu "lámji",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "zúnle",
+  Gismu "jámfu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,16],"phonemes":"cukmakyvelveĭ","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"lamji","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"zunle","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"jamfu","kind":"gismu"}}]'
 
@@ -66,54 +34,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "cukmakyvelveĭ",
-        span: [3,16],
-      },
+      descriptor: Cmavo "lo",
+      relation: Lujvo "cukmakyvélveĭ",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "lamji",
-      span: [20,25],
-    },
+    Gismu "lámji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [26,28],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [29,31],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "zunle",
-            span: [32,37],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jamfu",
-            span: [38,43],
-          },
+          Gismu "zúnle",
+          Gismu "jámfu",
         },
       },
     ],

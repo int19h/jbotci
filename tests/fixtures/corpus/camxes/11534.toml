@@ -18,150 +18,54 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi na djíca le nu djúno to srána loĭ smáni toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [46,49],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "djúno",
+  Cmavo "to",
+  Gismu "srána",
+  Cmavo "loĭ",
+  Gismu "smáni",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[36,39],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[46,49],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [9,14],
-        },
+        na: Cmavo "na",
+        Gismu "djíca",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [18,20],
-            },
+            nu: Cmavo "nu",
             Word {
-              Word {
-                kind: "gismu",
-                phonemes: "djuno",
-                span: [21,26],
-              },
+              Gismu "djúno",
               free_modifiers: [
                 To {
-                  to: Word {
-                    kind: "cmavo",
-                    phonemes: "to",
-                    span: [27,29],
-                  },
+                  to: Cmavo "to",
                   Relation {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "srana",
-                      span: [30,35],
-                    },
+                    Gismu "srána",
                     terms: [
                       Descriptor {
-                        descriptor: Word {
-                          kind: "cmavo",
-                          phonemes: "loĭ",
-                          span: [36,39],
-                        },
-                        relation: Word {
-                          kind: "gismu",
-                          phonemes: "smani",
-                          span: [40,45],
-                        },
+                        descriptor: Cmavo "loĭ",
+                        relation: Gismu "smáni",
                       },
                     ],
                   },
-                  toi: Word {
-                    kind: "cmavo",
-                    phonemes: "toĭ",
-                    span: [46,49],
-                  },
+                  toi: Cmavo "toĭ",
                 },
               ],
             },

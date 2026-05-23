@@ -18,93 +18,29 @@ error = { position = 11, allowed-next = [] }
 brackets = "(ka'e císka ge [zo by] .a [zo be'a] .a [zo bérti] gi [zo zy] .a zo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [14,16],
-  },
+  Cmavo "ka'e",
+  Gismu "císka",
+  Cmavo "ge",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "by",
-      span: [20,22],
-    },
+    zo: Cmavo "zo",
+    Cmavo "by",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [25,26],
-  },
+  Cmavo "a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [27,29],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "be'a",
-      span: [30,34],
-    },
+    zo: Cmavo "zo",
+    Cmavo "be'a",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [36,37],
-  },
+  Cmavo "a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [38,40],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "berti",
-      span: [41,46],
-    },
+    zo: Cmavo "zo",
+    Gismu "bérti",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [47,49],
-  },
+  Cmavo "gi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [50,52],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zy",
-      span: [53,55],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [58,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo",
-    span: [60,62],
-  },
+  Cmavo "a",
+  Cmavo "zo",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ge","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,22],"phonemes":"by","kind":"cmavo"}}},{"Bare":{"span":[25,26],"phonemes":"a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[27,29],"phonemes":"zo","kind":"cmavo"},"word":{"span":[30,34],"phonemes":"be'a","kind":"cmavo"}}},{"Bare":{"span":[36,37],"phonemes":"a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[38,40],"phonemes":"zo","kind":"cmavo"},"word":{"span":[41,46],"phonemes":"berti","kind":"gismu"}}},{"Bare":{"span":[47,49],"phonemes":"gi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[50,52],"phonemes":"zo","kind":"cmavo"},"word":{"span":[53,55],"phonemes":"zy","kind":"cmavo"}}},{"Bare":{"span":[58,59],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"zo","kind":"cmavo"}}]"""

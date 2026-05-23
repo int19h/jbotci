@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ba'e do du le cúxna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuxna",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "ba'e",
+  Cmavo "do",
+  Cmavo "du",
+  Cmavo "le",
+  Gismu "cúxna",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cuxna","kind":"gismu"}}]"""
 
@@ -58,44 +34,20 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{ba'e do} {du (le cúxna)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [8,10],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "do",
       },
     ],
     Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [11,13],
-      },
+      Cmavo "du",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cuxna",
-            span: [17,22],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "cúxna",
         },
       ],
     },

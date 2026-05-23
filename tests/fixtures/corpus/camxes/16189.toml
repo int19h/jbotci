@@ -18,65 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sréra te gísmu se smádi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "srera",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [18,23],
-  },
+  Gismu "sréra",
+  Cmavo "te",
+  Gismu "gísmu",
+  Cmavo "se",
+  Gismu "smádi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"srera","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"gismu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"smadi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "srera",
-    span: [0,5],
+  Gismu "sréra",
+  Se {
+    se: Cmavo "te",
+    Gismu "gísmu",
   },
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gismu",
-      span: [9,14],
-    },
-  },
-  Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [15,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "smadi",
-      span: [18,23],
-    },
+    se: Cmavo "se",
+    Gismu "smádi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"srera","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[6,8],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"gismu","kind":"gismu"}}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"smadi","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

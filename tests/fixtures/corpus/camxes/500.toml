@@ -19,21 +19,9 @@ brackets = "(brídi zeĭ válsi)"
 tree = """
 [
   ZeiLujvo {
-    left: Word {
-      kind: "gismu",
-      phonemes: "bridi",
-      span: [0,5],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [6,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [10,15],
-    },
+    left: Gismu "brídi",
+    zei: Cmavo "zeĭ",
+    Gismu "válsi",
   },
 ]"""
 json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[0,5],"phonemes":"bridi","kind":"gismu"}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,15],"phonemes":"valsi","kind":"gismu"}}}]'
@@ -41,20 +29,8 @@ json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[0,5],"phonemes":"bridi","kind":"gi
 [expectations.output.gentufa]
 tree = """
 ZeiLujvo {
-  left: Word {
-    kind: "gismu",
-    phonemes: "bridi",
-    span: [0,5],
-  },
-  zei: Word {
-    kind: "cmavo",
-    phonemes: "zeĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [10,15],
-  },
+  left: Gismu "brídi",
+  zei: Cmavo "zeĭ",
+  Gismu "válsi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[0,5],"phonemes":"bridi","kind":"gismu"}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,15],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}}]}]}'

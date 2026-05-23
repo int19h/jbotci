@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le si'o gérku gérna cu plúka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [23,28],
-  },
+  Cmavo "le",
+  Cmavo "si'o",
+  Gismu "gérku",
+  Gismu "gérna",
+  Cmavo "cu",
+  Gismu "plúka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"pluka","kind":"gismu"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "si'o",
-          span: [3,7],
-        },
+        nu: Cmavo "si'o",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "gerku",
-            span: [8,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "gerna",
-            span: [14,19],
-          },
+          Gismu "gérku",
+          Gismu "gérna",
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [23,28],
-  },
+  cu: Cmavo "cu",
+  Gismu "plúka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,7],"phonemes":"si'o","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"gerku","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"gerna","kind":"gismu"}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"pluka","kind":"gismu"}}}}}}}}}}}]}]}"""

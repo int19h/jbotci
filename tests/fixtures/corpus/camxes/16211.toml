@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o da xrábo je lójbo távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrabo",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [23,28],
-  },
+  Cmavo "ta'o",
+  Cmavo "da",
+  Gismu "xrábo",
+  Cmavo "je",
+  Gismu "lójbo",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"xrabo","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ta'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [5,7],
-      },
+      Cmavo "da",
     ],
     Compound {
       Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "xrabo",
-          span: [8,13],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [14,16],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [17,22],
-        },
+        leading_unit: Gismu "xrábo",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "lójbo",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [23,28],
-      },
+      Gismu "távla",
     },
   },
 }"""

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fi la bésna vécnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "besna",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [12,17],
-  },
+  Cmavo "fi",
+  Cmavo "la",
+  Gismu "bésna",
+  Gismu "vécnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"besna","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"vecnu","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [0,2],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "besna",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vecnu",
-            span: [12,17],
-          },
+          Gismu "bésna",
+          Gismu "vécnu",
         },
       },
     },

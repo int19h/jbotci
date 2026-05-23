@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o mi kanryzé'a ca le bavlámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kanryze'a",
-    span: [8,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamdeĭ",
-    span: [24,33],
-  },
+  Cmavo "a'o",
+  Cmavo "mi",
+  Lujvo "kanryzé'a",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "bavlámdeĭ",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,17],"phonemes":"kanryze'a","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,33],"phonemes":"bavlamdeĭ","kind":"lujvo"}}]"""
 
@@ -63,45 +39,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "kanryze'a",
-        span: [8,17],
-      },
+      Lujvo "kanryzé'a",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [18,20],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [21,23],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "bavlamdeĭ",
-              span: [24,33],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "bavlámdeĭ",
           },
         },
       ],

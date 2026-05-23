@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ saĭ ba'e mi mútce lénku .i le gláre mínji cu másno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [28,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "masno",
-    span: [48,53],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Cmavo "ba'e",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "lénku",
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "gláre",
+  Gismu "mínji",
+  Cmavo "cu",
+  Gismu "másno",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[28,29],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"minji","kind":"gismu"}},{"Bare":{"span":[45,47],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"masno","kind":"gismu"}}]"""
 
@@ -87,16 +39,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
@@ -104,69 +48,29 @@ Text {
     Predicate {
       leading_terms: [
         Emphasized {
-          bahe: Word {
-            kind: "cmavo",
-            phonemes: "ba'e",
-            span: [7,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [12,14],
-          },
+          bahe: Cmavo "ba'e",
+          Cmavo "mi",
         },
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [15,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "lenku",
-          span: [21,26],
-        },
+        Gismu "mútce",
+        Gismu "lénku",
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [28,29],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [30,32],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "glare",
-                span: [33,38],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "minji",
-                span: [39,44],
-              },
+              Gismu "gláre",
+              Gismu "mínji",
             },
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [45,47],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "masno",
-          span: [48,53],
-        },
+        cu: Cmavo "cu",
+        Gismu "másno",
       },
     },
   },

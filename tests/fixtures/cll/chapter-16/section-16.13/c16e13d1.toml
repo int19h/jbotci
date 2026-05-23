@@ -24,46 +24,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'o bu'a zo'u la .djim. bu'a la .djan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djim",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'a",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [32,36],
-  },
+  Cmavo "su'o",
+  Cmavo "bu'a",
+  Cmavo "zo'u",
+  Cmavo "la",
+  Cmevla "djim",
+  Cmavo "bu'a",
+  Cmavo "la",
+  Cmevla "djan",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"bu'a","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"djim","kind":"cmevla"}},{"Bare":{"span":[24,28],"phonemes":"bu'a","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"djan","kind":"cmevla"}}]"""
 
@@ -74,60 +42,28 @@ Prenex {
   prenex_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [0,4],
-        },
+        Cmavo "su'o",
       ],
-      relation: Word {
-        kind: "cmavo",
-        phonemes: "bu'a",
-        span: [5,9],
-      },
+      relation: Cmavo "bu'a",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djim",
-            span: [18,22],
-          },
+          Cmevla "djim",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "bu'a",
-        span: [24,28],
-      },
+      Cmavo "bu'a",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [29,31],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [32,36],
-            },
+            Cmevla "djan",
           ],
         },
       ],

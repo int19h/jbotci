@@ -18,98 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i se ri'a bo bílma tu'a le pínca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinca",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "se",
+  Cmavo "ri'a",
+  Cmavo "bo",
+  Gismu "bílma",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "pínca",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"bilma","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"pinca","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ri'a",
-      span: [4,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [8,10],
-    },
+    Cmavo "se",
+    Cmavo "ri'a",
+    Cmavo "bo",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bilma",
-      span: [11,16],
-    },
+    Gismu "bílma",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [17,21],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "pinca",
-            span: [25,30],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "pínca",
         },
       },
     ],

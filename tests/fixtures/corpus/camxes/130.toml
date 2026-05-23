@@ -18,11 +18,7 @@ error = { position = 2, allowed-next = [] }
 brackets = "(lo [{([{([da bu] zeĭ da) bu} zeĭ de] bu) zeĭ di} bu] cu bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
+  Cmavo "lo",
   Letter {
     ZeiLujvo {
       left: Letter {
@@ -30,77 +26,25 @@ tree = """
           left: Letter {
             ZeiLujvo {
               left: Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "da",
-                  span: [3,5],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [6,8],
-                },
+                Cmavo "da",
+                bu: Cmavo "bu",
               },
-              zei: Word {
-                kind: "cmavo",
-                phonemes: "zeĭ",
-                span: [9,12],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "da",
-                span: [13,15],
-              },
+              zei: Cmavo "zeĭ",
+              Cmavo "da",
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [16,18],
-            },
+            bu: Cmavo "bu",
           },
-          zei: Word {
-            kind: "cmavo",
-            phonemes: "zeĭ",
-            span: [19,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de",
-            span: [23,25],
-          },
+          zei: Cmavo "zeĭ",
+          Cmavo "de",
         },
-        bu: Word {
-          kind: "cmavo",
-          phonemes: "bu",
-          span: [26,28],
-        },
+        bu: Cmavo "bu",
       },
-      zei: Word {
-        kind: "cmavo",
-        phonemes: "zeĭ",
-        span: [29,32],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di",
-        span: [33,35],
-      },
+      zei: Cmavo "zeĭ",
+      Cmavo "di",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [36,38],
-    },
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [42,47],
-  },
+  Cmavo "cu",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Letter":{"base":{"ZeiLujvo":{"left":{"Letter":{"base":{"ZeiLujvo":{"left":{"Letter":{"base":{"ZeiLujvo":{"left":{"Letter":{"base":{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[9,12],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[13,15],"phonemes":"da","kind":"cmavo"}}},"bu":{"span":[16,18],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[19,22],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[23,25],"phonemes":"de","kind":"cmavo"}}},"bu":{"span":[26,28],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[29,32],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[33,35],"phonemes":"di","kind":"cmavo"}}},"bu":{"span":[36,38],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"broda","kind":"gismu"}}]'

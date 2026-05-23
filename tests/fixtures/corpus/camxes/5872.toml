@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no da núzba mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "núzba",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      quantifier: Cmavo "no",
+      Cmavo "da",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [5,10],
-    },
+    Gismu "núzba",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [11,13],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

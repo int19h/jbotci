@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi na távla baŭ la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [19,25],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "távla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"lojban","kind":"cmevla"}}]'
 
@@ -55,46 +31,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "távla",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [12,15],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [16,18],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [19,25],
-            },
+            Cmevla "lojban",
           ],
         },
       },

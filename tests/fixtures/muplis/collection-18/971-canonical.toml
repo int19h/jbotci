@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gaŭ do zo'u sívni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sivni",
-    span: [12,17],
-  },
+  Cmavo "gaŭ",
+  Cmavo "do",
+  Cmavo "zo'u",
+  Gismu "sívni",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sivni","kind":"gismu"}}]"""
 
@@ -51,28 +35,12 @@ Prenex {
   prenex_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sivni",
-    span: [12,17],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "sívni",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}}}}}}],"zohu":{"Bare":{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"sivni","kind":"gismu"}}}}}}}}}}}}}]}]}"""

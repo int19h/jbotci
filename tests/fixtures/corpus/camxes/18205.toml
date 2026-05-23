@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ja denbáne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [5,7],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "denbane",
-    span: [7,14],
-  },
+  Cmavo "co'o",
+  Cmavo "ja",
+  Fuhivla "denbáne",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[7,14],"phonemes":"denbane","kind":"fu'ivla"}}]"""
 
@@ -42,23 +30,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
     },
   ],
-  leading_connective: Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [5,7],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "denbane",
-    span: [7,14],
-  },
+  leading_connective: Cmavo "ja",
+  Fuhivla "denbáne",
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}}}]}}],"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"ja","kind":"cmavo"}}}]}},"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,14],"phonemes":"denbane","kind":"fu'ivla"}}}}}}}}}}}]}]}"""

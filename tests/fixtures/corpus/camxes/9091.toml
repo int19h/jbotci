@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ti nánba cu júkpa ca le ti cérni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jukpa",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [30,35],
-  },
+  Cmavo "le",
+  Cmavo "ti",
+  Gismu "nánba",
+  Cmavo "cu",
+  Gismu "júkpa",
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "ti",
+  Gismu "cérni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nanba","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jukpa","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"cerni","kind":"gismu"}}]'
 
@@ -71,61 +35,25 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [3,5],
-        },
+        Cmavo "ti",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nanba",
-        span: [6,11],
-      },
+      relation: Gismu "nánba",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jukpa",
-      span: [15,20],
-    },
+    Gismu "júkpa",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [21,23],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [24,26],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ti",
-              span: [27,29],
-            },
+            Cmavo "ti",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cerni",
-            span: [30,35],
-          },
+          relation: Gismu "cérni",
         },
       },
     ],

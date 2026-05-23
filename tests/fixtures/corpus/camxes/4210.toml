@@ -18,66 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(smúni fa le nu pórpi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [15,20],
-  },
+  Gismu "smúni",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pórpi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"porpi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [0,5],
-  },
+  Gismu "smúni",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [6,8],
-      },
+      fa: Cmavo "fa",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "porpi",
-            span: [15,20],
-          },
+          nu: Cmavo "nu",
+          Gismu "pórpi",
         },
       },
     },

@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'écpe le nu lébna le ckíku)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "mi'ecpe",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lebna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckiku",
-    span: [23,28],
-  },
+  Lujvo "mi'écpe",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "lébna",
+  Cmavo "le",
+  Gismu "ckíku",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"mi'ecpe","kind":"lujvo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"lebna","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ckiku","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "mi'ecpe",
-    span: [0,7],
-  },
+  Lujvo "mi'écpe",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [8,10],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [11,13],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "lebna",
-            span: [14,19],
-          },
+          Gismu "lébna",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [20,22],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "ckiku",
-                span: [23,28],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "ckíku",
             },
           ],
         },

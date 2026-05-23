@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(stédi ki'a doĭ .eĭmis.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "stedi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "eĭmis",
-    span: [15,20],
-  },
+  Gismu "stédi",
+  Cmavo "ki'a",
+  Cmavo "doĭ",
+  Cmevla "eĭmis",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"stedi","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"eĭmis","kind":"cmevla"}}]"""
 
@@ -45,31 +29,15 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"stedi","kind":"gismu"}},{"Bare":{"s
 tree = """
 Word {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "stedi",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ki'a",
-      span: [6,10],
-    },
+    Gismu "stédi",
+    indicator: Cmavo "ki'a",
   },
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [11,14],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "eĭmis",
-        span: [15,20],
-      },
+      argument: Cmevla "eĭmis",
     },
   ],
 }"""

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'u tsáli ko gúnka tu'a by fy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [27,29],
-  },
+  Cmavo "pe'u",
+  Gismu "tsáli",
+  Cmavo "ko",
+  Gismu "gúnka",
+  Cmavo "tu'a",
+  Cmavo "by",
+  Cmavo "fy",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"fy","kind":"cmavo"}}]"""
 
@@ -62,54 +34,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pe'u",
-          span: [0,4],
-        },
+        Cmavo "pe'u",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [5,10],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [11,13],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [14,19],
-      },
+      Gismu "gúnka",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [20,24],
-          },
+          lahe: Cmavo "tu'a",
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "by",
-                span: [25,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "fy",
-                span: [27,29],
-              },
+              Cmavo "by",
+              Cmavo "fy",
             ],
           },
         },

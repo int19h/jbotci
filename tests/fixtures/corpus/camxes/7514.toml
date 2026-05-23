@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi naĭ mútce cándo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cando",
-    span: [13,18],
-  },
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Gismu "mútce",
+  Gismu "cándo",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"cando","kind":"gismu"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [3,6],
-      },
+      indicator: Cmavo "ŭi",
+      nai: Cmavo "naĭ",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [7,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cando",
-      span: [13,18],
-    },
+    Gismu "mútce",
+    Gismu "cándo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"cando","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}}},"nai":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}}]}'

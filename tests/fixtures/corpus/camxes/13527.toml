@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i na lákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [8,13],
-  },
+  Cmavo "u'i",
+  Cmavo "na",
+  Gismu "lákne",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lakne","kind":"gismu"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lakne",
-      span: [8,13],
-    },
+    na: Cmavo "na",
+    Gismu "lákne",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"lakne","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}}}}]}"""

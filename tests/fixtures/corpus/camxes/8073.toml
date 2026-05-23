@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le [no zeĭ cúkta])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
+  Cmavo "le",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "no",
-      span: [3,5],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [6,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cukta",
-      span: [10,15],
-    },
+    left: Cmavo "no",
+    zei: Cmavo "zeĭ",
+    Gismu "cúkta",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,15],"phonemes":"cukta","kind":"gismu"}}}]'
@@ -48,27 +32,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: ZeiLujvo {
-        left: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [3,5],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [6,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [10,15],
-        },
+        left: Cmavo "no",
+        zei: Cmavo "zeĭ",
+        Gismu "cúkta",
       },
     },
   ],

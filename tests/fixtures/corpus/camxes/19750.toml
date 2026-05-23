@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le zu'a nánmu mo'i ri'u kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [23,28],
-  },
+  Cmavo "le",
+  Cmavo "zu'a",
+  Gismu "nánmu",
+  Cmavo "mo'i",
+  Cmavo "ri'u",
+  Gismu "kláma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"zu'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"mo'i","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ri'u","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"klama","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "zu'a",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "zu'a",
+        Gismu "nánmu",
       },
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "mo'i",
-        span: [14,18],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ri'u",
-        span: [18,22],
-      },
+      Cmavo "mo'i",
+      Cmavo "ri'u",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [23,28],
-    },
+    Gismu "kláma",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"zu'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"nanmu","kind":"gismu"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[14,18],"phonemes":"mo'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[18,22],"phonemes":"ri'u","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}}}]}]}"""

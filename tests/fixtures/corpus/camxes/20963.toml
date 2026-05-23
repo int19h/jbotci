@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .bancus. do bílgo co jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilgo",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [24,29],
-  },
+  Cmavo "doĭ",
+  Cmevla "bancus",
+  Cmavo "do",
+  Gismu "bílgo",
+  Cmavo "co",
+  Gismu "jímpe",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"bilgo","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"jimpe","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "bancus",
-        span: [4,10],
-      },
+      argument: Cmevla "bancus",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Co {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "bilgo",
-        span: [15,20],
-      },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [21,23],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [24,29],
-      },
+      leading_relation: Gismu "bílgo",
+      co: Cmavo "co",
+      trailing_relation: Gismu "jímpe",
     },
   },
 }"""

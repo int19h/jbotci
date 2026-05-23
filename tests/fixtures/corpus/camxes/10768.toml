@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pánte fi cy vy)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "pante",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vy",
-    span: [11,13],
-  },
+  Gismu "pánte",
+  Cmavo "fi",
+  Cmavo "cy",
+  Cmavo "vy",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"pante","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"vy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "pante",
-    span: [0,5],
-  },
+  Gismu "pánte",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "vy",
-            span: [11,13],
-          },
+          Cmavo "cy",
+          Cmavo "vy",
         ],
       },
     },

@@ -18,74 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba'o víska le skína me'e [zoĭ gy Vanilla Sky gy] gi'e no'e nélci sy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skina",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'e",
-    span: [23,27],
-  },
+  Cmavo "mi",
+  Cmavo "ba'o",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "skína",
+  Cmavo "me'e",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [28,31],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [32,34],
-    },
-    quoted_text: [36,47],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [48,50],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Vanilla Sky",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [52,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [57,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [62,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [68,70],
-  },
+  Cmavo "gi'e",
+  Cmavo "no'e",
+  Gismu "nélci",
+  Cmavo "sy",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"skina","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"me'e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[28,31],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[32,34],"phonemes":"gy","kind":"cmavo"},"quoted_text":[36,47],"closing_delimiter":{"span":[48,50],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[52,56],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[57,61],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[62,67],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[68,70],"phonemes":"sy","kind":"cmavo"}}]"""
 
@@ -93,96 +41,44 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba'o",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "viska",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "ba'o",
+        Gismu "víska",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "skina",
-            span: [17,22],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "skína",
         },
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "me'e",
-              span: [23,27],
-            },
+            bai: Cmavo "me'e",
           },
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [28,31],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [32,34],
-            },
-            quoted_text: [36,47],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [48,50],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "Vanilla Sky",
+            closing_delimiter: Cmavo "gy",
           },
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [52,56],
-        },
+        connective: Cmavo "gi'e",
         Relation {
           Nahe {
-            nahe: Word {
-              kind: "cmavo",
-              phonemes: "no'e",
-              span: [57,61],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nelci",
-              span: [62,67],
-            },
+            nahe: Cmavo "no'e",
+            Gismu "nélci",
           },
           terms: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "sy",
-                  span: [68,70],
-                },
+                Cmavo "sy",
               ],
             },
           ],

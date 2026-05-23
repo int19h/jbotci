@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li py su'i pe'o va'a ny ku'e su'i zy du li xy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'e",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [45,47],
-  },
+  Cmavo "li",
+  Cmavo "py",
+  Cmavo "su'i",
+  Cmavo "pe'o",
+  Cmavo "va'a",
+  Cmavo "ny",
+  Cmavo "ku'e",
+  Cmavo "su'i",
+  Cmavo "zy",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "xy",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"pe'o","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"va'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ku'e","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"xy","kind":"cmavo"}}]"""
 
@@ -86,79 +38,31 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Binary {
-          left_expression: Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [3,5],
-          },
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "su'i",
-            span: [7,11],
-          },
+          left_expression: Cmavo "py",
+          operator: Cmavo "su'i",
           right_expression: Forethought {
-            peho: Word {
-              kind: "cmavo",
-              phonemes: "pe'o",
-              span: [12,16],
-            },
-            operator: Word {
-              kind: "cmavo",
-              phonemes: "va'a",
-              span: [17,21],
-            },
+            peho: Cmavo "pe'o",
+            operator: Cmavo "va'a",
             operands: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ny",
-                span: [22,24],
-              },
+              Cmavo "ny",
             ],
-            kuhe: Word {
-              kind: "cmavo",
-              phonemes: "ku'e",
-              span: [26,30],
-            },
+            kuhe: Cmavo "ku'e",
           },
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [31,35],
-        },
-        right_expression: Word {
-          kind: "cmavo",
-          phonemes: "zy",
-          span: [36,38],
-        },
+        operator: Cmavo "su'i",
+        right_expression: Cmavo "zy",
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [39,41],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [42,44],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [45,47],
-        },
+        li: Cmavo "li",
+        Cmavo "xy",
       },
     ],
   },

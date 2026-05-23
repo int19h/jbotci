@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(jaĭ te rínju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinju",
-    span: [10,15],
-  },
+  Cmavo "jaĭ",
+  Cmavo "te",
+  Gismu "rínju",
 ]"""
 json = '[{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"rinju","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Jai {
-  jai: Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
+  jai: Cmavo "jaĭ",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [7,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "rinju",
-      span: [10,15],
-    },
+    se: Cmavo "te",
+    Gismu "rínju",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Se":{"se":{"Bare":{"Bare":{"span":[7,9],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"rinju","kind":"gismu"}}}}}}}}]}}}}}}}}]}]}'

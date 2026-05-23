@@ -18,79 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fríca fi le jeĭ mi zúkte)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [19,24],
-  },
+  Gismu "fríca",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "jeĭ",
+  Cmavo "mi",
+  Gismu "zúkte",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"zukte","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [0,5],
-  },
+  Gismu "fríca",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "jeĭ",
-            span: [12,15],
-          },
+          nu: Cmavo "jeĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [16,18],
-              },
+              Cmavo "mi",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "zukte",
-              span: [19,24],
-            },
+            Gismu "zúkte",
           },
         },
       },

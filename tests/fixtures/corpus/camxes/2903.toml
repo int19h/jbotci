@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu [zo .irc.] poĭ lójbo cméne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "irc",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "irc",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [20,25],
-  },
+  Cmavo "poĭ",
+  Gismu "lójbo",
+  Gismu "cméne",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"irc","kind":"cmevla"}}},{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"cmene","kind":"gismu"}}]'
 
@@ -58,46 +34,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       RelativeClause {
         base_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "irc",
-            span: [6,9],
-          },
+          zo: Cmavo "zo",
+          Cmevla "irc",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [10,13],
-            },
+            poi: Cmavo "poĭ",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "lojbo",
-                span: [14,19],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cmene",
-                span: [20,25],
-              },
+              Gismu "lójbo",
+              Gismu "cméne",
             },
           },
         ],

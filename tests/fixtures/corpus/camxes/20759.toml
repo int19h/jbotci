@@ -18,28 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to [zo .zorglub.] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "zorglub",
-      span: [6,13],
-    },
+    zo: Cmavo "zo",
+    Cmevla "zorglub",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [14,17],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,13],"phonemes":"zorglub","kind":"cmevla"}}},{"Bare":{"span":[14,17],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -48,32 +32,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [3,5],
-            },
-            Word {
-              kind: "cmevla",
-              phonemes: "zorglub",
-              span: [6,13],
-            },
+            zo: Cmavo "zo",
+            Cmevla "zorglub",
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [14,17],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

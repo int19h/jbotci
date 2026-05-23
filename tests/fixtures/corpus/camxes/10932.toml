@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to da poĭ rémna ku'o toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [25,28],
-  },
+  Cmavo "to",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "rémna",
+  Cmavo "ku'o",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [7,9],
-            },
+            base_argument: Cmavo "da",
             relative_clauses: [
               Poi {
-                poi: Word {
-                  kind: "cmavo",
-                  phonemes: "poĭ",
-                  span: [10,13],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "remna",
-                  span: [14,19],
-                },
-                kuho: Word {
-                  kind: "cmavo",
-                  phonemes: "ku'o",
-                  span: [20,24],
-                },
+                poi: Cmavo "poĭ",
+                Gismu "rémna",
+                kuho: Cmavo "ku'o",
               },
             ],
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [25,28],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

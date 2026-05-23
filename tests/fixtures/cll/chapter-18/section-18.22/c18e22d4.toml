@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li vo pi'e ze ju'u re no)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [21,23],
-  },
+  Cmavo "li",
+  Cmavo "vo",
+  Cmavo "pi'e",
+  Cmavo "ze",
+  Cmavo "ju'u",
+  Cmavo "re",
+  Cmavo "no",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ju'u","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"no","kind":"cmavo"}}]"""
 
@@ -68,45 +40,17 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "vo",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ze",
-            span: [11,13],
-          },
+          Cmavo "vo",
+          Cmavo "pi'e",
+          Cmavo "ze",
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "ju'u",
-          span: [14,18],
-        },
+        operator: Cmavo "ju'u",
         right_expression: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [21,23],
-          },
+          Cmavo "re",
+          Cmavo "no",
         },
       },
     },

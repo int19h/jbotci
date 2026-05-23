@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu gaŭ mi le cníno dícysro cu básti le dícysro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [16,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dicysro",
-    span: [22,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "basti",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dicysro",
-    span: [42,49],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "gaŭ",
+  Cmavo "mi",
+  Cmavo "le",
+  Gismu "cníno",
+  Lujvo "dícysro",
+  Cmavo "cu",
+  Gismu "básti",
+  Cmavo "le",
+  Lujvo "dícysro",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[22,29],"phonemes":"dicysro","kind":"lujvo"}},{"Bare":{"span":[30,32],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"basti","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,49],"phonemes":"dicysro","kind":"lujvo"}}]'
 
@@ -81,76 +37,32 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
             Tagged {
               tense_modal: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "gaŭ",
-                  span: [6,9],
-                },
+                bai: Cmavo "gaŭ",
               },
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [10,12],
-              },
+              Cmavo "mi",
             },
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [13,15],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cnino",
-                  span: [16,21],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "dicysro",
-                  span: [22,29],
-                },
+                Gismu "cníno",
+                Lujvo "dícysro",
               },
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [30,32],
-          },
+          cu: Cmavo "cu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "basti",
-              span: [33,38],
-            },
+            Gismu "básti",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [39,41],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "dicysro",
-                  span: [42,49],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "dícysro",
               },
             ],
           },

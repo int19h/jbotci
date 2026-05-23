@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ vánci cu mútce xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vanci",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [19,24],
-  },
+  Cmavo "loĭ",
+  Gismu "vánci",
+  Cmavo "cu",
+  Gismu "mútce",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"vanci","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "vanci",
-        span: [4,9],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "vánci",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [13,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [19,24],
-    },
+    Gismu "mútce",
+    Gismu "xámgu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"vanci","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"xamgu","kind":"gismu"}}}}]}}}}}}}}]}]}'

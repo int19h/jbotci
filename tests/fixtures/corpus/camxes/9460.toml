@@ -18,108 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ca co'a xébro je ke cníno je nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebro",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [31,36],
-  },
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "co'a",
+  Gismu "xébro",
+  Cmavo "je",
+  Cmavo "ke",
+  Gismu "cníno",
+  Cmavo "je",
+  Gismu "nánca",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"xebro","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"nanca","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [6,10],
-      },
+      Cmavo "ca",
+      Cmavo "co'a",
     },
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "xebro",
-        span: [11,16],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [17,19],
-      },
+      leading_relation: Gismu "xébro",
+      connective: Cmavo "je",
       trailing_relation: Ke {
-        ke: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [19,21],
-        },
+        ke: Cmavo "ke",
         Connected {
-          leading_relation: Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [22,27],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [28,30],
-          },
-          trailing_relation: Word {
-            kind: "gismu",
-            phonemes: "nanca",
-            span: [31,36],
-          },
+          leading_relation: Gismu "cníno",
+          connective: Cmavo "je",
+          trailing_relation: Gismu "nánca",
         },
       },
     },

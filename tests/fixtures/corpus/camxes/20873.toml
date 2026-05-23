@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭo xu do mútce dárno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darno",
-    span: [16,21],
-  },
+  Cmavo "ĭo",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "mútce",
+  Gismu "dárno",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"darno","kind":"gismu"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ĭo",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [4,6],
-        },
+        Cmavo "ĭo",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [10,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "darno",
-        span: [16,21],
-      },
+      Gismu "mútce",
+      Gismu "dárno",
     },
   },
 }"""

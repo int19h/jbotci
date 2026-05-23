@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(da bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [3,8],
-  },
+  Cmavo "da",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [0,2],
-    },
+    Cmavo "da",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [3,8],
-  },
+  Gismu "bróda",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}]}]}'

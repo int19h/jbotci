@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na'e cádzu kláma le zárci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Cmavo "na'e",
+  Gismu "cádzu",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zarci","kind":"gismu"}}]"""
 
@@ -55,44 +31,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cadzu",
-          span: [8,13],
-        },
+        nahe: Cmavo "na'e",
+        Gismu "cádzu",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [14,19],
-      },
+      Gismu "kláma",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [23,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
     ],
   },

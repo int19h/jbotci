@@ -18,162 +18,58 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mílxe .i le cúkta cu xúsra le du'u [zo .i] jaĭ dícra mílxe)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [29,33],
-  },
+  Gismu "mílxe",
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "cúkta",
+  Cmavo "cu",
+  Gismu "xúsra",
+  Cmavo "le",
+  Cmavo "du'u",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [34,36],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [38,39],
-    },
+    zo: Cmavo "zo",
+    Cmavo "i",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dicra",
-    span: [44,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [50,55],
-  },
+  Cmavo "jaĭ",
+  Gismu "dícra",
+  Gismu "mílxe",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"xusra","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"du'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[34,36],"phonemes":"zo","kind":"cmavo"},"word":{"span":[38,39],"phonemes":"i","kind":"cmavo"}}},{"Bare":{"span":[40,43],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"dicra","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"milxe","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
+  Gismu "mílxe",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cukta",
-            span: [12,17],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "cúkta",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [18,20],
-      },
+      cu: Cmavo "cu",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xusra",
-          span: [21,26],
-        },
+        Gismu "xúsra",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [27,29],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "du'u",
-                span: [29,33],
-              },
+              nu: Cmavo "du'u",
               Predicate {
                 leading_terms: [
                   ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [34,36],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "i",
-                      span: [38,39],
-                    },
+                    zo: Cmavo "zo",
+                    Cmavo "i",
                   },
                 ],
                 Compound {
                   Jai {
-                    jai: Word {
-                      kind: "cmavo",
-                      phonemes: "jaĭ",
-                      span: [40,43],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "dicra",
-                      span: [44,49],
-                    },
+                    jai: Cmavo "jaĭ",
+                    Gismu "dícra",
                   },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "milxe",
-                    span: [50,55],
-                  },
+                  Gismu "mílxe",
                 },
               },
             },

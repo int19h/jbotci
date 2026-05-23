@@ -19,21 +19,9 @@ brackets = "(lo'u mi le'u)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [16,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [21,23],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [24,28],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "mi",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[16,20],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[21,23],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[24,28],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -43,21 +31,9 @@ tree = """
 Term {
   terms: [
     LohuQuote {
-      lohu: Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [16,20],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [21,23],
-      },
-      lehu: Word {
-        kind: "cmavo",
-        phonemes: "le'u",
-        span: [24,28],
-      },
+      lohu: Cmavo "lo'u",
+      Cmavo "mi",
+      lehu: Cmavo "le'u",
     },
   ],
 }"""

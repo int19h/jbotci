@@ -21,21 +21,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i zváti tu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [9,11],
-  },
+  Cmavo "i",
+  Gismu "zváti",
+  Cmavo "tu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"tu","kind":"cmavo"}}]'
 
@@ -43,23 +31,11 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [zváti tu])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [3,8],
-    },
+    Gismu "zváti",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "tu",
-        span: [9,11],
-      },
+      Cmavo "tu",
     ],
   },
 }"""

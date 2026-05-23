@@ -18,88 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e [zo gérzda] du'u ce'u xi pa zdáni ce'u xi re noĭ gérku ce'u xi ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "gerzda",
-      span: [8,14],
-    },
+    zo: Cmavo "zo",
+    Lujvo "gérzda",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [48,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [52,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [58,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [63,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [66,68],
-  },
+  Cmavo "du'u",
+  Cmavo "ce'u",
+  Cmavo "xi",
+  Cmavo "pa",
+  Gismu "zdáni",
+  Cmavo "ce'u",
+  Cmavo "xi",
+  Cmavo "re",
+  Cmavo "noĭ",
+  Gismu "gérku",
+  Cmavo "ce'u",
+  Cmavo "xi",
+  Cmavo "ci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,14],"phonemes":"gerzda","kind":"lujvo"}}},{"Bare":{"span":[15,19],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[37,41],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[48,51],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[58,62],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[63,65],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[66,68],"phonemes":"ci","kind":"cmavo"}}]"""
 
@@ -108,116 +44,52 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
+      lahe: Cmavo "la'e",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "gerzda",
-          span: [8,14],
-        },
+        zo: Cmavo "zo",
+        Lujvo "gérzda",
       },
     },
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "du'u",
-      span: [15,19],
-    },
+    nu: Cmavo "du'u",
     Predicate {
       leading_terms: [
         Koha {
-          Word {
-            kind: "cmavo",
-            phonemes: "ce'u",
-            span: [20,24],
-          },
+          Cmavo "ce'u",
           free_modifiers: [
             Xi {
-              xi: Word {
-                kind: "cmavo",
-                phonemes: "xi",
-                span: [25,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [28,30],
-              },
+              xi: Cmavo "xi",
+              Cmavo "pa",
             },
           ],
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "zdani",
-          span: [31,36],
-        },
+        Gismu "zdáni",
         terms: [
           RelativeClause {
             base_argument: Koha {
-              Word {
-                kind: "cmavo",
-                phonemes: "ce'u",
-                span: [37,41],
-              },
+              Cmavo "ce'u",
               free_modifiers: [
                 Xi {
-                  xi: Word {
-                    kind: "cmavo",
-                    phonemes: "xi",
-                    span: [42,44],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "re",
-                    span: [45,47],
-                  },
+                  xi: Cmavo "xi",
+                  Cmavo "re",
                 },
               ],
             },
             relative_clauses: [
               Noi {
-                noi: Word {
-                  kind: "cmavo",
-                  phonemes: "noĭ",
-                  span: [48,51],
-                },
+                noi: Cmavo "noĭ",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "gerku",
-                    span: [52,57],
-                  },
+                  Gismu "gérku",
                   terms: [
                     Koha {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "ce'u",
-                        span: [58,62],
-                      },
+                      Cmavo "ce'u",
                       free_modifiers: [
                         Xi {
-                          xi: Word {
-                            kind: "cmavo",
-                            phonemes: "xi",
-                            span: [63,65],
-                          },
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "ci",
-                            span: [66,68],
-                          },
+                          xi: Cmavo "xi",
+                          Cmavo "ci",
                         },
                       ],
                     },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba'o pínxe le mi génja bírje)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "genja",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birje",
-    span: [26,31],
-  },
+  Cmavo "mi",
+  Cmavo "ba'o",
+  Gismu "pínxe",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "génja",
+  Gismu "bírje",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"genja","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"birje","kind":"gismu"}}]"""
 
@@ -60,50 +32,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba'o",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pinxe",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "ba'o",
+      Gismu "pínxe",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "genja",
-            span: [20,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "birje",
-            span: [26,31],
-          },
+          Gismu "génja",
+          Gismu "bírje",
         },
       },
     ],

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ba za cítka le vácysaĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vacysaĭ",
-    span: [17,24],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "za",
+  Gismu "cítka",
+  Cmavo "le",
+  Lujvo "vácysaĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,24],"phonemes":"vacysaĭ","kind":"lujvo"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [5,7],
-        },
+        Cmavo "ba",
+        Cmavo "za",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [8,13],
-      },
+      Gismu "cítka",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "vacysaĭ",
-          span: [17,24],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "vácysaĭ",
       },
     ],
   },

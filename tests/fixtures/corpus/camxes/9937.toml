@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ba víska)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
+  Cmavo "ba",
+  Gismu "víska",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
+  tense_modal: Cmavo "ba",
+  Gismu "víska",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}}}}}}}}}}}}}]}]}'

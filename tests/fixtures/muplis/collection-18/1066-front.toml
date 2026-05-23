@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ra pu ba la'u le djédi be li so'u co'a mórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [34,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [39,44],
-  },
+  Cmavo "ra",
+  Cmavo "pu",
+  Cmavo "ba",
+  Cmavo "la'u",
+  Cmavo "le",
+  Gismu "djédi",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "so'u",
+  Cmavo "co'a",
+  Gismu "mórsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"la'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"morsi","kind":"gismu"}}]"""
 
@@ -84,78 +40,34 @@ brackets = "([ra {pu ba} {la'u (le [djédi be {li so'u}])}] [co'a mórsi])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [6,8],
-        },
+        Cmavo "pu",
+        Cmavo "ba",
       },
       Zohe {},
     },
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "la'u",
-          span: [9,13],
-        },
+        bai: Cmavo "la'u",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "djedi",
-            span: [17,22],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [23,25],
-          },
+          Gismu "djédi",
+          be: Cmavo "be",
           first_argument: MathExpression {
-            li: Word {
-              kind: "cmavo",
-              phonemes: "li",
-              span: [26,28],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "so'u",
-              span: [29,33],
-            },
+            li: Cmavo "li",
+            Cmavo "so'u",
           },
         },
       },
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "co'a",
-      span: [34,38],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "morsi",
-      span: [39,44],
-    },
+    tense_modal: Cmavo "co'a",
+    Gismu "mórsi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[9,13],"phonemes":"la'u","kind":"cmavo"}}}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"djedi","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[23,25],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[26,28],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[29,33],"phonemes":"so'u","kind":"cmavo"}}}]}}}}}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[34,38],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[39,44],"phonemes":"morsi","kind":"gismu"}}}}}}}}}}}}}]}]}"""

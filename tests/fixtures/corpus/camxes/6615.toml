@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ru by)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [2,4],
-  },
+  Cmavo "ru",
+  Cmavo "by",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ru","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"by","kind":"cmavo"}}]'
 
@@ -35,18 +27,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ru","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ru",
-      span: [0,2],
-    },
+    Cmavo "ru",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "by",
-          span: [2,4],
-        },
+        Cmavo "by",
       ],
     },
   ],

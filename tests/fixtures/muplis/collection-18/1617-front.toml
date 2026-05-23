@@ -21,26 +21,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu naĭ jétnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [10,15],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "naĭ",
+  Gismu "jétnu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"jetnu","kind":"gismu"}}]'
 
@@ -49,26 +33,10 @@ brackets = "([.i xu naĭ] jétnu)"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [6,9],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
+    nai: Cmavo "naĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [10,15],
-  },
+  Gismu "jétnu",
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,5],"phonemes":"xu","kind":"cmavo"},"nai":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"jetnu","kind":"gismu"}}}}}}}}}}}]}]}'

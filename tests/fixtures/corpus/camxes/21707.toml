@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(clíva te zu'e le nu cádzu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [18,23],
-  },
+  Gismu "clíva",
+  Cmavo "te",
+  Cmavo "zu'e",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cádzu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cadzu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [0,5],
-  },
+  Gismu "clíva",
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [6,8],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [8,12],
-        },
+        se: Cmavo "te",
+        bai: Cmavo "zu'e",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [13,15],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [15,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cadzu",
-            span: [18,23],
-          },
+          nu: Cmavo "nu",
+          Gismu "cádzu",
         },
       },
     },

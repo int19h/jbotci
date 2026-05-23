@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(py na jínvi le se du)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinvi",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [17,19],
-  },
+  Cmavo "py",
+  Cmavo "na",
+  Gismu "jínvi",
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "du",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"du","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "py",
-          span: [0,2],
-        },
+        Cmavo "py",
       ],
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [4,6],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jinvi",
-        span: [7,12],
-      },
+      na: Cmavo "na",
+      Gismu "jínvi",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [13,15],
-        },
+        descriptor: Cmavo "le",
         relation: Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "du",
-            span: [17,19],
-          },
+          se: Cmavo "se",
+          Cmavo "du",
         },
       },
     ],

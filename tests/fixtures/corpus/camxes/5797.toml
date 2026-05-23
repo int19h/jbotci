@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu le nu préti li'u bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [20,25],
-  },
+  Cmavo "lu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "préti",
+  Cmavo "li'u",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [6,8],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "preti",
-                span: [9,14],
-              },
+              nu: Cmavo "nu",
+              Gismu "préti",
             },
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [15,19],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [20,25],
-  },
+  Gismu "bánzu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"preti","kind":"gismu"}}}}}}}}}}}}}}}]}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[15,19],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,57 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(dráta múpli pe'u .djan.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [18,22],
-  },
+  Gismu "dráta",
+  Gismu "múpli",
+  Cmavo "pe'u",
+  Cmevla "djan",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"mupli","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"djan","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
+  Gismu "dráta",
   Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [0,5],
-  },
-  Word {
-    Word {
-      kind: "gismu",
-      phonemes: "mupli",
-      span: [6,11],
-    },
+    Gismu "múpli",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pe'u",
-            span: [12,16],
-          },
+          Cmavo "pe'u",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [18,22],
-        },
+        argument: Cmevla "djan",
       },
     ],
   },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .talis. .i do ba cílre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "talis",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [19,24],
-  },
+  Cmavo "doĭ",
+  Cmevla "talis",
+  Cmavo "i",
+  Cmavo "do",
+  Cmavo "ba",
+  Gismu "cílre",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"talis","kind":"cmevla"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cilre","kind":"gismu"}}]'
 
@@ -57,44 +33,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "talis",
-        span: [4,9],
-      },
+      argument: Cmevla "talis",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [13,15],
-        },
+        Cmavo "do",
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [16,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cilre",
-          span: [19,24],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "cílre",
       },
     },
   },

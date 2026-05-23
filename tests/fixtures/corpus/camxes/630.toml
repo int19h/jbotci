@@ -18,86 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fo le dárgu fi le zdáni fa mi fe le zárci fu le kárce cu kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dargu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [48,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [57,62],
-  },
+  Cmavo "fo",
+  Cmavo "le",
+  Gismu "dárgu",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "fa",
+  Cmavo "mi",
+  Cmavo "fe",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "fu",
+  Cmavo "le",
+  Gismu "kárce",
+  Cmavo "cu",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"dargu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -106,103 +42,39 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fo",
-        span: [0,2],
-      },
+      fa: Cmavo "fo",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "dargu",
-          span: [6,11],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "dárgu",
       },
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [12,14],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zdani",
-          span: [18,23],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zdáni",
       },
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [24,26],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [27,29],
+      fa: Cmavo "fa",
+      Cmavo "mi",
+    },
+    Fa {
+      fa: Cmavo "fe",
+      Descriptor {
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fe",
-        span: [30,32],
-      },
+      fa: Cmavo "fu",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [33,35],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [36,41],
-        },
-      },
-    },
-    Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fu",
-        span: [42,44],
-      },
-      Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [45,47],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "karce",
-          span: [48,53],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kárce",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [57,62],
-  },
+  cu: Cmavo "cu",
+  Gismu "kláma",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Fa":{"fa":{"Bare":{"Bare":{"span":[0,2],"phonemes":"fo","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"dargu","kind":"gismu"}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"zdani","kind":"gismu"}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[24,26],"phonemes":"fa","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[30,32],"phonemes":"fe","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"zarci","kind":"gismu"}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[42,44],"phonemes":"fu","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[45,47],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[48,53],"phonemes":"karce","kind":"gismu"}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[54,56],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[57,62],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}'

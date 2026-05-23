@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma cmíma la do císka samsélpla bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [15,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [21,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [31,36],
-  },
+  Cmavo "ma",
+  Gismu "cmíma",
+  Cmavo "la",
+  Cmavo "do",
+  Gismu "císka",
+  Lujvo "samsélpla",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[21,30],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[31,36],"phonemes":"bangu","kind":"gismu"}}]'
 
@@ -60,48 +32,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmima",
-      span: [3,8],
-    },
+    Gismu "cmíma",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        descriptor: Cmavo "la",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [12,14],
-          },
+          Cmavo "do",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "ciska",
-            span: [15,20],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "samselpla",
-            span: [21,30],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bangu",
-            span: [31,36],
-          },
+          Gismu "císka",
+          Lujvo "samsélpla",
+          Gismu "bángu",
         },
       },
     ],

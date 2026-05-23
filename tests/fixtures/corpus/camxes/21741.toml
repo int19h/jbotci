@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i la'a na sídju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [15,20],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "la'a",
+  Cmavo "na",
+  Gismu "sídju",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"sidju","kind":"gismu"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [2,6],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "la'a",
-      span: [7,11],
-    },
+    indicator: Cmavo "la'a",
   },
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [12,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sidju",
-      span: [15,20],
-    },
+    na: Cmavo "na",
+    Gismu "sídju",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}}},"indicator":{"span":[7,11],"phonemes":"la'a","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"sidju","kind":"gismu"}}}}}}}}}}}}}]}]}"""

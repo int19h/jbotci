@@ -18,22 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ce'a [.xelveticas. bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'a",
-    span: [0,4],
-  },
+  Cmavo "ce'a",
   Letter {
-    Word {
-      kind: "cmevla",
-      phonemes: "xelveticas",
-      span: [6,16],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [18,20],
-    },
+    Cmevla "xelveticas",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ce'a","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[6,16],"phonemes":"xelveticas","kind":"cmevla"}},"bu":{"span":[18,20],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -44,22 +32,10 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ce'a",
-          span: [0,4],
-        },
+        Cmavo "ce'a",
         Letter {
-          Word {
-            kind: "cmevla",
-            phonemes: "xelveticas",
-            span: [6,16],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [18,20],
-          },
+          Cmevla "xelveticas",
+          bu: Cmavo "bu",
         },
       ],
     },

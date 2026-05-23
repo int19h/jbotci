@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(víjni dátni jímpe samsélpla)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vijni",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [18,27],
-  },
+  Gismu "víjni",
+  Gismu "dátni",
+  Gismu "jímpe",
+  Lujvo "samsélpla",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vijni","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[18,27],"phonemes":"samselpla","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "vijni",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [18,27],
-  },
+  Gismu "víjni",
+  Gismu "dátni",
+  Gismu "jímpe",
+  Lujvo "samsélpla",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"vijni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"jimpe","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,27],"phonemes":"samselpla","kind":"lujvo"}}}}]}}}}}}}}]}]}'

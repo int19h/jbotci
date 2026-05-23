@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'a le lídja gírzu na xálbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lidja",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalbo",
-    span: [23,28],
-  },
+  Cmavo "mu'a",
+  Cmavo "le",
+  Gismu "lídja",
+  Gismu "gírzu",
+  Cmavo "na",
+  Gismu "xálbo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lidja","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"xalbo","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "mu'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "mu'a",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lidja",
-            span: [8,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "girzu",
-            span: [14,19],
-          },
+          Gismu "lídja",
+          Gismu "gírzu",
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [20,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xalbo",
-        span: [23,28],
-      },
+      na: Cmavo "na",
+      Gismu "xálbo",
     },
   },
 }"""

@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nírna le deĭ seltcána)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltcana",
-    span: [13,21],
-  },
+  Gismu "nírna",
+  Cmavo "le",
+  Cmavo "deĭ",
+  Lujvo "seltcána",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"seltcana","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [0,5],
-  },
+  Gismu "nírna",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "deĭ",
-          span: [9,12],
-        },
+        Cmavo "deĭ",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "seltcana",
-        span: [13,21],
-      },
+      relation: Lujvo "seltcána",
     },
   ],
 }"""

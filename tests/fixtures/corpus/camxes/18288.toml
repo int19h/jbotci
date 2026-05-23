@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu pa moĭ vo meĭ lérfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [15,20],
-  },
+  Cmavo "xu",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "vo",
+  Cmavo "meĭ",
+  Gismu "lérfu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lerfu","kind":"gismu"}}]'
 
@@ -56,47 +32,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [3,5],
-        },
+        Cmavo "pa",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [5,8],
-      },
+      moi: Cmavo "moĭ",
     },
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "vo",
-          span: [9,11],
-        },
+        Cmavo "vo",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [11,14],
-      },
+      moi: Cmavo "meĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "lerfu",
-      span: [15,20],
-    },
+    Gismu "lérfu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}}}}},{"Moi":{"number":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"vo","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[11,14],"phonemes":"meĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"lerfu","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

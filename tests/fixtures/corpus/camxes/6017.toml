@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca tcídu tu'a lo méxso)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mexso",
-    span: [20,25],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "tcídu",
+  Cmavo "tu'a",
+  Cmavo "lo",
+  Gismu "méxso",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mexso","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "tcídu",
     },
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [12,16],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [17,19],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mexso",
-            span: [20,25],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "méxso",
         },
       },
     ],

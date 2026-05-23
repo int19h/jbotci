@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi ke cmálu níxli je ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [24,29],
-  },
+  Gismu "mélbi",
+  Cmavo "ke",
+  Gismu "cmálu",
+  Gismu "níxli",
+  Cmavo "je",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -61,39 +37,15 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"spa
 brackets = "(mélbi [ke {cmálu (níxli je ckúle)}])"
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
+  Gismu "mélbi",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [9,14],
-      },
+      Gismu "cmálu",
       Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [15,20],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [21,23],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "ckule",
-          span: [24,29],
-        },
+        leading_unit: Gismu "níxli",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "ckúle",
       },
     },
   },

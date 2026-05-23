@@ -22,37 +22,13 @@ brackets = "([zo .karmen.] ke spáno cméne ke'e)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "karmen",
-      span: [3,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "karmen",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spano",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [25,29],
-  },
+  Cmavo "ke",
+  Gismu "spáno",
+  Gismu "cméne",
+  Cmavo "ke'e",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"karmen","kind":"cmevla"}}},{"Bare":{"span":[10,12],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"spano","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -62,41 +38,17 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmevla",
-        phonemes: "karmen",
-        span: [3,9],
-      },
+      zo: Cmavo "zo",
+      Cmevla "karmen",
     },
   ],
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [10,12],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "spano",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [19,24],
-      },
+      Gismu "spáno",
+      Gismu "cméne",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [25,29],
-    },
+    kehe: Cmavo "ke'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"karmen","kind":"cmevla"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Ke":{"ke":{"Bare":{"Bare":{"span":[10,12],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"spano","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"cmene","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[25,29],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}}}]}]}"""

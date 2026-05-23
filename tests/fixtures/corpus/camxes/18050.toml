@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .bancus. mi ji'a na djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [23,28],
-  },
+  Cmavo "doĭ",
+  Cmevla "bancus",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Cmavo "na",
+  Gismu "djúno",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"djuno","kind":"gismu"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "bancus",
-        span: [4,10],
-      },
+      argument: Cmevla "bancus",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [12,14],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [15,19],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [20,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [23,28],
-      },
+      na: Cmavo "na",
+      Gismu "djúno",
     },
   },
 }"""

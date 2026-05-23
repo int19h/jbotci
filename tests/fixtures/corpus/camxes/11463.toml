@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(jy na múlno fárvi ca ku ku'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farvi",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [24,28],
-  },
+  Cmavo "jy",
+  Cmavo "na",
+  Gismu "múlno",
+  Gismu "fárvi",
+  Cmavo "ca",
+  Cmavo "ku",
+  Cmavo "ku'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"jy","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"farvi","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ku'i","kind":"cmavo"}}]"""
 
@@ -62,53 +34,25 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "jy",
-          span: [0,2],
-        },
+        Cmavo "jy",
       ],
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [4,6],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mulno",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "farvi",
-          span: [13,18],
-        },
+        Gismu "múlno",
+        Gismu "fárvi",
       },
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [19,21],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
           maybe_ku: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [21,23],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ku'i",
-              span: [24,28],
-            },
+            Cmavo "ku",
+            indicator: Cmavo "ku'i",
           },
         },
       },

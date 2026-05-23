@@ -21,61 +21,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do ba kláma fo lo ka se márce lo tréne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marce",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "trene",
-    span: [36,41],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ba",
+  Gismu "kláma",
+  Cmavo "fo",
+  Cmavo "lo",
+  Cmavo "ka",
+  Cmavo "se",
+  Gismu "márce",
+  Cmavo "lo",
+  Gismu "tréne",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"marce","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"trene","kind":"gismu"}}]'
 
@@ -85,78 +41,34 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "kláma",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fo",
-            span: [15,17],
-          },
+          fa: Cmavo "fo",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [18,20],
-            },
+            descriptor: Cmavo "lo",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ka",
-                span: [21,23],
-              },
+              nu: Cmavo "ka",
               Relation {
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [24,26],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "marce",
-                    span: [27,32],
-                  },
+                  se: Cmavo "se",
+                  Gismu "márce",
                 },
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "lo",
-                      span: [33,35],
-                    },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "trene",
-                      span: [36,41],
-                    },
+                    descriptor: Cmavo "lo",
+                    relation: Gismu "tréne",
                   },
                 ],
               },

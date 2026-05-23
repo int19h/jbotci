@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i le nu dranígaŭ cu xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [7,9],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "dranigaŭ",
-    span: [10,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [22,27],
-  },
+  Cmavo "u'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Fuhivla "dranígaŭ",
+  Cmavo "cu",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[10,18],"phonemes":"dranigaŭ","kind":"fu'ivla"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"xamgu","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [7,9],
-          },
-          Word {
-            kind: "fu'ivla",
-            phonemes: "dranigaŭ",
-            span: [10,18],
-          },
+          nu: Cmavo "nu",
+          Fuhivla "dranígaŭ",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [19,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [22,27],
-    },
+    cu: Cmavo "cu",
+    Gismu "xámgu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[7,9],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,18],"phonemes":"dranigaŭ","kind":"fu'ivla"}}}}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"xamgu","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}}}}]}"""

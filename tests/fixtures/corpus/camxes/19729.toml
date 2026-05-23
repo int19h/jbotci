@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i .clsn. ko co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [13,17],
-  },
+  Cmavo "ju'i",
+  Cmevla "clsn",
+  Cmavo "ko",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -47,32 +31,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
+        Cmavo "ju'i",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "clsn",
-        span: [5,9],
-      },
+      argument: Cmevla "clsn",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [10,12],
-      },
+      Cmavo "ko",
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "co'e",
-      span: [13,17],
-    },
+    Cmavo "co'e",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[5,9],"phonemes":"clsn","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,17],"phonemes":"co'e","kind":"cmavo"}}}}}}}}}}}]}]}"""

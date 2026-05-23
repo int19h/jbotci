@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cínri caĭ .i cínri dúkse)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [19,24],
-  },
+  Gismu "cínri",
+  Cmavo "caĭ",
+  Cmavo "i",
+  Gismu "cínri",
+  Gismu "dúkse",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"dukse","kind":"gismu"}}]'
 
@@ -50,34 +30,14 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "caĭ",
-      span: [6,9],
-    },
+    Gismu "cínri",
+    indicator: Cmavo "caĭ",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dukse",
-        span: [19,24],
-      },
+      Gismu "cínri",
+      Gismu "dúkse",
     },
   },
 }"""

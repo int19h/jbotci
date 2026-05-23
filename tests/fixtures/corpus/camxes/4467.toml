@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi nélci le lójbo sánce toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [27,30],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "sánce",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -61,53 +33,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "nelci",
-            span: [6,11],
-          },
+          Gismu "nélci",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [12,14],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "lojbo",
-                  span: [15,20],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sance",
-                  span: [21,26],
-                },
+                Gismu "lójbo",
+                Gismu "sánce",
               },
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [27,30],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

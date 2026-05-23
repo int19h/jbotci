@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ko pílno lójbo vlácku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlacku",
-    span: [18,24],
-  },
+  Cmavo "ko",
+  Gismu "pílno",
+  Gismu "lójbo",
+  Lujvo "vlácku",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[18,24],"phonemes":"vlacku","kind":"lujvo"}}]'
 
@@ -46,28 +30,12 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [3,5],
-    },
+    Cmavo "ko",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [6,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lojbo",
-      span: [12,17],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "vlacku",
-      span: [18,24],
-    },
+    Gismu "pílno",
+    Gismu "lójbo",
+    Lujvo "vlácku",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,24],"phonemes":"vlacku","kind":"lujvo"}}}}]}}}}}}}}]}]}'

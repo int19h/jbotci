@@ -18,34 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to [zoĭ xy e mult mai simplu decat crezi xy] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [7,9],
-    },
-    quoted_text: [11,40],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [42,44],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "xy",
+    quoted_text: Verbatim "e mult mai simplu decat crezi",
+    closing_delimiter: Cmavo "xy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [46,49],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,9],"phonemes":"xy","kind":"cmavo"},"quoted_text":[11,40],"closing_delimiter":{"span":[42,44],"phonemes":"xy","kind":"cmavo"}}},{"Bare":{"span":[46,49],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -54,38 +34,18 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [3,6],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [7,9],
-            },
-            quoted_text: [11,40],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [42,44],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "xy",
+            quoted_text: Verbatim "e mult mai simplu decat crezi",
+            closing_delimiter: Cmavo "xy",
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [46,49],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

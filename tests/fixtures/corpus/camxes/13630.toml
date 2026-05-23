@@ -19,38 +19,14 @@ brackets = "([zoĭ zo colobus zo] na se slábu)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [4,6],
-    },
-    quoted_text: [8,15],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zo",
+    quoted_text: Verbatim "colobus",
+    closing_delimiter: Cmavo "zo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [27,32],
-  },
+  Cmavo "na",
+  Cmavo "se",
+  Gismu "slábu",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"zo","kind":"cmavo"},"quoted_text":[8,15],"closing_delimiter":{"span":[17,19],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[21,23],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"slabu","kind":"gismu"}}]'
 
@@ -59,41 +35,17 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [4,6],
-      },
-      quoted_text: [8,15],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [17,19],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zo",
+      quoted_text: Verbatim "colobus",
+      closing_delimiter: Cmavo "zo",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [21,23],
-    },
+    na: Cmavo "na",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [24,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "slabu",
-        span: [27,32],
-      },
+      se: Cmavo "se",
+      Gismu "slábu",
     },
   },
 }"""

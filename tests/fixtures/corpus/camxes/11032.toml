@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i rínmi .i no da cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinmi",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [19,24],
-  },
+  Cmavo "u'i",
+  Gismu "rínmi",
+  Cmavo "i",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"rinmi","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Paragraph {
-    Word {
-      kind: "gismu",
-      phonemes: "rinmi",
-      span: [5,10],
-    },
+    Gismu "rínmi",
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [12,13],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [14,16],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [16,18],
-            },
+            quantifier: Cmavo "no",
+            Cmavo "da",
           },
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "cinri",
-          span: [19,24],
-        },
+        Gismu "cínri",
       },
     },
   },

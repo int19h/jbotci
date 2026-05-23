@@ -18,50 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [zo pórpi] ka'e mápti [zoĭ zoĭ fracture zoĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "porpi",
-      span: [6,11],
-    },
+    zo: Cmavo "zo",
+    Gismu "pórpi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapti",
-    span: [17,22],
-  },
+  Cmavo "ka'e",
+  Gismu "mápti",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [23,26],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [27,30],
-    },
-    quoted_text: [30,39],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [40,43],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "fracture",
+    closing_delimiter: Cmavo "zoĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,11],"phonemes":"porpi","kind":"gismu"}}},{"Bare":{"span":[12,16],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"mapti","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[23,26],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[27,30],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[30,39],"closing_delimiter":{"span":[40,43],"phonemes":"zoĭ","kind":"cmavo"}}}]"""
@@ -69,57 +37,25 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "porpi",
-          span: [6,11],
-        },
+        zo: Cmavo "zo",
+        Gismu "pórpi",
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [12,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mapti",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "mápti",
       },
       terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [23,26],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [27,30],
-          },
-          quoted_text: [30,39],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [40,43],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "zoĭ",
+          quoted_text: Verbatim "fracture",
+          closing_delimiter: Cmavo "zoĭ",
         },
       ],
     },

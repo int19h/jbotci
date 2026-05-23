@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a ro slábu cu zváti .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [24,26],
-  },
+  Cmavo "za'a",
+  Cmavo "ro",
+  Gismu "slábu",
+  Cmavo "cu",
+  Gismu "zváti",
+  Cmavo "ŭi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"slabu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ŭi","kind":"cmavo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [5,7],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "slabu",
-          span: [8,13],
-        },
+        relation: Gismu "slábu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    cu: Cmavo "cu",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [17,22],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [24,26],
-      },
+      Gismu "zváti",
+      indicator: Cmavo "ŭi",
     },
   },
 }"""

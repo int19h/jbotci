@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le rítli nunpénmi pe la .lojbangirz.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ritli",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpenmi",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojbangirz",
-    span: [24,34],
-  },
+  Cmavo "le",
+  Gismu "rítli",
+  Lujvo "nunpénmi",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "lojbangirz",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ritli","kind":"gismu"}},{"Bare":{"span":[9,17],"phonemes":"nunpenmi","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,34],"phonemes":"lojbangirz","kind":"cmevla"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "ritli",
-          span: [3,8],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "nunpenmi",
-          span: [9,17],
-        },
+        Gismu "rítli",
+        Lujvo "nunpénmi",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [18,20],
-          },
+          goi: Cmavo "pe",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [21,23],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "lojbangirz",
-                span: [24,34],
-              },
+              Cmevla "lojbangirz",
             ],
           },
         },

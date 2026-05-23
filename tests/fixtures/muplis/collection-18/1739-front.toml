@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le za'u da zénba le ka zúkte xo kaŭ fénki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [39,44],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "za'u",
+  Cmavo "da",
+  Gismu "zénba",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "zúkte",
+  Cmavo "xo",
+  Cmavo "kaŭ",
+  Gismu "fénki",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"zenba","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"fenki","kind":"gismu"}}]"""
 
@@ -83,79 +39,35 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{le (za'u da)} {zénba (le [ka {zúkte ([xo kaŭ] fénki)}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [11,13],
-          },
+          Cmavo "za'u",
+          Cmavo "da",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zenba",
-        span: [14,19],
-      },
+      Gismu "zénba",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [23,25],
-            },
+            nu: Cmavo "ka",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "zukte",
-                span: [26,31],
-              },
+              Gismu "zúkte",
               terms: [
                 Descriptor {
                   tail_elements: [
                     WithIndicator {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "xo",
-                        span: [32,34],
-                      },
-                      indicator: Word {
-                        kind: "cmavo",
-                        phonemes: "kaŭ",
-                        span: [35,38],
-                      },
+                      Cmavo "xo",
+                      indicator: Cmavo "kaŭ",
                     },
                   ],
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "fenki",
-                    span: [39,44],
-                  },
+                  relation: Gismu "fénki",
                 },
               ],
             },

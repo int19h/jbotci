@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi zmáneĭ le nunfínti le nunfánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zmaneĭ",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunfinti",
-    span: [13,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunfanva",
-    span: [25,33],
-  },
+  Cmavo "mi",
+  Lujvo "zmáneĭ",
+  Cmavo "le",
+  Lujvo "nunfínti",
+  Cmavo "le",
+  Lujvo "nunfánva",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"zmaneĭ","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"nunfinti","kind":"lujvo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,33],"phonemes":"nunfanva","kind":"lujvo"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "zmaneĭ",
-      span: [3,9],
-    },
+    Lujvo "zmáneĭ",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "nunfinti",
-          span: [13,21],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "nunfínti",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [22,24],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "nunfanva",
-          span: [25,33],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "nunfánva",
       },
     ],
   },

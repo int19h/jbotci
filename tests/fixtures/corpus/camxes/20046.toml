@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ki'e cu dráni júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [14,19],
-  },
+  Cmavo "ki'e",
+  Cmavo "cu",
+  Gismu "dráni",
+  Gismu "júfra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"jufra","kind":"gismu"}}]"""
 
@@ -48,31 +32,15 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [0,4],
-        },
+        Cmavo "ki'e",
       ],
     },
   ],
   Predicate {
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [5,7],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jufra",
-        span: [14,19],
-      },
+      Gismu "dráni",
+      Gismu "júfra",
     },
   },
 }"""

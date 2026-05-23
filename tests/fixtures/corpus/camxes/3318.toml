@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ba zi bénji le júdri ku do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [26,28],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "bénji",
+  Cmavo "le",
+  Gismu "júdri",
+  Cmavo "ku",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"judri","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -65,55 +33,23 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [5,7],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "benji",
-        span: [8,13],
-      },
+      Gismu "bénji",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "judri",
-          span: [17,22],
-        },
-        ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [23,25],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "júdri",
+        ku: Cmavo "ku",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [26,28],
-      },
+      Cmavo "do",
     ],
   },
 }"""

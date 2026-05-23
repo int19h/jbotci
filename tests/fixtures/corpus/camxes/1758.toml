@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro cifydátka nu'o flulímna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cifydatka",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "flulimna",
-    span: [18,26],
-  },
+  Cmavo "ro",
+  Lujvo "cifydátka",
+  Cmavo "nu'o",
+  Lujvo "flulímna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"cifydatka","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"nu'o","kind":"cmavo"}},{"Bare":{"span":[18,26],"phonemes":"flulimna","kind":"lujvo"}}]"""
 
@@ -47,30 +31,14 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "cifydatka",
-        span: [3,12],
-      },
+      relation: Lujvo "cifydátka",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "nu'o",
-      span: [13,17],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "flulimna",
-      span: [18,26],
-    },
+    tense_modal: Cmavo "nu'o",
+    Lujvo "flulímna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[3,12],"phonemes":"cifydatka","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[13,17],"phonemes":"nu'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[18,26],"phonemes":"flulimna","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i vimkú'a zváti ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vimku'a",
-    span: [3,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
+  Cmavo "i",
+  Lujvo "vimkú'a",
+  Gismu "zváti",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"vimku'a","kind":"lujvo"}},{"Bare":{"span":[11,16],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "vimku'a",
-        span: [3,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [11,16],
-      },
+      Lujvo "vimkú'a",
+      Gismu "zváti",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [17,19],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

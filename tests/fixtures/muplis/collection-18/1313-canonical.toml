@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na ku zu'e ko zo'u co'e mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "zu'e",
+  Cmavo "ko",
+  Cmavo "zo'u",
+  Cmavo "co'e",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"co'e","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -65,49 +37,21 @@ tree = """
 Prenex {
   prenex_terms: [
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [3,5],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [6,10],
-        },
+        bai: Cmavo "zu'e",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [11,13],
-      },
+      Cmavo "ko",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [14,18],
-  },
+  zohu: Cmavo "zo'u",
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "co'e",
-      span: [19,23],
-    },
+    Cmavo "co'e",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [24,26],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

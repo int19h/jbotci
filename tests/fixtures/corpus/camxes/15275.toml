@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ cábdeĭ ko sútra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [14,19],
-  },
+  Cmavo "doĭ",
+  Lujvo "cábdeĭ",
+  Cmavo "ko",
+  Gismu "sútra",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sutra","kind":"gismu"}}]'
 
@@ -47,34 +31,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "cabdeĭ",
-          span: [4,10],
-        },
+        relation: Lujvo "cábdeĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [11,13],
-      },
+      Cmavo "ko",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sutra",
-      span: [14,19],
-    },
+    Gismu "sútra",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"sutra","kind":"gismu"}}}}}}}}}}}]}]}'

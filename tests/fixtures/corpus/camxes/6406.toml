@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.must. be)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "must",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [5,7],
-  },
+  Cmevla "must",
+  Cmavo "be",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"must","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"be","kind":"cmavo"}}]'
 
@@ -35,18 +27,10 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"must","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "must",
-      span: [0,4],
-    },
+    Cmevla "must",
   ],
   BeLink {
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [5,7],
-    },
+    be: Cmavo "be",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"must","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeLink":{"be":{"Bare":{"Bare":{"span":[5,7],"phonemes":"be","kind":"cmavo"}}}}}}}]}]}'

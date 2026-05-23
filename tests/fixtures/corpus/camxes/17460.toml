@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .alos. ki'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alos",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [11,15],
-  },
+  Cmavo "la",
+  Cmevla "alos",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"alos","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -41,23 +29,11 @@ tree = """
 Term {
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "alos",
-            span: [4,9],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ki'a",
-            span: [11,15],
-          },
+          Cmevla "alos",
+          indicator: Cmavo "ki'a",
         },
       ],
     },

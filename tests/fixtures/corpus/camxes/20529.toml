@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭe xu so'a pínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinji",
-    span: [12,17],
-  },
+  Cmavo "ŭe",
+  Cmavo "xu",
+  Cmavo "so'a",
+  Gismu "pínji",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"pinji","kind":"gismu"}}]"""
 
@@ -47,16 +31,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭe",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [4,6],
-        },
+        Cmavo "ŭe",
+        indicator: Cmavo "xu",
       },
     },
   ],
@@ -64,17 +40,9 @@ Text {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'a",
-            span: [7,11],
-          },
+          Cmavo "so'a",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "pinji",
-          span: [12,17],
-        },
+        relation: Gismu "pínji",
       },
     ],
   },

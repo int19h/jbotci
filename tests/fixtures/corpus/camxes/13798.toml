@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kálri vórme dátni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kalri",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [16,21],
-  },
+  Cmavo "le",
+  Gismu "kálri",
+  Gismu "vórme",
+  Gismu "dátni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"kalri","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"vorme","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"datni","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "kalri",
-          span: [4,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vorme",
-          span: [10,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "datni",
-          span: [16,21],
-        },
+        Gismu "kálri",
+        Gismu "vórme",
+        Gismu "dátni",
       },
     },
   ],

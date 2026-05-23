@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le spáti cu bánro .i ri'a do djácu dúnda fi le spáti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spati",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banro",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [19,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djacu",
-    span: [29,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spati",
-    span: [47,52],
-  },
+  Cmavo "le",
+  Gismu "spáti",
+  Cmavo "cu",
+  Gismu "bánro",
+  Cmavo "i",
+  Cmavo "ri'a",
+  Cmavo "do",
+  Gismu "djácu",
+  Gismu "dúnda",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "spáti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"spati","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"banro","kind":"gismu"}},{"Bare":{"span":[19,20],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"djacu","kind":"gismu"}},{"Bare":{"span":[35,40],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"spati","kind":"gismu"}}]"""
 
@@ -87,83 +39,35 @@ Paragraph {
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "spati",
-          span: [3,8],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "spáti",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [9,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "banro",
-      span: [12,17],
-    },
+    cu: Cmavo "cu",
+    Gismu "bánro",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [19,20],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ri'a",
-              span: [21,25],
-            },
+            bai: Cmavo "ri'a",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [26,28],
-          },
+          Cmavo "do",
         },
       ],
       Relation {
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "djacu",
-            span: [29,34],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "dunda",
-            span: [35,40],
-          },
+          Gismu "djácu",
+          Gismu "dúnda",
         },
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [41,43],
-            },
+            fa: Cmavo "fi",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [44,46],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "spati",
-                span: [47,52],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "spáti",
             },
           },
         ],

@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .ceĭn. ko cíkre le do skámi xelbénji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ceĭn",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [25,30],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xelbenji",
-    span: [31,39],
-  },
+  Cmavo "doĭ",
+  Cmevla "ceĭn",
+  Cmavo "ko",
+  Gismu "cíkre",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "skámi",
+  Lujvo "xelbénji",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ceĭn","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[31,39],"phonemes":"xelbenji","kind":"lujvo"}}]'
 
@@ -67,58 +35,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "ceĭn",
-        span: [4,8],
-      },
+      argument: Cmevla "ceĭn",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [10,12],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cikre",
-        span: [13,18],
-      },
+      Gismu "cíkre",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [22,24],
-            },
+            Cmavo "do",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [25,30],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "xelbenji",
-              span: [31,39],
-            },
+            Gismu "skámi",
+            Lujvo "xelbénji",
           },
         },
       ],

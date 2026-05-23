@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi xu dúnli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [7,12],
-  },
+  Cmavo "ŭi",
+  Cmavo "xu",
+  Gismu "dúnli",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"dunli","kind":"gismu"}}]'
 
@@ -42,23 +30,11 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [4,6],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "xu",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [7,12],
-  },
+  Gismu "dúnli",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"dunli","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}}}}]}'

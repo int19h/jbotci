@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tcídu je pénsi le li'i fríko lítri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "friko",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "litri",
-    span: [29,34],
-  },
+  Gismu "tcídu",
+  Cmavo "je",
+  Gismu "pénsi",
+  Cmavo "le",
+  Cmavo "li'i",
+  Gismu "fríko",
+  Gismu "lítri",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"li'i","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"friko","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"litri","kind":"gismu"}}]"""
 
@@ -60,46 +32,18 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"s
 tree = """
 Relation {
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "tcidu",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [6,8],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "pensi",
-      span: [9,14],
-    },
+    leading_relation: Gismu "tcídu",
+    connective: Cmavo "je",
+    trailing_relation: Gismu "pénsi",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [15,17],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "li'i",
-          span: [18,22],
-        },
+        nu: Cmavo "li'i",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "friko",
-            span: [23,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "litri",
-            span: [29,34],
-          },
+          Gismu "fríko",
+          Gismu "lítri",
         },
       },
     },

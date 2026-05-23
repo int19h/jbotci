@@ -18,92 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi xúsra loĭ pa no jugbálsoĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jugbalsoĭ",
-    span: [21,30],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "xúsra",
+  Cmavo "loĭ",
+  Cmavo "pa",
+  Cmavo "no",
+  Lujvo "jugbálsoĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xusra","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[21,30],"phonemes":"jugbalsoĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xusra",
-        span: [6,11],
-      },
+      Gismu "xúsra",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [12,15],
-          },
+          descriptor: Cmavo "loĭ",
           tail_elements: [
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [16,18],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [18,20],
-              },
+              Cmavo "pa",
+              Cmavo "no",
             },
           ],
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "jugbalsoĭ",
-            span: [21,30],
-          },
+          relation: Lujvo "jugbálsoĭ",
         },
       ],
     },

@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ze'a naljúndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljundi",
-    span: [8,16],
-  },
+  Cmavo "do",
+  Cmavo "ze'a",
+  Lujvo "naljúndi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"naljundi","kind":"lujvo"}}]"""
 
@@ -40,23 +28,11 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ze'a",
-      span: [3,7],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "naljundi",
-      span: [8,16],
-    },
+    tense_modal: Cmavo "ze'a",
+    Lujvo "naljúndi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ze'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,16],"phonemes":"naljundi","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

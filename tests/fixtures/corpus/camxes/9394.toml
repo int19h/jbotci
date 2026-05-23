@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gaŭ le gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [7,12],
-  },
+  Cmavo "gaŭ",
+  Cmavo "le",
+  Gismu "gásnu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"gasnu","kind":"gismu"}}]'
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gasnu",
-          span: [7,12],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "gásnu",
       },
     },
   ],

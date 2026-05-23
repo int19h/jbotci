@@ -26,56 +26,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .djeĭn. le zárci ga naĭ dzúkla gi naĭ bájrykla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭn",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dzukla",
-    span: [25,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bajrykla",
-    span: [38,46],
-  },
+  Cmavo "la",
+  Cmevla "djeĭn",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Lujvo "dzúkla",
+  Cmavo "gi",
+  Cmavo "naĭ",
+  Lujvo "bájrykla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djeĭn","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[25,31],"phonemes":"dzukla","kind":"lujvo"}},{"Bare":{"span":[32,34],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[38,46],"phonemes":"bajrykla","kind":"lujvo"}}]'
 
@@ -85,67 +45,27 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djeĭn",
-          span: [3,8],
-        },
+        Cmevla "djeĭn",
       ],
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [10,12],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "zarci",
-        span: [13,18],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "zárci",
     },
   ],
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [19,21],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [21,24],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
-    first: Word {
-      kind: "lujvo",
-      phonemes: "dzukla",
-      span: [25,31],
-    },
+    first: Lujvo "dzúkla",
     gik: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "gi",
-        span: [32,34],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [34,37],
-      },
+      Cmavo "gi",
+      nai: Cmavo "naĭ",
     },
-    second: Word {
-      kind: "lujvo",
-      phonemes: "bajrykla",
-      span: [38,46],
-    },
+    second: Lujvo "bájrykla",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,8],"phonemes":"djeĭn","kind":"cmevla"}}}]}}},{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"zarci","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[19,21],"phonemes":"ga","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[21,24],"phonemes":"naĭ","kind":"cmavo"}}}}},"first":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[25,31],"phonemes":"dzukla","kind":"lujvo"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[32,34],"phonemes":"gi","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[34,37],"phonemes":"naĭ","kind":"cmavo"}}}}},"second":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[38,46],"phonemes":"bajrykla","kind":"lujvo"}}}}}}}}}}}}}}}}}}}]}]}'

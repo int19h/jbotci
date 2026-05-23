@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u ga naĭ da kláma le zárci gi cádzu le fóldi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "foldi",
-    span: [47,52],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "da",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "gi",
+  Gismu "cádzu",
+  Cmavo "le",
+  Gismu "fóldi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"foldi","kind":"gismu"}}]"""
 
@@ -91,89 +39,37 @@ tree = """
 Prenex {
   prenex_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
+  zohu: Cmavo "zo'u",
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [11,13],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [13,16],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
     first: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [17,19],
-        },
+        Cmavo "da",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [20,25],
-        },
+        Gismu "kláma",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [26,28],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "zarci",
-              span: [29,34],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "zárci",
           },
         ],
       },
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [35,37],
-    },
+    gik: Cmavo "gi",
     second: Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cadzu",
-        span: [38,43],
-      },
+      Gismu "cádzu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [44,46],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "foldi",
-            span: [47,52],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "fóldi",
         },
       ],
     },

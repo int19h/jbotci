@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu le ze pi mu moĭ cácra dúnli le ze ze pi'e ci cácra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [43,48],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Cmavo "ze",
+  Cmavo "pi",
+  Cmavo "mu",
+  Cmavo "moĭ",
+  Gismu "cácra",
+  Gismu "dúnli",
+  Cmavo "le",
+  Cmavo "ze",
+  Cmavo "ze",
+  Cmavo "pi'e",
+  Cmavo "ci",
+  Gismu "cácra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cacra","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"cacra","kind":"gismu"}}]"""
 
@@ -96,93 +40,37 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ze",
-                span: [6,8],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "pi",
-                span: [8,10],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "mu",
-                span: [10,12],
-              },
+              Cmavo "ze",
+              Cmavo "pi",
+              Cmavo "mu",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "moĭ",
-              span: [12,15],
-            },
+            moi: Cmavo "moĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "cacra",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "dunli",
-            span: [22,27],
-          },
+          Gismu "cácra",
+          Gismu "dúnli",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [28,30],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "ze",
-              span: [31,33],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ze",
-              span: [34,36],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "pi'e",
-              span: [36,40],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [40,42],
-            },
+            Cmavo "ze",
+            Cmavo "ze",
+            Cmavo "pi'e",
+            Cmavo "ci",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cacra",
-          span: [43,48],
-        },
+        relation: Gismu "cácra",
       },
     ],
   },

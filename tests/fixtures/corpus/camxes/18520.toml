@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a .oĭ clíva .ŭe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [14,16],
-  },
+  Cmavo "za'a",
+  Cmavo "oĭ",
+  Gismu "clíva",
+  Cmavo "ŭe",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ŭe","kind":"cmavo"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "za'a",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [5,7],
-        },
+        Cmavo "za'a",
+        indicator: Cmavo "oĭ",
       },
     },
   ],
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "cliva",
-      span: [8,13],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭe",
-      span: [14,16],
-    },
+    Gismu "clíva",
+    indicator: Cmavo "ŭe",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"cliva","kind":"gismu"}}},"indicator":{"span":[14,16],"phonemes":"ŭe","kind":"cmavo"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}}},"indicator":{"span":[5,7],"phonemes":"oĭ","kind":"cmavo"}}}}]}"""

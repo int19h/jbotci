@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi pu cúsku lu mi'e .djan. li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [26,30],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cúsku",
+  Cmavo "lu",
+  Cmavo "mi'e",
+  Cmevla "djan",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[26,30],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -61,54 +33,26 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cúsku",
     },
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [12,14],
-        },
+        lu: Cmavo "lu",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi'e",
-                span: [15,19],
-              },
+              Cmavo "mi'e",
             ],
-            argument: Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [20,24],
-            },
+            argument: Cmevla "djan",
           },
         ],
         Text {},
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [26,30],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

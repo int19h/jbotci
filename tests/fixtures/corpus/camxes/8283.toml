@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la pórpi .e la .djorden.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djorden",
-    span: [15,22],
-  },
+  Cmavo "la",
+  Gismu "pórpi",
+  Cmavo "e",
+  Cmavo "la",
+  Cmevla "djorden",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"porpi","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,22],"phonemes":"djorden","kind":"cmevla"}}]'
 
@@ -52,34 +32,14 @@ Term {
   terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "porpi",
-          span: [3,8],
-        },
+        descriptor: Cmavo "la",
+        relation: Gismu "pórpi",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [10,11],
-      },
+      connective: Cmavo "e",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djorden",
-            span: [15,22],
-          },
+          Cmevla "djorden",
         ],
       },
     },

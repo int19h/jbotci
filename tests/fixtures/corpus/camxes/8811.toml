@@ -19,108 +19,28 @@ brackets = "([la'o py go py] du le se kélci poĭ do pílno loĭ cmálu rókci g
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "py",
-      span: [5,7],
-    },
-    quoted_text: [9,11],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "py",
-      span: [13,15],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "py",
+    quoted_text: Verbatim "go",
+    closing_delimiter: Cmavo "py",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [32,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [45,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [49,54],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [55,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [61,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [66,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [72,74],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [74,76],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [77,82],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [83,86],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tutra",
-    span: [87,92],
-  },
+  Cmavo "du",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "kélci",
+  Cmavo "poĭ",
+  Cmavo "do",
+  Gismu "pílno",
+  Cmavo "loĭ",
+  Gismu "cmálu",
+  Gismu "rókci",
+  Cmavo "gi'e",
+  Gismu "tróci",
+  Cmavo "lo",
+  Cmavo "nu",
+  Gismu "cpácu",
+  Cmavo "loĭ",
+  Gismu "tútra",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"py","kind":"cmavo"},"quoted_text":[9,11],"closing_delimiter":{"span":[13,15],"phonemes":"py","kind":"cmavo"}}},{"Bare":{"span":[17,19],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[32,35],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[45,48],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[55,60],"phonemes":"rokci","kind":"gismu"}},{"Bare":{"span":[61,65],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[72,74],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[74,76],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[77,82],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[83,86],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[87,92],"phonemes":"tutra","kind":"gismu"}}]"""
 
@@ -129,137 +49,57 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "py",
-        span: [5,7],
-      },
-      quoted_text: [9,11],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "py",
-        span: [13,15],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "py",
+      quoted_text: Verbatim "go",
+      closing_delimiter: Cmavo "py",
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [17,19],
-    },
+    Cmavo "du",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
+        descriptor: Cmavo "le",
         relation: Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [23,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kelci",
-            span: [26,31],
-          },
+          se: Cmavo "se",
+          Gismu "kélci",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [32,35],
-            },
+            poi: Cmavo "poĭ",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [36,38],
-                },
+                Cmavo "do",
               ],
               PredicateTail1 {
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "pilno",
-                    span: [39,44],
-                  },
+                  Gismu "pílno",
                   terms: [
                     Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "loĭ",
-                        span: [45,48],
-                      },
+                      descriptor: Cmavo "loĭ",
                       relation: Compound {
-                        Word {
-                          kind: "gismu",
-                          phonemes: "cmalu",
-                          span: [49,54],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "rokci",
-                          span: [55,60],
-                        },
+                        Gismu "cmálu",
+                        Gismu "rókci",
                       },
                     },
                   ],
                 },
                 continuations: [
                   PredicateTailContinuation {
-                    connective: Word {
-                      kind: "cmavo",
-                      phonemes: "gi'e",
-                      span: [61,65],
-                    },
+                    connective: Cmavo "gi'e",
                     Relation {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "troci",
-                        span: [66,71],
-                      },
+                      Gismu "tróci",
                       terms: [
                         Descriptor {
-                          descriptor: Word {
-                            kind: "cmavo",
-                            phonemes: "lo",
-                            span: [72,74],
-                          },
+                          descriptor: Cmavo "lo",
                           relation: Abstraction {
-                            nu: Word {
-                              kind: "cmavo",
-                              phonemes: "nu",
-                              span: [74,76],
-                            },
+                            nu: Cmavo "nu",
                             Relation {
-                              Word {
-                                kind: "gismu",
-                                phonemes: "cpacu",
-                                span: [77,82],
-                              },
+                              Gismu "cpácu",
                               terms: [
                                 Descriptor {
-                                  descriptor: Word {
-                                    kind: "cmavo",
-                                    phonemes: "loĭ",
-                                    span: [83,86],
-                                  },
-                                  relation: Word {
-                                    kind: "gismu",
-                                    phonemes: "tutra",
-                                    span: [87,92],
-                                  },
+                                  descriptor: Cmavo "loĭ",
+                                  relation: Gismu "tútra",
                                 },
                               ],
                             },

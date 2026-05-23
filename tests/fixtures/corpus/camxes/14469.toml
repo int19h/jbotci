@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu fínti re zífre co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zifre",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [21,25],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "fínti",
+  Cmavo "re",
+  Gismu "zífre",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zifre","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "fínti",
     },
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [12,14],
-          },
+          Cmavo "re",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "zifre",
-            span: [15,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "co'e",
-            span: [21,25],
-          },
+          Gismu "zífre",
+          Cmavo "co'e",
         },
       },
     ],

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi súrla gi'e cílre .ŭi naĭ ru'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [26,30],
-  },
+  Cmavo "mi",
+  Gismu "súrla",
+  Cmavo "gi'e",
+  Gismu "cílre",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Cmavo "ru'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ru'e","kind":"cmavo"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "surla",
-      span: [3,8],
-    },
+    Gismu "súrla",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [9,13],
-        },
+        connective: Cmavo "gi'e",
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "cilre",
-              span: [14,19],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ŭi",
-              span: [21,23],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [23,26],
-            },
+            Gismu "cílre",
+            indicator: Cmavo "ŭi",
+            nai: Cmavo "naĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ru'e",
-            span: [26,30],
-          },
+          indicator: Cmavo "ru'e",
         },
       },
     ],

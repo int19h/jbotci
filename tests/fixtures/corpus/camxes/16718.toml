@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi ji'a le kórbi be le dégji be mi cu se córtu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "korbi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "degji",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [42,47],
-  },
+  Cmavo "ŭi",
+  Cmavo "ji'a",
+  Cmavo "le",
+  Gismu "kórbi",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "dégji",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "córtu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"korbi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"degji","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"cortu","kind":"gismu"}}]"""
 
@@ -87,81 +39,33 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [4,8],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "ji'a",
       },
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "korbi",
-            span: [12,17],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [18,20],
-          },
+          Gismu "kórbi",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [21,23],
-            },
+            descriptor: Cmavo "le",
             relation: Be {
-              Word {
-                kind: "gismu",
-                phonemes: "degji",
-                span: [24,29],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [30,32],
-              },
-              first_argument: Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [33,35],
-              },
+              Gismu "dégji",
+              be: Cmavo "be",
+              first_argument: Cmavo "mi",
             },
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [36,38],
-    },
+    cu: Cmavo "cu",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [39,41],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cortu",
-        span: [42,47],
-      },
+      se: Cmavo "se",
+      Gismu "córtu",
     },
   },
 }"""

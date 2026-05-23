@@ -18,68 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bróda mu'i le nu bróde)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [17,22],
-  },
+  Gismu "bróda",
+  Cmavo "mu'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "bróde",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"brode","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [6,10],
-        },
+        bai: Cmavo "mu'i",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "brode",
-            span: [17,22],
-          },
+          nu: Cmavo "nu",
+          Gismu "bróde",
         },
       },
     },

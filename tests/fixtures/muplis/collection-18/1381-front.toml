@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le za'u sónci ca mórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sonci",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "za'u",
+  Gismu "sónci",
+  Cmavo "ca",
+  Gismu "mórsi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"sonci","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"morsi","kind":"gismu"}}]"""
 
@@ -58,44 +34,20 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{le za'u sónci} {ca mórsi}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [6,10],
-          },
+          Cmavo "za'u",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "sonci",
-          span: [11,16],
-        },
+        relation: Gismu "sónci",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [17,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "morsi",
-        span: [20,25],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "mórsi",
     },
   },
 }"""

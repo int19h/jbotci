@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i su'o jmíve ca zváti ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmive",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "su'o",
+  Gismu "jmíve",
+  Cmavo "ca",
+  Gismu "zváti",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jmive","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -58,47 +34,23 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{su'o jmíve} {(ca zváti) ti}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [3,7],
-          },
+          Cmavo "su'o",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "jmive",
-          span: [8,13],
-        },
+        relation: Gismu "jmíve",
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [14,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "zváti",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [23,25],
-        },
+        Cmavo "ti",
       ],
     },
   },

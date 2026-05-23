@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ca naĭ ca'a mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [14,16],
-  },
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "naĭ",
+  Cmavo "ca'a",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -50,35 +30,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ca'a",
-        span: [9,13],
-      },
+      Cmavo "ca",
+      Cmavo "naĭ",
+      Cmavo "ca'a",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [14,16],
-    },
+    Cmavo "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,13],"phonemes":"ca'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,16],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

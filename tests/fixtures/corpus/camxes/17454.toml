@@ -18,22 +18,10 @@ error = { position = 1, allowed-next = [] }
 brackets = "(.a [zo .ŭag.])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [1,2],
-  },
+  Cmavo "a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "ŭag",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "ŭag",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"ŭag","kind":"cmevla"}}}]'

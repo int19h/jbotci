@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .kreĭg. .i na núzba vi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kreĭg",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [21,23],
-  },
+  Cmavo "coĭ",
+  Cmevla "kreĭg",
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "núzba",
+  Cmavo "vi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"kreĭg","kind":"cmevla"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"vi","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "kreĭg",
-        span: [4,9],
-      },
+      argument: Cmevla "kreĭg",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nuzba",
-          span: [15,20],
-        },
+        na: Cmavo "na",
+        Gismu "núzba",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [21,23],
-          },
+          tense_modal: Cmavo "vi",
           Zohe {},
         },
       ],

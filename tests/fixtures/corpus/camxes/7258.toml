@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ co'o seĭ kréfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krefu",
-    span: [12,17],
-  },
+  Cmavo "coĭ",
+  Cmavo "co'o",
+  Cmavo "seĭ",
+  Gismu "kréfu",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"krefu","kind":"gismu"}}]"""
 
@@ -47,29 +31,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [3,7],
-        },
+        Cmavo "coĭ",
+        Cmavo "co'o",
       ],
       free_modifiers: [
         Sei {
-          sei: Word {
-            kind: "cmavo",
-            phonemes: "seĭ",
-            span: [8,11],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "krefu",
-            span: [12,17],
-          },
+          sei: Cmavo "seĭ",
+          relation: Gismu "kréfu",
         },
       ],
     },

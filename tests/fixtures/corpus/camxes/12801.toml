@@ -18,83 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to mi pu fínti le bi'u nótci poĭ tróci co cíksi tu'a [zo mu'eĭ] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "notci",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [48,52],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "fínti",
+  Cmavo "le",
+  Cmavo "bi'u",
+  Gismu "nótci",
+  Cmavo "poĭ",
+  Gismu "tróci",
+  Cmavo "co",
+  Gismu "cíksi",
+  Cmavo "tu'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [53,55],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'eĭ",
-      span: [56,61],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mu'eĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [62,65],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"bi'u","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"notci","kind":"gismu"}},{"Bare":{"span":[29,32],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[48,52],"phonemes":"tu'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[53,55],"phonemes":"zo","kind":"cmavo"},"word":{"span":[56,61],"phonemes":"mu'eĭ","kind":"cmavo"}}},{"Bare":{"span":[62,65],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -103,94 +43,38 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [6,8],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "finti",
-              span: [9,14],
-            },
+            tense_modal: Cmavo "pu",
+            Gismu "fínti",
           },
           terms: [
             Descriptor {
               descriptor: WithIndicator {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [15,17],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "bi'u",
-                  span: [18,22],
-                },
+                Cmavo "le",
+                indicator: Cmavo "bi'u",
               },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "notci",
-                span: [23,28],
-              },
+              relation: Gismu "nótci",
               relative_clauses: [
                 Poi {
-                  poi: Word {
-                    kind: "cmavo",
-                    phonemes: "poĭ",
-                    span: [29,32],
-                  },
+                  poi: Cmavo "poĭ",
                   Relation {
                     Co {
-                      leading_relation: Word {
-                        kind: "gismu",
-                        phonemes: "troci",
-                        span: [33,38],
-                      },
-                      co: Word {
-                        kind: "cmavo",
-                        phonemes: "co",
-                        span: [39,41],
-                      },
-                      trailing_relation: Word {
-                        kind: "gismu",
-                        phonemes: "ciksi",
-                        span: [42,47],
-                      },
+                      leading_relation: Gismu "tróci",
+                      co: Cmavo "co",
+                      trailing_relation: Gismu "cíksi",
                     },
                     terms: [
                       Lahe {
-                        lahe: Word {
-                          kind: "cmavo",
-                          phonemes: "tu'a",
-                          span: [48,52],
-                        },
+                        lahe: Cmavo "tu'a",
                         ZoQuote {
-                          zo: Word {
-                            kind: "cmavo",
-                            phonemes: "zo",
-                            span: [53,55],
-                          },
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "mu'eĭ",
-                            span: [56,61],
-                          },
+                          zo: Cmavo "zo",
+                          Cmavo "mu'eĭ",
                         },
                       },
                     ],
@@ -201,11 +85,7 @@ Text {
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [62,65],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

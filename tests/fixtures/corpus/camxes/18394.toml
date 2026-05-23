@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cúkta be fo ma be'o vécnu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'o",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [20,25],
-  },
+  Gismu "cúkta",
+  Cmavo "be",
+  Cmavo "fo",
+  Cmavo "ma",
+  Cmavo "be'o",
+  Gismu "vécnu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"vecnu","kind":"gismu"}}]"""
 
@@ -55,36 +31,12 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"s
 tree = """
 Compound {
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "cukta",
-      span: [0,5],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [6,8],
-    },
-    fa: Word {
-      kind: "cmavo",
-      phonemes: "fo",
-      span: [9,11],
-    },
-    first_argument: Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [12,14],
-    },
-    beho: Word {
-      kind: "cmavo",
-      phonemes: "be'o",
-      span: [15,19],
-    },
+    Gismu "cúkta",
+    be: Cmavo "be",
+    fa: Cmavo "fo",
+    first_argument: Cmavo "ma",
+    beho: Cmavo "be'o",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [20,25],
-  },
+  Gismu "vécnu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cukta","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}}},"fa":{"Bare":{"Bare":{"span":[9,11],"phonemes":"fo","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}}}},"beho":{"Bare":{"Bare":{"span":[15,19],"phonemes":"be'o","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"vecnu","kind":"gismu"}}}}]}}}}}}}}]}]}"""

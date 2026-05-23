@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'e ru'e mi pa roĭ fárlu ca le nu mi cpáre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'e",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farlu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [39,44],
-  },
+  Cmavo "i",
+  Cmavo "e'e",
+  Cmavo "ru'e",
+  Cmavo "mi",
+  Cmavo "pa",
+  Cmavo "roĭ",
+  Gismu "fárlu",
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "cpáre",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"farlu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"cpare","kind":"gismu"}}]"""
 
@@ -86,83 +38,35 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'e",
-        span: [4,7],
-      },
+      Cmavo "i",
+      indicator: Cmavo "e'e",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ru'e",
-      span: [7,11],
-    },
+    indicator: Cmavo "ru'e",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [17,20],
-          },
+          Cmavo "pa",
+          Cmavo "roĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "farlu",
-          span: [21,26],
-        },
+        Gismu "fárlu",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [27,29],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [30,32],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [33,35],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [36,38],
-                  },
+                  Cmavo "mi",
                 ],
-                Word {
-                  kind: "gismu",
-                  phonemes: "cpare",
-                  span: [39,44],
-                },
+                Gismu "cpáre",
               },
             },
           },

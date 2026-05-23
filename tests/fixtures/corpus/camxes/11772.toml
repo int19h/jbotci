@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭu saĭ .i ki'e do rínju do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinju",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [24,26],
-  },
+  Cmavo "ŭu",
+  Cmavo "saĭ",
+  Cmavo "i",
+  Cmavo "ki'e",
+  Cmavo "do",
+  Gismu "rínju",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"rinju","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -62,53 +34,25 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭu",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "ŭu",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ki'e",
-            span: [10,14],
-          },
+          Cmavo "ki'e",
         ],
-        argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [15,17],
-        },
+        argument: Cmavo "do",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "rinju",
-        span: [18,23],
-      },
+      Gismu "rínju",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [24,26],
-        },
+        Cmavo "do",
       ],
     },
   },

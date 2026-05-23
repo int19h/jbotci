@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le ka múlno be le jéftu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jeftu",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "múlno",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "jéftu",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"jeftu","kind":"gismu"}}]'
 
@@ -57,39 +33,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [6,8],
-        },
+        nu: Cmavo "ka",
         Be {
-          Word {
-            kind: "gismu",
-            phonemes: "mulno",
-            span: [9,14],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [15,17],
-          },
+          Gismu "múlno",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [18,20],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "jeftu",
-              span: [21,26],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "jéftu",
           },
         },
       },

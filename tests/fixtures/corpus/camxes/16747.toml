@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i ca ku cidjrpítsa témci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [10,12],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [13,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "ca",
+  Cmavo "ku",
+  Fuhivla "cidjrpítsa",
+  Gismu "témci",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[13,23],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[24,29],"phonemes":"temci","kind":"gismu"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [10,12],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],
     Compound {
-      Word {
-        kind: "fu'ivla",
-        phonemes: "cidjrpitsa",
-        span: [13,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "temci",
-        span: [24,29],
-      },
+      Fuhivla "cidjrpítsa",
+      Gismu "témci",
     },
   },
 }"""

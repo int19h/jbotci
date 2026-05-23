@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu da vi do fásnu ca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fasnu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [21,23],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "da",
+  Cmavo "vi",
+  Cmavo "do",
+  Gismu "fásnu",
+  Cmavo "ca",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"fasnu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ca","kind":"cmavo"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [6,8],
-      },
+      Cmavo "da",
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [12,14],
-        },
+        tense_modal: Cmavo "vi",
+        Cmavo "do",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "fasnu",
-        span: [15,20],
-      },
+      Gismu "fásnu",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [21,23],
-          },
+          tense_modal: Cmavo "ca",
           Zohe {},
         },
       ],

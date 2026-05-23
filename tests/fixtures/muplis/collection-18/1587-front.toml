@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i no da skícu su'o de mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skicu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "skícu",
+  Cmavo "su'o",
+  Cmavo "de",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -63,50 +35,22 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{no da} {skícu ([su'o de] mi)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [6,8],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "skicu",
-        span: [9,14],
-      },
+      Gismu "skícu",
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [15,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de",
-            span: [20,22],
-          },
+          quantifier: Cmavo "su'o",
+          Cmavo "de",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [23,25],
-        },
+        Cmavo "mi",
       ],
     },
   },

@@ -19,28 +19,12 @@ brackets = "([zoĭ ky hmm ky] mo)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ky",
-      span: [4,6],
-    },
-    quoted_text: [6,10],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ky",
-      span: [11,13],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ky",
+    quoted_text: Verbatim "hmm",
+    closing_delimiter: Cmavo "ky",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [14,16],
-  },
+  Cmavo "mo",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"ky","kind":"cmavo"},"quoted_text":[6,10],"closing_delimiter":{"span":[11,13],"phonemes":"ky","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -49,28 +33,12 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ky",
-        span: [4,6],
-      },
-      quoted_text: [6,10],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ky",
-        span: [11,13],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "ky",
+      quoted_text: Verbatim "hmm",
+      closing_delimiter: Cmavo "ky",
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [14,16],
-  },
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"ky","kind":"cmavo"},"quoted_text":[6,10],"closing_delimiter":{"span":[11,13],"phonemes":"ky","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,16],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

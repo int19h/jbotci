@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
+  Cmavo "so'u",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -36,16 +28,8 @@ tree = """
 Term {
   terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "so'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [5,7],
-      },
+      quantifier: Cmavo "so'u",
+      Cmavo "da",
     },
   ],
 }"""

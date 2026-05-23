@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. .ŭi bánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banro",
-    span: [12,17],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "ŭi",
+  Gismu "bánro",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"banro","kind":"gismu"}}]'
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [4,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [9,11],
-        },
+        Cmevla "xod",
+        indicator: Cmavo "ŭi",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "banro",
-    span: [12,17],
-  },
+  Gismu "bánro",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}}},"indicator":{"span":[9,11],"phonemes":"ŭi","kind":"cmavo"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"banro","kind":"gismu"}}}}}}}}}}}]}]}'

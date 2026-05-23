@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'e ka'e cpáre ze'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'i",
-    span: [15,19],
-  },
+  Cmavo "na'e",
+  Cmavo "ka'e",
+  Gismu "cpáre",
+  Cmavo "ze'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"ze'i","kind":"cmavo"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Relation {
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [4,8],
-      },
+      Cmavo "na'e",
+      Cmavo "ka'e",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cpare",
-      span: [9,14],
-    },
+    Gismu "cpáre",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ze'i",
-        span: [15,19],
-      },
+      tense_modal: Cmavo "ze'i",
       Zohe {},
     },
   ],

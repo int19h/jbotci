@@ -18,88 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(térpa lo cátra noĭ na se víska)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catra",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [25,30],
-  },
+  Gismu "térpa",
+  Cmavo "lo",
+  Gismu "cátra",
+  Cmavo "noĭ",
+  Cmavo "na",
+  Cmavo "se",
+  Gismu "víska",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"catra","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"viska","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [0,5],
-  },
+  Gismu "térpa",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [6,8],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "catra",
-        span: [9,14],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "cátra",
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [15,18],
-          },
+          noi: Cmavo "noĭ",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [19,21],
-            },
+            na: Cmavo "na",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [22,24],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "viska",
-                span: [25,30],
-              },
+              se: Cmavo "se",
+              Gismu "víska",
             },
           },
         },

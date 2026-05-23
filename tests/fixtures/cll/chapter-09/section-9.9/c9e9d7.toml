@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi fi'o kánla fe'u víska do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanla",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
+  Cmavo "mi",
+  Cmavo "fi'o",
+  Gismu "kánla",
+  Cmavo "fe'u",
+  Gismu "víska",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kanla","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"fe'u","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -62,43 +38,19 @@ brackets = "(mi [{(fi'o kánla fe'u) víska} do])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Fiho {
-        fiho: Word {
-          kind: "cmavo",
-          phonemes: "fi'o",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kanla",
-          span: [8,13],
-        },
-        fehu: Word {
-          kind: "cmavo",
-          phonemes: "fe'u",
-          span: [14,18],
-        },
+        fiho: Cmavo "fi'o",
+        Gismu "kánla",
+        fehu: Cmavo "fe'u",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [19,24],
-      },
+      Gismu "víska",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [25,27],
-      },
+      Cmavo "do",
     ],
   },
 }"""

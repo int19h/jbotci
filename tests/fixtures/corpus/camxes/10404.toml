@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro pipybánfi távla fo la .pipyban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "pipybanfi",
-    span: [3,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "pipyban",
-    span: [25,32],
-  },
+  Cmavo "ro",
+  Lujvo "pipybánfi",
+  Gismu "távla",
+  Cmavo "fo",
+  Cmavo "la",
+  Cmevla "pipyban",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"pipybanfi","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[25,32],"phonemes":"pipyban","kind":"cmevla"}}]'
 
@@ -57,43 +33,19 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "pipybanfi",
-          span: [3,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [13,18],
-        },
+        Lujvo "pipybánfi",
+        Gismu "távla",
       },
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fo",
-        span: [19,21],
-      },
+      fa: Cmavo "fo",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [22,24],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "pipyban",
-            span: [25,32],
-          },
+          Cmevla "pipyban",
         ],
       },
     },

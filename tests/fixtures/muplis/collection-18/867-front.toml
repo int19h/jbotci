@@ -21,56 +21,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'a seĭ ko di'a co'e ma ba la'e do'i fásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'a",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [33,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fasnu",
-    span: [38,43],
-  },
+  Cmavo "a'a",
+  Cmavo "seĭ",
+  Cmavo "ko",
+  Cmavo "di'a",
+  Cmavo "co'e",
+  Cmavo "ma",
+  Cmavo "ba",
+  Cmavo "la'e",
+  Cmavo "do'i",
+  Gismu "fásnu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"co'e","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"do'i","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"fasnu","kind":"gismu"}}]"""
 
@@ -80,73 +40,33 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'a",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'a",
     },
   ],
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [5,8],
-      },
+      sei: Cmavo "seĭ",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [9,11],
-        },
+        Cmavo "ko",
       ],
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "di'a",
-          span: [12,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "co'e",
-          span: [17,21],
-        },
+        tense_modal: Cmavo "di'a",
+        Cmavo "co'e",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [22,24],
-      },
+      Cmavo "ma",
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [25,27],
-        },
+        tense_modal: Cmavo "ba",
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [28,32],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do'i",
-            span: [33,37],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "do'i",
         },
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "fasnu",
-      span: [38,43],
-    },
+    Gismu "fásnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[22,24],"phonemes":"ma","kind":"cmavo"}}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[25,27],"phonemes":"ba","kind":"cmavo"}}}}]}},"argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[28,32],"phonemes":"la'e","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[33,37],"phonemes":"do'i","kind":"cmavo"}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[38,43],"phonemes":"fasnu","kind":"gismu"}}}}}}}}}}}]}],"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"span":[5,8],"phonemes":"seĭ","kind":"cmavo"}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ko","kind":"cmavo"}}}}}],"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"di'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,21],"phonemes":"co'e","kind":"cmavo"}}}}}}}}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"a'a","kind":"cmavo"}}}}]}"""

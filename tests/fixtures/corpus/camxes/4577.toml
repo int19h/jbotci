@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ky sy mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [5,7],
-  },
+  Cmavo "ky",
+  Cmavo "sy",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -42,23 +30,11 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "sy",
-          span: [2,4],
-        },
+        Cmavo "ky",
+        Cmavo "sy",
       ],
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [5,7],
-  },
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ky","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

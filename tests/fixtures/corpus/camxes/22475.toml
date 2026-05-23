@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi mu'o císka le rítli se távle be mi pe ca le bavlámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ritli",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavle",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamdeĭ",
-    span: [47,56],
-  },
+  Cmavo "mi",
+  Cmavo "mu'o",
+  Gismu "císka",
+  Cmavo "le",
+  Gismu "rítli",
+  Cmavo "se",
+  Gismu "távle",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "pe",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "bavlámdeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mu'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"ritli","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tavle","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,56],"phonemes":"bavlamdeĭ","kind":"lujvo"}}]"""
 
@@ -91,90 +39,38 @@ tree = """
 Term {
   terms: [
     Koha {
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mu'o",
-              span: [3,7],
-            },
+            Cmavo "mu'o",
           ],
           argument: RelationVocative {
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ciska",
-              span: [8,13],
-            },
+            relation: Gismu "císka",
           },
         },
       ],
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [14,16],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "ritli",
-          span: [17,22],
-        },
+        Gismu "rítli",
         Be {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [23,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tavle",
-              span: [26,31],
-            },
+            se: Cmavo "se",
+            Gismu "távle",
           },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [32,34],
-          },
+          be: Cmavo "be",
           first_argument: RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [35,37],
-            },
+            base_argument: Cmavo "mi",
             relative_clauses: [
               GoiRelativeClause {
-                goi: Word {
-                  kind: "cmavo",
-                  phonemes: "pe",
-                  span: [38,40],
-                },
+                goi: Cmavo "pe",
                 Tagged {
-                  tag: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [41,43],
-                  },
+                  tag: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [44,46],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "bavlamdeĭ",
-                      span: [47,56],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Lujvo "bavlámdeĭ",
                   },
                 },
               },

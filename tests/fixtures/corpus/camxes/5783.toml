@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(línsi ke lérfu dátni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "linsi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [15,20],
-  },
+  Gismu "línsi",
+  Cmavo "ke",
+  Gismu "lérfu",
+  Gismu "dátni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"linsi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"datni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "linsi",
-    span: [0,5],
-  },
+  Gismu "línsi",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "lerfu",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "datni",
-        span: [15,20],
-      },
+      Gismu "lérfu",
+      Gismu "dátni",
     },
   },
 }"""

@@ -18,48 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko dárxi le bétfu pe [la bu] da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darxi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "betfu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [18,20],
-  },
+  Cmavo "ko",
+  Gismu "dárxi",
+  Cmavo "le",
+  Gismu "bétfu",
+  Cmavo "pe",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [21,23],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [24,26],
-    },
+    Cmavo "la",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [26,28],
-  },
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"darxi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"betfu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[24,26],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[26,28],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -67,61 +35,29 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "darxi",
-      span: [3,8],
-    },
+    Gismu "dárxi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "betfu",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "bétfu",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [18,20],
-            },
+            goi: Cmavo "pe",
             Letter {
               letter: [
                 Letter {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [21,23],
-                  },
-                  bu: Word {
-                    kind: "cmavo",
-                    phonemes: "bu",
-                    span: [24,26],
-                  },
+                  Cmavo "la",
+                  bu: Cmavo "bu",
                 },
               ],
             },
           },
         ],
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [26,28],
-      },
+      Cmavo "da",
     ],
   },
 }"""

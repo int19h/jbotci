@@ -18,89 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le nu gálfi lo'e jgína ka'e ckápe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgina",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckape",
-    span: [30,35],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "gálfi",
+  Cmavo "lo'e",
+  Gismu "jgína",
+  Cmavo "ka'e",
+  Gismu "ckápe",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"jgina","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"ckape","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [5,7],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "galfi",
-              span: [8,13],
-            },
+            Gismu "gálfi",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo'e",
-                  span: [14,18],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "jgina",
-                  span: [19,24],
-                },
+                descriptor: Cmavo "lo'e",
+                relation: Gismu "jgína",
               },
             ],
           },
@@ -108,16 +52,8 @@ ParagraphStatement {
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [25,29],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ckape",
-        span: [30,35],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "ckápe",
     },
   },
 }"""

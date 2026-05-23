@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ne'i la .bolingbruk.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bolingbruk",
-    span: [27,37],
-  },
+  Cmavo "ne'i",
+  Cmavo "la",
+  Cmevla "bolingbruk",
 ]"""
 json = """[{"Bare":{"span":[19,23],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,37],"phonemes":"bolingbruk","kind":"cmevla"}}]"""
 
@@ -41,23 +29,11 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ne'i",
-        span: [19,23],
-      },
+      tense_modal: Cmavo "ne'i",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [24,26],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "bolingbruk",
-            span: [27,37],
-          },
+          Cmevla "bolingbruk",
         ],
       },
     },

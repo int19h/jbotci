@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no da poĭ se djúno mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "se",
+  Gismu "djúno",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -57,43 +33,19 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [2,4],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [5,8],
-          },
+          poi: Cmavo "poĭ",
           Relation {
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [9,11],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "djuno",
-                span: [12,17],
-              },
+              se: Cmavo "se",
+              Gismu "djúno",
             },
             terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [18,20],
-              },
+              Cmavo "mi",
             ],
           },
         },

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi vánci te vécnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vanci",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [13,18],
-  },
+  Cmavo "ŭi",
+  Gismu "vánci",
+  Cmavo "te",
+  Gismu "vécnu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"vanci","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"vecnu","kind":"gismu"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "vanci",
-      span: [4,9],
-    },
+    Gismu "vánci",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "te",
-        span: [10,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vecnu",
-        span: [13,18],
-      },
+      se: Cmavo "te",
+      Gismu "vécnu",
     },
   },
 }"""

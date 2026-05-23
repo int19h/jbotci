@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.set. ménli tátpi mútce)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "set",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [16,21],
-  },
+  Cmevla "set",
+  Gismu "ménli",
+  Gismu "tátpi",
+  Gismu "mútce",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"set","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"mutce","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"set","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "set",
-      span: [0,3],
-    },
+    Cmevla "set",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "menli",
-      span: [4,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [10,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [16,21],
-    },
+    Gismu "ménli",
+    Gismu "tátpi",
+    Gismu "mútce",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"set","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"menli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"tatpi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"mutce","kind":"gismu"}}}}]}}}}}}}}]}]}'

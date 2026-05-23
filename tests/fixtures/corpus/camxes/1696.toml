@@ -18,71 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa ki'o re ci ki'o vo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [19,21],
-  },
+  Cmavo "pa",
+  Cmavo "ki'o",
+  Cmavo "re",
+  Cmavo "ci",
+  Cmavo "ki'o",
+  Cmavo "vo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"vo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [19,21],
-  },
+  Cmavo "pa",
+  Cmavo "ki'o",
+  Cmavo "re",
+  Cmavo "ci",
+  Cmavo "ki'o",
+  Cmavo "vo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,7],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[14,18],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[19,21],"phonemes":"vo","kind":"cmavo"}}}]}}}}}}]}]}"""

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko tróci le nu baŭ cásnu .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [26,28],
-  },
+  Cmavo "ko",
+  Gismu "tróci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "baŭ",
+  Gismu "cásnu",
+  Cmavo "ŭi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ŭi","kind":"cmavo"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "troci",
-      span: [3,8],
-    },
+    Gismu "tróci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
+          nu: Cmavo "nu",
           TenseModal {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baŭ",
-                span: [15,18],
-              },
+              bai: Cmavo "baŭ",
             },
             WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "casnu",
-                span: [19,24],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ŭi",
-                span: [26,28],
-              },
+              Gismu "cásnu",
+              indicator: Cmavo "ŭi",
             },
           },
         },

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(jánmi ki'a .i zéndo ki'a)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "janmi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zendo",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [20,24],
-  },
+  Gismu "jánmi",
+  Cmavo "ki'a",
+  Cmavo "i",
+  Gismu "zéndo",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"janmi","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"zendo","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -50,34 +30,14 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"janmi","kind":"gismu"}},{"Bare":{"s
 tree = """
 Paragraph {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "janmi",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ki'a",
-      span: [6,10],
-    },
+    Gismu "jánmi",
+    indicator: Cmavo "ki'a",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [12,13],
-    },
+    i: Cmavo "i",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "zendo",
-        span: [14,19],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [20,24],
-      },
+      Gismu "zéndo",
+      indicator: Cmavo "ki'a",
     },
   },
 }"""

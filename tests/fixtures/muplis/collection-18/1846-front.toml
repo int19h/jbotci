@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do pénsi le vi'e píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [20,25],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "pénsi",
+  Cmavo "le",
+  Cmavo "vi'e",
+  Gismu "píxra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"vi'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pixra","kind":"gismu"}}]"""
 
@@ -60,45 +36,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pensi",
-        span: [6,11],
-      },
+      Gismu "pénsi",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "vi'e",
-              span: [15,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pixra",
-              span: [20,25],
-            },
+            tense_modal: Cmavo "vi'e",
+            Gismu "píxra",
           },
         },
       ],

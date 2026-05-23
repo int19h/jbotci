@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(skámi zásni dátni sórcu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sorcu",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "zásni",
+  Gismu "dátni",
+  Gismu "sórcu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"zasni","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"sorcu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sorcu",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "zásni",
+  Gismu "dátni",
+  Gismu "sórcu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zasni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"sorcu","kind":"gismu"}}}}]}}}}}}}}]}]}'

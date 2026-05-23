@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do pu smádi tu'a xo prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [20,25],
-  },
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "smádi",
+  Cmavo "tu'a",
+  Cmavo "xo",
+  Gismu "prénu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"smadi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"prenu","kind":"gismu"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "smadi",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "smádi",
     },
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [12,16],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "xo",
-              span: [17,19],
-            },
+            Cmavo "xo",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [20,25],
-          },
+          relation: Gismu "prénu",
         },
       },
     ],

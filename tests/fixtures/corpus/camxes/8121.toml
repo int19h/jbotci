@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do mo ca le cábna nícte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cabna",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [18,23],
-  },
+  Cmavo "do",
+  Cmavo "mo",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "cábna",
+  Gismu "nícte",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cabna","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"nicte","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [3,5],
-    },
+    Cmavo "mo",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cabna",
-              span: [12,17],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nicte",
-              span: [18,23],
-            },
+            Gismu "cábna",
+            Gismu "nícte",
           },
         },
       },

@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.or. tergérna)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "or",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tergerna",
-    span: [3,11],
-  },
+  Cmevla "or",
+  Lujvo "tergérna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,11],"phonemes":"tergerna","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "or",
-      span: [0,2],
-    },
+    Cmevla "or",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "tergerna",
-    span: [3,11],
-  },
+  Lujvo "tergérna",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"tergerna","kind":"lujvo"}}}}}}}}}}}]}]}'

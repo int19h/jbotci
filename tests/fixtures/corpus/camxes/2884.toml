@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi prénu so'i meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [13,16],
-  },
+  Cmavo "ŭi",
+  Gismu "prénu",
+  Cmavo "so'i",
+  Cmavo "meĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"meĭ","kind":"cmavo"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "prenu",
-      span: [3,8],
-    },
+    Gismu "prénu",
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'i",
-          span: [9,13],
-        },
+        Cmavo "so'i",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [13,16],
-      },
+      moi: Cmavo "meĭ",
     },
   },
 }"""

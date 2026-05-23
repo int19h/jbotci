@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a djíca le nu mi'a távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [22,27],
-  },
+  Cmavo "mi'a",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi'a",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -59,44 +35,20 @@ brackets = "(mi'a [djíca {le (nu [mi'a távla])}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi'a",
-      span: [0,4],
-    },
+    Cmavo "mi'a",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [5,10],
-    },
+    Gismu "djíca",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [14,16],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi'a",
-                span: [17,21],
-              },
+              Cmavo "mi'a",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "tavla",
-              span: [22,27],
-            },
+            Gismu "távla",
           },
         },
       },

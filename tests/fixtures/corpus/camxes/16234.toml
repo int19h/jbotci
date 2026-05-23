@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(vi'o do'u mi jdíce tu'a di'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [27,31],
-  },
+  Cmavo "vi'o",
+  Cmavo "do'u",
+  Cmavo "mi",
+  Gismu "jdíce",
+  Cmavo "tu'a",
+  Cmavo "di'u",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"vi'o","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"di'u","kind":"cmavo"}}]"""
 
@@ -58,45 +34,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "vi'o",
-          span: [3,7],
-        },
+        Cmavo "vi'o",
       ],
-      dohu: Word {
-        kind: "cmavo",
-        phonemes: "do'u",
-        span: [8,12],
-      },
+      dohu: Cmavo "do'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [13,15],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jdice",
-        span: [16,21],
-      },
+      Gismu "jdíce",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [22,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "di'u",
-            span: [27,31],
-          },
+          lahe: Cmavo "tu'a",
+          Cmavo "di'u",
         },
       ],
     },

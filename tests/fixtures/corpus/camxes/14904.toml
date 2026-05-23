@@ -19,16 +19,8 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(coĭ .norpan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "norpan",
-    span: [7,13],
-  },
+  Cmavo "coĭ",
+  Cmevla "norpan",
 ]"""
 json = '[{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"norpan","kind":"cmevla"}}]'
 
@@ -38,17 +30,9 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [3,6],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "norpan",
-        span: [7,13],
-      },
+      argument: Cmevla "norpan",
     },
   ],
 }"""

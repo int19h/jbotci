@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .xod. cúsku le du'u le jbonúnsla cu mútce co jaĭ bádri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [24,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [46,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "badri",
-    span: [50,55],
-  },
+  Cmavo "la",
+  Cmevla "xod",
+  Gismu "cúsku",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "le",
+  Lujvo "jbonúnsla",
+  Cmavo "cu",
+  Gismu "mútce",
+  Cmavo "co",
+  Cmavo "jaĭ",
+  Gismu "bádri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[7,12],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,33],"phonemes":"jbonunsla","kind":"lujvo"}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[46,49],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"badri","kind":"gismu"}}]"""
 
@@ -86,81 +38,33 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [3,6],
-        },
+        Cmevla "xod",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [7,12],
-    },
+    Gismu "cúsku",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [13,15],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [16,20],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [21,23],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "jbonunsla",
-                  span: [24,33],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "jbonúnsla",
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [34,36],
-            },
+            cu: Cmavo "cu",
             Co {
-              leading_relation: Word {
-                kind: "gismu",
-                phonemes: "mutce",
-                span: [37,42],
-              },
-              co: Word {
-                kind: "cmavo",
-                phonemes: "co",
-                span: [43,45],
-              },
+              leading_relation: Gismu "mútce",
+              co: Cmavo "co",
               trailing_relation: Jai {
-                jai: Word {
-                  kind: "cmavo",
-                  phonemes: "jaĭ",
-                  span: [46,49],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "badri",
-                  span: [50,55],
-                },
+                jai: Cmavo "jaĭ",
+                Gismu "bádri",
               },
             },
           },

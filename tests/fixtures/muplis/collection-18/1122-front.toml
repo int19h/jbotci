@@ -21,51 +21,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu coĭ .djan. li'u lu mi'e naĭ .djan. li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [34,38],
-  },
+  Cmavo "lu",
+  Cmavo "coĭ",
+  Cmevla "djan",
+  Cmavo "li'u",
+  Cmavo "lu",
+  Cmavo "mi'e",
+  Cmavo "naĭ",
+  Cmevla "djan",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[12,16],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[34,38],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -75,67 +39,31 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "coĭ",
-              span: [3,6],
-            },
+            Cmavo "coĭ",
           ],
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [7,11],
-          },
+          argument: Cmevla "djan",
         },
       ],
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [12,16],
-      },
+      lihu: Cmavo "li'u",
     },
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [17,19],
-      },
+      lu: Cmavo "lu",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi'e",
-              span: [20,24],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [25,28],
-            },
+            Cmavo "mi'e",
+            Cmavo "naĭ",
           ],
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [29,33],
-          },
+          argument: Cmevla "djan",
         },
       ],
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [34,38],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

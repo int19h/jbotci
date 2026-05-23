@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a mi bílga co cítka lo sóvda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sovda",
-    span: [26,31],
-  },
+  Cmavo "ru'a",
+  Cmavo "mi",
+  Gismu "bílga",
+  Cmavo "co",
+  Gismu "cítka",
+  Cmavo "lo",
+  Gismu "sóvda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sovda","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Co {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "bilga",
-          span: [8,13],
-        },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [14,16],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "citka",
-          span: [17,22],
-        },
+        leading_relation: Gismu "bílga",
+        co: Cmavo "co",
+        trailing_relation: Gismu "cítka",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [23,25],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "sovda",
-            span: [26,31],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "sóvda",
         },
       ],
     },

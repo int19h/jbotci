@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba di'i co'a bájra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bajra",
-    span: [16,21],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "di'i",
+  Cmavo "co'a",
+  Gismu "bájra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"bajra","kind":"gismu"}}]"""
 
@@ -57,35 +37,15 @@ brackets = "(mi [{ba di'i co'a} bájra])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'i",
-        span: [6,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [11,15],
-      },
+      Cmavo "ba",
+      Cmavo "di'i",
+      Cmavo "co'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "bajra",
-      span: [16,21],
-    },
+    Gismu "bájra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,10],"phonemes":"di'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[11,15],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"bajra","kind":"gismu"}}}}}}}}}}}}}]}]}"""

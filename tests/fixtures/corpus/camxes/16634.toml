@@ -18,147 +18,51 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ca ku mi dúkse la ka dárno keĭ le nu zváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darno",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "dúkse",
+  Cmavo "la",
+  Cmavo "ka",
+  Gismu "dárno",
+  Cmavo "keĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "zváti",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"darno","kind":"gismu"}},{"Bare":{"span":[28,31],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"zvati","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [2,4],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [4,6],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "dukse",
-        span: [10,15],
-      },
+      Gismu "dúkse",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [16,18],
-          },
+          descriptor: Cmavo "la",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [19,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "darno",
-              span: [22,27],
-            },
-            kei: Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [28,31],
-            },
+            nu: Cmavo "ka",
+            Gismu "dárno",
+            kei: Cmavo "keĭ",
           },
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [32,34],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [35,37],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "zvati",
-              span: [38,43],
-            },
+            nu: Cmavo "nu",
+            Gismu "zváti",
           },
         },
       ],

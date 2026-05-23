@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma poĭ ni sípna cu bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [19,24],
-  },
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Cmavo "ni",
+  Gismu "sípna",
+  Cmavo "cu",
+  Gismu "bánzu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"banzu","kind":"gismu"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
+      base_argument: Cmavo "ma",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [3,6],
-          },
+          poi: Cmavo "poĭ",
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ni",
-              span: [7,9],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "sipna",
-              span: [10,15],
-            },
+            nu: Cmavo "ni",
+            Gismu "sípna",
           },
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [19,24],
-  },
+  cu: Cmavo "cu",
+  Gismu "bánzu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ni","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}}}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}'

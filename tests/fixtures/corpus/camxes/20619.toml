@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'o cu'i na go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [12,16],
-  },
+  Cmavo "ju'o",
+  Cmavo "cu'i",
+  Cmavo "na",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "cu'i",
-          span: [4,8],
-        },
+        Cmavo "ju'o",
+        indicator: Cmavo "cu'i",
       },
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [12,16],
-    },
+    na: Cmavo "na",
+    Cmavo "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,16],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ju'o","kind":"cmavo"}}},"indicator":{"span":[4,8],"phonemes":"cu'i","kind":"cmavo"}}}}]}"""

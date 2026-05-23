@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi na ca pónse ri toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [21,24],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "na",
+  Cmavo "ca",
+  Gismu "pónse",
+  Cmavo "ri",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -61,53 +33,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [6,8],
-            },
+            na: Cmavo "na",
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ca",
-                span: [9,11],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "ponse",
-                span: [12,17],
-              },
+              tense_modal: Cmavo "ca",
+              Gismu "pónse",
             },
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [18,20],
-            },
+            Cmavo "ri",
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [21,24],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

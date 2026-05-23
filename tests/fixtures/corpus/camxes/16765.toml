@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do tróci le nu bángu zbásu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [23,28],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "tróci",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "bángu",
+  Gismu "zbásu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"zbasu","kind":"gismu"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "troci",
-        span: [6,11],
-      },
+      Gismu "tróci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [14,16],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "bangu",
-                span: [17,22],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "zbasu",
-                span: [23,28],
-              },
+              Gismu "bángu",
+              Gismu "zbásu",
             },
           },
         },

@@ -20,28 +20,12 @@ tree = """
 [
   Letter {
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [4,7],
-      },
-      quoted_text: [7,87],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [88,91],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
+      closing_delimiter: Cmavo "zoĭ",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [92,94],
-    },
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[7,87],"closing_delimiter":{"span":[88,91],"phonemes":"zoĭ","kind":"cmavo"}}},"bu":{"span":[92,94],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -54,28 +38,12 @@ Term {
       letter: [
         Letter {
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [0,3],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [4,7],
-            },
-            quoted_text: [7,87],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [88,91],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "zoĭ",
+            quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
+            closing_delimiter: Cmavo "zoĭ",
           },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [92,94],
-          },
+          bu: Cmavo "bu",
         },
       ],
     },

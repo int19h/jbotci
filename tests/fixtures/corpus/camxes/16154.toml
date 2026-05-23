@@ -18,89 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i coĭ doĭ tsáraĭ be lo'i tsáli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tsaraĭ",
-    span: [11,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Lujvo "tsáraĭ",
+  Cmavo "be",
+  Cmavo "lo'i",
+  Gismu "tsáli",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[11,17],"phonemes":"tsaraĭ","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tsali","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [3,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [7,10],
-        },
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
         relation: Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "tsaraĭ",
-            span: [11,17],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [18,20],
-          },
+          Lujvo "tsáraĭ",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo'i",
-              span: [21,25],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "tsali",
-              span: [26,31],
-            },
+            descriptor: Cmavo "lo'i",
+            relation: Gismu "tsáli",
           },
         },
       },

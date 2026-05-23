@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi djúno su'o da .eĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [21,23],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "su'o",
+  Cmavo "da",
+  Cmavo "eĭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"eĭ","kind":"cmavo"}}]"""
 
@@ -58,43 +34,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {djúno (su'o [da .eĭ])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [6,11],
-      },
+      Gismu "djúno",
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [12,16],
-          },
+          quantifier: Cmavo "su'o",
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [17,19],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "eĭ",
-              span: [21,23],
-            },
+            Cmavo "da",
+            indicator: Cmavo "eĭ",
           },
         },
       ],

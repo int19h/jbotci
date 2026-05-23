@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba ze'a mi selxrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selxruti",
-    span: [10,18],
-  },
+  Cmavo "ba",
+  Cmavo "ze'a",
+  Cmavo "mi",
+  Lujvo "selxrúti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,18],"phonemes":"selxruti","kind":"lujvo"}}]"""
 
@@ -47,28 +31,12 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze'a",
-          span: [2,6],
-        },
+        Cmavo "ba",
+        Cmavo "ze'a",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     },
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "selxruti",
-    span: [10,18],
-  },
+  Lujvo "selxrúti",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[2,6],"phonemes":"ze'a","kind":"cmavo"}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,18],"phonemes":"selxruti","kind":"lujvo"}}}}}}}}}}}]}]}"""

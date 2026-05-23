@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vítke fi la .cikagos.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "cikagos",
-    span: [12,19],
-  },
+  Gismu "vítke",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "cikagos",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vitke","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,19],"phonemes":"cikagos","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [0,5],
-  },
+  Gismu "vítke",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "cikagos",
-            span: [12,19],
-          },
+          Cmevla "cikagos",
         ],
       },
     },

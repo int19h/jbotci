@@ -18,22 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e [zo párbi])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
+  Cmavo "je'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "parbi",
-      span: [8,13],
-    },
+    zo: Cmavo "zo",
+    Gismu "párbi",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"parbi","kind":"gismu"}}}]"""
@@ -44,23 +32,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
       argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "parbi",
-          span: [8,13],
-        },
+        zo: Cmavo "zo",
+        Gismu "párbi",
       },
     },
   ],

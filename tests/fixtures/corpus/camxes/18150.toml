@@ -18,113 +18,41 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi no da [la'o gy soda bread gy] cu djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "no",
+  Cmavo "da",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [10,14],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [15,17],
-    },
-    quoted_text: [17,28],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "soda bread",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [35,40],
-  },
+  Cmavo "cu",
+  Gismu "djúno",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[10,14],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[15,17],"phonemes":"gy","kind":"cmavo"},"quoted_text":[17,28],"closing_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"djuno","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [7,9],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [10,14],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [15,17],
-        },
-        quoted_text: [17,28],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [29,31],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "soda bread",
+        closing_delimiter: Cmavo "gy",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [32,34],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [35,40],
-    },
+    cu: Cmavo "cu",
+    Gismu "djúno",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}}}}}}},{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[10,14],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[15,17],"phonemes":"gy","kind":"cmavo"},"quoted_text":[17,28],"closing_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[35,40],"phonemes":"djuno","kind":"gismu"}}}}}}}}}}}]}]}"""

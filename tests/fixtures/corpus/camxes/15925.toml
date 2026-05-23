@@ -18,70 +18,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo pónsi] na dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ponsi",
-      span: [5,10],
-    },
+    zo: Cmavo "zo",
+    Gismu "pónsi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [14,19],
-  },
+  Cmavo "na",
+  Gismu "dráni",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,10],"phonemes":"ponsi","kind":"gismu"}}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"drani","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [2,4],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ponsi",
-          span: [5,10],
-        },
+        zo: Cmavo "zo",
+        Gismu "pónsi",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [14,19],
-      },
+      na: Cmavo "na",
+      Gismu "dráni",
     },
   },
 }"""

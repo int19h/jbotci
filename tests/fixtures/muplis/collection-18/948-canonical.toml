@@ -23,46 +23,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cy no tcádu .i mi xábju cy no)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcadu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [27,29],
-  },
+  Cmavo "cy",
+  Cmavo "no",
+  Gismu "tcádu",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "xábju",
+  Cmavo "cy",
+  Cmavo "no",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcadu","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"no","kind":"cmavo"}}]'
 
@@ -74,58 +42,26 @@ Paragraph {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [3,5],
-          },
+          Cmavo "cy",
+          Cmavo "no",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "tcadu",
-      span: [6,11],
-    },
+    Gismu "tcádu",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [15,17],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [18,23],
-        },
+        Gismu "xábju",
         terms: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "cy",
-                span: [24,26],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [27,29],
-              },
+              Cmavo "cy",
+              Cmavo "no",
             ],
           },
         ],

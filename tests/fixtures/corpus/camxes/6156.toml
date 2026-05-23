@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi no ni lójbo cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [14,19],
-  },
+  Cmavo "mi",
+  Cmavo "no",
+  Cmavo "ni",
+  Gismu "lójbo",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [3,5],
-        },
+        Cmavo "no",
       ],
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [5,7],
-        },
+        nu: Cmavo "ni",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [8,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cusku",
-            span: [14,19],
-          },
+          Gismu "lójbo",
+          Gismu "cúsku",
         },
       },
     },

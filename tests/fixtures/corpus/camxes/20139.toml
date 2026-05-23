@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'o ko pílno la .lojban. le cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [26,31],
-  },
+  Cmavo "e'o",
+  Cmavo "ko",
+  Gismu "pílno",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "le",
+  Gismu "cásnu",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"casnu","kind":"gismu"}}]"""
 
@@ -61,53 +33,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "e'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [4,6],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [7,12],
-      },
+      Gismu "pílno",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [13,15],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [16,22],
-            },
+            Cmevla "lojban",
           ],
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [26,31],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "cásnu",
         },
       ],
     },

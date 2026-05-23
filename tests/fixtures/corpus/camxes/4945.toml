@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to .ŭi saĭ toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [10,13],
-  },
+  Cmavo "to",
+  Cmavo "ŭi",
+  Cmavo "saĭ",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -48,29 +32,13 @@ Text {
     To {
       to: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "to",
-            span: [0,2],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭi",
-            span: [4,6],
-          },
+          Cmavo "to",
+          indicator: Cmavo "ŭi",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [6,9],
-        },
+        indicator: Cmavo "saĭ",
       },
       Text {},
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [10,13],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

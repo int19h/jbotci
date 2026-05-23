@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ke vácysaĭ cítka ke'e ja ke lánka cécla sluzú'e ke'e clíva .i co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vacysaĭ",
-    span: [6,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lanka",
-    span: [31,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cecla",
-    span: [37,42],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sluzu'e",
-    span: [43,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [51,55],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [56,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [63,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [65,69],
-  },
+  Cmavo "mi",
+  Cmavo "ke",
+  Lujvo "vácysaĭ",
+  Gismu "cítka",
+  Cmavo "ke'e",
+  Cmavo "ja",
+  Cmavo "ke",
+  Gismu "lánka",
+  Gismu "cécla",
+  Lujvo "sluzú'e",
+  Cmavo "ke'e",
+  Gismu "clíva",
+  Cmavo "i",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[6,13],"phonemes":"vacysaĭ","kind":"lujvo"}},{"Bare":{"span":[14,19],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"lanka","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"cecla","kind":"gismu"}},{"Bare":{"span":[43,50],"phonemes":"sluzu'e","kind":"lujvo"}},{"Bare":{"span":[51,55],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[56,61],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[63,64],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[65,69],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -96,94 +40,38 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Compound {
       Connected {
         leading_unit: Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [3,5],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "vacysaĭ",
-              span: [6,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "citka",
-              span: [14,19],
-            },
+            Lujvo "vácysaĭ",
+            Gismu "cítka",
           },
-          kehe: Word {
-            kind: "cmavo",
-            phonemes: "ke'e",
-            span: [20,24],
-          },
+          kehe: Cmavo "ke'e",
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ja",
-          span: [25,27],
-        },
+        connective: Cmavo "ja",
         trailing_unit: Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [28,30],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lanka",
-              span: [31,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cecla",
-              span: [37,42],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "sluzu'e",
-              span: [43,50],
-            },
+            Gismu "lánka",
+            Gismu "cécla",
+            Lujvo "sluzú'e",
           },
-          kehe: Word {
-            kind: "cmavo",
-            phonemes: "ke'e",
-            span: [51,55],
-          },
+          kehe: Cmavo "ke'e",
         },
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cliva",
-        span: [56,61],
-      },
+      Gismu "clíva",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [63,64],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [65,69],
-          },
+          Cmavo "co'o",
         ],
       },
     ],

@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'o da poĭ lójbo prénu cu nítcu le nu dárxi vo'a le bárda grána)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darxi",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'a",
-    span: [44,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [52,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "grana",
-    span: [58,63],
-  },
+  Cmavo "su'o",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "lójbo",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "nítcu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "dárxi",
+  Cmavo "vo'a",
+  Cmavo "le",
+  Gismu "bárda",
+  Gismu "grána",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"darxi","kind":"gismu"}},{"Bare":{"span":[44,48],"phonemes":"vo'a","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[58,63],"phonemes":"grana","kind":"gismu"}}]"""
 
@@ -97,93 +41,37 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [4,6],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [7,10],
-          },
+          poi: Cmavo "poĭ",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [11,16],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "prenu",
-              span: [17,22],
-            },
+            Gismu "lójbo",
+            Gismu "prénu",
           },
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nitcu",
-      span: [26,31],
-    },
+    Gismu "nítcu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [32,34],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [35,37],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "darxi",
-              span: [38,43],
-            },
+            Gismu "dárxi",
             terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "vo'a",
-                span: [44,48],
-              },
+              Cmavo "vo'a",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [49,51],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "barda",
-                    span: [52,57],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "grana",
-                    span: [58,63],
-                  },
+                  Gismu "bárda",
+                  Gismu "grána",
                 },
               },
             ],

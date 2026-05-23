@@ -18,77 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dúkse fi do .e naĭ mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
+  Gismu "dúkse",
+  Cmavo "fi",
+  Cmavo "do",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [0,5],
-  },
+  Gismu "dúkse",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [9,11],
-        },
+        leading_argument: Cmavo "do",
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [13,14],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [14,17],
-          },
+          Cmavo "e",
+          nai: Cmavo "naĭ",
         },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [18,20],
-        },
+        trailing_argument: Cmavo "mi",
       },
     },
   ],

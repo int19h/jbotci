@@ -18,101 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i seĭ le sélfu cu cúsku se'u re'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "selfu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re'i",
-    span: [30,34],
-  },
+  Cmavo "i",
+  Cmavo "seĭ",
+  Cmavo "le",
+  Gismu "sélfu",
+  Cmavo "cu",
+  Gismu "cúsku",
+  Cmavo "se'u",
+  Cmavo "re'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"selfu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"se'u","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"re'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [3,6],
-      },
+      sei: Cmavo "seĭ",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [7,9],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "selfu",
-            span: [10,15],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "sélfu",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [16,18],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [19,24],
-      },
-      sehu: Word {
-        kind: "cmavo",
-        phonemes: "se'u",
-        span: [25,29],
-      },
+      cu: Cmavo "cu",
+      relation: Gismu "cúsku",
+      sehu: Cmavo "se'u",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "re'i",
-              span: [30,34],
-            },
+            Cmavo "re'i",
           ],
         },
       ],

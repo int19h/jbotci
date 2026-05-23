@@ -18,109 +18,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sátre le cúkla bétfu pe [la bu] da)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukla",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "betfu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [21,23],
-  },
+  Gismu "sátre",
+  Cmavo "le",
+  Gismu "cúkla",
+  Gismu "bétfu",
+  Cmavo "pe",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [24,26],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [27,29],
-    },
+    Cmavo "la",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [29,31],
-  },
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"satre","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cukla","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"betfu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"pe","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[27,29],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[29,31],"phonemes":"da","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [0,5],
-  },
+  Gismu "sátre",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cukla",
-          span: [9,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "betfu",
-          span: [15,20],
-        },
+        Gismu "cúkla",
+        Gismu "bétfu",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [21,23],
-          },
+          goi: Cmavo "pe",
           Letter {
             letter: [
               Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [24,26],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [27,29],
-                },
+                Cmavo "la",
+                bu: Cmavo "bu",
               },
             ],
           },
         },
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [29,31],
-    },
+    Cmavo "da",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"satre","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cukla","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"betfu","kind":"gismu"}}}}]},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[21,23],"phonemes":"pe","kind":"cmavo"}}},"argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[27,29],"phonemes":"bu","kind":"cmavo"}}}}]}}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[29,31],"phonemes":"da","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

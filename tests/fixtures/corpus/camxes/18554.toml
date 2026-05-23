@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa le sísku samrú'e po la jbovláste cu spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisku",
-    span: [7,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samru'e",
-    span: [13,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovlaste",
-    span: [27,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [40,45],
-  },
+  Cmavo "ŭa",
+  Cmavo "le",
+  Gismu "sísku",
+  Lujvo "samrú'e",
+  Cmavo "po",
+  Cmavo "la",
+  Lujvo "jbovláste",
+  Cmavo "cu",
+  Gismu "spófu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"sisku","kind":"gismu"}},{"Bare":{"span":[13,20],"phonemes":"samru'e","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,36],"phonemes":"jbovlaste","kind":"lujvo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"spofu","kind":"gismu"}}]"""
 
@@ -71,66 +35,30 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "sisku",
-            span: [7,12],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "samru'e",
-            span: [13,20],
-          },
+          Gismu "sísku",
+          Lujvo "samrú'e",
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "po",
-              span: [21,23],
-            },
+            goi: Cmavo "po",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [24,26],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "jbovlaste",
-                span: [27,36],
-              },
+              descriptor: Cmavo "la",
+              relation: Lujvo "jbovláste",
             },
           },
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [37,39],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "spofu",
-      span: [40,45],
-    },
+    cu: Cmavo "cu",
+    Gismu "spófu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"sisku","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,20],"phonemes":"samru'e","kind":"lujvo"}}}}]},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[21,23],"phonemes":"po","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[27,36],"phonemes":"jbovlaste","kind":"lujvo"}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"spofu","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}}}}]}"""

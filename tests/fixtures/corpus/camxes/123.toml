@@ -19,22 +19,10 @@ brackets = "([mi bu] di)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [12,14],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [15,17],
-    },
+    Cmavo "mi",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "di",
-    span: [18,20],
-  },
+  Cmavo "di",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},"bu":{"span":[15,17],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}]'
 
@@ -45,24 +33,12 @@ Term {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [12,14],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [15,17],
-          },
+          Cmavo "mi",
+          bu: Cmavo "bu",
         },
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "di",
-      span: [18,20],
-    },
+    Cmavo "di",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},"bu":{"span":[15,17],"phonemes":"bu","kind":"cmavo"}}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}}}}]}}}}]}]}'

@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti fagyfésti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fagyfesti",
-    span: [3,12],
-  },
+  Cmavo "ti",
+  Lujvo "fagyfésti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"fagyfesti","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "fagyfesti",
-    span: [3,12],
-  },
+  Lujvo "fagyfésti",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,12],"phonemes":"fagyfesti","kind":"lujvo"}}}}}}}}}}}]}]}'

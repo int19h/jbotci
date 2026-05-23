@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭo spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭo",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [4,9],
-  },
+  Cmavo "ŭo",
+  Gismu "spófu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭo","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"spofu","kind":"gismu"}}]'
 
@@ -36,17 +28,9 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭo",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭo",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [4,9],
-  },
+  Gismu "spófu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"spofu","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭo","kind":"cmavo"}}}}]}'

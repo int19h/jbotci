@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nícte fi la .moskov.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "moskov",
-    span: [12,18],
-  },
+  Gismu "nícte",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "moskov",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"moskov","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [0,5],
-  },
+  Gismu "nícte",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "moskov",
-            span: [12,18],
-          },
+          Cmevla "moskov",
         ],
       },
     },

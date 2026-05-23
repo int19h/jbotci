@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le za'i da tráji tátpi cu cínri je cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [34,39],
-  },
+  Cmavo "le",
+  Cmavo "za'i",
+  Cmavo "da",
+  Gismu "tráji",
+  Gismu "tátpi",
+  Cmavo "cu",
+  Gismu "cínri",
+  Cmavo "je",
+  Gismu "cízra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"cizra","kind":"gismu"}}]"""
 
@@ -71,62 +35,26 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "za'i",
-          span: [2,6],
-        },
+        nu: Cmavo "za'i",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [7,9],
-            },
+            Cmavo "da",
           ],
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "traji",
-              span: [10,15],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tatpi",
-              span: [16,21],
-            },
+            Gismu "tráji",
+            Gismu "tátpi",
           },
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
+  cu: Cmavo "cu",
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [25,30],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [31,33],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "cizra",
-      span: [34,39],
-    },
+    leading_relation: Gismu "cínri",
+    connective: Cmavo "je",
+    trailing_relation: Gismu "cízra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[2,6],"phonemes":"za'i","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"traji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"tatpi","kind":"gismu"}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[25,30],"phonemes":"cinri","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[31,33],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[34,39],"phonemes":"cizra","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ro do .i ju'o ru'e mi na sézyxru pu le bavlámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sezyxru",
-    span: [28,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamdeĭ",
-    span: [42,51],
-  },
+  Cmavo "co'o",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "ju'o",
+  Cmavo "ru'e",
+  Cmavo "mi",
+  Cmavo "na",
+  Lujvo "sézyxru",
+  Cmavo "pu",
+  Cmavo "le",
+  Lujvo "bavlámdeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[28,35],"phonemes":"sezyxru","kind":"lujvo"}},{"Bare":{"span":[36,38],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,51],"phonemes":"bavlamdeĭ","kind":"lujvo"}}]"""
 
@@ -87,85 +39,37 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [7,9],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [11,12],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [13,17],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ju'o",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'e",
-        span: [17,21],
-      },
+      indicator: Cmavo "ru'e",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [22,24],
-        },
+        Cmavo "mi",
       ],
       Relation {
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [25,27],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "sezyxru",
-            span: [28,35],
-          },
+          na: Cmavo "na",
+          Lujvo "sézyxru",
         },
         terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [36,38],
-            },
+            tense_modal: Cmavo "pu",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [39,41],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "bavlamdeĭ",
-                span: [42,51],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "bavlámdeĭ",
             },
           },
         ],

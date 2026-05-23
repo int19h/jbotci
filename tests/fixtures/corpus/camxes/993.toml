@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le núzba zu'o mi ba'o djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'o",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [22,27],
-  },
+  Cmavo "le",
+  Gismu "núzba",
+  Cmavo "zu'o",
+  Cmavo "mi",
+  Cmavo "ba'o",
+  Gismu "djúno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"zu'o","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"djuno","kind":"gismu"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nuzba",
-          span: [3,8],
-        },
+        Gismu "núzba",
         Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "zu'o",
-            span: [9,13],
-          },
+          nu: Cmavo "zu'o",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [14,16],
-              },
+              Cmavo "mi",
             ],
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ba'o",
-                span: [17,21],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "djuno",
-                span: [22,27],
-              },
+              tense_modal: Cmavo "ba'o",
+              Gismu "djúno",
             },
           },
         },

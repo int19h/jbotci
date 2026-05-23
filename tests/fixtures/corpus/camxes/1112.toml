@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li mo'e re rátcu su'i mo'e re ráctu du li mo'e vo dánlu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ratcu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'e",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ractu",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'e",
-    span: [42,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [47,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danlu",
-    span: [50,55],
-  },
+  Cmavo "li",
+  Cmavo "mo'e",
+  Cmavo "re",
+  Gismu "rátcu",
+  Cmavo "su'i",
+  Cmavo "mo'e",
+  Cmavo "re",
+  Gismu "ráctu",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "mo'e",
+  Cmavo "vo",
+  Gismu "dánlu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mo'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"ratcu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"mo'e","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"ractu","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"mo'e","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"danlu","kind":"gismu"}}]"""
 
@@ -91,93 +39,41 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Mohe {
-          mohe: Word {
-            kind: "cmavo",
-            phonemes: "mo'e",
-            span: [3,7],
-          },
+          mohe: Cmavo "mo'e",
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [8,10],
-              },
+              Cmavo "re",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ratcu",
-              span: [11,16],
-            },
+            relation: Gismu "rátcu",
           },
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [17,21],
-        },
+        operator: Cmavo "su'i",
         right_expression: Mohe {
-          mohe: Word {
-            kind: "cmavo",
-            phonemes: "mo'e",
-            span: [22,26],
-          },
+          mohe: Cmavo "mo'e",
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [27,29],
-              },
+              Cmavo "re",
             ],
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "ractu",
-                span: [30,35],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "du",
-                span: [36,38],
-              },
+              Gismu "ráctu",
+              Cmavo "du",
             },
           },
         },
       },
     },
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [39,41],
-      },
+      li: Cmavo "li",
       Mohe {
-        mohe: Word {
-          kind: "cmavo",
-          phonemes: "mo'e",
-          span: [42,46],
-        },
+        mohe: Cmavo "mo'e",
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "vo",
-              span: [47,49],
-            },
+            Cmavo "vo",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "danlu",
-            span: [50,55],
-          },
+          relation: Gismu "dánlu",
         },
       },
     },

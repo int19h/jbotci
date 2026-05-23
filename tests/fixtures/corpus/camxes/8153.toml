@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu fétsi jíjnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fetsi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jijnu",
-    span: [9,14],
-  },
+  Cmavo "xu",
+  Gismu "fétsi",
+  Gismu "jíjnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fetsi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"jijnu","kind":"gismu"}}]'
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "fetsi",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jijnu",
-      span: [9,14],
-    },
+    Gismu "fétsi",
+    Gismu "jíjnu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"fetsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"jijnu","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

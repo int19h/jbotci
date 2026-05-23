@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu císka baŭ la glíbaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glibaŭ",
-    span: [19,25],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "císka",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Lujvo "glíbaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"glibaŭ","kind":"lujvo"}}]'
 
@@ -55,45 +31,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ciska",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "císka",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [12,15],
-          },
+          bai: Cmavo "baŭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [16,18],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "glibaŭ",
-            span: [19,25],
-          },
+          descriptor: Cmavo "la",
+          relation: Lujvo "glíbaŭ",
         },
       },
     ],

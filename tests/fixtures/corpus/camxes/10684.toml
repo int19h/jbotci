@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no da cásnu .ŭe naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [13,16],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "cásnu",
+  Cmavo "ŭe",
+  Cmavo "naĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      quantifier: Cmavo "no",
+      Cmavo "da",
     },
   ],
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "casnu",
-      span: [5,10],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭe",
-      span: [11,13],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [13,16],
-    },
+    Gismu "cásnu",
+    indicator: Cmavo "ŭe",
+    nai: Cmavo "naĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"casnu","kind":"gismu"}}},"indicator":{"span":[11,13],"phonemes":"ŭe","kind":"cmavo"},"nai":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}}}}]}]}'

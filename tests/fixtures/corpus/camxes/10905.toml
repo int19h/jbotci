@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to júndi le do se tádni toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [24,27],
-  },
+  Cmavo "to",
+  Gismu "júndi",
+  Cmavo "le",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "tádni",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jundi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "jundi",
-          span: [3,8],
-        },
+        Gismu "júndi",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [9,11],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [12,14],
-              },
+              Cmavo "do",
             ],
             relation: Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [15,17],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "tadni",
-                span: [18,23],
-              },
+              se: Cmavo "se",
+              Gismu "tádni",
             },
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [24,27],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

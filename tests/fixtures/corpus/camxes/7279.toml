@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.from. gúbni)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "from",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gubni",
-    span: [5,10],
-  },
+  Cmevla "from",
+  Gismu "gúbni",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"gubni","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "from",
-      span: [0,4],
-    },
+    Cmevla "from",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "gubni",
-    span: [5,10],
-  },
+  Gismu "gúbni",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"gubni","kind":"gismu"}}}}}}}}}}}]}]}'

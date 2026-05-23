@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ba zi clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [8,13],
-  },
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "clíva",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cliva","kind":"gismu"}}]'
 
@@ -41,21 +29,9 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zi",
-      span: [5,7],
-    },
+    Cmavo "ba",
+    Cmavo "zi",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [8,13],
-  },
+  Gismu "clíva",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"cliva","kind":"gismu"}}}}}}}}}}}}}]}]}'

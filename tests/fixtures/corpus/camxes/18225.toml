@@ -18,90 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bílga fa le nu mi ca gúnka)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [20,25],
-  },
+  Gismu "bílga",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "gúnka",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"gunka","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [0,5],
-  },
+  Gismu "bílga",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [6,8],
-      },
+      fa: Cmavo "fa",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [14,16],
-              },
+              Cmavo "mi",
             ],
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ca",
-                span: [17,19],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gunka",
-                span: [20,25],
-              },
+              tense_modal: Cmavo "ca",
+              Gismu "gúnka",
             },
           },
         },

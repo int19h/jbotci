@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .rand. mútce le ka xláli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rand",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [20,25],
-  },
+  Cmavo "la",
+  Cmevla "rand",
+  Gismu "mútce",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "xláli",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"rand","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xlali","kind":"gismu"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "rand",
-          span: [3,7],
-        },
+        Cmevla "rand",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [9,14],
-    },
+    Gismu "mútce",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [17,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "xlali",
-            span: [20,25],
-          },
+          nu: Cmavo "ka",
+          Gismu "xláli",
         },
       },
     ],

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ ry ly py do dráli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drali",
-    span: [15,20],
-  },
+  Cmavo "doĭ",
+  Cmavo "ry",
+  Cmavo "ly",
+  Cmavo "py",
+  Cmavo "do",
+  Gismu "dráli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"drali","kind":"gismu"}}]'
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ry",
-            span: [4,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ly",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [8,10],
-          },
+          Cmavo "ry",
+          Cmavo "ly",
+          Cmavo "py",
         ],
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "drali",
-      span: [15,20],
-    },
+    Gismu "dráli",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"ry","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"py","kind":"cmavo"}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"drali","kind":"gismu"}}}}}}}}}}}]}]}'

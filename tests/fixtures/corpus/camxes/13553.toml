@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pabdú'i ki'a)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "pabdu'i",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [8,12],
-  },
+  Lujvo "pabdú'i",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"pabdu'i","kind":"lujvo"}},{"Bare":{"span":[8,12],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  Word {
-    kind: "lujvo",
-    phonemes: "pabdu'i",
-    span: [0,7],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [8,12],
-  },
+  Lujvo "pabdú'i",
+  indicator: Cmavo "ki'a",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,7],"phonemes":"pabdu'i","kind":"lujvo"}}},"indicator":{"span":[8,12],"phonemes":"ki'a","kind":"cmavo"}}}}}}}}}}}]}]}"""

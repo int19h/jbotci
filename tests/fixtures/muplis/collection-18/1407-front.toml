@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma cméne le tíxnu be do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tixnu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
+  Cmavo "ma",
+  Gismu "cméne",
+  Cmavo "le",
+  Gismu "tíxnu",
+  Cmavo "be",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"tixnu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -59,41 +35,17 @@ brackets = "(ma [cméne {le (tíxnu be do)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [3,8],
-    },
+    Gismu "cméne",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "tixnu",
-            span: [12,17],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [18,20],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [21,23],
-          },
+          Gismu "tíxnu",
+          be: Cmavo "be",
+          first_argument: Cmavo "do",
         },
       },
     ],

@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .bancus. ko pílno [zo márna])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [14,19],
-  },
+  Cmavo "doĭ",
+  Cmevla "bancus",
+  Cmavo "ko",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "marna",
-      span: [23,28],
-    },
+    zo: Cmavo "zo",
+    Gismu "márna",
   },
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[20,22],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,28],"phonemes":"marna","kind":"gismu"}}}]'
@@ -59,45 +35,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "bancus",
-        span: [4,10],
-      },
+      argument: Cmevla "bancus",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [11,13],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [14,19],
-      },
+      Gismu "pílno",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [20,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "marna",
-            span: [23,28],
-          },
+          zo: Cmavo "zo",
+          Gismu "márna",
         },
       ],
     },

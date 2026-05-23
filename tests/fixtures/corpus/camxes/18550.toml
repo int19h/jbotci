@@ -18,55 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fi [zo vi] .i ko víska [zoĭ zy http://lojban.org/publications/wordlists/ zy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
+  Cmavo "fi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "vi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [21,26],
-  },
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "víska",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [27,30],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zy",
-      span: [31,33],
-    },
-    quoted_text: [33,75],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zy",
-      span: [76,78],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zy",
+    quoted_text: Verbatim "http://lojban.org/publications/wordlists/",
+    closing_delimiter: Cmavo "zy",
   },
 ]"""
 json = '[{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"vi","kind":"cmavo"}}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"viska","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[27,30],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[31,33],"phonemes":"zy","kind":"cmavo"},"quoted_text":[33,75],"closing_delimiter":{"span":[76,78],"phonemes":"zy","kind":"cmavo"}}}]'
@@ -77,64 +41,28 @@ Paragraph {
   Term {
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [6,8],
-        },
+        fa: Cmavo "fi",
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [12,14],
-          },
+          zo: Cmavo "zo",
+          Cmavo "vi",
         },
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [18,20],
-        },
+        Cmavo "ko",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "viska",
-          span: [21,26],
-        },
+        Gismu "víska",
         terms: [
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [27,30],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zy",
-              span: [31,33],
-            },
-            quoted_text: [33,75],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zy",
-              span: [76,78],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "zy",
+            quoted_text: Verbatim "http://lojban.org/publications/wordlists/",
+            closing_delimiter: Cmavo "zy",
           },
         ],
       },

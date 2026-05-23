@@ -18,141 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi mo'u fínti ro cmávo smúni pe baŭ la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [41,47],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "mo'u",
+  Gismu "fínti",
+  Cmavo "ro",
+  Gismu "cmávo",
+  Gismu "smúni",
+  Cmavo "pe",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cmavo","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[41,47],"phonemes":"lojban","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "mo'u",
-          span: [5,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "finti",
-          span: [10,15],
-        },
+        tense_modal: Cmavo "mo'u",
+        Gismu "fínti",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ro",
-              span: [16,18],
-            },
+            Cmavo "ro",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cmavo",
-              span: [19,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "smuni",
-              span: [25,30],
-            },
+            Gismu "cmávo",
+            Gismu "smúni",
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [31,33],
-              },
+              goi: Cmavo "pe",
               Tagged {
                 tag: Simple {
-                  bai: Word {
-                    kind: "cmavo",
-                    phonemes: "baŭ",
-                    span: [34,37],
-                  },
+                  bai: Cmavo "baŭ",
                 },
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [38,40],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "lojban",
-                      span: [41,47],
-                    },
+                    Cmevla "lojban",
                   ],
                 },
               },

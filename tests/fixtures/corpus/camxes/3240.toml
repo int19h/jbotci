@@ -18,104 +18,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi zváti la .aŭtin. vi la .texas.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "aŭtin",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "texas",
-    span: [27,32],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "zváti",
+  Cmavo "la",
+  Cmevla "aŭtin",
+  Cmavo "vi",
+  Cmavo "la",
+  Cmevla "texas",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"aŭtin","kind":"cmevla"}},{"Bare":{"span":[21,23],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"texas","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [6,11],
-      },
+      Gismu "zváti",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "aŭtin",
-              span: [15,20],
-            },
+            Cmevla "aŭtin",
           ],
         },
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [21,23],
-          },
+          tense_modal: Cmavo "vi",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [24,26],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "texas",
-                span: [27,32],
-              },
+              Cmevla "texas",
             ],
           },
         },

@@ -18,69 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i co'o .i mi ca víska [la'o gy Mothman Prophecies gy] .ŭu naĭ se'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "co'o",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "víska",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [23,27],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [28,30],
-    },
-    quoted_text: [32,50],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [51,53],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Mothman Prophecies",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [56,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [58,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'i",
-    span: [61,65],
-  },
+  Cmavo "ŭu",
+  Cmavo "naĭ",
+  Cmavo "se'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"viska","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[23,27],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[28,30],"phonemes":"gy","kind":"cmavo"},"quoted_text":[32,50],"closing_delimiter":{"span":[51,53],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[56,58],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[58,61],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[61,65],"phonemes":"se'i","kind":"cmavo"}}]"""
 
@@ -88,87 +40,39 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [3,7],
-          },
+          Cmavo "co'o",
         ],
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [11,13],
-        },
+        Cmavo "mi",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "viska",
-            span: [17,22],
-          },
+          tense_modal: Cmavo "ca",
+          Gismu "víska",
         },
         terms: [
           WithIndicator {
             WithIndicator {
               ZoiQuote {
-                zoi: Word {
-                  kind: "cmavo",
-                  phonemes: "la'o",
-                  span: [23,27],
-                },
-                opening_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [28,30],
-                },
-                quoted_text: [32,50],
-                closing_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [51,53],
-                },
+                zoi: Cmavo "la'o",
+                opening_delimiter: Cmavo "gy",
+                quoted_text: Verbatim "Mothman Prophecies",
+                closing_delimiter: Cmavo "gy",
               },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ŭu",
-                span: [56,58],
-              },
-              nai: Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [58,61],
-              },
+              indicator: Cmavo "ŭu",
+              nai: Cmavo "naĭ",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "se'i",
-              span: [61,65],
-            },
+            indicator: Cmavo "se'i",
           },
         ],
       },

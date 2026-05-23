@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'e coĭ doĭ .polys. cipnrpisitáko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "polys",
-    span: [13,18],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cipnrpisitako",
-    span: [20,33],
-  },
+  Cmavo "ba'e",
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Cmevla "polys",
+  Fuhivla "cipnrpisitáko",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"polys","kind":"cmevla"}},{"Bare":{"span":[20,33],"phonemes":"cipnrpisitako","kind":"fu'ivla"}}]"""
 
@@ -53,34 +33,14 @@ Text {
     Vocative {
       vocative_markers: [
         Emphasized {
-          bahe: Word {
-            kind: "cmavo",
-            phonemes: "ba'e",
-            span: [0,4],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "coĭ",
-            span: [5,8],
-          },
+          bahe: Cmavo "ba'e",
+          Cmavo "coĭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [9,12],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "polys",
-        span: [13,18],
-      },
+      argument: Cmevla "polys",
     },
   ],
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cipnrpisitako",
-    span: [20,33],
-  },
+  Fuhivla "cipnrpisitáko",
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Emphasized":{"bahe":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[5,8],"phonemes":"coĭ","kind":"cmavo"}}}},{"Bare":{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[13,18],"phonemes":"polys","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,33],"phonemes":"cipnrpisitako","kind":"fu'ivla"}}}}}}}}}}}]}]}"""

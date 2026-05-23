@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.in. bádna)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ín",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "badna",
-    span: [3,8],
-  },
+  Cmevla "in",
+  Gismu "bádna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ín","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"badna","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ín","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ín",
-      span: [0,2],
-    },
+    Cmevla "in",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "badna",
-    span: [3,8],
-  },
+  Gismu "bádna",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ín","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"badna","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca tcídu le za'o sélmri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [15,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selmri",
-    span: [20,26],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "za'o",
+  Lujvo "sélmri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"selmri","kind":"lujvo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "tcídu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "za'o",
-            span: [15,19],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "selmri",
-            span: [20,26],
-          },
+          tense_modal: Cmavo "za'o",
+          Lujvo "sélmri",
         },
       },
     ],

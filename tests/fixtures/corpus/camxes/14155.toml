@@ -18,49 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ [la'o gy fracture gy] do zváti vi ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
+  Cmavo "doĭ",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [4,8],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [9,11],
-    },
-    quoted_text: [13,21],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [23,25],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "fracture",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [39,41],
-  },
+  Cmavo "do",
+  Gismu "zváti",
+  Cmavo "vi",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[4,8],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[9,11],"phonemes":"gy","kind":"cmavo"},"quoted_text":[13,21],"closing_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -70,58 +38,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [4,8],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [9,11],
-        },
-        quoted_text: [13,21],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [23,25],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "fracture",
+        closing_delimiter: Cmavo "gy",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [27,29],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [30,35],
-      },
+      Gismu "zváti",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [36,38],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [39,41],
-          },
+          tense_modal: Cmavo "vi",
+          Cmavo "ma",
         },
       ],
     },

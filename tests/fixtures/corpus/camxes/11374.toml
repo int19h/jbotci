@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.xod. fúzme be le se cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fuzme",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [21,26],
-  },
+  Cmevla "xod",
+  Gismu "fúzme",
+  Cmavo "be",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[1,4],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"fuzme","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -56,40 +32,16 @@ json = '[{"Bare":{"span":[1,4],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "xod",
-      span: [1,4],
-    },
+    Cmevla "xod",
   ],
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "fuzme",
-      span: [6,11],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [12,14],
-    },
+    Gismu "fúzme",
+    be: Cmavo "be",
     first_argument: Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [15,17],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [21,26],
-        },
+        se: Cmavo "se",
+        Gismu "cúsku",
       },
     },
   },

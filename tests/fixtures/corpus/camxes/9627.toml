@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.capital. .i)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "capital",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
+  Cmevla "capital",
+  Cmavo "i",
 ]"""
 json = '[{"Bare":{"span":[0,7],"phonemes":"capital","kind":"cmevla"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}}]'
 
@@ -35,18 +27,10 @@ json = '[{"Bare":{"span":[0,7],"phonemes":"capital","kind":"cmevla"}},{"Bare":{"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "capital",
-      span: [0,7],
-    },
+    Cmevla "capital",
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,7],"phonemes":"capital","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}}}}]}]}'

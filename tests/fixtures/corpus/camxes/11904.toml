@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fágri núnmro smáni vaŭ xu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunmro",
-    span: [6,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [23,25],
-  },
+  Gismu "fágri",
+  Lujvo "núnmro",
+  Gismu "smáni",
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"fagri","kind":"gismu"}},{"Bare":{"span":[6,12],"phonemes":"nunmro","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -50,33 +30,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"fagri","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "fagri",
-      span: [0,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nunmro",
-      span: [6,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "smani",
-      span: [13,18],
-    },
+    Gismu "fágri",
+    Lujvo "núnmro",
+    Gismu "smáni",
   },
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [19,22],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [23,25],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"fagri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,12],"phonemes":"nunmro","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"smani","kind":"gismu"}}}}]},"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[19,22],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[23,25],"phonemes":"xu","kind":"cmavo"}}}}}}}}}}}]}]}'

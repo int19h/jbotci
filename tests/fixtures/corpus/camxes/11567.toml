@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to xu ra dúnli le mu'e gúnta toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunta",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [29,32],
-  },
+  Cmavo "to",
+  Cmavo "xu",
+  Cmavo "ra",
+  Gismu "dúnli",
+  Cmavo "le",
+  Cmavo "mu'e",
+  Gismu "gúnta",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"mu'e","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gunta","kind":"gismu"}},{"Bare":{"span":[29,32],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -67,59 +35,27 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [3,5],
-        },
+        Cmavo "to",
+        indicator: Cmavo "xu",
       },
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ra",
-            span: [6,8],
-          },
+          Cmavo "ra",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "dunli",
-            span: [9,14],
-          },
+          Gismu "dúnli",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [15,17],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "mu'e",
-                  span: [18,22],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "gunta",
-                  span: [23,28],
-                },
+                nu: Cmavo "mu'e",
+                Gismu "gúnta",
               },
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [29,32],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

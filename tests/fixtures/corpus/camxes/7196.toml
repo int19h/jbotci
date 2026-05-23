@@ -18,69 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to [la'o skámi ll skámi] se pílno mi le lójbo válsi fácki toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [3,7],
-    },
-    opening_delimiter: Word {
-      kind: "gismu",
-      phonemes: "skami",
-      span: [8,13],
-    },
-    quoted_text: [15,17],
-    closing_delimiter: Word {
-      kind: "gismu",
-      phonemes: "skami",
-      span: [18,23],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Gismu "skámi",
+    quoted_text: Verbatim "ll",
+    closing_delimiter: Gismu "skámi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [45,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "facki",
-    span: [51,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [57,60],
-  },
+  Cmavo "se",
+  Gismu "pílno",
+  Cmavo "mi",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "válsi",
+  Gismu "fácki",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,7],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[8,13],"phonemes":"skami","kind":"gismu"},"quoted_text":[15,17],"closing_delimiter":{"span":[18,23],"phonemes":"skami","kind":"gismu"}}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[51,56],"phonemes":"facki","kind":"gismu"}},{"Bare":{"span":[57,60],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -89,83 +41,35 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [3,7],
-            },
-            opening_delimiter: Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [8,13],
-            },
-            quoted_text: [15,17],
-            closing_delimiter: Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [18,23],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Gismu "skámi",
+            quoted_text: Verbatim "ll",
+            closing_delimiter: Gismu "skámi",
           },
         ],
         Relation {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [24,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [27,32],
-            },
+            se: Cmavo "se",
+            Gismu "pílno",
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [33,35],
-            },
+            Cmavo "mi",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [36,38],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "lojbo",
-                  span: [39,44],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "valsi",
-                  span: [45,50],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "facki",
-                  span: [51,56],
-                },
+                Gismu "lójbo",
+                Gismu "válsi",
+                Gismu "fácki",
               },
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [57,60],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

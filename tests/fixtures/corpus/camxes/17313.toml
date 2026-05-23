@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo selnúpre císka fi lo rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selnupre",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [24,29],
-  },
+  Cmavo "lo",
+  Lujvo "selnúpre",
+  Gismu "císka",
+  Cmavo "fi",
+  Cmavo "lo",
+  Gismu "rókci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"selnupre","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"rokci","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "selnupre",
-          span: [3,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ciska",
-          span: [12,17],
-        },
+        Lujvo "selnúpre",
+        Gismu "císka",
       },
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [18,20],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [21,23],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "rokci",
-          span: [24,29],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "rókci",
       },
     },
   ],

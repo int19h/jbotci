@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu'a le vórme lu'u ki'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [19,23],
-  },
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "vórme",
+  Cmavo "lu'u",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vorme","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"lu'u","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -58,34 +38,14 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [0,4],
-      },
+      lahe: Cmavo "tu'a",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "vorme",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "vórme",
       },
       luhu: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "lu'u",
-          span: [14,18],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ki'a",
-          span: [19,23],
-        },
+        Cmavo "lu'u",
+        indicator: Cmavo "ki'a",
       },
     },
   ],

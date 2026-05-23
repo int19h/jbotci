@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(válsi la'e [zo pálci] le pónjo bángu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [6,10],
-  },
+  Gismu "válsi",
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "palci",
-      span: [14,19],
-    },
+    zo: Cmavo "zo",
+    Gismu "pálci",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [29,34],
-  },
+  Cmavo "le",
+  Gismu "pónjo",
+  Gismu "bángu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,19],"phonemes":"palci","kind":"gismu"}}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ponjo","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"bangu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [0,5],
-  },
+  Gismu "válsi",
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [6,10],
-      },
+      lahe: Cmavo "la'e",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "palci",
-          span: [14,19],
-        },
+        zo: Cmavo "zo",
+        Gismu "pálci",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [20,22],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "ponjo",
-          span: [23,28],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [29,34],
-        },
+        Gismu "pónjo",
+        Gismu "bángu",
       },
     },
   ],

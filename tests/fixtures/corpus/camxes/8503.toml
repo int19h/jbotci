@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi du'e va'e pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [12,17],
-  },
+  Cmavo "mi",
+  Cmavo "du'e",
+  Cmavo "va'e",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"va'e","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -45,32 +29,16 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Compound {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "du'e",
-          span: [3,7],
-        },
+        Cmavo "du'e",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "va'e",
-        span: [7,11],
-      },
+      moi: Cmavo "va'e",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [12,17],
-    },
+    Gismu "pílno",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"du'e","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[7,11],"phonemes":"va'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"pilno","kind":"gismu"}}}}]}}}}}}}}]}]}"""

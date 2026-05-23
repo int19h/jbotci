@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ ro do .i ma mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [16,18],
-  },
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [7,9],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [13,15],
-        },
+        Cmavo "ma",
       ],
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [16,18],
-      },
+      Cmavo "mo",
     },
   },
 }"""

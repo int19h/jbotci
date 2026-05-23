@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ bróda cu gúnma lo bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunma",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [22,27],
-  },
+  Cmavo "loĭ",
+  Gismu "bróda",
+  Cmavo "cu",
+  Gismu "gúnma",
+  Cmavo "lo",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"gunma","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "broda",
-        span: [4,9],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "bróda",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "gunma",
-      span: [13,18],
-    },
+    Gismu "gúnma",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [19,21],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "broda",
-          span: [22,27],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "bróda",
       },
     ],
   },

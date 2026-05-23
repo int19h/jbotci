@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i bu'u pálci múnje)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "palci",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "munje",
-    span: [14,19],
-  },
+  Cmavo "i",
+  Cmavo "bu'u",
+  Gismu "pálci",
+  Gismu "múnje",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"palci","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"munje","kind":"gismu"}}]"""
 
@@ -48,28 +32,12 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [bu'u {pálci múnje}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "bu'u",
-      span: [3,7],
-    },
+    tense_modal: Cmavo "bu'u",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "palci",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "munje",
-        span: [14,19],
-      },
+      Gismu "pálci",
+      Gismu "múnje",
     },
   },
 }"""

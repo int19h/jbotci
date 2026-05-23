@@ -18,45 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu [zo sélvla] smúni [zoĭ gy definition gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selvla",
-      span: [6,12],
-    },
+    zo: Cmavo "zo",
+    Lujvo "sélvla",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [14,19],
-  },
+  Gismu "smúni",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [20,23],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [24,26],
-    },
-    quoted_text: [26,37],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [39,41],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "definition",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,12],"phonemes":"selvla","kind":"lujvo"}}},{"Bare":{"span":[14,19],"phonemes":"smuni","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[20,23],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[24,26],"phonemes":"gy","kind":"cmavo"},"quoted_text":[26,37],"closing_delimiter":{"span":[39,41],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -66,52 +38,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selvla",
-          span: [6,12],
-        },
+        zo: Cmavo "zo",
+        Lujvo "sélvla",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "smuni",
-        span: [14,19],
-      },
+      Gismu "smúni",
       terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [20,23],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [24,26],
-          },
-          quoted_text: [26,37],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [39,41],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "definition",
+          closing_delimiter: Cmavo "gy",
         },
       ],
     },

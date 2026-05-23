@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xu do zváti su'o lo jbosélsla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jboselsla",
-    span: [22,31],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "zváti",
+  Cmavo "su'o",
+  Cmavo "lo",
+  Lujvo "jbosélsla",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[22,31],"phonemes":"jboselsla","kind":"lujvo"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [2,4],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [8,13],
-      },
+      Gismu "zváti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [19,21],
-          },
-          outer_quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [14,18],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "jboselsla",
-            span: [22,31],
-          },
+          descriptor: Cmavo "lo",
+          outer_quantifier: Cmavo "su'o",
+          relation: Lujvo "jbosélsla",
         },
       ],
     },

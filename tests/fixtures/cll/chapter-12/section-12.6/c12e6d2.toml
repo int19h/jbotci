@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .mon. .repos. gérzda la .spat.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mon",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "repós",
-    span: [10,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gerzda",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "spat",
-    span: [28,32],
-  },
+  Cmavo "la",
+  Cmevla "mon",
+  Cmevla "repos",
+  Lujvo "gérzda",
+  Cmavo "la",
+  Cmevla "spat",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"mon","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"repós","kind":"cmevla"}},{"Bare":{"span":[17,23],"phonemes":"gerzda","kind":"lujvo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"spat","kind":"cmevla"}}]'
 
@@ -63,44 +39,20 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "mon",
-          span: [4,7],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "repós",
-          span: [10,15],
-        },
+        Cmevla "mon",
+        Cmevla "repos",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "gerzda",
-      span: [17,23],
-    },
+    Lujvo "gérzda",
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [24,26],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "spat",
-            span: [28,32],
-          },
+          Cmevla "spat",
         ],
       },
     ],

@@ -19,32 +19,12 @@ brackets = "([lo'u tícta le'u] na gísmu)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ticta",
-      span: [5,10],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [11,15],
-    },
+    lohu: Cmavo "lo'u",
+    Gismu "tícta",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [19,24],
-  },
+  Cmavo "na",
+  Gismu "gísmu",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,10],"phonemes":"ticta","kind":"gismu"}],"lehu":{"span":[11,15],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"gismu","kind":"gismu"}}]"""
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     LohuQuote {
-      lohu: Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ticta",
-        span: [5,10],
-      },
-      lehu: Word {
-        kind: "cmavo",
-        phonemes: "le'u",
-        span: [11,15],
-      },
+      lohu: Cmavo "lo'u",
+      Gismu "tícta",
+      lehu: Cmavo "le'u",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [16,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gismu",
-      span: [19,24],
-    },
+    na: Cmavo "na",
+    Gismu "gísmu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lohu":{"Bare":{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,10],"phonemes":"ticta","kind":"gismu"}],"lehu":{"span":[11,15],"phonemes":"le'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"gismu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

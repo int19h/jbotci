@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no dráta pe'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [9,13],
-  },
+  Cmavo "no",
+  Gismu "dráta",
+  Cmavo "pe'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"pe'i","kind":"cmavo"}}]"""
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
+        Cmavo "no",
       ],
       relation: WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "drata",
-          span: [3,8],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "pe'i",
-          span: [9,13],
-        },
+        Gismu "dráta",
+        indicator: Cmavo "pe'i",
       },
     },
   ],

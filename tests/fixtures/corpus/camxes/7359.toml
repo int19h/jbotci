@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cítno .i je glétu cítno)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [17,22],
-  },
+  Gismu "cítno",
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "glétu",
+  Gismu "cítno",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"citno","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"citno","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [0,5],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [8,10],
-  },
+  leading_statement: Gismu "cítno",
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "gletu",
-      span: [11,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "citno",
-      span: [17,22],
-    },
+    Gismu "glétu",
+    Gismu "cítno",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"citno","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"gletu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"citno","kind":"gismu"}}}}]}}}}}}}}}}]}]}'

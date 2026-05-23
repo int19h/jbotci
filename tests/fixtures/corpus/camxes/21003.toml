@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a le dráta prénu cu to'e gléki vaŭ ku'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [38,42],
-  },
+  Cmavo "ru'a",
+  Cmavo "le",
+  Gismu "dráta",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "to'e",
+  Gismu "gléki",
+  Cmavo "vaŭ",
+  Cmavo "ku'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[34,37],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"ku'i","kind":"cmavo"}}]"""
 
@@ -71,64 +35,28 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "drata",
-            span: [8,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [14,19],
-          },
+          Gismu "dráta",
+          Gismu "prénu",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [20,22],
-    },
+    cu: Cmavo "cu",
     Relation {
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "to'e",
-          span: [23,27],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gleki",
-          span: [28,33],
-        },
+        nahe: Cmavo "to'e",
+        Gismu "gléki",
       },
       vau: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [34,37],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [38,42],
-        },
+        Cmavo "vaŭ",
+        indicator: Cmavo "ku'i",
       },
     },
   },

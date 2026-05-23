@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'u nu cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [8,13],
-  },
+  Cmavo "ki'u",
+  Cmavo "nu",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -40,23 +28,11 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 TenseModal {
   tense_modal: Simple {
-    bai: Word {
-      kind: "cmavo",
-      phonemes: "ki'u",
-      span: [0,4],
-    },
+    bai: Cmavo "ki'u",
   },
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [8,13],
-    },
+    nu: Cmavo "nu",
+    Gismu "cínri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ki'u","kind":"cmavo"}}}}},"inner_relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"cinri","kind":"gismu"}}}}}}}}}}}}}}}}}}}}}]}]}"""

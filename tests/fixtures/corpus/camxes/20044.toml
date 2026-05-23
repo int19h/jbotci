@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(pe'a ci'ájbu ja'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ci'ajbu",
-    span: [5,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [13,17],
-  },
+  Cmavo "pe'a",
+  Lujvo "ci'ájbu",
+  Cmavo "ja'a",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[5,12],"phonemes":"ci'ajbu","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"ja'a","kind":"cmavo"}}]"""
 
@@ -42,25 +30,13 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'a",
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "ci'ajbu",
-      span: [5,12],
-    },
+    Lujvo "ci'ájbu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ja'a",
-        span: [13,17],
-      },
+      Cmavo "ja'a",
     ],
   },
 }"""

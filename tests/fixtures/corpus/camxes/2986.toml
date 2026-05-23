@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'e ze prénu cu zváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [16,21],
-  },
+  Cmavo "u'e",
+  Cmavo "ze",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "zváti",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'e","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zvati","kind":"gismu"}}]"""
 
@@ -51,40 +31,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'e",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ze",
-            span: [4,6],
-          },
+          Cmavo "ze",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [7,12],
-        },
+        relation: Gismu "prénu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [16,21],
-    },
+    cu: Cmavo "cu",
+    Gismu "zváti",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"ze","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"prenu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"zvati","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,3],"phonemes":"u'e","kind":"cmavo"}}}}]}"""

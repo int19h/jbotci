@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .kaspar. cu me le ci nolráĭtru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kaspar",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nolraĭtru",
-    span: [23,32],
-  },
+  Cmavo "la",
+  Cmevla "kaspar",
+  Cmavo "cu",
+  Cmavo "me",
+  Cmavo "le",
+  Cmavo "ci",
+  Lujvo "nolráĭtru",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"kaspar","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[23,32],"phonemes":"nolraĭtru","kind":"lujvo"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "kaspar",
-          span: [3,9],
-        },
+        Cmevla "kaspar",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [14,16],
-    },
+    me: Cmavo "me",
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [17,19],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [20,22],
-        },
+        Cmavo "ci",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "nolraĭtru",
-        span: [23,32],
-      },
+      relation: Lujvo "nolráĭtru",
     },
   },
 }"""

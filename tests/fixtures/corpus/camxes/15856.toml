@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu ro da poĭ ke'a se prámi cu mélbi ma'i le kulnrtcoséna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'i",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [41,43],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "kulnrtcosena",
-    span: [44,56],
-  },
+  Cmavo "xu",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Cmavo "se",
+  Gismu "prámi",
+  Cmavo "cu",
+  Gismu "mélbi",
+  Cmavo "ma'i",
+  Cmavo "le",
+  Fuhivla "kulnrtcoséna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"ma'i","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[44,56],"phonemes":"kulnrtcosena","kind":"fu'ivla"}}]"""
 
@@ -86,91 +38,43 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [6,8],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "da",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [9,12],
-            },
+            poi: Cmavo "poĭ",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ke'a",
-                  span: [13,17],
-                },
+                Cmavo "ke'a",
               ],
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "prami",
-                  span: [21,26],
-                },
+                se: Cmavo "se",
+                Gismu "prámi",
               },
             },
           },
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [27,29],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "melbi",
-        span: [30,35],
-      },
+      Gismu "mélbi",
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ma'i",
-              span: [36,40],
-            },
+            bai: Cmavo "ma'i",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [41,43],
-            },
-            relation: Word {
-              kind: "fu'ivla",
-              phonemes: "kulnrtcosena",
-              span: [44,56],
-            },
+            descriptor: Cmavo "le",
+            relation: Fuhivla "kulnrtcoséna",
           },
         },
       ],

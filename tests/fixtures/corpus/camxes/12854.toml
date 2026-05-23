@@ -18,81 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i tu'a [zo lárcu] cu cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [3,7],
-  },
+  Cmavo "i",
+  Cmavo "tu'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [8,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "larcu",
-      span: [11,16],
-    },
+    zo: Cmavo "zo",
+    Gismu "lárcu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [20,25],
-  },
+  Cmavo "cu",
+  Gismu "cízra",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"tu'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,16],"phonemes":"larcu","kind":"gismu"}}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cizra","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [3,7],
-        },
+        lahe: Cmavo "tu'a",
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [8,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "larcu",
-            span: [11,16],
-          },
+          zo: Cmavo "zo",
+          Gismu "lárcu",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [17,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cizra",
-      span: [20,25],
-    },
+    cu: Cmavo "cu",
+    Gismu "cízra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[3,7],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,16],"phonemes":"larcu","kind":"gismu"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"cizra","kind":"gismu"}}}}}}}}}}}]}]}"""

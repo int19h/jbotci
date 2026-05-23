@@ -24,61 +24,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba jdíce tu'a le jeĭ la .djordj. cu zékri gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [28,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zekri",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [45,50],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "jdíce",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Cmavo "jeĭ",
+  Cmavo "la",
+  Cmevla "djordj",
+  Cmavo "cu",
+  Gismu "zékri",
+  Gismu "gásnu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[36,38],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"zekri","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"gasnu","kind":"gismu"}}]"""
 
@@ -87,77 +43,33 @@ brackets = "(mi [{ba jdíce} {tu'a (le [jeĭ {(la .djordj.) cu (zékri gásnu)}]
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jdice",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "jdíce",
     },
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [12,16],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "jeĭ",
-              span: [20,23],
-            },
+            nu: Cmavo "jeĭ",
             Predicate {
               leading_terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [24,26],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "djordj",
-                      span: [28,34],
-                    },
+                    Cmevla "djordj",
                   ],
                 },
               ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [36,38],
-              },
+              cu: Cmavo "cu",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "zekri",
-                  span: [39,44],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "gasnu",
-                  span: [45,50],
-                },
+                Gismu "zékri",
+                Gismu "gásnu",
               },
             },
           },

@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(tradúko komprenéble)"
 tree = """
 [
-  Word {
-    kind: "fu'ivla",
-    phonemes: "traduko",
-    span: [0,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kompreneble",
-    span: [9,20],
-  },
+  Fuhivla "tradúko",
+  Lujvo "komprenéble",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"traduko","kind":"fu'ivla"}},{"Bare":{"span":[9,20],"phonemes":"kompreneble","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "fu'ivla",
-    phonemes: "traduko",
-    span: [0,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kompreneble",
-    span: [9,20],
-  },
+  Fuhivla "tradúko",
+  Lujvo "komprenéble",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,7],"phonemes":"traduko","kind":"fu'ivla"}}}},{"Word":{"Bare":{"Bare":{"span":[9,20],"phonemes":"kompreneble","kind":"lujvo"}}}}]}}}}}}}}]}]}"""

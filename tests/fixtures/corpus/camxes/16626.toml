@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭu se'i mi na ka'e zváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [18,23],
-  },
+  Cmavo "ŭu",
+  Cmavo "se'i",
+  Cmavo "mi",
+  Cmavo "na",
+  Cmavo "ka'e",
+  Gismu "zváti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"se'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zvati","kind":"gismu"}}]"""
 
@@ -57,44 +33,20 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭu",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "se'i",
-          span: [2,6],
-        },
+        Cmavo "ŭu",
+        indicator: Cmavo "se'i",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [10,12],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [13,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [18,23],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "zváti",
       },
     },
   },

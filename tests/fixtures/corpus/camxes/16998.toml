@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .byc. .ĭu naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "byc",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [11,14],
-  },
+  Cmavo "la",
+  Cmevla "byc",
+  Cmavo "ĭu",
+  Cmavo "naĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"byc","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"ĭu","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"naĭ","kind":"cmavo"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "byc",
-            span: [3,6],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ĭu",
-            span: [9,11],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [11,14],
-          },
+          Cmevla "byc",
+          indicator: Cmavo "ĭu",
+          nai: Cmavo "naĭ",
         },
       ],
     },

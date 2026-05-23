@@ -18,32 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ básti fa [zo námbi])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "basti",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [10,12],
-  },
+  Cmavo "oĭ",
+  Gismu "básti",
+  Cmavo "fa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [13,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nambi",
-      span: [16,21],
-    },
+    zo: Cmavo "zo",
+    Gismu "námbi",
   },
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"basti","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"fa","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[13,15],"phonemes":"zo","kind":"cmavo"},"word":{"span":[16,21],"phonemes":"nambi","kind":"gismu"}}}]'
@@ -53,37 +33,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "basti",
-      span: [4,9],
-    },
+    Gismu "básti",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [10,12],
-        },
+        fa: Cmavo "fa",
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [13,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nambi",
-            span: [16,21],
-          },
+          zo: Cmavo "zo",
+          Gismu "námbi",
         },
       },
     ],

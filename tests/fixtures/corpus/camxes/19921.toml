@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu mi skámi císte cíkre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "skámi",
+  Gismu "císte",
+  Gismu "cíkre",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"ciste","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"cikre","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [6,8],
-            },
+            Cmavo "mi",
           ],
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [9,14],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ciste",
-              span: [15,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cikre",
-              span: [21,26],
-            },
+            Gismu "skámi",
+            Gismu "císte",
+            Gismu "cíkre",
           },
         },
       },

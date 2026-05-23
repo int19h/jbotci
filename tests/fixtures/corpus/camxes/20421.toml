@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i so'a prénu cu na cínmo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [22,27],
-  },
+  Cmavo "pe'i",
+  Cmavo "so'a",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "cínmo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cinmo","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'a",
-            span: [5,9],
-          },
+          Cmavo "so'a",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [10,15],
-        },
+        relation: Gismu "prénu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [16,18],
-    },
+    cu: Cmavo "cu",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [19,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cinmo",
-        span: [22,27],
-      },
+      na: Cmavo "na",
+      Gismu "cínmo",
     },
   },
 }"""

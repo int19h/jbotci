@@ -19,57 +19,25 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tírno ju'i doĭ lójbo)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tirno",
-    span: [1,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [17,22],
-  },
+  Gismu "tírno",
+  Cmavo "ju'i",
+  Cmavo "doĭ",
+  Gismu "lójbo",
 ]"""
 json = """[{"Bare":{"span":[1,6],"phonemes":"tirno","kind":"gismu"}},{"Bare":{"span":[8,12],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "gismu",
-    phonemes: "tirno",
-    span: [1,6],
-  },
+  Gismu "tírno",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [8,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [13,16],
-        },
+        Cmavo "ju'i",
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [17,22],
-        },
+        relation: Gismu "lójbo",
       },
     },
   ],

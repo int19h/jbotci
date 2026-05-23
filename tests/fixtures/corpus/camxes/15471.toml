@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a so'o prénu cu na sánji le mérko ke témci císte cméne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'o",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [52,57],
-  },
+  Cmavo "ru'a",
+  Cmavo "so'o",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "sánji",
+  Cmavo "le",
+  Gismu "mérko",
+  Cmavo "ke",
+  Gismu "témci",
+  Gismu "císte",
+  Gismu "cméne",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'o","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"sanji","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"temci","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"ciste","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"cmene","kind":"gismu"}}]"""
 
@@ -86,83 +38,35 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'o",
-            span: [5,9],
-          },
+          Cmavo "so'o",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [10,15],
-        },
+        relation: Gismu "prénu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [16,18],
-    },
+    cu: Cmavo "cu",
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [19,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sanji",
-          span: [22,27],
-        },
+        na: Cmavo "na",
+        Gismu "sánji",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [28,30],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "merko",
-              span: [31,36],
-            },
+            Gismu "mérko",
             Ke {
-              ke: Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [37,39],
-              },
+              ke: Cmavo "ke",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "temci",
-                  span: [40,45],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "ciste",
-                  span: [46,51],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cmene",
-                  span: [52,57],
-                },
+                Gismu "témci",
+                Gismu "císte",
+                Gismu "cméne",
               },
             },
           },

@@ -18,49 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ tírno [zoĭ ky tirno ky] se smúni ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirno",
-    span: [4,9],
-  },
+  Cmavo "doĭ",
+  Gismu "tírno",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [10,13],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ky",
-      span: [14,16],
-    },
-    quoted_text: [16,22],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ky",
-      span: [23,25],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ky",
+    quoted_text: Verbatim "tirno",
+    closing_delimiter: Cmavo "ky",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [35,37],
-  },
+  Cmavo "se",
+  Gismu "smúni",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tirno","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[10,13],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[14,16],"phonemes":"ky","kind":"cmavo"},"quoted_text":[16,22],"closing_delimiter":{"span":[23,25],"phonemes":"ky","kind":"cmavo"}}},{"Bare":{"span":[26,28],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -70,61 +38,29 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tirno",
-          span: [4,9],
-        },
+        relation: Gismu "tírno",
       },
     },
   ],
   Predicate {
     leading_terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [10,13],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [14,16],
-        },
-        quoted_text: [16,22],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [23,25],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "ky",
+        quoted_text: Verbatim "tirno",
+        closing_delimiter: Cmavo "ky",
       },
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [26,28],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "smuni",
-          span: [29,34],
-        },
+        se: Cmavo "se",
+        Gismu "smúni",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [35,37],
-        },
+        Cmavo "ma",
       ],
     },
   },

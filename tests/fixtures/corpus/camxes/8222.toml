@@ -18,53 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le mi kágni cu se cméne [la'o gy Recourse gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "kágni",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "cméne",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [24,28],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
-    quoted_text: [33,41],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [42,44],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Recourse",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kagni","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cmene","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[24,28],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"},"quoted_text":[33,41],"closing_delimiter":{"span":[42,44],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -74,61 +38,25 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "kagni",
-        span: [6,11],
-      },
+      relation: Gismu "kágni",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [15,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [18,23],
-      },
+      se: Cmavo "se",
+      Gismu "cméne",
     },
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [24,28],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [29,31],
-        },
-        quoted_text: [33,41],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [42,44],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "Recourse",
+        closing_delimiter: Cmavo "gy",
       },
     ],
   },

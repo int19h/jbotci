@@ -18,105 +18,41 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le cmávo no'u [zo bo] cu rínju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'u",
-    span: [12,16],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "cmávo",
+  Cmavo "no'u",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [20,22],
-    },
+    zo: Cmavo "zo",
+    Cmavo "bo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinju",
-    span: [26,31],
-  },
+  Cmavo "cu",
+  Gismu "rínju",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cmavo","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"no'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,22],"phonemes":"bo","kind":"cmavo"}}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"rinju","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cmavo",
-          span: [6,11],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "cmávo",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "no'u",
-              span: [12,16],
-            },
+            goi: Cmavo "no'u",
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [17,19],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "bo",
-                span: [20,22],
-              },
+              zo: Cmavo "zo",
+              Cmavo "bo",
             },
           },
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [23,25],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "rinju",
-      span: [26,31],
-    },
+    cu: Cmavo "cu",
+    Gismu "rínju",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cmavo","kind":"gismu"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[12,16],"phonemes":"no'u","kind":"cmavo"}}},"argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,22],"phonemes":"bo","kind":"cmavo"}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[26,31],"phonemes":"rinju","kind":"gismu"}}}}}}}}}}}]}]}"""

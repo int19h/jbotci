@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(re flexíve fa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "flexive",
-    span: [2,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [10,12],
-  },
+  Cmavo "re",
+  Fuhivla "flexíve",
+  Cmavo "fa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,9],"phonemes":"flexive","kind":"fu'ivla"}},{"Bare":{"span":[10,12],"phonemes":"fa","kind":"cmavo"}}]"""
 
@@ -42,24 +30,12 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [0,2],
-        },
+        Cmavo "re",
       ],
-      relation: Word {
-        kind: "fu'ivla",
-        phonemes: "flexive",
-        span: [2,9],
-      },
+      relation: Fuhivla "flexíve",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [10,12],
-      },
+      fa: Cmavo "fa",
       Zohe {},
     },
   ],

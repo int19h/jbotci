@@ -19,16 +19,8 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu li'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [6,10],
-  },
+  Cmavo "xu",
+  Cmavo "li'o",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"li'o","kind":"cmavo"}}]"""
 
@@ -38,16 +30,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "li'o",
-          span: [6,10],
-        },
+        Cmavo "xu",
+        indicator: Cmavo "li'o",
       },
     },
   ],

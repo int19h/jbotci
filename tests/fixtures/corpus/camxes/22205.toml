@@ -18,66 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i [zo voĭ] símsa [zo poĭ] .e naĭ [zo noĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [7,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "voĭ",
-      span: [10,13],
-    },
+    zo: Cmavo "zo",
+    Cmavo "voĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [14,19],
-  },
+  Gismu "símsa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [20,22],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "poĭ",
-      span: [23,26],
-    },
+    zo: Cmavo "zo",
+    Cmavo "poĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [28,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [29,32],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [33,35],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "noĭ",
-      span: [36,39],
-    },
+    zo: Cmavo "zo",
+    Cmavo "noĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[7,9],"phonemes":"zo","kind":"cmavo"},"word":{"span":[10,13],"phonemes":"voĭ","kind":"cmavo"}}},{"Bare":{"span":[14,19],"phonemes":"simsa","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[20,22],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,26],"phonemes":"poĭ","kind":"cmavo"}}},{"Bare":{"span":[28,29],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[33,35],"phonemes":"zo","kind":"cmavo"},"word":{"span":[36,39],"phonemes":"noĭ","kind":"cmavo"}}}]"""
@@ -86,75 +42,31 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [7,9],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "voĭ",
-          span: [10,13],
-        },
+        zo: Cmavo "zo",
+        Cmavo "voĭ",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "simsa",
-        span: [14,19],
-      },
+      Gismu "símsa",
       terms: [
         Connected {
           leading_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [20,22],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [23,26],
-            },
+            zo: Cmavo "zo",
+            Cmavo "poĭ",
           },
           connective: Afterthought {
-            Word {
-              kind: "cmavo",
-              phonemes: "e",
-              span: [28,29],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [29,32],
-            },
+            Cmavo "e",
+            nai: Cmavo "naĭ",
           },
           trailing_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [33,35],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [36,39],
-            },
+            zo: Cmavo "zo",
+            Cmavo "noĭ",
           },
         },
       ],

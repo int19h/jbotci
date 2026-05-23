@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mílxe cínmi gi'e mílxe pénsi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [23,28],
-  },
+  Gismu "mílxe",
+  Gismu "cínmi",
+  Cmavo "gi'e",
+  Gismu "mílxe",
+  Gismu "pénsi",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cinmi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"pensi","kind":"gismu"}}]"""
 
@@ -50,35 +30,15 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"s
 tree = """
 PredicateTail1 {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "milxe",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmi",
-      span: [6,11],
-    },
+    Gismu "mílxe",
+    Gismu "cínmi",
   },
   continuations: [
     PredicateTailContinuation {
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "gi'e",
-        span: [12,16],
-      },
+      connective: Cmavo "gi'e",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "milxe",
-          span: [17,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pensi",
-          span: [23,28],
-        },
+        Gismu "mílxe",
+        Gismu "pénsi",
       },
     },
   ],

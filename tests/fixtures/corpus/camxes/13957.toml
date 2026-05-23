@@ -18,27 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'o cu'i [zo fárvi])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [5,9],
-  },
+  Cmavo "ju'o",
+  Cmavo "cu'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "farvi",
-      span: [13,18],
-    },
+    zo: Cmavo "zo",
+    Gismu "fárvi",
   },
 ]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"cu'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,18],"phonemes":"farvi","kind":"gismu"}}}]"""
@@ -49,32 +33,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [1,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "cu'i",
-          span: [5,9],
-        },
+        Cmavo "ju'o",
+        indicator: Cmavo "cu'i",
       },
     },
   ],
   Term {
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [10,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "farvi",
-          span: [13,18],
-        },
+        zo: Cmavo "zo",
+        Gismu "fárvi",
       },
     ],
   },

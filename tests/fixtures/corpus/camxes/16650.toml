@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa [zo nunjmáji] cu mútce xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
+  Cmavo "ŭa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [4,6],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nunjmaji",
-      span: [7,15],
-    },
+    zo: Cmavo "zo",
+    Lujvo "nunjmáji",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [25,30],
-  },
+  Cmavo "cu",
+  Gismu "mútce",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[4,6],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,15],"phonemes":"nunjmaji","kind":"lujvo"}}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -58,44 +34,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [4,6],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "nunjmaji",
-          span: [7,15],
-        },
+        zo: Cmavo "zo",
+        Lujvo "nunjmáji",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [16,18],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [19,24],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [25,30],
-      },
+      Gismu "mútce",
+      Gismu "xámgu",
     },
   },
 }"""

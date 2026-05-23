@@ -19,51 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ze pi so le cúkta be'u cu zváti ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [29,31],
-  },
+  Cmavo "ze",
+  Cmavo "pi",
+  Cmavo "so",
+  Cmavo "le",
+  Gismu "cúkta",
+  Cmavo "be'u",
+  Cmavo "cu",
+  Gismu "zváti",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,3],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"be'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -72,59 +36,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       outer_quantifier: Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "ze",
-          span: [0,1],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pi",
-          span: [1,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "so",
-          span: [2,3],
-        },
+        Cmavo "ze",
+        Cmavo "pi",
+        Cmavo "so",
       },
       relation: WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [9,14],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "be'u",
-          span: [15,19],
-        },
+        Gismu "cúkta",
+        indicator: Cmavo "be'u",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [23,28],
-    },
+    Gismu "zváti",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [29,31],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

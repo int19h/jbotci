@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la .tam. cu se távla mélbi la .meris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tam",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [31,36],
-  },
+  Cmavo "la",
+  Cmevla "tam",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "távla",
+  Gismu "mélbi",
+  Cmavo "la",
+  Cmevla "meris",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"tam","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"meris","kind":"cmevla"}}]'
 
@@ -67,58 +35,26 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "tam",
-          span: [3,6],
-        },
+        Cmevla "tam",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
     Compound {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [13,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [16,21],
-        },
+        se: Cmavo "se",
+        Gismu "távla",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "melbi",
-        span: [22,27],
-      },
+      Gismu "mélbi",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [28,30],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "meris",
-            span: [31,36],
-          },
+          Cmevla "meris",
         ],
       },
     ],

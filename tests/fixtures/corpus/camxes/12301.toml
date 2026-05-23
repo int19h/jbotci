@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.un. mo ménto)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "un",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mento",
-    span: [5,10],
-  },
+  Cmevla "un",
+  Cmavo "mo",
+  Gismu "ménto",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"un","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mento","kind":"gismu"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"un","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "un",
-      span: [0,2],
-    },
+    Cmevla "un",
   ],
   Compound {
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mento",
-      span: [5,10],
-    },
+    Cmavo "mo",
+    Gismu "ménto",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"un","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"mento","kind":"gismu"}}}}]}}}}}}}}]}]}'

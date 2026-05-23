@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le bírka slúji be mi cu mútce le ka tátpi tu'a ce'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birka",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sluji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [41,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [46,50],
-  },
+  Cmavo "le",
+  Gismu "bírka",
+  Gismu "slúji",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "cu",
+  Gismu "mútce",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "tátpi",
+  Cmavo "tu'a",
+  Cmavo "ce'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"birka","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"sluji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[41,45],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[46,50],"phonemes":"ce'u","kind":"cmavo"}}]"""
 
@@ -86,79 +38,31 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "birka",
-          span: [3,8],
-        },
+        Gismu "bírka",
         Be {
-          Word {
-            kind: "gismu",
-            phonemes: "sluji",
-            span: [9,14],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [15,17],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [18,20],
-          },
+          Gismu "slúji",
+          be: Cmavo "be",
+          first_argument: Cmavo "mi",
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [24,29],
-    },
+    Gismu "mútce",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [30,32],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [32,34],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "tatpi",
-              span: [35,40],
-            },
+            Gismu "tátpi",
             terms: [
               Lahe {
-                lahe: Word {
-                  kind: "cmavo",
-                  phonemes: "tu'a",
-                  span: [41,45],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ce'u",
-                  span: [46,50],
-                },
+                lahe: Cmavo "tu'a",
+                Cmavo "ce'u",
               },
             ],
           },

@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.velut. lu na)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "velut",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
+  Cmevla "velut",
+  Cmavo "lu",
+  Cmavo "na",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"velut","kind":"cmevla"}},{"Bare":{"span":[6,8],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"velut","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "velut",
-      span: [0,5],
-    },
+    Cmevla "velut",
   ],
   Term {
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [8,10],
-        },
+        lu: Cmavo "lu",
+        Cmavo "na",
       },
     ],
   },

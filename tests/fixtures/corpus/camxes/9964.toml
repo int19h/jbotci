@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko na kárce kláma sísti ja naĭ jíkru bo pínxe .i co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jikru",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [49,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [51,55],
-  },
+  Cmavo "ko",
+  Cmavo "na",
+  Gismu "kárce",
+  Gismu "kláma",
+  Gismu "sísti",
+  Cmavo "ja",
+  Cmavo "naĭ",
+  Gismu "jíkru",
+  Cmavo "bo",
+  Gismu "pínxe",
+  Cmavo "i",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"sisti","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"jikru","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[49,50],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[51,55],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -86,79 +38,31 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [3,5],
-      },
+      Cmavo "ko",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [6,8],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "karce",
-          span: [9,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [15,20],
-        },
+        Gismu "kárce",
+        Gismu "kláma",
         Connected {
-          leading_unit: Word {
-            kind: "gismu",
-            phonemes: "sisti",
-            span: [21,26],
-          },
+          leading_unit: Gismu "sísti",
           connective: Relation {
-            Word {
-              kind: "cmavo",
-              phonemes: "ja",
-              span: [27,29],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [29,32],
-            },
+            Cmavo "ja",
+            nai: Cmavo "naĭ",
           },
           trailing_unit: Bo {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "jikru",
-              span: [33,38],
-            },
-            bo: Word {
-              kind: "cmavo",
-              phonemes: "bo",
-              span: [39,41],
-            },
-            trailing_unit: Word {
-              kind: "gismu",
-              phonemes: "pinxe",
-              span: [42,47],
-            },
+            leading_unit: Gismu "jíkru",
+            bo: Cmavo "bo",
+            trailing_unit: Gismu "pínxe",
           },
         },
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [49,50],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "co'e",
-      span: [51,55],
-    },
+    i: Cmavo "i",
+    Cmavo "co'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"karce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"klama","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"sisti","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[27,29],"phonemes":"ja","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[29,32],"phonemes":"naĭ","kind":"cmavo"}}}}},"trailing_unit":{"Bo":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[33,38],"phonemes":"jikru","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[39,41],"phonemes":"bo","kind":"cmavo"}}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[42,47],"phonemes":"pinxe","kind":"gismu"}}}}}}}}]}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[49,50],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[51,55],"phonemes":"co'e","kind":"cmavo"}}}}}}}}}}}]}]}"""

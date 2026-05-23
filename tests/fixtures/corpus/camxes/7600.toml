@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ doĭ .xod. xu do ca júndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [21,26],
-  },
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "júndi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"jundi","kind":"gismu"}}]'
 
@@ -62,50 +34,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [4,7],
-        },
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [8,11],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [12,14],
-        },
+        Cmevla "xod",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [15,17],
-      },
+      Cmavo "do",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jundi",
-        span: [21,26],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "júndi",
     },
   },
 }"""

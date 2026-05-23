@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ka se pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
+  Cmavo "ka",
+  Cmavo "se",
+  Gismu "pílno",
 ]"""
 json = '[{"Bare":{"span":[9,11],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [9,11],
-  },
+  nu: Cmavo "ka",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [12,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [15,20],
-    },
+    se: Cmavo "se",
+    Gismu "pílno",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}}}}}}}}}}}}}}}}}}}}}]}]}'

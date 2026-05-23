@@ -18,27 +18,11 @@ error = { position = 3, allowed-next = [] }
 brackets = "(na [la bu] mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  Cmavo "na",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [3,5],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [5,7],
-    },
+    Cmavo "la",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}}]'

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la zirbólci .a'a cu'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zirbolci",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'a",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [16,20],
-  },
+  Cmavo "la",
+  Lujvo "zirbólci",
+  Cmavo "a'a",
+  Cmavo "cu'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"zirbolci","kind":"lujvo"}},{"Bare":{"span":[13,16],"phonemes":"a'a","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"cu'i","kind":"cmavo"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "lujvo",
-            phonemes: "zirbolci",
-            span: [3,11],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "a'a",
-            span: [13,16],
-          },
+          Lujvo "zirbólci",
+          indicator: Cmavo "a'a",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "cu'i",
-          span: [16,20],
-        },
+        indicator: Cmavo "cu'i",
       },
     },
   ],

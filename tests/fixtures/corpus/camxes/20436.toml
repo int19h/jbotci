@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no'i spúda fi no da ni'i tu'a li no)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [32,33],
-  },
+  Cmavo "no'i",
+  Gismu "spúda",
+  Cmavo "fi",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "ni'i",
+  Cmavo "tu'a",
+  Cmavo "li",
+  Cmavo "no",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"no'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"spuda","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[32,33],"phonemes":"no","kind":"cmavo"}}]"""
 
@@ -70,63 +34,27 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"no'i","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "no'i",
-      span: [0,4],
-    },
+    Cmavo "no'i",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "spuda",
-      span: [5,10],
-    },
+    Gismu "spúda",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [11,13],
-        },
+        fa: Cmavo "fi",
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [16,18],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ni'i",
-            span: [19,23],
-          },
+          bai: Cmavo "ni'i",
         },
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [24,28],
-          },
+          lahe: Cmavo "tu'a",
           MathExpression {
-            li: Word {
-              kind: "cmavo",
-              phonemes: "li",
-              span: [29,31],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [32,33],
-            },
+            li: Cmavo "li",
+            Cmavo "no",
           },
         },
       },

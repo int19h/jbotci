@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ka'e fínti lo seljmína dráta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seljmina",
-    span: [16,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "ka'e",
+  Gismu "fínti",
+  Cmavo "lo",
+  Lujvo "seljmína",
+  Gismu "dráta",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,24],"phonemes":"seljmina","kind":"lujvo"}},{"Bare":{"span":[25,30],"phonemes":"drata","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [2,6],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [7,12],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "fínti",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [13,15],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "seljmina",
-            span: [16,24],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "drata",
-            span: [25,30],
-          },
+          Lujvo "seljmína",
+          Gismu "dráta",
         },
       },
     ],

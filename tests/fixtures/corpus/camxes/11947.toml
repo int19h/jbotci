@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca na'e ka'e víska loĭ píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [22,27],
-  },
+  Cmavo "ca",
+  Cmavo "na'e",
+  Cmavo "ka'e",
+  Gismu "víska",
+  Cmavo "loĭ",
+  Gismu "píxra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"pixra","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ca",
       Zohe {},
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [7,11],
-        },
+        Cmavo "na'e",
+        Cmavo "ka'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [12,17],
-      },
+      Gismu "víska",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [18,21],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "pixra",
-          span: [22,27],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "píxra",
       },
     ],
   },

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'o li mu ki'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [11,15],
-  },
+  Cmavo "su'o",
+  Cmavo "li",
+  Cmavo "mu",
+  Cmavo "ki'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ki'o","kind":"cmavo"}}]"""
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "su'o",
-        span: [0,4],
-      },
+      quantifier: Cmavo "su'o",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [5,7],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [8,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ki'o",
-            span: [11,15],
-          },
+          Cmavo "mu",
+          Cmavo "ki'o",
         },
       },
     },

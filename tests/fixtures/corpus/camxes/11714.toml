@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le se gúnka cu srána le selpílno be fi le sínxa mínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selpilno",
-    span: [24,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sinxa",
-    span: [42,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [48,53],
-  },
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "gúnka",
+  Cmavo "cu",
+  Gismu "srána",
+  Cmavo "le",
+  Lujvo "selpílno",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "sínxa",
+  Gismu "mínji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,32],"phonemes":"selpilno","kind":"lujvo"}},{"Bare":{"span":[33,35],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"sinxa","kind":"gismu"}},{"Bare":{"span":[48,53],"phonemes":"minji","kind":"gismu"}}]'
 
@@ -86,76 +38,28 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gunka",
-          span: [6,11],
-        },
+        se: Cmavo "se",
+        Gismu "gúnka",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "srana",
-      span: [15,20],
-    },
+    Gismu "srána",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [21,23],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "selpilno",
-            span: [24,32],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [33,35],
-          },
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [36,38],
-          },
+          Lujvo "selpílno",
+          be: Cmavo "be",
+          fa: Cmavo "fi",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [39,41],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "sinxa",
-                span: [42,47],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "minji",
-                span: [48,53],
-              },
+              Gismu "sínxa",
+              Gismu "mínji",
             },
           },
         },

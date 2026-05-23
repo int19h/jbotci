@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu ga naĭ ko'a sínxa ko'e ko'i gi ko'a selsmúni ko'e ko'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sinxa",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'e",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'i",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [33,37],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsmuni",
-    span: [38,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'e",
-    span: [47,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'i",
-    span: [52,56],
-  },
+  Cmavo "xu",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "ko'a",
+  Gismu "sínxa",
+  Cmavo "ko'e",
+  Cmavo "ko'i",
+  Cmavo "gi",
+  Cmavo "ko'a",
+  Lujvo "selsmúni",
+  Cmavo "ko'e",
+  Cmavo "ko'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sinxa","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ko'e","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"ko'i","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[38,46],"phonemes":"selsmuni","kind":"lujvo"}},{"Bare":{"span":[47,51],"phonemes":"ko'e","kind":"cmavo"}},{"Bare":{"span":[52,56],"phonemes":"ko'i","kind":"cmavo"}}]"""
 
@@ -86,84 +38,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [3,5],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
     first: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko'a",
-          span: [9,13],
-        },
+        Cmavo "ko'a",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "sinxa",
-          span: [14,19],
-        },
+        Gismu "sínxa",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'e",
-            span: [20,24],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'i",
-            span: [25,29],
-          },
+          Cmavo "ko'e",
+          Cmavo "ko'i",
         ],
       },
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [30,32],
-    },
+    gik: Cmavo "gi",
     second: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko'a",
-          span: [33,37],
-        },
+        Cmavo "ko'a",
       ],
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "selsmuni",
-          span: [38,46],
-        },
+        Lujvo "selsmúni",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'e",
-            span: [47,51],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'i",
-            span: [52,56],
-          },
+          Cmavo "ko'e",
+          Cmavo "ko'i",
         ],
       },
     },

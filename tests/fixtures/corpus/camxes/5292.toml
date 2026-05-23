@@ -18,147 +18,51 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mu'i bo mi djíca le nu xámgu távla fo le jbóbaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [38,40],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbobaŭ",
-    span: [41,47],
-  },
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "bo",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "xámgu",
+  Gismu "távla",
+  Cmavo "fo",
+  Cmavo "le",
+  Lujvo "jbóbaŭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[41,47],"phonemes":"jbobaŭ","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'i",
-      span: [2,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [6,8],
-    },
+    Cmavo "mu'i",
+    Cmavo "bo",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [9,11],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [12,17],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [20,22],
-            },
+            nu: Cmavo "nu",
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "xamgu",
-                  span: [23,28],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "tavla",
-                  span: [29,34],
-                },
+                Gismu "xámgu",
+                Gismu "távla",
               },
               terms: [
                 Fa {
-                  fa: Word {
-                    kind: "cmavo",
-                    phonemes: "fo",
-                    span: [35,37],
-                  },
+                  fa: Cmavo "fo",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [38,40],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "jbobaŭ",
-                      span: [41,47],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Lujvo "jbóbaŭ",
                   },
                 },
               ],

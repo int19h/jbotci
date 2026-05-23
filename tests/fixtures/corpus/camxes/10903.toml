@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i paŭ do ca tádni ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [19,21],
-  },
+  Cmavo "i",
+  Cmavo "paŭ",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "tádni",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "paŭ",
-      span: [3,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "paŭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [10,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tadni",
-          span: [13,18],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "tádni",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [19,21],
-        },
+        Cmavo "ma",
       ],
     },
   },

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(seĭ mi ca múlno másno se'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "masno",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'u",
-    span: [22,26],
-  },
+  Cmavo "seĭ",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "múlno",
+  Gismu "másno",
+  Cmavo "se'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"masno","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"se'u","kind":"cmavo"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
+      sei: Cmavo "seĭ",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [4,6],
-        },
+        Cmavo "mi",
       ],
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "ca",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mulno",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "masno",
-            span: [16,21],
-          },
+          Gismu "múlno",
+          Gismu "másno",
         },
       },
-      sehu: Word {
-        kind: "cmavo",
-        phonemes: "se'u",
-        span: [22,26],
-      },
+      sehu: Cmavo "se'u",
     },
   ],
 }"""

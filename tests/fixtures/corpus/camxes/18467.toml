@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i vy márji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vy",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marji",
-    span: [9,14],
-  },
+  Cmavo "pe'i",
+  Cmavo "vy",
+  Gismu "márji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"vy","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"marji","kind":"gismu"}}]"""
 
@@ -41,30 +29,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "vy",
-            span: [5,7],
-          },
+          Cmavo "vy",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "marji",
-      span: [9,14],
-    },
+    Gismu "márji",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"vy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"marji","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}}}}]}"""

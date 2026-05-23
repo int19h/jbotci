@@ -18,32 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi se cméne [zo .djordj.])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [6,11],
-  },
+  Cmavo "mi",
+  Cmavo "se",
+  Gismu "cméne",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [26,28],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "djordj",
-      span: [30,36],
-    },
+    zo: Cmavo "zo",
+    Cmevla "djordj",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cmene","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[26,28],"phonemes":"zo","kind":"cmavo"},"word":{"span":[30,36],"phonemes":"djordj","kind":"cmevla"}}}]'
@@ -52,37 +32,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "cméne",
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [26,28],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "djordj",
-          span: [30,36],
-        },
+        zo: Cmavo "zo",
+        Cmevla "djordj",
       },
     ],
   },

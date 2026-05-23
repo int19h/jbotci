@@ -18,67 +18,19 @@ error = { position = 9, allowed-next = [] }
 brackets = "(lu [se'i zeĭ saĭ] li'u cu cméne le kárni bi fi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
+  Cmavo "lu",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "se'i",
-      span: [19,23],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [24,27],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [28,31],
-    },
+    left: Cmavo "se'i",
+    zei: Cmavo "zeĭ",
+    Cmavo "saĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karni",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [58,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [61,63],
-  },
+  Cmavo "li'u",
+  Cmavo "cu",
+  Gismu "cméne",
+  Cmavo "le",
+  Gismu "kárni",
+  Cmavo "bi",
+  Cmavo "fi",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[19,23],"phonemes":"se'i","kind":"cmavo"}},"zei":{"span":[24,27],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[28,31],"phonemes":"saĭ","kind":"cmavo"}}},{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"karni","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"bi","kind":"cmavo"}},{"Bare":{"span":[58,60],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"mi","kind":"cmavo"}}]"""

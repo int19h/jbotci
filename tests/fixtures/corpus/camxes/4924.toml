@@ -19,33 +19,17 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tcána ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tcana",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
+  Gismu "tcána",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"tcana","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "tcana",
-    span: [3,8],
-  },
+  Gismu "tcána",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [9,11],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"tcana","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

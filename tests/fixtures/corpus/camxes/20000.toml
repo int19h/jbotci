@@ -19,39 +19,15 @@ brackets = "([zoĭ ly sel ly] ráfsi [zo se])"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [4,6],
-    },
-    quoted_text: [8,11],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [13,15],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "sel",
+    closing_delimiter: Cmavo "ly",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [17,22],
-  },
+  Gismu "ráfsi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [23,25],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [26,28],
-    },
+    zo: Cmavo "zo",
+    Cmavo "se",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"ly","kind":"cmavo"},"quoted_text":[8,11],"closing_delimiter":{"span":[13,15],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[17,22],"phonemes":"rafsi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[23,25],"phonemes":"zo","kind":"cmavo"},"word":{"span":[26,28],"phonemes":"se","kind":"cmavo"}}}]'
@@ -61,42 +37,18 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ly",
-        span: [4,6],
-      },
-      quoted_text: [8,11],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ly",
-        span: [13,15],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "ly",
+      quoted_text: Verbatim "sel",
+      closing_delimiter: Cmavo "ly",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rafsi",
-      span: [17,22],
-    },
+    Gismu "ráfsi",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [23,25],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [26,28],
-        },
+        zo: Cmavo "zo",
+        Cmavo "se",
       },
     ],
   },

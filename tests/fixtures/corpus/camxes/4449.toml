@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nélci le cmávo be [zo fe'e] .i mi ca mo'u cílre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "le",
+  Gismu "cmávo",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fe'e",
-      span: [24,28],
-    },
+    zo: Cmavo "zo",
+    Cmavo "fe'e",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [38,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [43,48],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "mo'u",
+  Gismu "cílre",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cmavo","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,28],"phonemes":"fe'e","kind":"cmavo"}}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"cilre","kind":"gismu"}}]"""
 
@@ -88,47 +40,19 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [3,8],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "cmavo",
-              span: [12,17],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [18,20],
-            },
+            Gismu "cmávo",
+            be: Cmavo "be",
             first_argument: ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [21,23],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "fe'e",
-                span: [24,28],
-              },
+              zo: Cmavo "zo",
+              Cmavo "fe'e",
             },
           },
         },
@@ -136,37 +60,17 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [30,31],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [32,34],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [35,37],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo'u",
-            span: [38,42],
-          },
+          Cmavo "ca",
+          Cmavo "mo'u",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cilre",
-          span: [43,48],
-        },
+        Gismu "cílre",
       },
     },
   },

@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'o saĭ ko sárji la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarji",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [20,26],
-  },
+  Cmavo "e'o",
+  Cmavo "saĭ",
+  Cmavo "ko",
+  Gismu "sárji",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sarji","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -64,46 +40,22 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "e'o",
-          span: [0,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "e'o",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [7,9],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sarji",
-        span: [10,15],
-      },
+      Gismu "sárji",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [16,18],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [20,26],
-            },
+            Cmevla "lojban",
           ],
         },
       ],

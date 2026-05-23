@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(beĭ le bródo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [50,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodo",
-    span: [57,62],
-  },
+  Cmavo "beĭ",
+  Cmavo "le",
+  Gismu "bródo",
 ]"""
 json = '[{"Bare":{"span":[50,53],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"brodo","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 BeiLink {
-  bei: Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [50,53],
-  },
+  bei: Cmavo "beĭ",
   argument: Descriptor {
-    descriptor: Word {
-      kind: "cmavo",
-      phonemes: "le",
-      span: [54,56],
-    },
-    relation: Word {
-      kind: "gismu",
-      phonemes: "brodo",
-      span: [57,62],
-    },
+    descriptor: Cmavo "le",
+    relation: Gismu "bródo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeiLink":[{"bei":{"Bare":{"Bare":{"span":[50,53],"phonemes":"beĭ","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[54,56],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[57,62],"phonemes":"brodo","kind":"gismu"}}}}}}}]}}}]}]}'

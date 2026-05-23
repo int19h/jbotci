@@ -18,69 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u do tcídu [la'o gy alt.polyamory gy] va'o le nu do sorpá'i nítcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [8,13],
-  },
+  Cmavo "e'u",
+  Cmavo "do",
+  Gismu "tcídu",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [14,18],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [19,21],
-    },
-    quoted_text: [21,35],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [36,38],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "alt.polyamory",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [50,52],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sorpa'i",
-    span: [53,60],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [61,66],
-  },
+  Cmavo "va'o",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Lujvo "sorpá'i",
+  Gismu "nítcu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tcidu","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[14,18],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[19,21],"phonemes":"gy","kind":"cmavo"},"quoted_text":[21,35],"closing_delimiter":{"span":[36,38],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[39,43],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[53,60],"phonemes":"sorpa'i","kind":"lujvo"}},{"Bare":{"span":[61,66],"phonemes":"nitcu","kind":"gismu"}}]"""
 
@@ -89,85 +41,37 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [8,13],
-      },
+      Gismu "tcídu",
       terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "la'o",
-            span: [14,18],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [19,21],
-          },
-          quoted_text: [21,35],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [36,38],
-          },
+          zoi: Cmavo "la'o",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "alt.polyamory",
+          closing_delimiter: Cmavo "gy",
         },
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "va'o",
-              span: [39,43],
-            },
+            bai: Cmavo "va'o",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [44,46],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [47,49],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [50,52],
-                  },
+                  Cmavo "do",
                 ],
                 Compound {
-                  Word {
-                    kind: "lujvo",
-                    phonemes: "sorpa'i",
-                    span: [53,60],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "nitcu",
-                    span: [61,66],
-                  },
+                  Lujvo "sorpá'i",
+                  Gismu "nítcu",
                 },
               },
             },

@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bénmro citnánla)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "benmro",
-    span: [0,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "citnanla",
-    span: [7,15],
-  },
+  Lujvo "bénmro",
+  Lujvo "citnánla",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"benmro","kind":"lujvo"}},{"Bare":{"span":[7,15],"phonemes":"citnanla","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "benmro",
-    span: [0,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "citnanla",
-    span: [7,15],
-  },
+  Lujvo "bénmro",
+  Lujvo "citnánla",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,6],"phonemes":"benmro","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,15],"phonemes":"citnanla","kind":"lujvo"}}}}]}}}}}}}}]}]}'

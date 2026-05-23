@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(zi le jéftu be li ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jeftu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [24,26],
-  },
+  Cmavo "zi",
+  Cmavo "le",
+  Gismu "jéftu",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "ci",
 ]"""
 json = '[{"Bare":{"span":[6,8],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jeftu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ci","kind":"cmavo"}}]'
 
@@ -57,39 +33,15 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "zi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "jeftu",
-            span: [12,17],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [18,20],
-          },
+          Gismu "jéftu",
+          be: Cmavo "be",
           first_argument: MathExpression {
-            li: Word {
-              kind: "cmavo",
-              phonemes: "li",
-              span: [21,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [24,26],
-            },
+            li: Cmavo "li",
+            Cmavo "ci",
           },
         },
       },

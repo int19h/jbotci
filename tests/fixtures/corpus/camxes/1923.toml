@@ -19,61 +19,17 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(veĭ ga ci gi vo ve'o prénu cu kláma le zárci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "veĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [41,46],
-  },
+  Cmavo "veĭ",
+  Cmavo "ga",
+  Cmavo "ci",
+  Cmavo "gi",
+  Cmavo "vo",
+  Cmavo "ve'o",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ve'o","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"zarci","kind":"gismu"}}]"""
 
@@ -84,70 +40,26 @@ Predicate {
     Descriptor {
       tail_elements: [
         Vei {
-          vei: Word {
-            kind: "cmavo",
-            phonemes: "veĭ",
-            span: [0,3],
-          },
+          vei: Cmavo "veĭ",
           Gek {
-            gek: Word {
-              kind: "cmavo",
-              phonemes: "ga",
-              span: [4,6],
-            },
-            left_expression: Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [7,9],
-            },
-            gik: Word {
-              kind: "cmavo",
-              phonemes: "gi",
-              span: [10,12],
-            },
-            right_expression: Word {
-              kind: "cmavo",
-              phonemes: "vo",
-              span: [13,15],
-            },
+            gek: Cmavo "ga",
+            left_expression: Cmavo "ci",
+            gik: Cmavo "gi",
+            right_expression: Cmavo "vo",
           },
-          veho: Word {
-            kind: "cmavo",
-            phonemes: "ve'o",
-            span: [17,21],
-          },
+          veho: Cmavo "ve'o",
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [23,28],
-      },
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [32,37],
-    },
+    Gismu "kláma",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [38,40],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [41,46],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
     ],
   },

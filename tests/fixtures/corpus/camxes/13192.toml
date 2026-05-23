@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .rlp. .i le nu mi tátpi bínxo cu clíra vaŭ .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clira",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [46,48],
-  },
+  Cmavo "doĭ",
+  Cmevla "rlp",
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "tátpi",
+  Gismu "bínxo",
+  Cmavo "cu",
+  Gismu "clíra",
+  Cmavo "vaŭ",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"clira","kind":"gismu"}},{"Bare":{"span":[41,44],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -87,85 +39,37 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "rlp",
-        span: [4,7],
-      },
+      argument: Cmevla "rlp",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [14,16],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [17,19],
-                },
+                Cmavo "mi",
               ],
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "tatpi",
-                  span: [20,25],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "binxo",
-                  span: [26,31],
-                },
+                Gismu "tátpi",
+                Gismu "bínxo",
               },
             },
           },
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [32,34],
-      },
+      cu: Cmavo "cu",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "clira",
-          span: [35,40],
-        },
+        Gismu "clíra",
         vau: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "vaŭ",
-            span: [41,44],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "oĭ",
-            span: [46,48],
-          },
+          Cmavo "vaŭ",
+          indicator: Cmavo "oĭ",
         },
       },
     },

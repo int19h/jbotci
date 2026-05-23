@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gaŭ mi zásni bínxo le glíbaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasni",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glibaŭ",
-    span: [22,28],
-  },
+  Cmavo "gaŭ",
+  Cmavo "mi",
+  Gismu "zásni",
+  Gismu "bínxo",
+  Cmavo "le",
+  Lujvo "glíbaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"zasni","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"glibaŭ","kind":"lujvo"}}]'
 
@@ -57,44 +33,20 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zasni",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [13,18],
-      },
+      Gismu "zásni",
+      Gismu "bínxo",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [19,21],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "glibaŭ",
-          span: [22,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "glíbaŭ",
       },
     ],
   },

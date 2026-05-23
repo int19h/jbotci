@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .djifys. do díklo ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djifys",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "diklo",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Cmavo "coĭ",
+  Cmevla "djifys",
+  Cmavo "do",
+  Gismu "díklo",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"djifys","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"diklo","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -52,39 +32,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "djifys",
-        span: [4,10],
-      },
+      argument: Cmevla "djifys",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "diklo",
-        span: [14,19],
-      },
+      Gismu "díklo",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [20,22],
-        },
+        Cmavo "ma",
       ],
     },
   },

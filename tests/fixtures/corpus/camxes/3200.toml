@@ -19,59 +19,19 @@ brackets = "([zo .sindarin.] xu .i [zo .sindarin.] xu .i ma jávni)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "síndarin",
-      span: [3,11],
-    },
+    zo: Cmavo "zo",
+    Cmevla "sindarin",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [17,18],
-  },
+  Cmavo "xu",
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [19,21],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "sindárin",
-      span: [22,30],
-    },
+    zo: Cmavo "zo",
+    Cmevla "sindarin",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "javni",
-    span: [41,46],
-  },
+  Cmavo "xu",
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "jávni",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"síndarin","kind":"cmevla"}}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,30],"phonemes":"sindárin","kind":"cmevla"}}},{"Bare":{"span":[31,33],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"javni","kind":"gismu"}}]'
 
@@ -82,74 +42,34 @@ Paragraph {
     terms: [
       WithIndicator {
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "síndarin",
-            span: [3,11],
-          },
+          zo: Cmavo "zo",
+          Cmevla "sindarin",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [12,14],
-        },
+        indicator: Cmavo "xu",
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [17,18],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         WithIndicator {
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [19,21],
-            },
-            Word {
-              kind: "cmevla",
-              phonemes: "sindárin",
-              span: [22,30],
-            },
+            zo: Cmavo "zo",
+            Cmevla "sindarin",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [31,33],
-          },
+          indicator: Cmavo "xu",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [36,37],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [38,40],
-        },
+        Cmavo "ma",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "javni",
-        span: [41,46],
-      },
+      Gismu "jávni",
     },
   },
 }"""

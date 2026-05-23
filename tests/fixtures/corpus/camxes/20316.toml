@@ -18,150 +18,54 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i so'i prénu ba kláma .i je le ka djúno cu zénba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [43,48],
-  },
+  Cmavo "i",
+  Cmavo "so'i",
+  Gismu "prénu",
+  Cmavo "ba",
+  Gismu "kláma",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "djúno",
+  Cmavo "cu",
+  Gismu "zénba",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"zenba","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Connected {
     leading_statement: Predicate {
       leading_terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "so'i",
-              span: [3,7],
-            },
+            Cmavo "so'i",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [8,13],
-          },
+          relation: Gismu "prénu",
         },
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [14,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "kláma",
       },
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [24,25],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [25,27],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [28,30],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [31,33],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "djuno",
-              span: [34,39],
-            },
+            nu: Cmavo "ka",
+            Gismu "djúno",
           },
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [40,42],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zenba",
-        span: [43,48],
-      },
+      cu: Cmavo "cu",
+      Gismu "zénba",
     },
   },
 }"""

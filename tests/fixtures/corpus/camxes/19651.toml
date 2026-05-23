@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u ba skámi válsi zbásu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [20,25],
-  },
+  Cmavo "e'u",
+  Cmavo "ba",
+  Gismu "skámi",
+  Gismu "válsi",
+  Gismu "zbásu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"zbasu","kind":"gismu"}}]"""
 
@@ -51,35 +31,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [5,7],
-    },
+    tense_modal: Cmavo "ba",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "skami",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [14,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [20,25],
-      },
+      Gismu "skámi",
+      Gismu "válsi",
+      Gismu "zbásu",
     },
   },
 }"""

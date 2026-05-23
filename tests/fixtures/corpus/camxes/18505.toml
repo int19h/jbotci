@@ -18,67 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i lo'e kublysímsa cu tármi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kublysimsa",
-    span: [7,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tarmi",
-    span: [21,26],
-  },
+  Cmavo "i",
+  Cmavo "lo'e",
+  Lujvo "kublysímsa",
+  Cmavo "cu",
+  Gismu "tármi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[7,17],"phonemes":"kublysimsa","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tarmi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [2,6],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "kublysimsa",
-          span: [7,17],
-        },
+        descriptor: Cmavo "lo'e",
+        relation: Lujvo "kublysímsa",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [18,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tarmi",
-      span: [21,26],
-    },
+    cu: Cmavo "cu",
+    Gismu "tármi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[2,6],"phonemes":"lo'e","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[7,17],"phonemes":"kublysimsa","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"tarmi","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o xámgu cérni doĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [20,25],
-  },
+  Cmavo "a'o",
+  Gismu "xámgu",
+  Gismu "cérni",
+  Cmavo "doĭ",
+  Cmevla "robin",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"robin","kind":"cmevla"}}]"""
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Compound {
+    Gismu "xámgu",
     Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [4,9],
-    },
-    Word {
-      Word {
-        kind: "gismu",
-        phonemes: "cerni",
-        span: [10,15],
-      },
+      Gismu "cérni",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [16,19],
-            },
+            Cmavo "doĭ",
           ],
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "robin",
-            span: [20,25],
-          },
+          argument: Cmevla "robin",
         },
       ],
     },

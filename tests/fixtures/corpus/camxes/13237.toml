@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a li xa .i xu cérni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [17,22],
-  },
+  Cmavo "ru'a",
+  Cmavo "li",
+  Cmavo "xa",
+  Cmavo "i",
+  Cmavo "xu",
+  Gismu "cérni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cerni","kind":"gismu"}}]"""
 
@@ -56,48 +32,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Paragraph {
     Term {
       terms: [
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [8,10],
-          },
+          li: Cmavo "li",
+          Cmavo "xa",
         },
       ],
     },
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [12,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [14,16],
-        },
+        Cmavo "i",
+        indicator: Cmavo "xu",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cerni",
-        span: [17,22],
-      },
+      Gismu "cérni",
     },
   },
 }"""

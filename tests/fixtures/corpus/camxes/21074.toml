@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu'a li ze cu na fríli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frili",
-    span: [17,22],
-  },
+  Cmavo "tu'a",
+  Cmavo "li",
+  Cmavo "ze",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "fríli",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"frili","kind":"gismu"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [0,4],
-      },
+      lahe: Cmavo "tu'a",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze",
-          span: [8,10],
-        },
+        li: Cmavo "li",
+        Cmavo "ze",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [14,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "frili",
-      span: [17,22],
-    },
+    na: Cmavo "na",
+    Gismu "fríli",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[5,7],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ze","kind":"cmavo"}}}]}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"frili","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do cu vánci le ba pánje xúsra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vanci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "panje",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [24,29],
-  },
+  Cmavo "do",
+  Cmavo "cu",
+  Gismu "vánci",
+  Cmavo "le",
+  Cmavo "ba",
+  Gismu "pánje",
+  Gismu "xúsra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"vanci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"panje","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"xusra","kind":"gismu"}}]'
 
@@ -60,47 +32,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [3,5],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "vanci",
-      span: [6,11],
-    },
+    Gismu "vánci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [15,17],
-          },
+          tense_modal: Cmavo "ba",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "panje",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "xusra",
-              span: [24,29],
-            },
+            Gismu "pánje",
+            Gismu "xúsra",
           },
         },
       },

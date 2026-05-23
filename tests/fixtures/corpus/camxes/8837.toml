@@ -18,28 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa [su'i bu] roĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
+  Cmavo "pa",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "su'i",
-      span: [3,7],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [7,9],
-    },
+    Cmavo "su'i",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [10,13],
-  },
+  Cmavo "roĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,7],"phonemes":"su'i","kind":"cmavo"}},"bu":{"span":[7,9],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}}]"""
 
@@ -49,28 +33,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "su'i",
-            span: [3,7],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [7,9],
-          },
+          Cmavo "su'i",
+          bu: Cmavo "bu",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [10,13],
-        },
+        Cmavo "roĭ",
       },
       Zohe {},
     },

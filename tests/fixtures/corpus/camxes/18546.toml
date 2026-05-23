@@ -18,102 +18,38 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i go'i ba'e cu'u la .rodjer. .klark. xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rodjer",
-    span: [20,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "klark",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [33,35],
-  },
+  Cmavo "i",
+  Cmavo "go'i",
+  Cmavo "ba'e",
+  Cmavo "cu'u",
+  Cmavo "la",
+  Cmevla "rodjer",
+  Cmevla "klark",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"cu'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"rodjer","kind":"cmevla"}},{"Bare":{"span":[27,32],"phonemes":"klark","kind":"cmevla"}},{"Bare":{"span":[33,35],"phonemes":"xu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [2,6],
-    },
+    Cmavo "go'i",
     terms: [
       Tagged {
         tense_modal: Simple {
           bai: Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [7,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "cu'u",
-              span: [12,16],
-            },
+            bahe: Cmavo "ba'e",
+            Cmavo "cu'u",
           },
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "rodjer",
-              span: [20,26],
-            },
+            Cmevla "rodjer",
             WithIndicator {
-              Word {
-                kind: "cmevla",
-                phonemes: "klark",
-                span: [27,32],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "xu",
-                span: [33,35],
-              },
+              Cmevla "klark",
+              indicator: Cmavo "xu",
             },
           ],
         },

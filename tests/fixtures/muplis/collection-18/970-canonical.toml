@@ -21,46 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ga naĭ do zífre gi do sídju mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zifre",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Gismu "zífre",
+  Cmavo "gi",
+  Cmavo "do",
+  Gismu "sídju",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"zifre","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -69,56 +37,24 @@ brackets = "([ga naĭ] [do zífre] gi [do {sídju mi}])"
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [3,6],
-    },
+    Cmavo "ga",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "zifre",
-      span: [10,15],
-    },
+    Gismu "zífre",
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [16,18],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [19,21],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [22,27],
-      },
+      Gismu "sídju",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [28,30],
-        },
+        Cmavo "mi",
       ],
     },
   },

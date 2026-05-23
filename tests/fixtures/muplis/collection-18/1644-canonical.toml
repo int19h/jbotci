@@ -21,81 +21,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xo boĭ da poĭ ke'a ke nóbli prénu ke'e ku'o ze'e ku zo'u da brédi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nobli",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'e",
-    span: [44,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [52,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [57,59],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [60,65],
-  },
+  Cmavo "xo",
+  Cmavo "boĭ",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Cmavo "ke",
+  Gismu "nóbli",
+  Gismu "prénu",
+  Cmavo "ke'e",
+  Cmavo "ku'o",
+  Cmavo "ze'e",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "da",
+  Gismu "brédi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"nobli","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[44,48],"phonemes":"ze'e","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[52,56],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[57,59],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[60,65],"phonemes":"bredi","kind":"gismu"}}]"""
 
@@ -107,104 +47,44 @@ Prenex {
     RelativeClause {
       base_argument: Quantified {
         quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "xo",
-            span: [0,2],
-          },
-          boi: Word {
-            kind: "cmavo",
-            phonemes: "boĭ",
-            span: [3,6],
-          },
+          Cmavo "xo",
+          boi: Cmavo "boĭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [7,9],
-        },
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [10,13],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [14,18],
-              },
+              Cmavo "ke'a",
             ],
             Ke {
-              ke: Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [19,21],
-              },
+              ke: Cmavo "ke",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "nobli",
-                  span: [22,27],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "prenu",
-                  span: [28,33],
-                },
+                Gismu "nóbli",
+                Gismu "prénu",
               },
-              kehe: Word {
-                kind: "cmavo",
-                phonemes: "ke'e",
-                span: [34,38],
-              },
+              kehe: Cmavo "ke'e",
             },
           },
-          kuho: Word {
-            kind: "cmavo",
-            phonemes: "ku'o",
-            span: [39,43],
-          },
+          kuho: Cmavo "ku'o",
         },
       ],
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ze'e",
-        span: [44,48],
-      },
+      tense_modal: Cmavo "ze'e",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [49,51],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [52,56],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [57,59],
-      },
+      Cmavo "da",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "bredi",
-      span: [60,65],
-    },
+    Gismu "brédi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"xo","kind":"cmavo"}}}],"boi":{"Bare":{"Bare":{"span":[3,6],"phonemes":"boĭ","kind":"cmavo"}}}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}}}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,18],"phonemes":"ke'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Ke":{"ke":{"Bare":{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"nobli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[28,33],"phonemes":"prenu","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[34,38],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}},"kuho":{"Bare":{"Bare":{"span":[39,43],"phonemes":"ku'o","kind":"cmavo"}}}}}]}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[44,48],"phonemes":"ze'e","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[49,51],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[52,56],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[57,59],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[60,65],"phonemes":"bredi","kind":"gismu"}}}}}}}}}}}}}]}]}"""

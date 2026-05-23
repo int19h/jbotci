@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le re no bliprénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bliprenu",
-    span: [9,17],
-  },
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "no",
+  Lujvo "bliprénu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"bliprenu","kind":"lujvo"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [6,8],
-          },
+          Cmavo "re",
+          Cmavo "no",
         },
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "bliprenu",
-        span: [9,17],
-      },
+      relation: Lujvo "bliprénu",
     },
   ],
 }"""

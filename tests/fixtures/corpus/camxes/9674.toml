@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.damn. tsáli)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "damn",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [5,10],
-  },
+  Cmevla "damn",
+  Gismu "tsáli",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"tsali","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "damn",
-      span: [0,4],
-    },
+    Cmevla "damn",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [5,10],
-  },
+  Gismu "tsáli",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"tsali","kind":"gismu"}}}}}}}}}}}]}]}'

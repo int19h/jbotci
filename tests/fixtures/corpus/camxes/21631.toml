@@ -18,96 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'e skári be lo'e pínca be lo'e nolráĭtru du lo'e skári be lo'e pínca be lo'e fádni séltru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skari",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinca",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [28,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nolraĭtru",
-    span: [33,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [46,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skari",
-    span: [51,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [57,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [60,64],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinca",
-    span: [65,70],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [71,73],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [74,78],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fadni",
-    span: [79,84],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltru",
-    span: [85,91],
-  },
+  Cmavo "lo'e",
+  Gismu "skári",
+  Cmavo "be",
+  Cmavo "lo'e",
+  Gismu "pínca",
+  Cmavo "be",
+  Cmavo "lo'e",
+  Lujvo "nolráĭtru",
+  Cmavo "du",
+  Cmavo "lo'e",
+  Gismu "skári",
+  Cmavo "be",
+  Cmavo "lo'e",
+  Gismu "pínca",
+  Cmavo "be",
+  Cmavo "lo'e",
+  Gismu "fádni",
+  Lujvo "séltru",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"skari","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"pinca","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[33,42],"phonemes":"nolraĭtru","kind":"lujvo"}},{"Bare":{"span":[43,45],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[46,50],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"skari","kind":"gismu"}},{"Bare":{"span":[57,59],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[60,64],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[65,70],"phonemes":"pinca","kind":"gismu"}},{"Bare":{"span":[71,73],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[74,78],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[79,84],"phonemes":"fadni","kind":"gismu"}},{"Bare":{"span":[85,91],"phonemes":"seltru","kind":"lujvo"}}]"""
 
@@ -116,56 +44,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [0,4],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "skari",
-          span: [5,10],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [11,13],
-        },
+        Gismu "skári",
+        be: Cmavo "be",
         first_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo'e",
-            span: [14,18],
-          },
+          descriptor: Cmavo "lo'e",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "pinca",
-              span: [19,24],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [25,27],
-            },
+            Gismu "pínca",
+            be: Cmavo "be",
             first_argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo'e",
-                span: [28,32],
-              },
+              descriptor: Cmavo "lo'e",
               relation: Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "nolraĭtru",
-                  span: [33,42],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "du",
-                  span: [43,45],
-                },
+                Lujvo "nolráĭtru",
+                Cmavo "du",
               },
             },
           },
@@ -173,56 +65,20 @@ Term {
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [46,50],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "skari",
-          span: [51,56],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [57,59],
-        },
+        Gismu "skári",
+        be: Cmavo "be",
         first_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo'e",
-            span: [60,64],
-          },
+          descriptor: Cmavo "lo'e",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "pinca",
-              span: [65,70],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [71,73],
-            },
+            Gismu "pínca",
+            be: Cmavo "be",
             first_argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo'e",
-                span: [74,78],
-              },
+              descriptor: Cmavo "lo'e",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "fadni",
-                  span: [79,84],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "seltru",
-                  span: [85,91],
-                },
+                Gismu "fádni",
+                Lujvo "séltru",
               },
             },
           },

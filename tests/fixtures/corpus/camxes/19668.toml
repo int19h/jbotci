@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e do mi pu smádi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [14,19],
-  },
+  Cmavo "je'e",
+  Cmavo "do",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "smádi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"smadi","kind":"gismu"}}]"""
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      argument: Cmavo "do",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "smadi",
-        span: [14,19],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "smádi",
     },
   },
 }"""

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to le filzifcínse toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "filzifcinse",
-    span: [6,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [18,21],
-  },
+  Cmavo "to",
+  Cmavo "le",
+  Lujvo "filzifcínse",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,17],"phonemes":"filzifcinse","kind":"lujvo"}},{"Bare":{"span":[18,21],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "filzifcinse",
-              span: [6,17],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "filzifcínse",
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [18,21],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

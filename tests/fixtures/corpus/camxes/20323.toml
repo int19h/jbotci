@@ -18,52 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cpédu djícu lo préti be [lo'u vi le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpedu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djicu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [24,26],
-  },
+  Cmavo "mi",
+  Gismu "cpédu",
+  Gismu "djícu",
+  Cmavo "lo",
+  Gismu "préti",
+  Cmavo "be",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [27,31],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [32,34],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [35,39],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "vi",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cpedu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"djicu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"be","kind":"cmavo"}},{"LohuQuote":{"lohu":{"span":[27,31],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[32,34],"phonemes":"vi","kind":"cmavo"}],"lehu":{"span":[35,39],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -72,59 +36,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cpedu",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "djicu",
-        span: [9,14],
-      },
+      Gismu "cpédu",
+      Gismu "djícu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [15,17],
-        },
+        descriptor: Cmavo "lo",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "preti",
-            span: [18,23],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [24,26],
-          },
+          Gismu "préti",
+          be: Cmavo "be",
           first_argument: LohuQuote {
-            lohu: Word {
-              kind: "cmavo",
-              phonemes: "lo'u",
-              span: [27,31],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "vi",
-              span: [32,34],
-            },
-            lehu: Word {
-              kind: "cmavo",
-              phonemes: "le'u",
-              span: [35,39],
-            },
+            lohu: Cmavo "lo'u",
+            Cmavo "vi",
+            lehu: Cmavo "le'u",
           },
         },
       },

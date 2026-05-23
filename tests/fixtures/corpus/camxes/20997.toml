@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'a rínka le nu mi cmíla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmila",
-    span: [19,24],
-  },
+  Cmavo "mu'a",
+  Gismu "rínka",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "cmíla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cmila","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "mu'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "mu'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rinka",
-      span: [5,10],
-    },
+    Gismu "rínka",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [13,15],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [16,18],
-              },
+              Cmavo "mi",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "cmila",
-              span: [19,24],
-            },
+            Gismu "cmíla",
           },
         },
       },

@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca zi gálfi le xe fánva be [la'o zo litany against fear zo])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [26,28],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "zi",
+  Gismu "gálfi",
+  Cmavo "le",
+  Cmavo "xe",
+  Gismu "fánva",
+  Cmavo "be",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [29,33],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [34,36],
-    },
-    quoted_text: [38,57],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [59,61],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "zo",
+    quoted_text: Verbatim "litany against fear",
+    closing_delimiter: Cmavo "zo",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"be","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[29,33],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[34,36],"phonemes":"zo","kind":"cmavo"},"quoted_text":[38,57],"closing_delimiter":{"span":[59,61],"phonemes":"zo","kind":"cmavo"}}}]"""
@@ -83,74 +39,30 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [5,7],
-        },
+        Cmavo "ca",
+        Cmavo "zi",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "galfi",
-        span: [8,13],
-      },
+      Gismu "gálfi",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "xe",
-              span: [17,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "fanva",
-              span: [20,25],
-            },
+            se: Cmavo "xe",
+            Gismu "fánva",
           },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [26,28],
-          },
+          be: Cmavo "be",
           first_argument: ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [29,33],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [34,36],
-            },
-            quoted_text: [38,57],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [59,61],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "zo",
+            quoted_text: Verbatim "litany against fear",
+            closing_delimiter: Cmavo "zo",
           },
         },
       },

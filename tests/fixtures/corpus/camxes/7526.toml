@@ -18,84 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi djúno fi [zoĭ ry zdrastvuche ry] joĭ [zoĭ ry daswidania ry] joĭ [zoĭ ry sraka ry])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "fi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [12,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [16,18],
-    },
-    quoted_text: [18,30],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [31,33],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ry",
+    quoted_text: Verbatim "zdrastvuche",
+    closing_delimiter: Cmavo "ry",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [34,37],
-  },
+  Cmavo "joĭ",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [38,41],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [42,44],
-    },
-    quoted_text: [44,55],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [56,58],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ry",
+    quoted_text: Verbatim "daswidania",
+    closing_delimiter: Cmavo "ry",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [59,62],
-  },
+  Cmavo "joĭ",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [63,66],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [67,69],
-    },
-    quoted_text: [69,75],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ry",
-      span: [76,78],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ry",
+    quoted_text: Verbatim "sraka",
+    closing_delimiter: Cmavo "ry",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"ry","kind":"cmavo"},"quoted_text":[18,30],"closing_delimiter":{"span":[31,33],"phonemes":"ry","kind":"cmavo"}}},{"Bare":{"span":[34,37],"phonemes":"joĭ","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[38,41],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[42,44],"phonemes":"ry","kind":"cmavo"},"quoted_text":[44,55],"closing_delimiter":{"span":[56,58],"phonemes":"ry","kind":"cmavo"}}},{"Bare":{"span":[59,62],"phonemes":"joĭ","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[63,66],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[67,69],"phonemes":"ry","kind":"cmavo"},"quoted_text":[69,75],"closing_delimiter":{"span":[76,78],"phonemes":"ry","kind":"cmavo"}}}]'
@@ -104,91 +48,35 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [3,8],
-    },
+    Gismu "djúno",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [9,11],
-        },
+        fa: Cmavo "fi",
         Connected {
           leading_argument: Connected {
             leading_argument: ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "zoĭ",
-                span: [12,15],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [16,18],
-              },
-              quoted_text: [18,30],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [31,33],
-              },
+              zoi: Cmavo "zoĭ",
+              opening_delimiter: Cmavo "ry",
+              quoted_text: Verbatim "zdrastvuche",
+              closing_delimiter: Cmavo "ry",
             },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "joĭ",
-              span: [34,37],
-            },
+            connective: Cmavo "joĭ",
             trailing_argument: ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "zoĭ",
-                span: [38,41],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [42,44],
-              },
-              quoted_text: [44,55],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [56,58],
-              },
+              zoi: Cmavo "zoĭ",
+              opening_delimiter: Cmavo "ry",
+              quoted_text: Verbatim "daswidania",
+              closing_delimiter: Cmavo "ry",
             },
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [59,62],
-          },
+          connective: Cmavo "joĭ",
           trailing_argument: ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [63,66],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "ry",
-              span: [67,69],
-            },
-            quoted_text: [69,75],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "ry",
-              span: [76,78],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "ry",
+            quoted_text: Verbatim "sraka",
+            closing_delimiter: Cmavo "ry",
           },
         },
       },

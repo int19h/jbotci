@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li py su'i va'a ny ku'e su'i zy du li xy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [40,42],
-  },
+  Cmavo "li",
+  Cmavo "py",
+  Cmavo "su'i",
+  Cmavo "va'a",
+  Cmavo "ny",
+  Cmavo "ku'e",
+  Cmavo "su'i",
+  Cmavo "zy",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "xy",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"va'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ku'e","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"xy","kind":"cmavo"}}]"""
 
@@ -81,74 +37,30 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Binary {
-          left_expression: Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [3,5],
-          },
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "su'i",
-            span: [7,11],
-          },
+          left_expression: Cmavo "py",
+          operator: Cmavo "su'i",
           right_expression: Forethought {
-            operator: Word {
-              kind: "cmavo",
-              phonemes: "va'a",
-              span: [12,16],
-            },
+            operator: Cmavo "va'a",
             operands: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ny",
-                span: [17,19],
-              },
+              Cmavo "ny",
             ],
-            kuhe: Word {
-              kind: "cmavo",
-              phonemes: "ku'e",
-              span: [21,25],
-            },
+            kuhe: Cmavo "ku'e",
           },
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [26,30],
-        },
-        right_expression: Word {
-          kind: "cmavo",
-          phonemes: "zy",
-          span: [31,33],
-        },
+        operator: Cmavo "su'i",
+        right_expression: Cmavo "zy",
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [34,36],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [37,39],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [40,42],
-        },
+        li: Cmavo "li",
+        Cmavo "xy",
       },
     ],
   },

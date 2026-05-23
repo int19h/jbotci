@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ci maĭ práli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prali",
-    span: [6,11],
-  },
+  Cmavo "ci",
+  Cmavo "maĭ",
+  Gismu "práli",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"prali","kind":"gismu"}}]'
 
@@ -42,23 +30,11 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [0,2],
-        },
+        Cmavo "ci",
       ],
-      mai: Word {
-        kind: "cmavo",
-        phonemes: "maĭ",
-        span: [2,5],
-      },
+      mai: Cmavo "maĭ",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "prali",
-    span: [6,11],
-  },
+  Gismu "práli",
 }"""
 json = '{"leading_free_modifiers":[{"Mai":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}}}],"mai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"prali","kind":"gismu"}}}}}}}}}}}]}]}'

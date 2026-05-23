@@ -18,44 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi císka me'o [{.ŭi zeĭ naĭ} bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [9,13],
-  },
+  Cmavo "mi",
+  Gismu "císka",
+  Cmavo "me'o",
   Letter {
     ZeiLujvo {
-      left: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [15,17],
-      },
-      zei: Word {
-        kind: "cmavo",
-        phonemes: "zeĭ",
-        span: [18,21],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [22,25],
-      },
+      left: Cmavo "ŭi",
+      zei: Cmavo "zeĭ",
+      Cmavo "naĭ",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [26,28],
-    },
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"ZeiLujvo":{"left":{"Bare":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[18,21],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[22,25],"phonemes":"naĭ","kind":"cmavo"}}},"bu":{"span":[26,28],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -64,48 +36,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ciska",
-      span: [3,8],
-    },
+    Gismu "císka",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "me'o",
-          span: [9,13],
-        },
+        li: Cmavo "me'o",
         Letter {
           ZeiLujvo {
-            left: Word {
-              kind: "cmavo",
-              phonemes: "ŭi",
-              span: [15,17],
-            },
-            zei: Word {
-              kind: "cmavo",
-              phonemes: "zeĭ",
-              span: [18,21],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [22,25],
-            },
+            left: Cmavo "ŭi",
+            zei: Cmavo "zeĭ",
+            Cmavo "naĭ",
           },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [26,28],
-          },
+          bu: Cmavo "bu",
         },
       },
     ],

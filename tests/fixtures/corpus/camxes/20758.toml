@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a xábju le kénsa vaŭ zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kensa",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [24,28],
-  },
+  Cmavo "la'a",
+  Gismu "xábju",
+  Cmavo "le",
+  Gismu "kénsa",
+  Cmavo "vaŭ",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"kensa","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "la'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xabju",
-      span: [5,10],
-    },
+    Gismu "xábju",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "kensa",
-          span: [14,19],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kénsa",
       },
     ],
     vau: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "vaŭ",
-        span: [20,23],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "zo'o",
-        span: [24,28],
-      },
+      Cmavo "vaŭ",
+      indicator: Cmavo "zo'o",
     },
   },
 }"""

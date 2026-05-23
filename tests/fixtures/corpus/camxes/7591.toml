@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ tsáli do vécnu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [19,21],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "do",
+  Gismu "vécnu",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -52,41 +32,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [4,9],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "vecnu",
-        span: [13,18],
-      },
+      Gismu "vécnu",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [19,21],
-        },
+        Cmavo "ma",
       ],
     },
   },

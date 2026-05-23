@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu xábju la .tusan. .i mútce vlípa cárvi ca le crísa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tusan",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [31,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crisa",
-    span: [49,54],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "xábju",
+  Cmavo "la",
+  Cmevla "tusan",
+  Cmavo "i",
+  Gismu "mútce",
+  Gismu "vlípa",
+  Gismu "cárvi",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "crísa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tusan","kind":"cmevla"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"crisa","kind":"gismu"}}]'
 
@@ -86,85 +38,37 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [6,11],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "xábju",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "tusan",
-              span: [15,20],
-            },
+            Cmevla "tusan",
           ],
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
+    i: Cmavo "i",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [25,30],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vlipa",
-          span: [31,36],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "carvi",
-          span: [37,42],
-        },
+        Gismu "mútce",
+        Gismu "vlípa",
+        Gismu "cárvi",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [43,45],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [46,48],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "crisa",
-              span: [49,54],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "crísa",
           },
         },
       ],

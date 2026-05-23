@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(jécta ja líjda fénki ménli)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "jecta",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lijda",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [21,26],
-  },
+  Gismu "jécta",
+  Cmavo "ja",
+  Gismu "líjda",
+  Gismu "fénki",
+  Gismu "ménli",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"jecta","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lijda","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"menli","kind":"gismu"}}]'
 
@@ -50,31 +30,11 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"jecta","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "jecta",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [6,8],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "lijda",
-      span: [9,14],
-    },
+    leading_unit: Gismu "jécta",
+    connective: Cmavo "ja",
+    trailing_unit: Gismu "líjda",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [21,26],
-  },
+  Gismu "fénki",
+  Gismu "ménli",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"jecta","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"lijda","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"fenki","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"menli","kind":"gismu"}}}}]}}}}}}}}]}]}'

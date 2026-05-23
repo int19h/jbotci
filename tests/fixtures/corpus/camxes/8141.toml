@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi tátpi .i ji'a mi ba zi sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Gismu "tátpi",
+  Cmavo "i",
+  Cmavo "ji'a",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -66,57 +34,25 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [3,8],
-    },
+    Gismu "tátpi",
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [10,11],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [11,15],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ji'a",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [16,18],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [21,23],
-          },
+          Cmavo "ba",
+          Cmavo "zi",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "sipna",
-          span: [24,29],
-        },
+        Gismu "sípna",
       },
     },
   },

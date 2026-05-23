@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'o káncu le jdíni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdini",
-    span: [14,19],
-  },
+  Cmavo "ba'o",
+  Gismu "káncu",
+  Cmavo "le",
+  Gismu "jdíni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"kancu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jdini","kind":"gismu"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ba'o",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kancu",
-      span: [5,10],
-    },
+    tense_modal: Cmavo "ba'o",
+    Gismu "káncu",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [11,13],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jdini",
-        span: [14,19],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "jdíni",
     },
   ],
 }"""

@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(túgni .i xámgymaŭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xamgymaŭ",
-    span: [9,17],
-  },
+  Gismu "túgni",
+  Cmavo "i",
+  Lujvo "xámgymaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"tugni","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"xamgymaŭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [0,5],
-  },
+  Gismu "túgni",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xamgymaŭ",
-      span: [9,17],
-    },
+    i: Cmavo "i",
+    Lujvo "xámgymaŭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"tugni","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,17],"phonemes":"xamgymaŭ","kind":"lujvo"}}}}}}}}}}}]}]}'

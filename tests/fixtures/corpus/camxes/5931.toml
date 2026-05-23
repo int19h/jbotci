@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi ru'e mi rasyjúkpa le rísmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rasyjukpa",
-    span: [11,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rismi",
-    span: [24,29],
-  },
+  Cmavo "ŭi",
+  Cmavo "ru'e",
+  Cmavo "mi",
+  Lujvo "rasyjúkpa",
+  Cmavo "le",
+  Gismu "rísmi",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,20],"phonemes":"rasyjukpa","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"rismi","kind":"gismu"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [3,7],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "rasyjukpa",
-        span: [11,20],
-      },
+      Lujvo "rasyjúkpa",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "rismi",
-            span: [24,29],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "rísmi",
         },
       ],
     },

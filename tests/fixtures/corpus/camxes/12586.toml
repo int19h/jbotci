@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.is. my mácro)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "is",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "macro",
-    span: [6,11],
-  },
+  Cmevla "is",
+  Cmavo "my",
+  Gismu "mácro",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"is","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"macro","kind":"gismu"}}]'
 
@@ -40,29 +28,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"is","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "is",
-      span: [0,2],
-    },
+    Cmevla "is",
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "my",
-            span: [3,5],
-          },
+          Cmavo "my",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "macro",
-      span: [6,11],
-    },
+    Gismu "mácro",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"is","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"my","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"macro","kind":"gismu"}}}}}}}}}}}]}]}'

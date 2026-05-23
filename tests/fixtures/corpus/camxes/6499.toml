@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ba nánci li pa so ca la .vomast.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "vomast",
-    span: [26,32],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "nánci",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "so",
+  Cmavo "ca",
+  Cmavo "la",
+  Cmevla "vomast",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nanci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[26,32],"phonemes":"vomast","kind":"cmevla"}}]'
 
@@ -70,63 +34,27 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nanci",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "nánci",
     },
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [12,14],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "so",
-            span: [17,19],
-          },
+          Cmavo "pa",
+          Cmavo "so",
         },
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [20,22],
-        },
+        tense_modal: Cmavo "ca",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [23,25],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "vomast",
-              span: [26,32],
-            },
+            Cmevla "vomast",
           ],
         },
       },

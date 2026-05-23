@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se ni'i ri cúsku no da poĭ lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [26,31],
-  },
+  Cmavo "se",
+  Cmavo "ni'i",
+  Cmavo "ri",
+  Gismu "cúsku",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "lójbo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"lojbo","kind":"gismu"}}]"""
 
@@ -67,56 +35,24 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ni'i",
-          span: [2,6],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "ni'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ri",
-        span: [7,9],
-      },
+      Cmavo "ri",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [10,15],
-    },
+    Gismu "cúsku",
     terms: [
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [16,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [19,21],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [22,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [26,31],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "lójbo",
           },
         ],
       },

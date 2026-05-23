@@ -19,31 +19,11 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ti me la .nu,ĭork. me'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nu,ĭórk",
-    span: [9,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'u",
-    span: [19,23],
-  },
+  Cmavo "ti",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "nu,ĭork",
+  Cmavo "me'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,16],"phonemes":"nu,ĭórk","kind":"cmevla"}},{"Bare":{"span":[19,23],"phonemes":"me'u","kind":"cmavo"}}]"""
 
@@ -51,37 +31,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [3,5],
-    },
+    me: Cmavo "me",
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [6,8],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "nu,ĭórk",
-          span: [9,16],
-        },
+        Cmevla "nu,ĭork",
       ],
     },
-    mehu: Word {
-      kind: "cmavo",
-      phonemes: "me'u",
-      span: [19,23],
-    },
+    mehu: Cmavo "me'u",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[9,16],"phonemes":"nu,ĭórk","kind":"cmevla"}}}]}},"mehu":{"Bare":{"Bare":{"span":[19,23],"phonemes":"me'u","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

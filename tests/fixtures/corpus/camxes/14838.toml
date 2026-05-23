@@ -18,59 +18,19 @@ error = { position = 5, allowed-next = [] }
 brackets = "(to mu'a [zo sélkeĭ] .e [zo zdílykaĭ] .e li'o toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'a",
-    span: [3,7],
-  },
+  Cmavo "to",
+  Cmavo "mu'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [8,10],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selkeĭ",
-      span: [11,17],
-    },
+    zo: Cmavo "zo",
+    Lujvo "sélkeĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [19,20],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "zdilykaĭ",
-      span: [24,32],
-    },
+    zo: Cmavo "zo",
+    Lujvo "zdílykaĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [34,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [41,44],
-  },
+  Cmavo "e",
+  Cmavo "li'o",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mu'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,17],"phonemes":"selkeĭ","kind":"lujvo"}}},{"Bare":{"span":[19,20],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,32],"phonemes":"zdilykaĭ","kind":"lujvo"}}},{"Bare":{"span":[34,35],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"li'o","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"toĭ","kind":"cmavo"}}]"""

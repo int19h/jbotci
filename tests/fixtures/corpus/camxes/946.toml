@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mi noĭ sípna vaŭ kárce cu na kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [32,37],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Cmavo "noĭ",
+  Gismu "sípna",
+  Cmavo "vaŭ",
+  Gismu "kárce",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -71,60 +35,24 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [6,9],
-          },
+          noi: Cmavo "noĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "sipna",
-              span: [10,15],
-            },
-            vau: Word {
-              kind: "cmavo",
-              phonemes: "vaŭ",
-              span: [16,19],
-            },
+            Gismu "sípna",
+            vau: Cmavo "vaŭ",
           },
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "karce",
-        span: [20,25],
-      },
+      relation: Gismu "kárce",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
+  cu: Cmavo "cu",
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [29,31],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [32,37],
-    },
+    na: Cmavo "na",
+    Gismu "kláma",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}},{"RelativeClauses":[{"Noi":{"noi":{"Bare":{"Bare":{"span":[6,9],"phonemes":"noĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"sipna","kind":"gismu"}}}},"vau":{"Bare":{"Bare":{"span":[16,19],"phonemes":"vaŭ","kind":"cmavo"}}}}}}}}}}}}]}],"relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"karce","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[29,31],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[32,37],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}}}]}]}'

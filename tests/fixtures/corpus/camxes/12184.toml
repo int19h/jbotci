@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu na ba zénba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [9,14],
-  },
+  Cmavo "xu",
+  Cmavo "na",
+  Cmavo "ba",
+  Gismu "zénba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"zenba","kind":"gismu"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [3,5],
-    },
+    na: Cmavo "na",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zenba",
-        span: [9,14],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "zénba",
     },
   },
 }"""

@@ -22,38 +22,14 @@ brackets = "([zoĭ gy Steve gy] mérko glíco cméne)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [4,6],
-    },
-    quoted_text: [7,12],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [13,15],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Steve",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [29,34],
-  },
+  Gismu "mérko",
+  Gismu "glíco",
+  Gismu "cméne",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,12],"closing_delimiter":{"span":[13,15],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[17,22],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"cmene","kind":"gismu"}}]'
 
@@ -63,40 +39,16 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [4,6],
-      },
-      quoted_text: [7,12],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [13,15],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "Steve",
+      closing_delimiter: Cmavo "gy",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "merko",
-      span: [17,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "glico",
-      span: [23,28],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [29,34],
-    },
+    Gismu "mérko",
+    Gismu "glíco",
+    Gismu "cméne",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,12],"closing_delimiter":{"span":[13,15],"phonemes":"gy","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"merko","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"glico","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[29,34],"phonemes":"cmene","kind":"gismu"}}}}]}}}}}}}}]}]}'

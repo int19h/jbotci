@@ -21,51 +21,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i fe so'i de fa le za'u da pínxe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [28,33],
-  },
+  Cmavo "i",
+  Cmavo "fe",
+  Cmavo "so'i",
+  Cmavo "de",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "za'u",
+  Cmavo "da",
+  Gismu "pínxe",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"pinxe","kind":"gismu"}}]"""
 
@@ -73,64 +37,28 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{(fe [so'i de]) (fa [le {za'u da}])} pínxe])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [3,5],
-        },
+        fa: Cmavo "fe",
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "so'i",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de",
-            span: [11,13],
-          },
+          quantifier: Cmavo "so'i",
+          Cmavo "de",
         },
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [14,16],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [20,24],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [25,27],
-            },
+            Cmavo "za'u",
+            Cmavo "da",
           ],
         },
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "pinxe",
-      span: [28,33],
-    },
+    Gismu "pínxe",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Fa":{"fa":{"Bare":{"Bare":{"span":[3,5],"phonemes":"fe","kind":"cmavo"}}},"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[6,10],"phonemes":"so'i","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[11,13],"phonemes":"de","kind":"cmavo"}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[14,16],"phonemes":"fa","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[20,24],"phonemes":"za'u","kind":"cmavo"}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[25,27],"phonemes":"da","kind":"cmavo"}}}}}]}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[28,33],"phonemes":"pinxe","kind":"gismu"}}}}}}}}}}}]}]}"""

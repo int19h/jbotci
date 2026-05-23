@@ -18,80 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ji'a ba zi kélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [16,21],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "kélci",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"kelci","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [6,10],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [13,15],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [16,21],
-      },
+      Gismu "kélci",
     },
   },
 }"""

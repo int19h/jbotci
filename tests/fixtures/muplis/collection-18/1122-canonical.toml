@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu li'u lu li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [13,17],
-  },
+  Cmavo "lu",
+  Cmavo "li'u",
+  Cmavo "lu",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -50,30 +34,14 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [4,8],
-      },
+      lihu: Cmavo "li'u",
     },
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [9,11],
-      },
+      lu: Cmavo "lu",
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [13,17],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

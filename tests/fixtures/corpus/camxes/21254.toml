@@ -18,116 +18,44 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi nélci cy gy [.i bu] ju'o cu'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [14,16],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "cy",
+  Cmavo "gy",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [17,18],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [18,20],
-    },
+    Cmavo "i",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [25,29],
-  },
+  Cmavo "ju'o",
+  Cmavo "cu'i",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"gy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[18,20],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[21,25],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"cu'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [5,10],
-      },
+      Gismu "nélci",
       terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "cy",
-              span: [11,13],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [14,16],
-            },
+            Cmavo "cy",
+            Cmavo "gy",
             WithIndicator {
               WithIndicator {
                 Letter {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "i",
-                    span: [17,18],
-                  },
-                  bu: Word {
-                    kind: "cmavo",
-                    phonemes: "bu",
-                    span: [18,20],
-                  },
+                  Cmavo "i",
+                  bu: Cmavo "bu",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "ju'o",
-                  span: [21,25],
-                },
+                indicator: Cmavo "ju'o",
               },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "cu'i",
-                span: [25,29],
-              },
+              indicator: Cmavo "cu'i",
             },
           ],
         },

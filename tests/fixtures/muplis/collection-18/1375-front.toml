@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le júbme pe ne'i le va kúmfa cu mútce lo ka plúka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jubme",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [44,49],
-  },
+  Cmavo "le",
+  Gismu "júbme",
+  Cmavo "pe",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Cmavo "va",
+  Gismu "kúmfa",
+  Cmavo "cu",
+  Gismu "mútce",
+  Cmavo "lo",
+  Cmavo "ka",
+  Gismu "plúka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jubme","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"va","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"kumfa","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"pluka","kind":"gismu"}}]"""
 
@@ -90,46 +42,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jubme",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "júbme",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [9,11],
-          },
+          goi: Cmavo "pe",
           Tagged {
-            tag: Word {
-              kind: "cmavo",
-              phonemes: "ne'i",
-              span: [12,16],
-            },
+            tag: Cmavo "ne'i",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [17,19],
-              },
+              descriptor: Cmavo "le",
               relation: TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "va",
-                  span: [20,22],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "kumfa",
-                  span: [23,28],
-                },
+                tense_modal: Cmavo "va",
+                Gismu "kúmfa",
               },
             },
           },
@@ -137,35 +61,15 @@ Predicate {
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [32,37],
-    },
+    Gismu "mútce",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [38,40],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [41,43],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pluka",
-            span: [44,49],
-          },
+          nu: Cmavo "ka",
+          Gismu "plúka",
         },
       },
     ],

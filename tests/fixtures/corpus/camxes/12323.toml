@@ -19,53 +19,17 @@ brackets = "([la'o gy earwig gy] lo mánti zmádu le ka rígni)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [7,14],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [15,17],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "earwig",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "manti",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [39,44],
-  },
+  Cmavo "lo",
+  Gismu "mánti",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "rígni",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,14],"closing_delimiter":{"span":[15,17],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"manti","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"rigni","kind":"gismu"}}]"""
 
@@ -74,59 +38,23 @@ tree = """
 Term {
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [5,7],
-      },
-      quoted_text: [7,14],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [15,17],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "earwig",
+      closing_delimiter: Cmavo "gy",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [18,20],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "manti",
-          span: [21,26],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zmadu",
-          span: [27,32],
-        },
+        Gismu "mánti",
+        Gismu "zmádu",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [33,35],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [36,38],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "rigni",
-          span: [39,44],
-        },
+        nu: Cmavo "ka",
+        Gismu "rígni",
       },
     },
   ],

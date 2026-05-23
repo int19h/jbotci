@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .araĭzen. do zbásu le mutmí'i baŭ ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "araĭzen",
-    span: [4,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mutmi'i",
-    span: [24,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [32,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [36,38],
-  },
+  Cmavo "doĭ",
+  Cmevla "araĭzen",
+  Cmavo "do",
+  Gismu "zbásu",
+  Cmavo "le",
+  Lujvo "mutmí'i",
+  Cmavo "baŭ",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"araĭzen","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,31],"phonemes":"mutmi'i","kind":"lujvo"}},{"Bare":{"span":[32,35],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -67,59 +35,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "araĭzen",
-        span: [4,11],
-      },
+      argument: Cmevla "araĭzen",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [15,20],
-      },
+      Gismu "zbásu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "mutmi'i",
-            span: [24,31],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "mutmí'i",
         },
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "baŭ",
-              span: [32,35],
-            },
+            bai: Cmavo "baŭ",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [36,38],
-          },
+          Cmavo "ma",
         },
       ],
     },

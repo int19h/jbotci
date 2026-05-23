@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca le bavlamnítce mi cátra le danlrxelefánta do'a le mi nítce táxfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamnitce",
-    span: [6,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catra",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [27,29],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "danlrxelefanta",
-    span: [30,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'a",
-    span: [45,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [53,55],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitce",
-    span: [56,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "taxfu",
-    span: [62,67],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "bavlamnítce",
+  Cmavo "mi",
+  Gismu "cátra",
+  Cmavo "le",
+  Fuhivla "danlrxelefánta",
+  Cmavo "do'a",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "nítce",
+  Gismu "táxfu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,17],"phonemes":"bavlamnitce","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"catra","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[30,44],"phonemes":"danlrxelefanta","kind":"fu'ivla"}},{"Bare":{"span":[45,49],"phonemes":"do'a","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[53,55],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[56,61],"phonemes":"nitce","kind":"gismu"}},{"Bare":{"span":[62,67],"phonemes":"taxfu","kind":"gismu"}}]"""
 
@@ -86,80 +38,32 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "bavlamnitce",
-          span: [6,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "bavlamnítce",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [18,20],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "catra",
-      span: [21,26],
-    },
+    Gismu "cátra",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [27,29],
-        },
+        descriptor: Cmavo "le",
         relation: WithIndicator {
-          Word {
-            kind: "fu'ivla",
-            phonemes: "danlrxelefanta",
-            span: [30,44],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "do'a",
-            span: [45,49],
-          },
+          Fuhivla "danlrxelefánta",
+          indicator: Cmavo "do'a",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [50,52],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [53,55],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "nitce",
-            span: [56,61],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "taxfu",
-            span: [62,67],
-          },
+          Gismu "nítce",
+          Gismu "táxfu",
         },
       },
     ],

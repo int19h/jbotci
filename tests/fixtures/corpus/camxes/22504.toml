@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.and. [lo'u si mi le'u])"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ánd",
-    span: [0,3],
-  },
+  Cmevla "and",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [4,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [12,14],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [15,19],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "si",
+    Cmavo "mi",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"LohuQuote":{"lohu":{"span":[4,8],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[9,11],"phonemes":"si","kind":"cmavo"},{"span":[12,14],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[15,19],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -52,35 +32,15 @@ json = """[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"LohuQuote
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ánd",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
   Term {
     terms: [
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [4,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "si",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [12,14],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [15,19],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "si",
+        Cmavo "mi",
+        lehu: Cmavo "le'u",
       },
     ],
   },

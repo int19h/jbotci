@@ -18,80 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i do xábju la .bertikarolinas. xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bertikarolinas",
-    span: [14,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [29,31],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "xábju",
+  Cmavo "la",
+  Cmevla "bertikarolinas",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[14,28],"phonemes":"bertikarolinas","kind":"cmevla"}},{"Bare":{"span":[29,31],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [2,4],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xabju",
-        span: [5,10],
-      },
+      Gismu "xábju",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [11,13],
-          },
+          la: Cmavo "la",
           names: [
             WithIndicator {
-              Word {
-                kind: "cmevla",
-                phonemes: "bertikarolinas",
-                span: [14,28],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "xu",
-                span: [29,31],
-              },
+              Cmevla "bertikarolinas",
+              indicator: Cmavo "xu",
             },
           ],
         },

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.let. me do ti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "let",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [10,12],
-  },
+  Cmevla "let",
+  Cmavo "me",
+  Cmavo "do",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"let","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -45,31 +29,15 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"let","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "let",
-      span: [0,3],
-    },
+    Cmevla "let",
   ],
   Relation {
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [4,6],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      me: Cmavo "me",
+      Cmavo "do",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [10,12],
-      },
+      Cmavo "ti",
     ],
   },
 }"""

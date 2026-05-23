@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xy cúsku baŭ le mílxe glíco .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [30,33],
-  },
+  Cmavo "xy",
+  Gismu "cúsku",
+  Cmavo "baŭ",
+  Cmavo "le",
+  Gismu "mílxe",
+  Gismu "glíco",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[10,13],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[30,33],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -62,52 +34,24 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [0,2],
-        },
+        Cmavo "xy",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [4,9],
-    },
+    Gismu "cúsku",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [10,13],
-          },
+          bai: Cmavo "baŭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "milxe",
-              span: [17,22],
-            },
+            Gismu "mílxe",
             WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "glico",
-                span: [23,28],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "u'i",
-                span: [30,33],
-              },
+              Gismu "glíco",
+              indicator: Cmavo "u'i",
             },
           },
         },

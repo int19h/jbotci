@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'o ku gaŭ mi zo'u cénba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cenba",
-    span: [20,25],
-  },
+  Cmavo "ca'o",
+  Cmavo "ku",
+  Cmavo "gaŭ",
+  Cmavo "mi",
+  Cmavo "zo'u",
+  Gismu "cénba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cenba","kind":"gismu"}}]"""
 
@@ -60,43 +36,19 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "ca'o",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [5,7],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [8,11],
-        },
+        bai: Cmavo "gaŭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cenba",
-    span: [20,25],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "cénba",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[8,11],"phonemes":"gaŭ","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}}}}}}],"zohu":{"Bare":{"Bare":{"span":[15,19],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"cenba","kind":"gismu"}}}}}}}}}}}}}]}]}"""

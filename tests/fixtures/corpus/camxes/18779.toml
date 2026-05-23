@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se zu'e la'e di'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [11,15],
-  },
+  Cmavo "se",
+  Cmavo "zu'e",
+  Cmavo "la'e",
+  Cmavo "di'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"di'u","kind":"cmavo"}}]"""
 
@@ -47,28 +31,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [2,6],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "zu'e",
       },
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [7,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [11,15],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'u",
       },
     },
   ],

@@ -18,54 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi djísku [zo cíkre] .e ba'e naĭ [zo ckíre])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [3,9],
-  },
+  Cmavo "mi",
+  Lujvo "djísku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [13,18],
-    },
+    zo: Cmavo "zo",
+    Gismu "cíkre",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [27,30],
-  },
+  Cmavo "e",
+  Cmavo "ba'e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [31,33],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ckire",
-      span: [34,39],
-    },
+    zo: Cmavo "zo",
+    Gismu "ckíre",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,18],"phonemes":"cikre","kind":"gismu"}}},{"Bare":{"span":[20,21],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[31,33],"phonemes":"zo","kind":"cmavo"},"word":{"span":[34,39],"phonemes":"ckire","kind":"gismu"}}}]"""
@@ -74,62 +38,26 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "djisku",
-      span: [3,9],
-    },
+    Lujvo "djísku",
     terms: [
       Connected {
         leading_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [10,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cikre",
-            span: [13,18],
-          },
+          zo: Cmavo "zo",
+          Gismu "cíkre",
         },
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [20,21],
-          },
+          Cmavo "e",
           nai: Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [22,26],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [27,30],
-            },
+            bahe: Cmavo "ba'e",
+            Cmavo "naĭ",
           },
         },
         trailing_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [31,33],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ckire",
-            span: [34,39],
-          },
+          zo: Cmavo "zo",
+          Gismu "ckíre",
         },
       },
     ],

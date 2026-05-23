@@ -24,66 +24,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le míkce cu se cínri le pu'u je naĭ za'i mi sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mikce",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'u",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [31,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [43,48],
-  },
+  Cmavo "le",
+  Gismu "míkce",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "cínri",
+  Cmavo "le",
+  Cmavo "pu'u",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Cmavo "za'i",
+  Cmavo "mi",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mikce","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"pu'u","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -93,83 +45,35 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "mikce",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "míkce",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [12,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [15,20],
-      },
+      se: Cmavo "se",
+      Gismu "cínri",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [21,23],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "pu'u",
-            span: [24,28],
-          },
+          nu: Cmavo "pu'u",
           additional_nu: [
             AdditionalNu {
               connective: Relation {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "je",
-                  span: [29,31],
-                },
-                nai: Word {
-                  kind: "cmavo",
-                  phonemes: "naĭ",
-                  span: [31,34],
-                },
+                Cmavo "je",
+                nai: Cmavo "naĭ",
               },
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "za'i",
-                span: [35,39],
-              },
+              nu: Cmavo "za'i",
             },
           ],
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [40,42],
-              },
+              Cmavo "mi",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "sipna",
-              span: [43,48],
-            },
+            Gismu "sípna",
           },
         },
       },

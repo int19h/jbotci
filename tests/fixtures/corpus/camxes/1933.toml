@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xámsi ke cálku cúrnu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xamsi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "calku",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curnu",
-    span: [15,20],
-  },
+  Gismu "xámsi",
+  Cmavo "ke",
+  Gismu "cálku",
+  Gismu "cúrnu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xamsi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"calku","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"curnu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "xamsi",
-    span: [0,5],
-  },
+  Gismu "xámsi",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "calku",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "curnu",
-        span: [15,20],
-      },
+      Gismu "cálku",
+      Gismu "cúrnu",
     },
   },
 }"""

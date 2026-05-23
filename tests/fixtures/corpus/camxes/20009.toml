@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tu'a la .mumym. núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mumym",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [17,22],
-  },
+  Cmavo "tu'a",
+  Cmavo "la",
+  Cmevla "mumym",
+  Gismu "núzba",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[17,22],"phonemes":"nuzba","kind":"gismu"}}]"""
 
@@ -47,31 +31,15 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [3,7],
-      },
+      lahe: Cmavo "tu'a",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [8,10],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "mumym",
-            span: [11,16],
-          },
+          Cmevla "mumym",
         ],
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [17,22],
-  },
+  Gismu "núzba",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[3,7],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[11,16],"phonemes":"mumym","kind":"cmevla"}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"nuzba","kind":"gismu"}}}}}}}}}}}]}]}"""

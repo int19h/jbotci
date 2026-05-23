@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ji'a .oĭ caĭ jécta távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jecta",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "ji'a",
+  Cmavo "oĭ",
+  Cmavo "caĭ",
+  Gismu "jécta",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jecta","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -57,40 +33,16 @@ ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [0,1],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [1,5],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ji'a",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [6,8],
-      },
+      indicator: Cmavo "oĭ",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "caĭ",
-      span: [8,11],
-    },
+    indicator: Cmavo "caĭ",
   },
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "jecta",
-      span: [12,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [18,23],
-    },
+    Gismu "jécta",
+    Gismu "távla",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[1,5],"phonemes":"ji'a","kind":"cmavo"}}},"indicator":{"span":[6,8],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[8,11],"phonemes":"caĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"jecta","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}}}]}}}}}}}}]}]}"""

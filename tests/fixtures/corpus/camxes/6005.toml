@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to xa roĭ júfra toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [15,18],
-  },
+  Cmavo "to",
+  Cmavo "xa",
+  Cmavo "roĭ",
+  Gismu "júfra",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [5,8],
-          },
+          Cmavo "xa",
+          Cmavo "roĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "jufra",
-          span: [9,14],
-        },
+        Gismu "júfra",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [15,18],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

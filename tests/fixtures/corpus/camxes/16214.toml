@@ -18,89 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i cúntu le nu múlgaŭ le bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mulgaŭ",
-    span: [14,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Gismu "cúntu",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "múlgaŭ",
+  Cmavo "le",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cuntu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,20],"phonemes":"mulgaŭ","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"bangu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cuntu",
-      span: [3,8],
-    },
+    Gismu "cúntu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "lujvo",
-              phonemes: "mulgaŭ",
-              span: [14,20],
-            },
+            Lujvo "múlgaŭ",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [21,23],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "bangu",
-                  span: [24,29],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "bángu",
               },
             ],
           },

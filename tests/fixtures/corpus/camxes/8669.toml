@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ke'u pénmi lo távla kúmfa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Cmavo "ke'u",
+  Gismu "pénmi",
+  Cmavo "lo",
+  Gismu "távla",
+  Gismu "kúmfa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ke'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"penmi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"kumfa","kind":"gismu"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Predicate {
   leading_terms: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ke'u",
-        span: [3,7],
-      },
+      Cmavo "mi",
+      indicator: Cmavo "ke'u",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "penmi",
-      span: [8,13],
-    },
+    Gismu "pénmi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [14,16],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kumfa",
-            span: [23,28],
-          },
+          Gismu "távla",
+          Gismu "kúmfa",
         },
       },
     ],

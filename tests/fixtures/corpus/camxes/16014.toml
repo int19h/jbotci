@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o no jbópre ba ménli bílma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [7,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [23,28],
-  },
+  Cmavo "a'o",
+  Cmavo "no",
+  Lujvo "jbópre",
+  Cmavo "ba",
+  Gismu "ménli",
+  Gismu "bílma",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"bilma","kind":"gismu"}}]"""
 
@@ -56,47 +32,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [4,6],
-          },
+          Cmavo "no",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "jbopre",
-          span: [7,13],
-        },
+        relation: Lujvo "jbópre",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [14,16],
-      },
+      tense_modal: Cmavo "ba",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "menli",
-          span: [17,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bilma",
-          span: [23,28],
-        },
+        Gismu "ménli",
+        Gismu "bílma",
       },
     },
   },

@@ -24,16 +24,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na gi'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [2,6],
-  },
+  Cmavo "na",
+  Cmavo "gi'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"gi'e","kind":"cmavo"}}]"""
 
@@ -41,15 +33,7 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 brackets = "(na gi'e)"
 tree = """
 PredicateTail {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [2,6],
-  },
+  na: Cmavo "na",
+  Cmavo "gi'e",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[2,6],"phonemes":"gi'e","kind":"cmavo"}}}]}}}}}]}]}"""

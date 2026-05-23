@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro do zgatírna ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zgatirna",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
+  Cmavo "ro",
+  Cmavo "do",
+  Lujvo "zgatírna",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"zgatirna","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [2,4],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "do",
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "zgatirna",
-      span: [5,13],
-    },
+    Lujvo "zgatírna",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [14,16],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

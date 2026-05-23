@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ spófu samrú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [4,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samru'e",
-    span: [10,17],
-  },
+  Cmavo "oĭ",
+  Gismu "spófu",
+  Lujvo "samrú'e",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[10,17],"phonemes":"samru'e","kind":"lujvo"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "spofu",
-      span: [4,9],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "samru'e",
-      span: [10,17],
-    },
+    Gismu "spófu",
+    Lujvo "samrú'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"spofu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,17],"phonemes":"samru'e","kind":"lujvo"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}}}]}"""

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu dy bángu do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
+  Cmavo "xu",
+  Cmavo "dy",
+  Gismu "bángu",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -46,37 +30,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "dy",
-            span: [3,5],
-          },
+          Cmavo "dy",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "bangu",
-        span: [7,12],
-      },
+      Gismu "bángu",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [13,15],
-        },
+        Cmavo "do",
       ],
     },
   },

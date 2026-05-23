@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fírca ke távla nírna)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "firca",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [15,20],
-  },
+  Gismu "fírca",
+  Cmavo "ke",
+  Gismu "távla",
+  Gismu "nírna",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"firca","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"nirna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "firca",
-    span: [0,5],
-  },
+  Gismu "fírca",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nirna",
-        span: [15,20],
-      },
+      Gismu "távla",
+      Gismu "nírna",
     },
   },
 }"""

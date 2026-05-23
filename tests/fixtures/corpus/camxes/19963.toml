@@ -18,33 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
+  Cmavo "go'i",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [5,7],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

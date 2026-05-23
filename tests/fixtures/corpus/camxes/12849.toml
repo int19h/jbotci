@@ -18,87 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ba bo clíva to sípna toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [22,25],
-  },
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "bo",
+  Gismu "clíva",
+  Cmavo "to",
+  Gismu "sípna",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[22,25],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [4,6],
-    },
+    Cmavo "ba",
+    Cmavo "bo",
   },
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "cliva",
-      span: [7,12],
-    },
+    Gismu "clíva",
     free_modifiers: [
       To {
-        to: Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [13,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sipna",
-          span: [16,21],
-        },
-        toi: Word {
-          kind: "cmavo",
-          phonemes: "toĭ",
-          span: [22,25],
-        },
+        to: Cmavo "to",
+        Gismu "sípna",
+        toi: Cmavo "toĭ",
       },
     ],
   },

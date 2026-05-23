@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .i .ŭi peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [11,14],
-  },
+  Cmavo "je'e",
+  Cmavo "i",
+  Cmavo "ŭi",
+  Cmavo "peĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
@@ -47,33 +31,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [6,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [9,11],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ŭi",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [11,14],
-      },
+      indicator: Cmavo "peĭ",
     },
   },
 }"""

@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ji'a go'i .i ku'i mi cáfne mórji gúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [29,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [35,40],
-  },
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "cáfne",
+  Gismu "mórji",
+  Gismu "gúnka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[35,40],"phonemes":"gunka","kind":"gismu"}}]"""
 
@@ -72,61 +36,25 @@ Paragraph {
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [3,7],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [8,12],
-    },
+    Cmavo "go'i",
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [14,15],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [15,19],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [20,22],
-        },
+        Cmavo "mi",
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cafne",
-          span: [23,28],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "morji",
-          span: [29,34],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gunka",
-          span: [35,40],
-        },
+        Gismu "cáfne",
+        Gismu "mórji",
+        Gismu "gúnka",
       },
     },
   },

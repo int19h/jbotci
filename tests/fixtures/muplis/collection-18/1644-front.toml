@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xo nóbli prénu cu brédi .ĭo ze'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nobli",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'e",
-    span: [27,31],
-  },
+  Cmavo "xo",
+  Gismu "nóbli",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "brédi",
+  Cmavo "ĭo",
+  Cmavo "ze'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nobli","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"bredi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"ze'e","kind":"cmavo"}}]"""
 
@@ -66,51 +38,23 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [0,2],
-        },
+        Cmavo "xo",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nobli",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [9,14],
-        },
+        Gismu "nóbli",
+        Gismu "prénu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "bredi",
-        span: [18,23],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭo",
-        span: [24,26],
-      },
+      Gismu "brédi",
+      indicator: Cmavo "ĭo",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ze'e",
-          span: [27,31],
-        },
+        tense_modal: Cmavo "ze'e",
         Zohe {},
       },
     ],

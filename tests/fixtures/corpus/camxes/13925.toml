@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ [.e bu] xu do cmíma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
+  Cmavo "doĭ",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [4,5],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [5,7],
-    },
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [15,20],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "cmíma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[9,11],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cmima","kind":"gismu"}}]'
 
@@ -59,32 +35,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
           WithIndicator {
             Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "e",
-                span: [4,5],
-              },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [5,7],
-              },
+              Cmavo "e",
+              bu: Cmavo "bu",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "xu",
-              span: [9,11],
-            },
+            indicator: Cmavo "xu",
           },
         ],
       },
@@ -92,17 +52,9 @@ Text {
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cmima",
-      span: [15,20],
-    },
+    Gismu "cmíma",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Letter":{"letter":[{"WithIndicator":{"base":{"Bare":{"Letter":{"base":{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}}},"indicator":{"span":[9,11],"phonemes":"xu","kind":"cmavo"}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"cmima","kind":"gismu"}}}}}}}}}}}]}]}'

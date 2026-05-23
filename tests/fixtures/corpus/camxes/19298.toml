@@ -18,57 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ma júdri ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [12,14],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "júdri",
+  Cmavo "ta",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"judri","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ta","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "judri",
-        span: [6,11],
-      },
+      Gismu "júdri",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ta",
-          span: [12,14],
-        },
+        Cmavo "ta",
       ],
     },
   },

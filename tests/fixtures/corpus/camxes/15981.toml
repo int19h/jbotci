@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le djédi cu na jaĭ múlno vi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
+  Cmavo "le",
+  Gismu "djédi",
+  Cmavo "cu",
+  Cmavo "na",
+  Cmavo "jaĭ",
+  Gismu "múlno",
+  Cmavo "vi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -66,55 +34,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "djedi",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "djédi",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [12,14],
-      },
+      na: Cmavo "na",
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [15,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mulno",
-          span: [19,24],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "múlno",
       },
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [25,27],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [28,30],
-        },
+        tense_modal: Cmavo "vi",
+        Cmavo "mi",
       },
     ],
   },

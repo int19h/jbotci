@@ -18,86 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xu do kákne le ka cúsku la'e le relténfa dubmékso se pi'o le mékso císte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "reltenfa",
-    span: [35,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dubmekso",
-    span: [44,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [53,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [55,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [60,62],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mekso",
-    span: [63,68],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [69,74],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "kákne",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "cúsku",
+  Cmavo "la'e",
+  Cmavo "le",
+  Lujvo "relténfa",
+  Lujvo "dubmékso",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "le",
+  Gismu "mékso",
+  Gismu "císte",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,43],"phonemes":"reltenfa","kind":"lujvo"}},{"Bare":{"span":[44,52],"phonemes":"dubmekso","kind":"lujvo"}},{"Bare":{"span":[53,55],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[55,59],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[63,68],"phonemes":"mekso","kind":"gismu"}},{"Bare":{"span":[69,74],"phonemes":"ciste","kind":"gismu"}}]"""
 
@@ -105,107 +41,43 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [9,14],
-      },
+      Gismu "kákne",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [18,20],
-            },
+            nu: Cmavo "ka",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [21,26],
-              },
+              Gismu "cúsku",
               terms: [
                 Lahe {
-                  lahe: Word {
-                    kind: "cmavo",
-                    phonemes: "la'e",
-                    span: [27,31],
-                  },
+                  lahe: Cmavo "la'e",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [32,34],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "reltenfa",
-                        span: [35,43],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "dubmekso",
-                        span: [44,52],
-                      },
+                      Lujvo "relténfa",
+                      Lujvo "dubmékso",
                     },
                   },
                 },
                 Tagged {
                   tense_modal: Simple {
-                    se: Word {
-                      kind: "cmavo",
-                      phonemes: "se",
-                      span: [53,55],
-                    },
-                    bai: Word {
-                      kind: "cmavo",
-                      phonemes: "pi'o",
-                      span: [55,59],
-                    },
+                    se: Cmavo "se",
+                    bai: Cmavo "pi'o",
                   },
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [60,62],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "mekso",
-                        span: [63,68],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "ciste",
-                        span: [69,74],
-                      },
+                      Gismu "mékso",
+                      Gismu "císte",
                     },
                   },
                 },

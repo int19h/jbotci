@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'e ze prénu cu zváti ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [23,25],
-  },
+  Cmavo "u'e",
+  Cmavo "ze",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "zváti",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -60,47 +36,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'e",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ze",
-            span: [5,7],
-          },
+          Cmavo "ze",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [8,13],
-        },
+        relation: Gismu "prénu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [17,22],
-      },
+      Gismu "zváti",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [23,25],
-        },
+        Cmavo "ti",
       ],
     },
   },

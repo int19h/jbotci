@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi me loĭ pa no jugbálsoĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jugbalsoĭ",
-    span: [15,24],
-  },
+  Cmavo "mi",
+  Cmavo "me",
+  Cmavo "loĭ",
+  Cmavo "pa",
+  Cmavo "no",
+  Lujvo "jugbálsoĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"jugbalsoĭ","kind":"lujvo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [3,5],
-    },
+    me: Cmavo "me",
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [6,9],
-      },
+      descriptor: Cmavo "loĭ",
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [10,12],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [12,14],
-          },
+          Cmavo "pa",
+          Cmavo "no",
         },
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "jugbalsoĭ",
-        span: [15,24],
-      },
+      relation: Lujvo "jugbálsoĭ",
     },
   },
 }"""

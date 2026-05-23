@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.not. gu'ácmi)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "not",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gu'acmi",
-    span: [4,11],
-  },
+  Cmevla "not",
+  Lujvo "gu'ácmi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"span":[4,11],"phonemes":"gu'acmi","kind":"lujvo"}}]"""
 
@@ -35,16 +27,8 @@ json = """[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "not",
-      span: [0,3],
-    },
+    Cmevla "not",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "gu'acmi",
-    span: [4,11],
-  },
+  Lujvo "gu'ácmi",
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,11],"phonemes":"gu'acmi","kind":"lujvo"}}}}}}}}}}}]}]}"""

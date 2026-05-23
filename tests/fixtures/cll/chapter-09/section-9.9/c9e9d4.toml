@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(baŭ ku baĭ ku mi távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [17,22],
-  },
+  Cmavo "baŭ",
+  Cmavo "ku",
+  Cmavo "baĭ",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "távla",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tavla","kind":"gismu"}}]'
 
@@ -64,46 +40,22 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "baŭ",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baĭ",
-          span: [7,10],
-        },
+        bai: Cmavo "baĭ",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [11,13],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [14,16],
-    },
+    Cmavo "mi",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [17,22],
-  },
+  Gismu "távla",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"baŭ","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[7,10],"phonemes":"baĭ","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[11,13],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"tavla","kind":"gismu"}}}}}}}}}}}]}]}'

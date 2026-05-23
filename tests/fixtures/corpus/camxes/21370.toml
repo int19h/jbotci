@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa me [zo sínma])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
+  Cmavo "ŭa",
+  Cmavo "me",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sinma",
-      span: [9,14],
-    },
+    zo: Cmavo "zo",
+    Gismu "sínma",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,14],"phonemes":"sinma","kind":"gismu"}}}]'
@@ -48,30 +32,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [3,5],
-    },
+    me: Cmavo "me",
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sinma",
-        span: [9,14],
-      },
+      zo: Cmavo "zo",
+      Gismu "sínma",
     },
   },
 }"""

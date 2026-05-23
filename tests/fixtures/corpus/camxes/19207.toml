@@ -18,46 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mo re flexíble)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [2,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "flexible",
-    span: [5,13],
-  },
+  Cmavo "mo",
+  Cmavo "re",
+  Lujvo "flexíble",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"flexible","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [0,2],
-  },
+  Cmavo "mo",
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [2,4],
-        },
+        Cmavo "re",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "flexible",
-        span: [5,13],
-      },
+      relation: Lujvo "flexíble",
     },
   ],
 }"""

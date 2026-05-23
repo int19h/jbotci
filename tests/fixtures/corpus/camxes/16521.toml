@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o ni'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [4,8],
-  },
+  Cmavo "ni'o",
+  Cmavo "ni'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}}]"""
 
@@ -35,16 +27,8 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [4,8],
-    },
+    Cmavo "ni'o",
+    Cmavo "ni'o",
   ],
 }"""
 json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}}}]}]}"""

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li'a do du le jámna pínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinji",
-    span: [20,25],
-  },
+  Cmavo "li'a",
+  Cmavo "do",
+  Cmavo "du",
+  Cmavo "le",
+  Gismu "jámna",
+  Gismu "pínji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"li'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jamna","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"pinji","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "li'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "li'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [8,10],
-      },
+      Cmavo "du",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "jamna",
-              span: [14,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pinji",
-              span: [20,25],
-            },
+            Gismu "jámna",
+            Gismu "pínji",
           },
         },
       ],

@@ -18,133 +18,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pénsi le terfríca be le si'o nalgléki beĭ le si'o bádri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terfrica",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [24,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalgleki",
-    span: [29,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [38,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [45,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "badri",
-    span: [50,55],
-  },
+  Gismu "pénsi",
+  Cmavo "le",
+  Lujvo "terfríca",
+  Cmavo "be",
+  Cmavo "le",
+  Cmavo "si'o",
+  Lujvo "nalgléki",
+  Cmavo "beĭ",
+  Cmavo "le",
+  Cmavo "si'o",
+  Gismu "bádri",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"terfrica","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[29,37],"phonemes":"nalgleki","kind":"lujvo"}},{"Bare":{"span":[38,41],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[45,49],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"badri","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [0,5],
-  },
+  Gismu "pénsi",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "lujvo",
-          phonemes: "terfrica",
-          span: [9,17],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [18,20],
-        },
+        Lujvo "terfríca",
+        be: Cmavo "be",
         first_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "si'o",
-              span: [24,28],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "nalgleki",
-              span: [29,37],
-            },
+            nu: Cmavo "si'o",
+            Lujvo "nalgléki",
           },
         },
         bei_links: [
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [38,41],
-            },
+            bei: Cmavo "beĭ",
             argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [42,44],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "si'o",
-                  span: [45,49],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "badri",
-                  span: [50,55],
-                },
+                nu: Cmavo "si'o",
+                Gismu "bádri",
               },
             },
           },

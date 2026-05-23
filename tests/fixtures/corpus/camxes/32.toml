@@ -18,50 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu [{zo bu} zeĭ su] li'u cu múpli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
+  Cmavo "lu",
   ZeiLujvo {
     left: ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [19,21],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "bu",
-        span: [22,24],
-      },
+      zo: Cmavo "zo",
+      Cmavo "bu",
     },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [25,28],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "su",
-      span: [29,31],
-    },
+    zei: Cmavo "zeĭ",
+    Cmavo "su",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [40,45],
-  },
+  Cmavo "li'u",
+  Cmavo "cu",
+  Gismu "múpli",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,24],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[25,28],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[29,31],"phonemes":"su","kind":"cmavo"}}},{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"mupli","kind":"gismu"}}]"""
 
@@ -70,51 +38,19 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       ZeiLujvo {
         left: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [22,24],
-          },
+          zo: Cmavo "zo",
+          Cmavo "bu",
         },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [25,28],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "su",
-          span: [29,31],
-        },
+        zei: Cmavo "zeĭ",
+        Cmavo "su",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [32,36],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [40,45],
-  },
+  cu: Cmavo "cu",
+  Gismu "múpli",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,24],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[25,28],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[29,31],"phonemes":"su","kind":"cmavo"}}}}}}}}}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"mupli","kind":"gismu"}}}}}}}}}}}]}]}"""

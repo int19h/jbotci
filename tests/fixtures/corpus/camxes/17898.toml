@@ -18,93 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i se pi'o xa vo jetká'u xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jetka'u",
-    span: [15,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "xa",
+  Cmavo "vo",
+  Lujvo "jetká'u",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[15,22],"phonemes":"jetka'u","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"xu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [3,5],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "pi'o",
-            span: [5,9],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "pi'o",
         },
         Descriptor {
           tail_elements: [
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "xa",
-                span: [10,12],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "vo",
-                span: [12,14],
-              },
+              Cmavo "xa",
+              Cmavo "vo",
             },
           ],
           relation: WithIndicator {
-            Word {
-              kind: "lujvo",
-              phonemes: "jetka'u",
-              span: [15,22],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "xu",
-              span: [23,25],
-            },
+            Lujvo "jetká'u",
+            indicator: Cmavo "xu",
           },
         },
       },

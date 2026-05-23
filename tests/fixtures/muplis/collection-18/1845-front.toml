@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i fu'aŭ naĭ ti voĭ dácti na mútce da'i lo ka plíxaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu'aŭ",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dacti",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [42,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "plixaŭ",
-    span: [45,51],
-  },
+  Cmavo "i",
+  Cmavo "fu'aŭ",
+  Cmavo "naĭ",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "dácti",
+  Cmavo "na",
+  Gismu "mútce",
+  Cmavo "da'i",
+  Cmavo "lo",
+  Cmavo "ka",
+  Lujvo "plíxaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"fu'aŭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"dacti","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[45,51],"phonemes":"plixaŭ","kind":"lujvo"}}]"""
 
@@ -89,84 +41,36 @@ brackets = "([.i fu'aŭ naĭ] [{ti (voĭ dácti)} {(na [mútce da'i]) (lo [ka pl
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "fu'aŭ",
-      span: [2,7],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [8,11],
-    },
+    Cmavo "i",
+    indicator: Cmavo "fu'aŭ",
+    nai: Cmavo "naĭ",
   },
   Predicate {
     leading_terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [12,14],
-        },
+        base_argument: Cmavo "ti",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "voĭ",
-              span: [15,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "dacti",
-              span: [19,24],
-            },
+            noi: Cmavo "voĭ",
+            Gismu "dácti",
           },
         ],
       },
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [25,27],
-        },
+        na: Cmavo "na",
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "mutce",
-            span: [28,33],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "da'i",
-            span: [34,38],
-          },
+          Gismu "mútce",
+          indicator: Cmavo "da'i",
         },
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [39,41],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [42,44],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "plixaŭ",
-              span: [45,51],
-            },
+            nu: Cmavo "ka",
+            Lujvo "plíxaŭ",
           },
         },
       ],

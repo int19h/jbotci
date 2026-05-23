@@ -18,92 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i pu xámgu sípna xu doĭ pórpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "pu",
+  Gismu "xámgu",
+  Gismu "sípna",
+  Cmavo "xu",
+  Cmavo "doĭ",
+  Gismu "pórpi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"porpi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [3,5],
-    },
+    tense_modal: Cmavo "pu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [6,11],
-      },
+      Gismu "xámgu",
       Word {
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "sipna",
-            span: [12,17],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [18,20],
-          },
+          Gismu "sípna",
+          indicator: Cmavo "xu",
         },
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "doĭ",
-                span: [21,24],
-              },
+              Cmavo "doĭ",
             ],
             argument: RelationVocative {
-              relation: Word {
-                kind: "gismu",
-                phonemes: "porpi",
-                span: [25,30],
-              },
+              relation: Gismu "pórpi",
             },
           },
         ],

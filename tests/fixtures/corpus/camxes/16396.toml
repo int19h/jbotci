@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'o ko fánva [zo zerjbéra] le glíco)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [7,12],
-  },
+  Cmavo "e'o",
+  Cmavo "ko",
+  Gismu "fánva",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [13,15],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "zerjbera",
-      span: [16,24],
-    },
+    zo: Cmavo "zo",
+    Lujvo "zerjbéra",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [28,33],
-  },
+  Cmavo "le",
+  Gismu "glíco",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"fanva","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[13,15],"phonemes":"zo","kind":"cmavo"},"word":{"span":[16,24],"phonemes":"zerjbera","kind":"lujvo"}}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"glico","kind":"gismu"}}]"""
 
@@ -63,51 +35,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "e'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [4,6],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [7,12],
-      },
+      Gismu "fánva",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [13,15],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "zerjbera",
-            span: [16,24],
-          },
+          zo: Cmavo "zo",
+          Lujvo "zerjbéra",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [25,27],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "glico",
-            span: [28,33],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "glíco",
         },
       ],
     },

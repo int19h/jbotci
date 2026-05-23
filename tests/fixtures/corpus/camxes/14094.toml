@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ sy jy zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jy",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [10,15],
-  },
+  Cmavo "doĭ",
+  Cmavo "sy",
+  Cmavo "jy",
+  Gismu "zdáni",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"jy","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"zdani","kind":"gismu"}}]'
 
@@ -47,32 +31,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "sy",
-            span: [4,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "jy",
-            span: [6,8],
-          },
+          Cmavo "sy",
+          Cmavo "jy",
         ],
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [10,15],
-  },
+  Gismu "zdáni",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"sy","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"jy","kind":"cmavo"}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"zdani","kind":"gismu"}}}}}}}}}}}]}]}'

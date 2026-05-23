@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma'a clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [5,10],
-  },
+  Cmavo "ma'a",
+  Gismu "clíva",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cliva","kind":"gismu"}}]"""
 
@@ -39,16 +31,8 @@ brackets = "(ma'a clíva)"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma'a",
-      span: [0,4],
-    },
+    Cmavo "ma'a",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [5,10],
-  },
+  Gismu "clíva",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cliva","kind":"gismu"}}}}}}}}}}}]}]}"""

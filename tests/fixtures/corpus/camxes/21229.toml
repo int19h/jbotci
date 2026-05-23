@@ -18,42 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .robin. mi na djísku [zo ju'i])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [16,22],
-  },
+  Cmavo "doĭ",
+  Cmevla "robin",
+  Cmavo "mi",
+  Cmavo "na",
+  Lujvo "djísku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [23,25],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ju'i",
-      span: [26,30],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ju'i",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[23,25],"phonemes":"zo","kind":"cmavo"},"word":{"span":[26,30],"phonemes":"ju'i","kind":"cmavo"}}}]"""
@@ -64,52 +36,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "robin",
-        span: [4,9],
-      },
+      argument: Cmevla "robin",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [10,12],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [13,15],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "djisku",
-          span: [16,22],
-        },
+        na: Cmavo "na",
+        Lujvo "djísku",
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [23,25],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ju'i",
-            span: [26,30],
-          },
+          zo: Cmavo "zo",
+          Cmavo "ju'i",
         },
       ],
     },

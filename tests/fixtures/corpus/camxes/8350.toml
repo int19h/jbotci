@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da ro de zo'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "ro",
+  Cmavo "de",
+  Cmavo "zo'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"zo'u","kind":"cmavo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Prenex {
   terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [7,9],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "de",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
+  zohu: Cmavo "zo'u",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Prenex":{"terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}}}}}}},{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"de","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[10,14],"phonemes":"zo'u","kind":"cmavo"}}}}}}}]}]}"""

@@ -24,21 +24,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti blánu zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [9,14],
-  },
+  Cmavo "ti",
+  Gismu "blánu",
+  Gismu "zdáni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"zdani","kind":"gismu"}}]'
 
@@ -47,23 +35,11 @@ brackets = "(ti [blánu zdáni])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "blanu",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "zdani",
-      span: [9,14],
-    },
+    Gismu "blánu",
+    Gismu "zdáni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"zdani","kind":"gismu"}}}}]}}}}}}}}]}]}'

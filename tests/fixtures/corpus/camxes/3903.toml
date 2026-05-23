@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e naĭ .i ma cúsku ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [20,22],
-  },
+  Cmavo "je'e",
+  Cmavo "naĭ",
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "cúsku",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "je'e",
+        Cmavo "naĭ",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [11,13],
-        },
+        Cmavo "ma",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [14,19],
-        },
+        Gismu "cúsku",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [20,22],
-          },
+          Cmavo "ri",
         ],
       },
     },

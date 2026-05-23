@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no roĭ pu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [5,7],
-  },
+  Cmavo "no",
+  Cmavo "roĭ",
+  Cmavo "pu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}}]'
 
@@ -42,25 +30,13 @@ Term {
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [2,5],
-        },
+        Cmavo "no",
+        Cmavo "roĭ",
       },
       Zohe {},
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [5,7],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {},
     },
   ],

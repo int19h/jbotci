@@ -18,64 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi saĭ [la'o gy http://www.devilwhiskey.com/main.html gy] cu pónse le za'e múpli samrú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
+  Cmavo "ŭi",
+  Cmavo "saĭ",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [7,11],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [12,14],
-    },
-    quoted_text: [14,52],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [53,55],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "http://www.devilwhiskey.com/main.html",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [56,58],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [59,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [65,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'e",
-    span: [68,72],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [73,78],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samru'e",
-    span: [79,86],
-  },
+  Cmavo "cu",
+  Gismu "pónse",
+  Cmavo "le",
+  Cmavo "za'e",
+  Gismu "múpli",
+  Lujvo "samrú'e",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[7,11],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[12,14],"phonemes":"gy","kind":"cmavo"},"quoted_text":[14,52],"closing_delimiter":{"span":[53,55],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[56,58],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[59,64],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[65,67],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[68,72],"phonemes":"za'e","kind":"cmavo"}},{"Bare":{"span":[73,78],"phonemes":"mupli","kind":"gismu"}},{"Bare":{"span":[79,86],"phonemes":"samru'e","kind":"lujvo"}}]"""
 
@@ -85,76 +41,32 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [7,11],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [12,14],
-        },
-        quoted_text: [14,52],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [53,55],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "http://www.devilwhiskey.com/main.html",
+        closing_delimiter: Cmavo "gy",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [56,58],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "ponse",
-        span: [59,64],
-      },
+      Gismu "pónse",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [65,67],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Emphasized {
-              bahe: Word {
-                kind: "cmavo",
-                phonemes: "za'e",
-                span: [68,72],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "mupli",
-                span: [73,78],
-              },
+              bahe: Cmavo "za'e",
+              Gismu "múpli",
             },
-            Word {
-              kind: "lujvo",
-              phonemes: "samru'e",
-              span: [79,86],
-            },
+            Lujvo "samrú'e",
           },
         },
       ],

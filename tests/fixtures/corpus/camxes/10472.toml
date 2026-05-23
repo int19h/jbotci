@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ lu rálcku sélgre li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ralcku",
-    span: [7,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selgre",
-    span: [14,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [21,25],
-  },
+  Cmavo "oĭ",
+  Cmavo "lu",
+  Lujvo "rálcku",
+  Lujvo "sélgre",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"ralcku","kind":"lujvo"}},{"Bare":{"span":[14,20],"phonemes":"selgre","kind":"lujvo"}},{"Bare":{"span":[21,25],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Term {
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [4,6],
-        },
+        lu: Cmavo "lu",
         Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "ralcku",
-            span: [7,13],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "selgre",
-            span: [14,20],
-          },
+          Lujvo "rálcku",
+          Lujvo "sélgre",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [21,25],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

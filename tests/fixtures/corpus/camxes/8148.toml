@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ tsáli do cásnu ba'e ma .ŭa naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [30,33],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "do",
+  Gismu "cásnu",
+  Cmavo "ba'e",
+  Cmavo "ma",
+  Cmavo "ŭa",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -67,59 +35,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [4,9],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "casnu",
-        span: [13,18],
-      },
+      Gismu "cásnu",
       terms: [
         WithIndicator {
           Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [19,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [24,26],
-            },
+            bahe: Cmavo "ba'e",
+            Cmavo "ma",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭa",
-            span: [28,30],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [30,33],
-          },
+          indicator: Cmavo "ŭa",
+          nai: Cmavo "naĭ",
         },
       ],
     },

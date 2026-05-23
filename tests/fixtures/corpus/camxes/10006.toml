@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do mábla fénki doĭ fénki gúmri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gumri",
-    span: [28,33],
-  },
+  Cmavo "do",
+  Gismu "mábla",
+  Gismu "fénki",
+  Cmavo "doĭ",
+  Gismu "fénki",
+  Gismu "gúmri",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"gumri","kind":"gismu"}}]'
 
@@ -55,45 +31,21 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [3,5],
-    },
+    Cmavo "do",
   ],
   Compound {
+    Gismu "mábla",
     Word {
-      kind: "gismu",
-      phonemes: "mabla",
-      span: [6,11],
-    },
-    Word {
-      Word {
-        kind: "gismu",
-        phonemes: "fenki",
-        span: [12,17],
-      },
+      Gismu "fénki",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [18,21],
-            },
+            Cmavo "doĭ",
           ],
           argument: RelationVocative {
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "fenki",
-                span: [22,27],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gumri",
-                span: [28,33],
-              },
+              Gismu "fénki",
+              Gismu "gúmri",
             },
           },
         },

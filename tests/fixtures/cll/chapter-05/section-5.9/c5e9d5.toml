@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi jímpe tu'a loĭ nu'a su'i nábmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [28,33],
-  },
+  Cmavo "mi",
+  Gismu "jímpe",
+  Cmavo "tu'a",
+  Cmavo "loĭ",
+  Cmavo "nu'a",
+  Cmavo "su'i",
+  Gismu "nábmi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"nu'a","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"nabmi","kind":"gismu"}}]"""
 
@@ -67,49 +39,21 @@ brackets = "(mi [jímpe {tu'a (loĭ [{nu'a su'i} nábmi])}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jimpe",
-      span: [3,8],
-    },
+    Gismu "jímpe",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [9,13],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [14,17],
-          },
+          descriptor: Cmavo "loĭ",
           relation: Compound {
             Nuha {
-              nuha: Word {
-                kind: "cmavo",
-                phonemes: "nu'a",
-                span: [18,22],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "su'i",
-                span: [23,27],
-              },
+              nuha: Cmavo "nu'a",
+              Cmavo "su'i",
             },
-            Word {
-              kind: "gismu",
-              phonemes: "nabmi",
-              span: [28,33],
-            },
+            Gismu "nábmi",
           },
         },
       },

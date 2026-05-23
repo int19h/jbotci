@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le du'u kélci la .lojban. cu níbli le du'u stíka la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nibli",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [36,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stika",
-    span: [41,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [50,56],
-  },
+  Cmavo "le",
+  Cmavo "du'u",
+  Gismu "kélci",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "cu",
+  Gismu "níbli",
+  Cmavo "le",
+  Cmavo "du'u",
+  Gismu "stíka",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"nibli","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"stika","kind":"gismu"}},{"Bare":{"span":[47,49],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[50,56],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -86,36 +38,16 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "du'u",
-          span: [3,7],
-        },
+        nu: Cmavo "du'u",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "kelci",
-            span: [8,13],
-          },
+          Gismu "kélci",
           terms: [
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [14,16],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "lojban",
-                  span: [17,23],
-                },
+                Cmevla "lojban",
               ],
             },
           ],
@@ -123,49 +55,21 @@ Predicate {
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nibli",
-      span: [27,32],
-    },
+    Gismu "níbli",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [33,35],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [36,40],
-          },
+          nu: Cmavo "du'u",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "stika",
-              span: [41,46],
-            },
+            Gismu "stíka",
             terms: [
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [47,49],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "lojban",
-                    span: [50,56],
-                  },
+                  Cmevla "lojban",
                 ],
               },
             ],

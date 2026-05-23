@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to pi so'u le cákla kágni toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cakla",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [25,28],
-  },
+  Cmavo "to",
+  Cmavo "pi",
+  Cmavo "so'u",
+  Cmavo "le",
+  Gismu "cákla",
+  Gismu "kágni",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cakla","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"kagni","kind":"gismu"}},{"Bare":{"span":[25,28],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [10,12],
-            },
+            descriptor: Cmavo "le",
             outer_quantifier: Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "pi",
-                span: [3,5],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "so'u",
-                span: [5,9],
-              },
+              Cmavo "pi",
+              Cmavo "so'u",
             },
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "cakla",
-                span: [13,18],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "kagni",
-                span: [19,24],
-              },
+              Gismu "cákla",
+              Gismu "kágni",
             },
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [25,28],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

@@ -18,39 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭe [zoĭ gy fracturer gy] cu smúni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [1,3],
-  },
+  Cmavo "ĭe",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [4,7],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [8,10],
-    },
-    quoted_text: [12,21],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [23,25],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "fracturer",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [30,35],
-  },
+  Cmavo "cu",
+  Gismu "smúni",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"gy","kind":"cmavo"},"quoted_text":[12,21],"closing_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"smuni","kind":"gismu"}}]'
 
@@ -59,44 +35,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ĭe",
     },
   ],
   Predicate {
     leading_terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [4,7],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [8,10],
-        },
-        quoted_text: [12,21],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [23,25],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "fracturer",
+        closing_delimiter: Cmavo "gy",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [27,29],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [30,35],
-    },
+    cu: Cmavo "cu",
+    Gismu "smúni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"gy","kind":"cmavo"},"quoted_text":[12,21],"closing_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[30,35],"phonemes":"smuni","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}}}}]}'

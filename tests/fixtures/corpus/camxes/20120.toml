@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ko ko ctúca fo la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctuca",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [21,27],
-  },
+  Cmavo "ko",
+  Cmavo "ko",
+  Gismu "ctúca",
+  Cmavo "fo",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"ctuca","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"lojban","kind":"cmevla"}}]'
 
@@ -56,42 +32,18 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [6,8],
-    },
+    Cmavo "ko",
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ctuca",
-      span: [9,14],
-    },
+    Gismu "ctúca",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [15,17],
-        },
+        fa: Cmavo "fo",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [21,27],
-            },
+            Cmevla "lojban",
           ],
         },
       },

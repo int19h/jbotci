@@ -18,54 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko pénsi me'o [dépsna bu] .e me'o [ba'e bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [9,13],
-  },
+  Cmavo "ko",
+  Gismu "pénsi",
+  Cmavo "me'o",
   Letter {
-    Word {
-      kind: "lujvo",
-      phonemes: "depsna",
-      span: [14,20],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [21,23],
-    },
+    Lujvo "dépsna",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [27,31],
-  },
+  Cmavo "e",
+  Cmavo "me'o",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "ba'e",
-      span: [32,36],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [37,39],
-    },
+    Cmavo "ba'e",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[14,20],"phonemes":"depsna","kind":"lujvo"}},"bu":{"span":[21,23],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[25,26],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[32,36],"phonemes":"ba'e","kind":"cmavo"}},"bu":{"span":[37,39],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -74,61 +38,25 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pensi",
-      span: [3,8],
-    },
+    Gismu "pénsi",
     terms: [
       Connected {
         leading_argument: MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "me'o",
-            span: [9,13],
-          },
+          li: Cmavo "me'o",
           Letter {
-            Word {
-              kind: "lujvo",
-              phonemes: "depsna",
-              span: [14,20],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [21,23],
-            },
+            Lujvo "dépsna",
+            bu: Cmavo "bu",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [25,26],
-        },
+        connective: Cmavo "e",
         trailing_argument: MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "me'o",
-            span: [27,31],
-          },
+          li: Cmavo "me'o",
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [32,36],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [37,39],
-            },
+            Cmavo "ba'e",
+            bu: Cmavo "bu",
           },
         },
       },

@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.s. .i ri)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "s",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [3,5],
-  },
+  Cmevla "s",
+  Cmavo "i",
+  Cmavo "ri",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":[2,3],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ri","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "s",
-      span: [0,1],
-    },
+    Cmevla "s",
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [2,3],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ri",
-          span: [3,5],
-        },
+        Cmavo "ri",
       ],
     },
   },

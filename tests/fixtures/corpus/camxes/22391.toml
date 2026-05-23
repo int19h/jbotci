@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i peĭ .eĭ mi co'a fínti le mi págbu be le me by py fy ky moĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [52,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [55,58],
-  },
+  Cmavo "pe'i",
+  Cmavo "peĭ",
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Cmavo "co'a",
+  Gismu "fínti",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "págbu",
+  Cmavo "be",
+  Cmavo "le",
+  Cmavo "me",
+  Cmavo "by",
+  Cmavo "py",
+  Cmavo "fy",
+  Cmavo "ky",
+  Cmavo "moĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[55,58],"phonemes":"moĭ","kind":"cmavo"}}]"""
 
@@ -113,112 +45,44 @@ Text {
     Indicator {
       indicator: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "pe'i",
-            span: [0,4],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "peĭ",
-            span: [4,7],
-          },
+          Cmavo "pe'i",
+          indicator: Cmavo "peĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [8,10],
-        },
+        indicator: Cmavo "eĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [11,13],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "co'a",
-          span: [14,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "finti",
-          span: [19,24],
-        },
+        tense_modal: Cmavo "co'a",
+        Gismu "fínti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [25,27],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [28,30],
-            },
+            Cmavo "mi",
           ],
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "pagbu",
-              span: [31,36],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [37,39],
-            },
+            Gismu "págbu",
+            be: Cmavo "be",
             first_argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [40,42],
-              },
+              descriptor: Cmavo "le",
               relation: Me {
-                me: Word {
-                  kind: "cmavo",
-                  phonemes: "me",
-                  span: [43,45],
-                },
+                me: Cmavo "me",
                 Letter {
                   letter: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "by",
-                      span: [46,48],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "py",
-                      span: [48,50],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "fy",
-                      span: [50,52],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ky",
-                      span: [52,54],
-                    },
+                    Cmavo "by",
+                    Cmavo "py",
+                    Cmavo "fy",
+                    Cmavo "ky",
                   ],
                 },
-                moi_marker: Word {
-                  kind: "cmavo",
-                  phonemes: "moĭ",
-                  span: [55,58],
-                },
+                moi_marker: Cmavo "moĭ",
               },
             },
           },

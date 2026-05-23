@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'o ru'e ri mápti lo tádni be le'a lo ba'o ba'o tádni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'a",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [38,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [43,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [48,53],
-  },
+  Cmavo "ju'o",
+  Cmavo "ru'e",
+  Cmavo "ri",
+  Gismu "mápti",
+  Cmavo "lo",
+  Gismu "tádni",
+  Cmavo "be",
+  Cmavo "le'a",
+  Cmavo "lo",
+  Cmavo "ba'o",
+  Cmavo "ba'o",
+  Gismu "tádni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mapti","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"le'a","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[43,47],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"tadni","kind":"gismu"}}]"""
 
@@ -87,83 +39,35 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [4,8],
-        },
+        Cmavo "ju'o",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ri",
-        span: [9,11],
-      },
+      Cmavo "ri",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mapti",
-        span: [12,17],
-      },
+      Gismu "mápti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [18,20],
-          },
+          descriptor: Cmavo "lo",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "tadni",
-              span: [21,26],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [27,29],
-            },
+            Gismu "tádni",
+            be: Cmavo "be",
             first_argument: Tagged {
               tag: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "le'a",
-                  span: [30,34],
-                },
+                bai: Cmavo "le'a",
               },
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo",
-                  span: [35,37],
-                },
+                descriptor: Cmavo "lo",
                 relation: TenseModal {
                   tense_modal: Composite {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ba'o",
-                      span: [38,42],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ba'o",
-                      span: [43,47],
-                    },
+                    Cmavo "ba'o",
+                    Cmavo "ba'o",
                   },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "tadni",
-                    span: [48,53],
-                  },
+                  Gismu "tádni",
                 },
               },
             },

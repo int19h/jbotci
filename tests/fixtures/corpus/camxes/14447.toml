@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma se cúsku baŭ gy .eĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [21,23],
-  },
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "cúsku",
+  Cmavo "baŭ",
+  Cmavo "gy",
+  Cmavo "eĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"gy","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"eĭ","kind":"cmavo"}}]'
 
@@ -55,47 +31,23 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "cúsku",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [12,15],
-          },
+          bai: Cmavo "baŭ",
         },
         Letter {
           letter: [
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [16,18],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "eĭ",
-                span: [21,23],
-              },
+              Cmavo "gy",
+              indicator: Cmavo "eĭ",
             },
           ],
         },

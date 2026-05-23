@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa de voĭ djédi li ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [20,21],
-  },
+  Cmavo "pa",
+  Cmavo "de",
+  Cmavo "voĭ",
+  Gismu "djédi",
+  Cmavo "li",
+  Cmavo "ci",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[20,21],"phonemes":"ci","kind":"cmavo"}}]'
 
@@ -57,42 +33,18 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [1,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [4,6],
-        },
+        quantifier: Cmavo "pa",
+        Cmavo "de",
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "voĭ",
-            span: [7,10],
-          },
+          noi: Cmavo "voĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "djedi",
-              span: [11,16],
-            },
+            Gismu "djédi",
             terms: [
               MathExpression {
-                li: Word {
-                  kind: "cmavo",
-                  phonemes: "li",
-                  span: [17,19],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ci",
-                  span: [20,21],
-                },
+                li: Cmavo "li",
+                Cmavo "ci",
               },
             ],
           },

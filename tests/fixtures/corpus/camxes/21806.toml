@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .camgusmis. .i .ŭu skámi zékri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "camgusmis",
-    span: [4,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zekri",
-    span: [27,32],
-  },
+  Cmavo "coĭ",
+  Cmevla "camgusmis",
+  Cmavo "i",
+  Cmavo "ŭu",
+  Gismu "skámi",
+  Gismu "zékri",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,13],"phonemes":"camgusmis","kind":"cmevla"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"zekri","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "camgusmis",
-        span: [4,13],
-      },
+      argument: Cmevla "camgusmis",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [15,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭu",
-        span: [18,20],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ŭu",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "skami",
-        span: [21,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zekri",
-        span: [27,32],
-      },
+      Gismu "skámi",
+      Gismu "zékri",
     },
   },
 }"""

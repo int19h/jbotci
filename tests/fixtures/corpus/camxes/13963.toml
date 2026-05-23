@@ -18,86 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .eĭmis. xu do kríci le du'u le rémna cu bínxo .eĭ co símsa la .jegvon.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "eĭmis",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [51,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [54,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [60,62],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jegvon",
-    span: [63,69],
-  },
+  Cmavo "doĭ",
+  Cmevla "eĭmis",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "kríci",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "le",
+  Gismu "rémna",
+  Cmavo "cu",
+  Gismu "bínxo",
+  Cmavo "eĭ",
+  Cmavo "co",
+  Gismu "símsa",
+  Cmavo "la",
+  Cmevla "jegvon",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"eĭmis","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[54,59],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[60,62],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[63,69],"phonemes":"jegvon","kind":"cmevla"}}]"""
 
@@ -107,111 +43,47 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "eĭmis",
-          span: [4,9],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [10,12],
-        },
+        Cmevla "eĭmis",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [13,15],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "krici",
-        span: [16,21],
-      },
+      Gismu "kríci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "du'u",
-              span: [25,29],
-            },
+            nu: Cmavo "du'u",
             Predicate {
               leading_terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [30,32],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "remna",
-                    span: [33,38],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Gismu "rémna",
                 },
               ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [39,41],
-              },
+              cu: Cmavo "cu",
               Relation {
                 Co {
                   leading_relation: WithIndicator {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "binxo",
-                      span: [42,47],
-                    },
-                    indicator: Word {
-                      kind: "cmavo",
-                      phonemes: "eĭ",
-                      span: [48,50],
-                    },
+                    Gismu "bínxo",
+                    indicator: Cmavo "eĭ",
                   },
-                  co: Word {
-                    kind: "cmavo",
-                    phonemes: "co",
-                    span: [51,53],
-                  },
-                  trailing_relation: Word {
-                    kind: "gismu",
-                    phonemes: "simsa",
-                    span: [54,59],
-                  },
+                  co: Cmavo "co",
+                  trailing_relation: Gismu "símsa",
                 },
                 terms: [
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [60,62],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "jegvon",
-                        span: [63,69],
-                      },
+                      Cmevla "jegvon",
                     ],
                   },
                 ],

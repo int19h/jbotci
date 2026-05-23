@@ -18,32 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu vímcu [zo cu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vimcu",
-    span: [5,10],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "vímcu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    zo: Cmavo "zo",
+    Cmavo "cu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"vimcu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}}}]'
@@ -53,35 +33,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [2,4],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "vimcu",
-            span: [5,10],
-          },
+          Gismu "vímcu",
           terms: [
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [11,13],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [14,16],
-              },
+              zo: Cmavo "zo",
+              Cmavo "cu",
             },
           ],
         },

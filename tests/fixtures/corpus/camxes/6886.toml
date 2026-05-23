@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ki'a me la py dy fy dátni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [23,28],
-  },
+  Cmavo "le",
+  Cmavo "ki'a",
+  Cmavo "me",
+  Cmavo "la",
+  Cmavo "py",
+  Cmavo "dy",
+  Cmavo "fy",
+  Gismu "dátni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"datni","kind":"gismu"}}]"""
 
@@ -67,55 +35,23 @@ Term {
   terms: [
     Descriptor {
       descriptor: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ki'a",
-          span: [3,7],
-        },
+        Cmavo "le",
+        indicator: Cmavo "ki'a",
       },
       relation: Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [8,10],
-        },
+        me: Cmavo "me",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [11,13],
-          },
+          descriptor: Cmavo "la",
           tail_elements: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "py",
-                  span: [14,16],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "dy",
-                  span: [17,19],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "fy",
-                  span: [20,22],
-                },
+                Cmavo "py",
+                Cmavo "dy",
+                Cmavo "fy",
               ],
             },
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "datni",
-            span: [23,28],
-          },
+          relation: Gismu "dátni",
         },
       },
     },

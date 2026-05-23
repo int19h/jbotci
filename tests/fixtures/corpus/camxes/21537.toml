@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ti'e cílce tcíma ne'i le fasygú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilce",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcima",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fasygu'e",
-    span: [25,33],
-  },
+  Cmavo "ti'e",
+  Gismu "cílce",
+  Gismu "tcíma",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Lujvo "fasygú'e",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ti'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cilce","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"tcima","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,33],"phonemes":"fasygu'e","kind":"lujvo"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ti'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "ti'e",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cilce",
-        span: [5,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcima",
-        span: [11,16],
-      },
+      Gismu "cílce",
+      Gismu "tcíma",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ne'i",
-          span: [17,21],
-        },
+        tense_modal: Cmavo "ne'i",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "fasygu'e",
-            span: [25,33],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "fasygú'e",
         },
       },
     ],

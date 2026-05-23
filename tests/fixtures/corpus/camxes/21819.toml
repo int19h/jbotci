@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so .i ko narbá'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "narba'u",
-    span: [12,19],
-  },
+  Cmavo "so",
+  Cmavo "i",
+  Cmavo "ko",
+  Lujvo "narbá'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[12,19],"phonemes":"narba'u","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
+  Cmavo "so",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [9,11],
-        },
+        Cmavo "ko",
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "narba'u",
-        span: [12,19],
-      },
+      Lujvo "narbá'u",
     },
   },
 }"""

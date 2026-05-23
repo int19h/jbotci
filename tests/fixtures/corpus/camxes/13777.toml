@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'i ma do mérli le ka xámgu fa le sólri díkca cábra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merli",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "solri",
-    span: [35,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dikca",
-    span: [41,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cabra",
-    span: [47,52],
-  },
+  Cmavo "ta'i",
+  Cmavo "ma",
+  Cmavo "do",
+  Gismu "mérli",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "xámgu",
+  Cmavo "fa",
+  Cmavo "le",
+  Gismu "sólri",
+  Gismu "díkca",
+  Gismu "cábra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"merli","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"solri","kind":"gismu"}},{"Bare":{"span":[41,46],"phonemes":"dikca","kind":"gismu"}},{"Bare":{"span":[47,52],"phonemes":"cabra","kind":"gismu"}}]"""
 
@@ -87,78 +39,30 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ta'i",
-          span: [0,4],
-        },
+        bai: Cmavo "ta'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "merli",
-      span: [11,16],
-    },
+    Gismu "mérli",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [20,22],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "xamgu",
-              span: [23,28],
-            },
+            Gismu "xámgu",
             terms: [
               Fa {
-                fa: Word {
-                  kind: "cmavo",
-                  phonemes: "fa",
-                  span: [29,31],
-                },
+                fa: Cmavo "fa",
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [32,34],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "solri",
-                      span: [35,40],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "dikca",
-                      span: [41,46],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "cabra",
-                      span: [47,52],
-                    },
+                    Gismu "sólri",
+                    Gismu "díkca",
+                    Gismu "cábra",
                   },
                 },
               },

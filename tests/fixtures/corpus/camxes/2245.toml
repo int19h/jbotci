@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(to le júkpa le cífnu cu kánsa toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jukpa",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cifnu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kansa",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [32,35],
-  },
+  Cmavo "to",
+  Cmavo "le",
+  Gismu "júkpa",
+  Cmavo "le",
+  Gismu "cífnu",
+  Cmavo "cu",
+  Gismu "kánsa",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jukpa","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cifnu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[32,35],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -67,54 +35,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [2,4],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [5,7],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "jukpa",
-              span: [8,13],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "júkpa",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [14,16],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "cifnu",
-              span: [17,22],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "cífnu",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [23,25],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kansa",
-          span: [26,31],
-        },
+        cu: Cmavo "cu",
+        Gismu "kánsa",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [32,35],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

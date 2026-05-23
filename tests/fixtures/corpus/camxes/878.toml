@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .teris. sátre le mlátu gi'e sátre le ráctu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "teris",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satre",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ractu",
-    span: [39,44],
-  },
+  Cmavo "la",
+  Cmevla "teris",
+  Gismu "sátre",
+  Cmavo "le",
+  Gismu "mlátu",
+  Cmavo "gi'e",
+  Gismu "sátre",
+  Cmavo "le",
+  Gismu "ráctu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"teris","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"satre","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"satre","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"ractu","kind":"gismu"}}]"""
 
@@ -71,67 +35,31 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "teris",
-          span: [3,8],
-        },
+        Cmevla "teris",
       ],
     },
   ],
   PredicateTail1 {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "satre",
-        span: [10,15],
-      },
+      Gismu "sátre",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mlatu",
-            span: [19,24],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "mlátu",
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [25,29],
-        },
+        connective: Cmavo "gi'e",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "satre",
-            span: [30,35],
-          },
+          Gismu "sátre",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [36,38],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "ractu",
-                span: [39,44],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "ráctu",
             },
           ],
         },

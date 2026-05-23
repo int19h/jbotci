@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a do távla .i .oĭ be'u za'e sípna .i .e'o ko na távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [39,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [49,54],
-  },
+  Cmavo "za'a",
+  Cmavo "do",
+  Gismu "távla",
+  Cmavo "i",
+  Cmavo "oĭ",
+  Cmavo "be'u",
+  Cmavo "za'e",
+  Gismu "sípna",
+  Cmavo "i",
+  Cmavo "e'o",
+  Cmavo "ko",
+  Cmavo "na",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"be'u","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"za'e","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[37,38],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -91,93 +39,41 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [5,7],
-        },
+        Cmavo "do",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [8,13],
-      },
+      Gismu "távla",
     },
     ParagraphStatement {
       i: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [15,16],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "oĭ",
-            span: [17,19],
-          },
+          Cmavo "i",
+          indicator: Cmavo "oĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "be'u",
-          span: [20,24],
-        },
+        indicator: Cmavo "be'u",
       },
       Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "za'e",
-          span: [25,29],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sipna",
-          span: [30,35],
-        },
+        bahe: Cmavo "za'e",
+        Gismu "sípna",
       },
     },
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [37,38],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "e'o",
-          span: [39,42],
-        },
+        Cmavo "i",
+        indicator: Cmavo "e'o",
       },
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko",
-            span: [43,45],
-          },
+          Cmavo "ko",
         ],
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [46,48],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [49,54],
-          },
+          na: Cmavo "na",
+          Gismu "távla",
         },
       },
     },

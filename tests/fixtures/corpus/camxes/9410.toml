@@ -18,33 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca tinjú'i [zoĭ zoĭ magma zoĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tinju'i",
-    span: [3,10],
-  },
+  Cmavo "ca",
+  Lujvo "tinjú'i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [11,14],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [15,18],
-    },
-    quoted_text: [20,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [27,30],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "magma",
+    closing_delimiter: Cmavo "zoĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"tinju'i","kind":"lujvo"}},{"ZoiQuote":{"zoi":{"span":[11,14],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[15,18],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[20,25],"closing_delimiter":{"span":[27,30],"phonemes":"zoĭ","kind":"cmavo"}}}]"""
@@ -53,35 +33,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "tinju'i",
-      span: [3,10],
-    },
+    tense_modal: Cmavo "ca",
+    Lujvo "tinjú'i",
   },
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [11,14],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [15,18],
-      },
-      quoted_text: [20,25],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [27,30],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "magma",
+      closing_delimiter: Cmavo "zoĭ",
     },
   ],
 }"""

@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i na ja bo mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [8,10],
-  },
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "ja",
+  Cmavo "bo",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,3],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mo","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [1,3],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [5,7],
-    },
+    na: Cmavo "na",
+    Cmavo "ja",
+    Cmavo "bo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [8,10],
-  },
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"na":{"Bare":{"Bare":{"span":[1,3],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ja","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,7],"phonemes":"bo","kind":"cmavo"}}}]}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,10],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

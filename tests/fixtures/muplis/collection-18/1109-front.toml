@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o la .bab. .e la .noras.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bab",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "noras",
-    span: [21,26],
-  },
+  Cmavo "co'o",
+  Cmavo "la",
+  Cmevla "bab",
+  Cmavo "e",
+  Cmavo "la",
+  Cmevla "noras",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"bab","kind":"cmevla"}},{"Bare":{"span":[15,16],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"noras","kind":"cmevla"}}]"""
 
@@ -61,44 +37,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: Connected {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [5,7],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "bab",
-              span: [9,12],
-            },
+            Cmevla "bab",
           ],
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [15,16],
-        },
+        connective: Cmavo "e",
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "noras",
-              span: [21,26],
-            },
+            Cmevla "noras",
           ],
         },
       },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ni cmálu cílre la .oz.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "oz",
-    span: [21,23],
-  },
+  Cmavo "mi",
+  Cmavo "ni",
+  Gismu "cmálu",
+  Gismu "cílre",
+  Cmavo "la",
+  Cmevla "oz",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"oz","kind":"cmevla"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "ni",
-      span: [3,5],
-    },
+    nu: Cmavo "ni",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cmalu",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cilre",
-          span: [12,17],
-        },
+        Gismu "cmálu",
+        Gismu "cílre",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "oz",
-              span: [21,23],
-            },
+            Cmevla "oz",
           ],
         },
       ],

@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i su'o da zo'u mi djíca le nu mi sánga da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [40,42],
-  },
+  Cmavo "i",
+  Cmavo "su'o",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "sánga",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"sanga","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -83,78 +39,34 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{su'o da} zo'u {mi (djíca [le {nu (mi [sánga da])}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Prenex {
     prenex_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [8,10],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "da",
       },
     ],
-    zohu: Word {
-      kind: "cmavo",
-      phonemes: "zo'u",
-      span: [11,15],
-    },
+    zohu: Cmavo "zo'u",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [16,18],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [19,24],
-        },
+        Gismu "djíca",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [25,27],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [28,30],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [31,33],
-                  },
+                  Cmavo "mi",
                 ],
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "sanga",
-                    span: [34,39],
-                  },
+                  Gismu "sánga",
                   terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "da",
-                      span: [40,42],
-                    },
+                    Cmavo "da",
                   ],
                 },
               },

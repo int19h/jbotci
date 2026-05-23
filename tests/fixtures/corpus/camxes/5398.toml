@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pi'o cúsku le mi seljínvi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seljinvi",
-    span: [20,28],
-  },
+  Cmavo "mi",
+  Cmavo "pi'o",
+  Gismu "cúsku",
+  Cmavo "le",
+  Cmavo "mi",
+  Lujvo "seljínvi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"seljinvi","kind":"lujvo"}}]"""
 
@@ -55,46 +31,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "pi'o",
-          span: [3,7],
-        },
+        bai: Cmavo "pi'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [8,13],
-      },
+      Gismu "cúsku",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "seljinvi",
-          span: [20,28],
-        },
+        relation: Lujvo "seljínvi",
       },
     ],
   },

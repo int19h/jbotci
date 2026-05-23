@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pu tróci .i toljínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "toljinga",
-    span: [12,20],
-  },
+  Cmavo "pu",
+  Gismu "tróci",
+  Cmavo "i",
+  Lujvo "toljínga",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"toljinga","kind":"lujvo"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "troci",
-      span: [3,8],
-    },
+    tense_modal: Cmavo "pu",
+    Gismu "tróci",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "toljinga",
-      span: [12,20],
-    },
+    i: Cmavo "i",
+    Lujvo "toljínga",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"troci","kind":"gismu"}}}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,20],"phonemes":"toljinga","kind":"lujvo"}}}}}}}}}}}]}]}'

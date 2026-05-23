@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu su'o do djíca le nu távla fi da poĭ cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [38,43],
-  },
+  Cmavo "xu",
+  Cmavo "su'o",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "távla",
+  Cmavo "fi",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -81,78 +37,34 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [8,10],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "do",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [11,16],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [19,21],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "tavla",
-                span: [22,27],
-              },
+              Gismu "távla",
               terms: [
                 Fa {
-                  fa: Word {
-                    kind: "cmavo",
-                    phonemes: "fi",
-                    span: [28,30],
-                  },
+                  fa: Cmavo "fi",
                   RelativeClause {
-                    base_argument: Word {
-                      kind: "cmavo",
-                      phonemes: "da",
-                      span: [31,33],
-                    },
+                    base_argument: Cmavo "da",
                     relative_clauses: [
                       Poi {
-                        poi: Word {
-                          kind: "cmavo",
-                          phonemes: "poĭ",
-                          span: [34,37],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "cinri",
-                          span: [38,43],
-                        },
+                        poi: Cmavo "poĭ",
+                        Gismu "cínri",
                       },
                     ],
                   },

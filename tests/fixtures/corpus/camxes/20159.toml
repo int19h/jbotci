@@ -19,32 +19,12 @@ brackets = "([.i bu] cítno tádni pe'i)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [1,3],
-    },
+    Cmavo "i",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [17,21],
-  },
+  Gismu "cítno",
+  Gismu "tádni",
+  Cmavo "pe'i",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,10],"phonemes":"citno","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"pe'i","kind":"cmavo"}}]"""
 
@@ -55,37 +35,17 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [0,1],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [1,3],
-          },
+          Cmavo "i",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "citno",
-      span: [5,10],
-    },
+    Gismu "cítno",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "tadni",
-        span: [11,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [17,21],
-      },
+      Gismu "tádni",
+      indicator: Cmavo "pe'i",
     },
   },
 }"""

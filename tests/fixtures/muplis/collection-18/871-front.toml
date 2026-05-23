@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'e ba vlíle tcíma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'e",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcima",
-    span: [14,19],
-  },
+  Cmavo "a'e",
+  Cmavo "ba",
+  Gismu "vlíle",
+  Gismu "tcíma",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"tcima","kind":"gismu"}}]"""
 
@@ -50,30 +34,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'e",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'e",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [5,7],
-    },
+    tense_modal: Cmavo "ba",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "vlile",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcima",
-        span: [14,19],
-      },
+      Gismu "vlíle",
+      Gismu "tcíma",
     },
   },
 }"""

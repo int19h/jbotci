@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ckíre do .i mi ca clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckire",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Gismu "ckíre",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "clíva",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ckire","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cliva","kind":"gismu"}}]'
 
@@ -61,52 +33,24 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "ckire",
-        span: [3,8],
-      },
+      Gismu "ckíre",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [9,11],
-        },
+        Cmavo "do",
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [18,20],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [21,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cliva",
-          span: [24,29],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "clíva",
       },
     },
   },

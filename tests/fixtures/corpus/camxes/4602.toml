@@ -18,73 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'e .i na ja bo mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [13,15],
-  },
+  Cmavo "go'e",
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "ja",
+  Cmavo "bo",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'e","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "cmavo",
-    phonemes: "go'e",
-    span: [0,4],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
+  leading_statement: Cmavo "go'e",
+  i: Cmavo "i",
   connective: Relation {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [10,12],
-    },
+    na: Cmavo "na",
+    Cmavo "ja",
+    Cmavo "bo",
   },
-  trailing_statement: Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [13,15],
-  },
+  trailing_statement: Cmavo "mo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'e","kind":"cmavo"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"na":{"Bare":{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ja","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,15],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

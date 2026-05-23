@@ -19,43 +19,15 @@ brackets = "([la'o gy kinseyinstitute.org gy] cu ji'a taĭ xúsra)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [9,28],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [30,32],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "kinseyinstitute.org",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [46,51],
-  },
+  Cmavo "cu",
+  Cmavo "ji'a",
+  Cmavo "taĭ",
+  Gismu "xúsra",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,28],"closing_delimiter":{"span":[30,32],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[42,45],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"xusra","kind":"gismu"}}]"""
 
@@ -64,49 +36,21 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [5,7],
-      },
-      quoted_text: [9,28],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [30,32],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "kinseyinstitute.org",
+      closing_delimiter: Cmavo "gy",
     },
   ],
   cu: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [34,36],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ji'a",
-      span: [37,41],
-    },
+    Cmavo "cu",
+    indicator: Cmavo "ji'a",
   },
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "taĭ",
-        span: [42,45],
-      },
+      bai: Cmavo "taĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "xusra",
-      span: [46,51],
-    },
+    Gismu "xúsra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,28],"closing_delimiter":{"span":[30,32],"phonemes":"gy","kind":"cmavo"}}}}}}}],"cu":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}}},"indicator":{"span":[37,41],"phonemes":"ji'a","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[42,45],"phonemes":"taĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[46,51],"phonemes":"xusra","kind":"gismu"}}}}}}}}}}}}}]}]}"""

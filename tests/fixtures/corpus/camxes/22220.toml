@@ -18,66 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(norkálri ke za'e kerzbigálxe túbnu)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "norkalri",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kerzbigalxe",
-    span: [17,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tubnu",
-    span: [29,34],
-  },
+  Lujvo "norkálri",
+  Cmavo "ke",
+  Cmavo "za'e",
+  Lujvo "kerzbigálxe",
+  Gismu "túbnu",
 ]"""
 json = """[{"Bare":{"span":[0,8],"phonemes":"norkalri","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"za'e","kind":"cmavo"}},{"Bare":{"span":[17,28],"phonemes":"kerzbigalxe","kind":"lujvo"}},{"Bare":{"span":[29,34],"phonemes":"tubnu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "norkalri",
-    span: [0,8],
-  },
+  Lujvo "norkálri",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [9,11],
-    },
+    ke: Cmavo "ke",
     Compound {
       Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "za'e",
-          span: [12,16],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "kerzbigalxe",
-          span: [17,28],
-        },
+        bahe: Cmavo "za'e",
+        Lujvo "kerzbigálxe",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "tubnu",
-        span: [29,34],
-      },
+      Gismu "túbnu",
     },
   },
 }"""

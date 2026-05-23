@@ -18,114 +18,42 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pílno la .vim. le nu ca cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "vim",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [27,32],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "pílno",
+  Cmavo "la",
+  Cmevla "vim",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ca",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"vim","kind":"cmevla"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"cusku","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [6,11],
-      },
+      Gismu "pílno",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "vim",
-              span: [15,18],
-            },
+            Cmevla "vim",
           ],
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [21,23],
-            },
+            nu: Cmavo "nu",
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ca",
-                span: [24,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [27,32],
-              },
+              tense_modal: Cmavo "ca",
+              Gismu "cúsku",
             },
           },
         },

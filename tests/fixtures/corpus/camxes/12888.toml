@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu xámgu kélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [12,17],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Gismu "xámgu",
+  Gismu "kélci",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"kelci","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [6,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kelci",
-      span: [12,17],
-    },
+    Gismu "xámgu",
+    Gismu "kélci",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"xamgu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"kelci","kind":"gismu"}}}}]}}}}}}}}]}]}'

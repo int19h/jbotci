@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mi se cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [8,13],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Cmavo "se",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [2,4],
-        },
+        Cmavo "mi",
       ],
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [8,13],
-        },
+        se: Cmavo "se",
+        Gismu "cúsku",
       },
     },
   ],

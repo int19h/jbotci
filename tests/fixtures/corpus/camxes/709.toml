@@ -19,21 +19,9 @@ brackets = "(kulnrfársi zeĭ lólgaĭ)"
 tree = """
 [
   ZeiLujvo {
-    left: Word {
-      kind: "fu'ivla",
-      phonemes: "kulnrfarsi",
-      span: [0,11],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [12,15],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "lolgaĭ",
-      span: [16,22],
-    },
+    left: Fuhivla "kulnrfársi",
+    zei: Cmavo "zeĭ",
+    Lujvo "lólgaĭ",
   },
 ]"""
 json = """[{"ZeiLujvo":{"left":{"Bare":{"span":[0,11],"phonemes":"kulnrfarsi","kind":"fu'ivla"}},"zei":{"span":[12,15],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[16,22],"phonemes":"lolgaĭ","kind":"lujvo"}}}]"""
@@ -41,20 +29,8 @@ json = """[{"ZeiLujvo":{"left":{"Bare":{"span":[0,11],"phonemes":"kulnrfarsi","k
 [expectations.output.gentufa]
 tree = """
 ZeiLujvo {
-  left: Word {
-    kind: "fu'ivla",
-    phonemes: "kulnrfarsi",
-    span: [0,11],
-  },
-  zei: Word {
-    kind: "cmavo",
-    phonemes: "zeĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lolgaĭ",
-    span: [16,22],
-  },
+  left: Fuhivla "kulnrfársi",
+  zei: Cmavo "zeĭ",
+  Lujvo "lólgaĭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[0,11],"phonemes":"kulnrfarsi","kind":"fu'ivla"}},"zei":{"span":[12,15],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[16,22],"phonemes":"lolgaĭ","kind":"lujvo"}}}}}}}}}}}}]}]}"""

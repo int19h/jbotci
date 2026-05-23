@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'i naĭ cíkre ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [15,17],
-  },
+  Cmavo "a'i",
+  Cmavo "naĭ",
+  Gismu "cíkre",
+  Cmavo "ta",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'i","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ta","kind":"cmavo"}}]"""
 
@@ -50,30 +34,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'i",
-        span: [1,4],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      indicator: Cmavo "a'i",
+      nai: Cmavo "naĭ",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [9,14],
-    },
+    Gismu "cíkre",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ta",
-        span: [15,17],
-      },
+      Cmavo "ta",
     ],
   },
 }"""

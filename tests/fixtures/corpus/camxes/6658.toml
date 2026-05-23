@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(va'i ma núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "va'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [8,13],
-  },
+  Cmavo "va'i",
+  Cmavo "ma",
+  Gismu "núzba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"va'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nuzba","kind":"gismu"}}]"""
 
@@ -41,26 +29,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "va'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "va'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [8,13],
-    },
+    Gismu "núzba",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"nuzba","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"va'i","kind":"cmavo"}}}}]}"""

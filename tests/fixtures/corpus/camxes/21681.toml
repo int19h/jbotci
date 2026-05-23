@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu sálci le ze'u nícte cítsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citsi",
-    span: [23,28],
-  },
+  Cmavo "xu",
+  Gismu "sálci",
+  Cmavo "le",
+  Cmavo "ze'u",
+  Gismu "nícte",
+  Gismu "cítsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"citsi","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "salci",
-      span: [3,8],
-    },
+    Gismu "sálci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ze'u",
-            span: [12,16],
-          },
+          tense_modal: Cmavo "ze'u",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "nicte",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "citsi",
-              span: [23,28],
-            },
+            Gismu "nícte",
+            Gismu "cítsi",
           },
         },
       },

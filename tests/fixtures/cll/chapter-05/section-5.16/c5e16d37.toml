@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi cmálu je níxli je ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [24,29],
-  },
+  Gismu "mélbi",
+  Gismu "cmálu",
+  Cmavo "je",
+  Gismu "níxli",
+  Cmavo "je",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -61,39 +37,15 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"spa
 brackets = "(mélbi [{cmálu je níxli} je ckúle])"
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
+  Gismu "mélbi",
   Connected {
     leading_unit: Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [6,11],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [12,14],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [15,20],
-      },
+      leading_unit: Gismu "cmálu",
+      connective: Cmavo "je",
+      trailing_unit: Gismu "níxli",
     },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [21,23],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "ckule",
-      span: [24,29],
-    },
+    connective: Cmavo "je",
+    trailing_unit: Gismu "ckúle",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}}}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[21,23],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

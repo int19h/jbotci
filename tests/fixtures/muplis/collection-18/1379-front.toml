@@ -21,56 +21,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le renytcána be me'e lu .sen. .micel. cu zváti ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "renytcana",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'e",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "sen",
-    span: [24,27],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "micel",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [43,45],
-  },
+  Cmavo "le",
+  Lujvo "renytcána",
+  Cmavo "be",
+  Cmavo "me'e",
+  Cmavo "lu",
+  Cmevla "sen",
+  Cmevla "micel",
+  Cmavo "cu",
+  Gismu "zváti",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"renytcana","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"me'e","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"sen","kind":"cmevla"}},{"Bare":{"span":[28,33],"phonemes":"micel","kind":"cmevla"}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -80,67 +40,27 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "lujvo",
-          phonemes: "renytcana",
-          span: [3,12],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [13,15],
-        },
+        Lujvo "renytcána",
+        be: Cmavo "be",
         first_argument: Tagged {
           tag: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "me'e",
-              span: [16,20],
-            },
+            bai: Cmavo "me'e",
           },
           Lu {
-            lu: Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [21,23],
-            },
+            lu: Cmavo "lu",
             Text {
               leading_cmevla: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "sen",
-                  span: [24,27],
-                },
-                Word {
-                  kind: "cmevla",
-                  phonemes: "micel",
-                  span: [28,33],
-                },
+                Cmevla "sen",
+                Cmevla "micel",
               ],
               Predicate {
-                cu: Word {
-                  kind: "cmavo",
-                  phonemes: "cu",
-                  span: [34,36],
-                },
+                cu: Cmavo "cu",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "zvati",
-                    span: [37,42],
-                  },
+                  Gismu "zváti",
                   terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ma",
-                      span: [43,45],
-                    },
+                    Cmavo "ma",
                   ],
                 },
               },

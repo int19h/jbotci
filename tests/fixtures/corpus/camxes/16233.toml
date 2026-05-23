@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(vi'o mi jdíce tu'a di'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [19,23],
-  },
+  Cmavo "vi'o",
+  Cmavo "mi",
+  Gismu "jdíce",
+  Cmavo "tu'a",
+  Cmavo "di'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"vi'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"di'u","kind":"cmavo"}}]"""
 
@@ -52,37 +32,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "vi'o",
-          span: [0,4],
-        },
+        Cmavo "vi'o",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jdice",
-      span: [8,13],
-    },
+    Gismu "jdíce",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [14,18],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [19,23],
-        },
+        lahe: Cmavo "tu'a",
+        Cmavo "di'u",
       },
     ],
   },

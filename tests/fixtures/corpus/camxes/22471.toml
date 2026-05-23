@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .plork. ma pénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "plork",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [13,18],
-  },
+  Cmavo "doĭ",
+  Cmevla "plork",
+  Cmavo "ma",
+  Gismu "pénsi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"plork","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"pensi","kind":"gismu"}}]'
 
@@ -47,32 +31,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "plork",
-        span: [4,9],
-      },
+      argument: Cmevla "plork",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [10,12],
-      },
+      Cmavo "ma",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "pensi",
-      span: [13,18],
-    },
+    Gismu "pénsi",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,9],"phonemes":"plork","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"pensi","kind":"gismu"}}}}}}}}}}}]}]}'

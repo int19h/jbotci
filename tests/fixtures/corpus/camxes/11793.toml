@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kérfu po mi cláni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kerfu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [15,20],
-  },
+  Cmavo "le",
+  Gismu "kérfu",
+  Cmavo "po",
+  Cmavo "mi",
+  Gismu "cláni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kerfu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"clani","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "kerfu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "kérfu",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [12,14],
-          },
+          goi: Cmavo "po",
+          Cmavo "mi",
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [15,20],
-  },
+  Gismu "cláni",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"kerfu","kind":"gismu"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[9,11],"phonemes":"po","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}}}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"clani","kind":"gismu"}}}}}}}}}}}]}]}'

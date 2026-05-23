@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u na ku da nalzásti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalzasti",
-    span: [19,27],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "da",
+  Lujvo "nalzásti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[19,27],"phonemes":"nalzasti","kind":"lujvo"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Prenex {
   prenex_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       NaKu {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [11,13],
-        },
-        na_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [13,15],
-        },
+        na: Cmavo "na",
+        na_ku: Cmavo "ku",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [16,18],
-      },
+      Cmavo "da",
     ],
-    Word {
-      kind: "lujvo",
-      phonemes: "nalzasti",
-      span: [19,27],
-    },
+    Lujvo "nalzásti",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"NaKu":{"na":{"Bare":{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}}},"na_ku":{"Bare":{"Bare":{"span":[13,15],"phonemes":"ku","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,27],"phonemes":"nalzasti","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

@@ -18,37 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ja'a skúdji [zo mo])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skudji",
-    span: [10,16],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ja'a",
+  Lujvo "skúdji",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [20,22],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mo",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"skudji","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,22],"phonemes":"mo","kind":"cmavo"}}}]"""
@@ -56,44 +32,20 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "ja'a",
-          span: [5,9],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "skudji",
-          span: [10,16],
-        },
+        na: Cmavo "ja'a",
+        Lujvo "skúdji",
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [17,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [20,22],
-          },
+          zo: Cmavo "zo",
+          Cmavo "mo",
         },
       ],
     },

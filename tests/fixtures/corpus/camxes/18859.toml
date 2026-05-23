@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i xánri .i na ba fásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xanri",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fasnu",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "xánri",
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "ba",
+  Gismu "fásnu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"xanri","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"fasnu","kind":"gismu"}}]"""
 
@@ -61,46 +33,18 @@ tree = """
 Paragraph {
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [3,7],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "xanri",
-      span: [8,13],
-    },
+    Gismu "xánri",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
+    i: Cmavo "i",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [17,19],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [20,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fasnu",
-          span: [23,28],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "fásnu",
       },
     },
   },

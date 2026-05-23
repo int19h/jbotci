@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'i rícfu ja dótco cu bárda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ricfu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dotco",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [23,28],
-  },
+  Cmavo "lo'i",
+  Gismu "rícfu",
+  Cmavo "ja",
+  Gismu "dótco",
+  Cmavo "cu",
+  Gismu "bárda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"ricfu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"dotco","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"barda","kind":"gismu"}}]"""
 
@@ -56,39 +32,15 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'i",
-        span: [0,4],
-      },
+      descriptor: Cmavo "lo'i",
       relation: Connected {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "ricfu",
-          span: [5,10],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ja",
-          span: [11,13],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "dotco",
-          span: [14,19],
-        },
+        leading_relation: Gismu "rícfu",
+        connective: Cmavo "ja",
+        trailing_relation: Gismu "dótco",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [23,28],
-  },
+  cu: Cmavo "cu",
+  Gismu "bárda",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,4],"phonemes":"lo'i","kind":"cmavo"}}},"relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"ricfu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[11,13],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"dotco","kind":"gismu"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"barda","kind":"gismu"}}}}}}}}}}}]}]}"""

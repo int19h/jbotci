@@ -21,16 +21,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lúmci ti)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lumci",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [6,8],
-  },
+  Gismu "lúmci",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"lumci","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -38,17 +30,9 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"lumci","kind":"gismu"}},{"Bare":{"spa
 brackets = "(lúmci ti)"
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "lumci",
-    span: [0,5],
-  },
+  Gismu "lúmci",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [6,8],
-    },
+    Cmavo "ti",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"lumci","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ti","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

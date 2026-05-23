@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.eĭ mi tísygaŭ le kárce ctílyvaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tisygaŭ",
-    span: [7,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [18,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ctilyvaŭ",
-    span: [24,32],
-  },
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Lujvo "tísygaŭ",
+  Cmavo "le",
+  Gismu "kárce",
+  Lujvo "ctílyvaŭ",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,14],"phonemes":"tisygaŭ","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[24,32],"phonemes":"ctilyvaŭ","kind":"lujvo"}}]'
 
@@ -63,45 +39,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "tisygaŭ",
-        span: [7,14],
-      },
+      Lujvo "tísygaŭ",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "karce",
-              span: [18,23],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "ctilyvaŭ",
-              span: [24,32],
-            },
+            Gismu "kárce",
+            Lujvo "ctílyvaŭ",
           },
         },
       ],

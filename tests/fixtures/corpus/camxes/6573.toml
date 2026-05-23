@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi císka samsélpla baŭ la .xaskel.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [9,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xaskel",
-    span: [26,32],
-  },
+  Cmavo "mi",
+  Gismu "císka",
+  Lujvo "samsélpla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "xaskel",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[9,18],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[19,22],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[26,32],"phonemes":"xaskel","kind":"cmevla"}}]'
 
@@ -55,46 +31,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "ciska",
-        span: [3,8],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "samselpla",
-        span: [9,18],
-      },
+      Gismu "císka",
+      Lujvo "samsélpla",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [19,22],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [23,25],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "xaskel",
-              span: [26,32],
-            },
+            Cmevla "xaskel",
           ],
         },
       },

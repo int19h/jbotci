@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi no rémna cu se xráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [18,23],
-  },
+  Cmavo "ŭi",
+  Cmavo "no",
+  Gismu "rémna",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "xráni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xrani","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [3,5],
-          },
+          Cmavo "no",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "remna",
-          span: [6,11],
-        },
+        relation: Gismu "rémna",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [12,14],
-    },
+    cu: Cmavo "cu",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [15,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xrani",
-        span: [18,23],
-      },
+      se: Cmavo "se",
+      Gismu "xráni",
     },
   },
 }"""

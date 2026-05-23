@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'a cásnu fi'o sélsnu ja fi'o bángu la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'a",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsnu",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [26,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [40,46],
-  },
+  Cmavo "e'a",
+  Gismu "cásnu",
+  Cmavo "fi'o",
+  Lujvo "sélsnu",
+  Cmavo "ja",
+  Cmavo "fi'o",
+  Gismu "bángu",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[11,15],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"selsnu","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,46],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -71,64 +35,28 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'a",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "casnu",
-      span: [5,10],
-    },
+    Gismu "cásnu",
     terms: [
       Tagged {
         tense_modal: Composite {
           FihoModal {
-            fiho: Word {
-              kind: "cmavo",
-              phonemes: "fi'o",
-              span: [11,15],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "selsnu",
-              span: [16,22],
-            },
+            fiho: Cmavo "fi'o",
+            relation: Lujvo "sélsnu",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "ja",
-            span: [23,25],
-          },
+          Cmavo "ja",
           FihoModal {
-            fiho: Word {
-              kind: "cmavo",
-              phonemes: "fi'o",
-              span: [26,30],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "bangu",
-              span: [31,36],
-            },
+            fiho: Cmavo "fi'o",
+            relation: Gismu "bángu",
           },
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [37,39],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [40,46],
-            },
+            Cmevla "lojban",
           ],
         },
       },

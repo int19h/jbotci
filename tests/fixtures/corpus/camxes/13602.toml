@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le pa mu prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [8,13],
-  },
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "mu",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"prenu","kind":"gismu"}}]'
 
@@ -46,30 +30,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [5,7],
-          },
+          Cmavo "pa",
+          Cmavo "mu",
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [8,13],
-      },
+      relation: Gismu "prénu",
     },
   ],
 }"""

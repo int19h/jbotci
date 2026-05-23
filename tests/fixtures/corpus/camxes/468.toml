@@ -19,96 +19,24 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tu'e mi dótco .i jo mi rícfu tu'u .i je tu'e mi dótco .i jo mi nánmu tu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'e",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dotco",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ricfu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'u",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [38,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'e",
-    span: [42,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [47,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dotco",
-    span: [50,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [57,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [58,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [61,63],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [64,69],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'u",
-    span: [71,75],
-  },
+  Cmavo "tu'e",
+  Cmavo "mi",
+  Gismu "dótco",
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "mi",
+  Gismu "rícfu",
+  Cmavo "tu'u",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "tu'e",
+  Cmavo "mi",
+  Gismu "dótco",
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "mi",
+  Gismu "nánmu",
+  Cmavo "tu'u",
 ]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"tu'e","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"dotco","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ricfu","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"tu'u","kind":"cmavo"}},{"Bare":{"span":[38,39],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"tu'e","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"dotco","kind":"gismu"}},{"Bare":{"span":[57,58],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[58,60],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[64,69],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[71,75],"phonemes":"tu'u","kind":"cmavo"}}]"""
 
@@ -116,118 +44,46 @@ json = """[{"Bare":{"span":[1,5],"phonemes":"tu'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Connected {
   leading_statement: Tuhe {
-    tuhe: Word {
-      kind: "cmavo",
-      phonemes: "tu'e",
-      span: [1,5],
-    },
+    tuhe: Cmavo "tu'e",
     Connected {
       leading_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [7,9],
-          },
+          Cmavo "mi",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "dotco",
-          span: [10,15],
-        },
+        Gismu "dótco",
       },
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [17,18],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "jo",
-        span: [18,20],
-      },
+      i: Cmavo "i",
+      connective: Cmavo "jo",
       trailing_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [21,23],
-          },
+          Cmavo "mi",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "ricfu",
-          span: [24,29],
-        },
+        Gismu "rícfu",
       },
     },
-    tuhu: Word {
-      kind: "cmavo",
-      phonemes: "tu'u",
-      span: [31,35],
-    },
+    tuhu: Cmavo "tu'u",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [38,39],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [39,41],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Tuhe {
-    tuhe: Word {
-      kind: "cmavo",
-      phonemes: "tu'e",
-      span: [42,46],
-    },
+    tuhe: Cmavo "tu'e",
     Connected {
       leading_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [47,49],
-          },
+          Cmavo "mi",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "dotco",
-          span: [50,55],
-        },
+        Gismu "dótco",
       },
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [57,58],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "jo",
-        span: [58,60],
-      },
+      i: Cmavo "i",
+      connective: Cmavo "jo",
       trailing_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [61,63],
-          },
+          Cmavo "mi",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [64,69],
-        },
+        Gismu "nánmu",
       },
     },
-    tuhu: Word {
-      kind: "cmavo",
-      phonemes: "tu'u",
-      span: [71,75],
-    },
+    tuhu: Cmavo "tu'u",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Tuhe":{"tuhe":{"Bare":{"Bare":{"span":[1,5],"phonemes":"tu'e","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"dotco","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"jo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[24,29],"phonemes":"ricfu","kind":"gismu"}}}}}}}}}}}}}]}]},"tuhu":{"Bare":{"Bare":{"span":[31,35],"phonemes":"tu'u","kind":"cmavo"}}}}},"i":{"Bare":{"Bare":{"span":[38,39],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[39,41],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Tuhe":{"tuhe":{"Bare":{"Bare":{"span":[42,46],"phonemes":"tu'e","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[47,49],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[50,55],"phonemes":"dotco","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[57,58],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[58,60],"phonemes":"jo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[61,63],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[64,69],"phonemes":"nanmu","kind":"gismu"}}}}}}}}}}}}}]}]},"tuhu":{"Bare":{"Bare":{"span":[71,75],"phonemes":"tu'u","kind":"cmavo"}}}}}}}}]}]}"""

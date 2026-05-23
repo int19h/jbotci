@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba tcídu le re moĭ .a'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [22,25],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "moĭ",
+  Cmavo "a'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"a'o","kind":"cmavo"}}]"""
 
@@ -60,51 +32,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "tcídu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [15,17],
-            },
+            Cmavo "re",
           ],
           moi: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "moĭ",
-              span: [17,20],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "a'o",
-              span: [22,25],
-            },
+            Cmavo "moĭ",
+            indicator: Cmavo "a'o",
           },
         },
       },

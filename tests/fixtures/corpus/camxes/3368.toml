@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .nynex. do ca mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nynex",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [16,18],
-  },
+  Cmavo "doĭ",
+  Cmevla "nynex",
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"nynex","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "nynex",
-        span: [4,9],
-      },
+      argument: Cmevla "nynex",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [13,15],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [16,18],
-      },
+      tense_modal: Cmavo "ca",
+      Cmavo "mo",
     },
   },
 }"""

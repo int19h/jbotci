@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭe doĭ .xod. mi túgni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [15,20],
-  },
+  Cmavo "ĭe",
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "mi",
+  Gismu "túgni",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tugni","kind":"gismu"}}]'
 
@@ -51,42 +31,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ĭe",
     },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [4,7],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xod",
-        span: [8,11],
-      },
+      argument: Cmevla "xod",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "tugni",
-      span: [15,20],
-    },
+    Gismu "túgni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"tugni","kind":"gismu"}}}}}}}}}}}]}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[8,11],"phonemes":"xod","kind":"cmevla"}}}]}}}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}}}}]}'

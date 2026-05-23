@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .eĭ cpácu lo cníno sánce co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [28,32],
-  },
+  Cmavo "i",
+  Cmavo "eĭ",
+  Gismu "cpácu",
+  Cmavo "lo",
+  Gismu "cníno",
+  Gismu "sánce",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -60,46 +32,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "eĭ",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cpacu",
-      span: [7,12],
-    },
+    Gismu "cpácu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [13,15],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "sance",
-            span: [22,27],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "co'e",
-            span: [28,32],
-          },
+          Gismu "cníno",
+          Gismu "sánce",
+          Cmavo "co'e",
         },
       },
     ],

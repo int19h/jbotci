@@ -18,47 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi ca bínxo co sánji [zo saŭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "bínxo",
+  Cmavo "co",
+  Gismu "sánji",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [24,26],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "saŭ",
-      span: [27,30],
-    },
+    zo: Cmavo "zo",
+    Cmavo "saŭ",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"sanji","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[24,26],"phonemes":"zo","kind":"cmavo"},"word":{"span":[27,30],"phonemes":"saŭ","kind":"cmavo"}}}]'
@@ -66,56 +34,24 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "ca",
         Co {
-          leading_relation: Word {
-            kind: "gismu",
-            phonemes: "binxo",
-            span: [9,14],
-          },
-          co: Word {
-            kind: "cmavo",
-            phonemes: "co",
-            span: [15,17],
-          },
-          trailing_relation: Word {
-            kind: "gismu",
-            phonemes: "sanji",
-            span: [18,23],
-          },
+          leading_relation: Gismu "bínxo",
+          co: Cmavo "co",
+          trailing_relation: Gismu "sánji",
         },
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [24,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "saŭ",
-            span: [27,30],
-          },
+          zo: Cmavo "zo",
+          Cmavo "saŭ",
         },
       ],
     },

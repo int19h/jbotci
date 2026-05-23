@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i durmijnúnsla cínmo rínka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "durmijnunsla",
-    span: [7,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Lujvo "durmijnúnsla",
+  Gismu "cínmo",
+  Gismu "rínka",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,19],"phonemes":"durmijnunsla","kind":"lujvo"}},{"Bare":{"span":[20,25],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"rinka","kind":"gismu"}}]"""
 
@@ -50,33 +30,13 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "durmijnunsla",
-      span: [7,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmo",
-      span: [20,25],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "rinka",
-      span: [26,31],
-    },
+    Lujvo "durmijnúnsla",
+    Gismu "cínmo",
+    Gismu "rínka",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,19],"phonemes":"durmijnunsla","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"cinmo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"rinka","kind":"gismu"}}}}]}}}}}}}}]}]}"""

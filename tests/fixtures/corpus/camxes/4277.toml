@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(re la ti ve cláŭse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [6,8],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "claŭse",
-    span: [9,15],
-  },
+  Cmavo "re",
+  Cmavo "la",
+  Cmavo "ti",
+  Cmavo "ve",
+  Fuhivla "cláŭse",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"claŭse","kind":"fu'ivla"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [2,4],
-      },
-      outer_quantifier: Word {
-        kind: "cmavo",
-        phonemes: "re",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
+      outer_quantifier: Cmavo "re",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [4,6],
-        },
+        Cmavo "ti",
       ],
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "ve",
-          span: [6,8],
-        },
-        Word {
-          kind: "fu'ivla",
-          phonemes: "claŭse",
-          span: [9,15],
-        },
+        se: Cmavo "ve",
+        Fuhivla "cláŭse",
       },
     },
   ],

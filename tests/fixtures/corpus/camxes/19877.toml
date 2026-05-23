@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u lo'e rókci cu to'e djíca co távla fo da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [47,49],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "lo'e",
+  Gismu "rókci",
+  Cmavo "cu",
+  Cmavo "to'e",
+  Gismu "djíca",
+  Cmavo "co",
+  Gismu "távla",
+  Cmavo "fo",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"rokci","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -86,80 +38,32 @@ tree = """
 Prenex {
   prenex_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [5,9],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [10,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "rokci",
-          span: [15,20],
-        },
+        descriptor: Cmavo "lo'e",
+        relation: Gismu "rókci",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [21,23],
-    },
+    cu: Cmavo "cu",
     Relation {
       Co {
         leading_relation: Nahe {
-          nahe: Word {
-            kind: "cmavo",
-            phonemes: "to'e",
-            span: [24,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djica",
-            span: [29,34],
-          },
+          nahe: Cmavo "to'e",
+          Gismu "djíca",
         },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [35,37],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [38,43],
-        },
+        co: Cmavo "co",
+        trailing_relation: Gismu "távla",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fo",
-            span: [44,46],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [47,49],
-          },
+          fa: Cmavo "fo",
+          Cmavo "da",
         },
       ],
     },

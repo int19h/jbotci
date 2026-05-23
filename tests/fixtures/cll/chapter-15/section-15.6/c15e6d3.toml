@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi kláma to'e bo la .bastn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bastn",
-    span: [19,24],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "to'e",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "bastn",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"bastn","kind":"cmevla"}}]"""
 
@@ -62,42 +38,18 @@ brackets = "(mi [kláma {to'e bo (la .bastn.)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
+    Gismu "kláma",
     terms: [
       NaheBo {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "to'e",
-          span: [9,13],
-        },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [13,15],
-        },
+        nahe: Cmavo "to'e",
+        bo: Cmavo "bo",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [16,18],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "bastn",
-              span: [19,24],
-            },
+            Cmevla "bastn",
           ],
         },
       },

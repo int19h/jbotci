@@ -18,66 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i fi ma fo ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
+  Cmavo "go'i",
+  Cmavo "fi",
+  Cmavo "ma",
+  Cmavo "fo",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [8,10],
-      },
+      fa: Cmavo "fi",
+      Cmavo "ma",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fo",
-        span: [11,13],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [14,16],
-      },
+      fa: Cmavo "fo",
+      Cmavo "ma",
     },
   ],
 }"""

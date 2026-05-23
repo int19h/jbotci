@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ri lógji se kélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [11,16],
-  },
+  Cmavo "ri",
+  Gismu "lógji",
+  Cmavo "se",
+  Gismu "kélci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"logji","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"kelci","kind":"gismu"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ri",
-      span: [0,2],
-    },
+    Cmavo "ri",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "logji",
-      span: [3,8],
-    },
+    Gismu "lógji",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [11,16],
-      },
+      se: Cmavo "se",
+      Gismu "kélci",
     },
   },
 }"""

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do mo'u plípe fo le ráŭnzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plipe",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "raŭnzu",
-    span: [20,26],
-  },
+  Cmavo "do",
+  Cmavo "mo'u",
+  Gismu "plípe",
+  Cmavo "fo",
+  Cmavo "le",
+  Fuhivla "ráŭnzu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"plipe","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"raŭnzu","kind":"fu'ivla"}}]"""
 
@@ -59,43 +35,19 @@ brackets = "(do [{mo'u plípe} {fo (le ráŭnzu)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "mo'u",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "plipe",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "mo'u",
+      Gismu "plípe",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [14,16],
-        },
+        fa: Cmavo "fo",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
-          relation: Word {
-            kind: "fu'ivla",
-            phonemes: "raŭnzu",
-            span: [20,26],
-          },
+          descriptor: Cmavo "le",
+          relation: Fuhivla "ráŭnzu",
         },
       },
     ],

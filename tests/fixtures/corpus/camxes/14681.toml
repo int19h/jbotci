@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i tírna le pónjo nalnóble zgíke)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirna",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [16,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalnoble",
-    span: [22,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [31,36],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "tírna",
+  Cmavo "le",
+  Gismu "pónjo",
+  Lujvo "nalnóble",
+  Gismu "zgíke",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"tirna","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"ponjo","kind":"gismu"}},{"Bare":{"span":[22,30],"phonemes":"nalnoble","kind":"lujvo"}},{"Bare":{"span":[31,36],"phonemes":"zgike","kind":"gismu"}}]"""
 
@@ -60,46 +32,18 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tirna",
-      span: [7,12],
-    },
+    Gismu "tírna",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [13,15],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "ponjo",
-            span: [16,21],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "nalnoble",
-            span: [22,30],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zgike",
-            span: [31,36],
-          },
+          Gismu "pónjo",
+          Lujvo "nalnóble",
+          Gismu "zgíke",
         },
       },
     ],

@@ -19,43 +19,15 @@ brackets = "([zo pavyseljírna] cu vásru me'o [y bu])"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "pavyseljirna",
-      span: [3,15],
-    },
+    zo: Cmavo "zo",
+    Lujvo "pavyseljírna",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [25,29],
-  },
+  Cmavo "cu",
+  Gismu "vásru",
+  Cmavo "me'o",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "y",
-      span: [31,32],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [34,36],
-    },
+    Cmavo "y",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,15],"phonemes":"pavyseljirna","kind":"lujvo"}}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[31,32],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[34,36],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -65,47 +37,19 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "pavyseljirna",
-        span: [3,15],
-      },
+      zo: Cmavo "zo",
+      Lujvo "pavyseljírna",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "vasru",
-      span: [19,24],
-    },
+    Gismu "vásru",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "me'o",
-          span: [25,29],
-        },
+        li: Cmavo "me'o",
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "y",
-            span: [31,32],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [34,36],
-          },
+          Cmavo "y",
+          bu: Cmavo "bu",
         },
       },
     ],

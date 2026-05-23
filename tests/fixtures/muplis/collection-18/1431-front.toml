@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ce do prámi zu'aĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'aĭ",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ce",
+  Cmavo "do",
+  Gismu "prámi",
+  Cmavo "zu'aĭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ce","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"zu'aĭ","kind":"cmavo"}}]"""
 
@@ -58,43 +34,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{mi ce do} {prámi zu'aĭ}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ce",
-          span: [6,8],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [9,11],
-        },
+        leading_argument: Cmavo "mi",
+        connective: Cmavo "ce",
+        trailing_argument: Cmavo "do",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "prami",
-        span: [12,17],
-      },
+      Gismu "prámi",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "zu'aĭ",
-          span: [18,23],
-        },
+        Cmavo "zu'aĭ",
       ],
     },
   },

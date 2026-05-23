@@ -18,79 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i co'a lúmci leĭ mi táxfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lumci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "taxfu",
-    span: [21,26],
-  },
+  Cmavo "i",
+  Cmavo "co'a",
+  Gismu "lúmci",
+  Cmavo "leĭ",
+  Cmavo "mi",
+  Gismu "táxfu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lumci","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"taxfu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lumci",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "co'a",
+      Gismu "lúmci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [14,17],
-        },
+        descriptor: Cmavo "leĭ",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [18,20],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "taxfu",
-          span: [21,26],
-        },
+        relation: Gismu "táxfu",
       },
     ],
   },

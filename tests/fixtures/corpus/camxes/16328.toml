@@ -19,19 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "sézyxru"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "sezyxru",
-    span: [3,10],
-  },
+  Lujvo "sézyxru",
 ]"""
 json = '[{"Bare":{"span":[3,10],"phonemes":"sezyxru","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
-tree = """
-Word {
-  kind: "lujvo",
-  phonemes: "sezyxru",
-  span: [3,10],
-}"""
+tree = 'Lujvo "sézyxru"'
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,10],"phonemes":"sezyxru","kind":"lujvo"}}}}}}}}}}}]}]}'

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo bróda cu bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [44,49],
-  },
+  Cmavo "lo",
+  Gismu "bróda",
+  Cmavo "cu",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "broda",
-        span: [35,40],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "bróda",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [44,49],
-  },
+  cu: Cmavo "cu",
+  Gismu "bróda",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[35,40],"phonemes":"broda","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[41,43],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[44,49],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}]}]}'

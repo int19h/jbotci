@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le djíne rítli pe le mi ménsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djine",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ritli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mensi",
-    span: [24,29],
-  },
+  Cmavo "le",
+  Gismu "djíne",
+  Gismu "rítli",
+  Cmavo "pe",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "ménsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djine","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"ritli","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"mensi","kind":"gismu"}}]'
 
@@ -61,48 +33,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "djine",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ritli",
-          span: [9,14],
-        },
+        Gismu "djíne",
+        Gismu "rítli",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [15,17],
-          },
+          goi: Cmavo "pe",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [18,20],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [21,23],
-              },
+              Cmavo "mi",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "mensi",
-              span: [24,29],
-            },
+            relation: Gismu "ménsi",
           },
         },
       ],

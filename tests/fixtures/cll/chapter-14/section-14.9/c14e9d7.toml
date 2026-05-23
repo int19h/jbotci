@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi kláma le zárci vaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [18,21],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "vaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"vaŭ","kind":"cmavo"}}]'
 
@@ -57,37 +37,17 @@ brackets = "(mi [kláma {le zárci} vaŭ])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
+    Gismu "kláma",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zárci",
       },
     ],
-    vau: Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [18,21],
-    },
+    vau: Cmavo "vaŭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"zarci","kind":"gismu"}}}}}}}],"vau":{"Bare":{"Bare":{"span":[18,21],"phonemes":"vaŭ","kind":"cmavo"}}}}}}}}}}}]}]}'

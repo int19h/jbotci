@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro ze'i ca jbópre cu sampénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [10,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sampensi",
-    span: [20,28],
-  },
+  Cmavo "ro",
+  Cmavo "ze'i",
+  Cmavo "ca",
+  Lujvo "jbópre",
+  Cmavo "cu",
+  Lujvo "sampénsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ze'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"sampensi","kind":"lujvo"}}]"""
 
@@ -57,42 +33,18 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
       relation: TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ze'i",
-            span: [3,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [7,9],
-          },
+          Cmavo "ze'i",
+          Cmavo "ca",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "jbopre",
-          span: [10,16],
-        },
+        Lujvo "jbópre",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sampensi",
-    span: [20,28],
-  },
+  cu: Cmavo "cu",
+  Lujvo "sampénsi",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ze'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,16],"phonemes":"jbopre","kind":"lujvo"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,28],"phonemes":"sampensi","kind":"lujvo"}}}}}}}}}}}]}]}"""

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to le léĭvla zo'e toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "leĭvla",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [18,21],
-  },
+  Cmavo "to",
+  Cmavo "le",
+  Lujvo "léĭvla",
+  Cmavo "zo'e",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"leĭvla","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -51,37 +31,17 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "leĭvla",
-              span: [6,12],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "léĭvla",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "zo'e",
-            span: [13,17],
-          },
+          Cmavo "zo'e",
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [18,21],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fe le nu bébna bínxo cu jínzi ka zífre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinzi",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zifre",
-    span: [33,38],
-  },
+  Cmavo "fe",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "bébna",
+  Gismu "bínxo",
+  Cmavo "cu",
+  Gismu "jínzi",
+  Cmavo "ka",
+  Gismu "zífre",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"jinzi","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"zifre","kind":"gismu"}}]'
 
@@ -71,61 +35,25 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fe",
-        span: [0,2],
-      },
+      fa: Cmavo "fe",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [6,8],
-          },
+          nu: Cmavo "nu",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "bebna",
-              span: [9,14],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "binxo",
-              span: [15,20],
-            },
+            Gismu "bébna",
+            Gismu "bínxo",
           },
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "jinzi",
-      span: [24,29],
-    },
+    Gismu "jínzi",
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "ka",
-        span: [30,32],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zifre",
-        span: [33,38],
-      },
+      nu: Cmavo "ka",
+      Gismu "zífre",
     },
   },
 }"""

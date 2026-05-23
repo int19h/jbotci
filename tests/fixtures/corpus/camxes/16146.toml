@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ro do mi ba zi cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [18,23],
-  },
+  Cmavo "co'o",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -62,52 +34,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [7,9],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [10,12],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [13,15],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [15,17],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [18,23],
-      },
+      Gismu "cítka",
     },
   },
 }"""

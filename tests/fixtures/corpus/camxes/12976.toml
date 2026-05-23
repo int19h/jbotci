@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(paŭ ma poĭ mábla se cásnu la .belknap.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "belknap",
-    span: [29,36],
-  },
+  Cmavo "paŭ",
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Gismu "mábla",
+  Cmavo "se",
+  Gismu "cásnu",
+  Cmavo "la",
+  Cmevla "belknap",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,36],"phonemes":"belknap","kind":"cmevla"}}]'
 
@@ -66,61 +34,29 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "paŭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "paŭ",
     },
   ],
   Term {
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [4,6],
-        },
+        base_argument: Cmavo "ma",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [7,10],
-            },
+            poi: Cmavo "poĭ",
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "mabla",
-                  span: [11,16],
-                },
+                Gismu "mábla",
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [17,19],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "casnu",
-                    span: [20,25],
-                  },
+                  se: Cmavo "se",
+                  Gismu "cásnu",
                 },
               },
               terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [26,28],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "belknap",
-                      span: [29,36],
-                    },
+                    Cmevla "belknap",
                   ],
                 },
               ],

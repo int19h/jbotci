@@ -19,32 +19,12 @@ brackets = "([la'oĭ lojban] .org. cu se cíkre)"
 tree = """
 [
   SingleWordQuote {
-    marker: Word {
-      kind: "cmavo",
-      phonemes: "la'oĭ",
-      span: [0,5],
-    },
+    marker: Cmavo "la'oĭ",
     [6,12],
   },
-  Word {
-    kind: "cmevla",
-    phonemes: "org",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [23,28],
-  },
+  Cmevla "org",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "cíkre",
 ]"""
 json = """[{"SingleWordQuote":{"marker":{"span":[0,5],"phonemes":"la'oĭ","kind":"cmavo"},"quoted_text":[6,12]}},{"Bare":{"span":[13,16],"phonemes":"org","kind":"cmevla"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cikre","kind":"gismu"}}]"""

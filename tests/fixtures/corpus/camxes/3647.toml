@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭe la .duramater. cu xrúti .ŭo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "duramater",
-    span: [6,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭo",
-    span: [25,27],
-  },
+  Cmavo "ŭe",
+  Cmavo "la",
+  Cmevla "duramater",
+  Cmavo "cu",
+  Gismu "xrúti",
+  Cmavo "ŭo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,15],"phonemes":"duramater","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"xruti","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"ŭo","kind":"cmavo"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭe",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "duramater",
-            span: [6,15],
-          },
+          Cmevla "duramater",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [16,18],
-    },
+    cu: Cmavo "cu",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "xruti",
-        span: [19,24],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭo",
-        span: [25,27],
-      },
+      Gismu "xrúti",
+      indicator: Cmavo "ŭo",
     },
   },
 }"""

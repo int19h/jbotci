@@ -21,51 +21,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba ku zi ku co'a ku zo'u do kánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanro",
-    span: [28,33],
-  },
+  Cmavo "ba",
+  Cmavo "ku",
+  Cmavo "zi",
+  Cmavo "ku",
+  Cmavo "co'a",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "do",
+  Gismu "kánro",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"kanro","kind":"gismu"}}]"""
 
@@ -75,66 +39,30 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ba",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [3,5],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "zi",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [9,11],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [12,16],
-      },
+      tense_modal: Cmavo "co'a",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [17,19],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [20,24],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [25,27],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "kanro",
-      span: [28,33],
-    },
+    Gismu "kánro",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"zi","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"co'a","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[17,19],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[20,24],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[28,33],"phonemes":"kanro","kind":"gismu"}}}}}}}}}}}}}]}]}"""

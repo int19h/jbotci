@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e di'u na sútra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [12,17],
-  },
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Cmavo "na",
+  Gismu "sútra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sutra","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [4,8],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "di'u",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [9,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sutra",
-      span: [12,17],
-    },
+    na: Cmavo "na",
+    Gismu "sútra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[4,8],"phonemes":"di'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"sutra","kind":"gismu"}}}}}}}}}}}}}]}]}"""

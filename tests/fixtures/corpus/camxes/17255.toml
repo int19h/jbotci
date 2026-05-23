@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu le cábdeĭ li'u na xámgu ki'u le nu la'e ra bínxo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [45,50],
-  },
+  Cmavo "lu",
+  Cmavo "le",
+  Lujvo "cábdeĭ",
+  Cmavo "li'u",
+  Cmavo "na",
+  Gismu "xámgu",
+  Cmavo "ki'u",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "la'e",
+  Cmavo "ra",
+  Gismu "bínxo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"cabdeĭ","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"binxo","kind":"gismu"}}]"""
 
@@ -86,88 +38,40 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "cabdeĭ",
-              span: [6,12],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "cábdeĭ",
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [13,17],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [21,26],
-      },
+      na: Cmavo "na",
+      Gismu "xámgu",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ki'u",
-            span: [27,31],
-          },
+          bai: Cmavo "ki'u",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [32,34],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [34,36],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 Lahe {
-                  lahe: Word {
-                    kind: "cmavo",
-                    phonemes: "la'e",
-                    span: [37,41],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ra",
-                    span: [42,44],
-                  },
+                  lahe: Cmavo "la'e",
+                  Cmavo "ra",
                 },
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "binxo",
-                span: [45,50],
-              },
+              Gismu "bínxo",
             },
           },
         },

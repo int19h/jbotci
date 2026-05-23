@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(se plúka lu nu pénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [14,19],
-  },
+  Cmavo "se",
+  Gismu "plúka",
+  Cmavo "lu",
+  Cmavo "nu",
+  Gismu "pénsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"pensi","kind":"gismu"}}]'
 
@@ -50,35 +30,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [3,8],
-    },
+    se: Cmavo "se",
+    Gismu "plúka",
   },
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [9,11],
-      },
+      lu: Cmavo "lu",
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pensi",
-          span: [14,19],
-        },
+        nu: Cmavo "nu",
+        Gismu "pénsi",
       },
     },
   ],

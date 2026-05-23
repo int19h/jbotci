@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pi mu jeĭ go'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [12,16],
-  },
+  Cmavo "li",
+  Cmavo "pi",
+  Cmavo "mu",
+  Cmavo "jeĭ",
+  Cmavo "go'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"go'a","kind":"cmavo"}}]"""
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pi",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mu",
-          span: [5,7],
-        },
+        Cmavo "pi",
+        Cmavo "mu",
       },
     },
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "jeĭ",
-      span: [8,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'a",
-      span: [12,16],
-    },
+    nu: Cmavo "jeĭ",
+    Cmavo "go'a",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}}}]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[8,11],"phonemes":"jeĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,16],"phonemes":"go'a","kind":"cmavo"}}}}}}}}}}}}}}}}}}}]}]}"""

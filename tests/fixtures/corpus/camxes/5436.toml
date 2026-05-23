@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma smúni lu la bálvi li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "balvi",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [21,25],
-  },
+  Cmavo "ma",
+  Gismu "smúni",
+  Cmavo "lu",
+  Cmavo "la",
+  Gismu "bálvi",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"balvi","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -55,46 +31,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [3,8],
-    },
+    Gismu "smúni",
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [9,11],
-        },
+        lu: Cmavo "lu",
         Term {
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [12,14],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "balvi",
-                span: [15,20],
-              },
+              descriptor: Cmavo "la",
+              relation: Gismu "bálvi",
             },
           ],
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [21,25],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

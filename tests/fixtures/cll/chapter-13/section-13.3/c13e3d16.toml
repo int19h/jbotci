@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i'e naĭ do .i'e zúkte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i'e",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i'e",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [16,21],
-  },
+  Cmavo "i'e",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Cmavo "i'e",
+  Gismu "zúkte",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"i'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"i'e","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zukte","kind":"gismu"}}]"""
 
@@ -58,38 +38,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "i'e",
-        span: [1,4],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [4,7],
-      },
+      indicator: Cmavo "i'e",
+      nai: Cmavo "naĭ",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [8,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "i'e",
-          span: [12,15],
-        },
+        Cmavo "do",
+        indicator: Cmavo "i'e",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "zukte",
-      span: [16,21],
-    },
+    Gismu "zúkte",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}},"indicator":{"span":[12,15],"phonemes":"i'e","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"zukte","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"i'e","kind":"cmavo"}}},"nai":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}]}"""

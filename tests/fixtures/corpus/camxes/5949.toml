@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i xu do nélci le selfánva be mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selfanva",
-    span: [20,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [32,34],
-  },
+  Cmavo "u'i",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "nélci",
+  Cmavo "le",
+  Lujvo "selfánva",
+  Cmavo "be",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"selfanva","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -67,56 +35,24 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "u'i",
-          span: [1,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [5,7],
-        },
+        Cmavo "u'i",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [11,16],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "lujvo",
-              phonemes: "selfanva",
-              span: [20,28],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [29,31],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [32,34],
-            },
+            Lujvo "selfánva",
+            be: Cmavo "be",
+            first_argument: Cmavo "mi",
           },
         },
       ],

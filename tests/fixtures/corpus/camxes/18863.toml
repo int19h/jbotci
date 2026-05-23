@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu la .zemast. li'u .e lu pávdeĭ li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "zemast",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "pavdeĭ",
-    span: [25,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [32,36],
-  },
+  Cmavo "lu",
+  Cmavo "la",
+  Cmevla "zemast",
+  Cmavo "li'u",
+  Cmavo "e",
+  Cmavo "lu",
+  Lujvo "pávdeĭ",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"zemast","kind":"cmevla"}},{"Bare":{"span":[14,18],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[20,21],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[25,31],"phonemes":"pavdeĭ","kind":"lujvo"}},{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -67,56 +35,24 @@ Term {
   terms: [
     Connected {
       leading_argument: Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [0,2],
-        },
+        lu: Cmavo "lu",
         Term {
           terms: [
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [3,5],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "zemast",
-                  span: [6,12],
-                },
+                Cmevla "zemast",
               ],
             },
           ],
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [14,18],
-        },
+        lihu: Cmavo "li'u",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [20,21],
-      },
+      connective: Cmavo "e",
       trailing_argument: Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [22,24],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "pavdeĭ",
-          span: [25,31],
-        },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [32,36],
-        },
+        lu: Cmavo "lu",
+        Lujvo "pávdeĭ",
+        lihu: Cmavo "li'u",
       },
     },
   ],

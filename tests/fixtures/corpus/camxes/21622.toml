@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu le ríjno cu vácri se toljínsa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rijno",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vacri",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "toljinsa",
-    span: [27,35],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "ríjno",
+  Cmavo "cu",
+  Gismu "vácri",
+  Cmavo "se",
+  Lujvo "toljínsa",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"rijno","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"vacri","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"toljinsa","kind":"lujvo"}}]'
 
@@ -62,50 +34,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [3,5],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "rijno",
-          span: [9,14],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "ríjno",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "vacri",
-        span: [18,23],
-      },
+      Gismu "vácri",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [24,26],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "toljinsa",
-          span: [27,35],
-        },
+        se: Cmavo "se",
+        Lujvo "toljínsa",
       },
     },
   },

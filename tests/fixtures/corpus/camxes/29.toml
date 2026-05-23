@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi [.lojban. zeĭ císka])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
+  Cmavo "mi",
   ZeiLujvo {
-    left: Word {
-      kind: "cmevla",
-      phonemes: "lojban",
-      span: [3,9],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [10,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ciska",
-      span: [14,19],
-    },
+    left: Cmevla "lojban",
+    zei: Cmavo "zeĭ",
+    Gismu "císka",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[3,9],"phonemes":"lojban","kind":"cmevla"}},"zei":{"span":[10,13],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[14,19],"phonemes":"ciska","kind":"gismu"}}}]'
@@ -47,28 +31,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZeiLujvo":{"le
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   ZeiLujvo {
-    left: Word {
-      kind: "cmevla",
-      phonemes: "lojban",
-      span: [3,9],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [10,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ciska",
-      span: [14,19],
-    },
+    left: Cmevla "lojban",
+    zei: Cmavo "zeĭ",
+    Gismu "císka",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[3,9],"phonemes":"lojban","kind":"cmevla"}},"zei":{"span":[10,13],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[14,19],"phonemes":"ciska","kind":"gismu"}}}}}}}}}}}}]}]}'

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .camgusmis. .i na flálu se cúrmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "camgusmis",
-    span: [4,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flalu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curmi",
-    span: [28,33],
-  },
+  Cmavo "doĭ",
+  Cmevla "camgusmis",
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "flálu",
+  Cmavo "se",
+  Gismu "cúrmi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,13],"phonemes":"camgusmis","kind":"cmevla"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"curmi","kind":"gismu"}}]'
 
@@ -62,48 +34,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "camgusmis",
-        span: [4,13],
-      },
+      argument: Cmevla "camgusmis",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [14,15],
-    },
+    i: Cmavo "i",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [16,18],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "flalu",
-          span: [19,24],
-        },
+        Gismu "flálu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [25,27],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "curmi",
-            span: [28,33],
-          },
+          se: Cmavo "se",
+          Gismu "cúrmi",
         },
       },
     },

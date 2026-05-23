@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .frac. zmádu le ni cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frac",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [22,27],
-  },
+  Cmavo "doĭ",
+  Cmevla "frac",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"frac","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "frac",
-        span: [4,8],
-      },
+      argument: Cmevla "frac",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zmadu",
-      span: [10,15],
-    },
+    Gismu "zmádu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [16,18],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ni",
-            span: [19,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [22,27],
-          },
+          nu: Cmavo "ni",
+          Gismu "cásnu",
         },
       },
     ],

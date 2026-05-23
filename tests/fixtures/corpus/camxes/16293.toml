@@ -18,77 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sálci le nu co'a flálu jícmu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flalu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jicmu",
-    span: [23,28],
-  },
+  Gismu "sálci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "co'a",
+  Gismu "flálu",
+  Gismu "jícmu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"jicmu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [0,5],
-  },
+  Gismu "sálci",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [9,11],
-        },
+        nu: Cmavo "nu",
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "co'a",
-            span: [12,16],
-          },
+          tense_modal: Cmavo "co'a",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "flalu",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jicmu",
-              span: [23,28],
-            },
+            Gismu "flálu",
+            Gismu "jícmu",
           },
         },
       },

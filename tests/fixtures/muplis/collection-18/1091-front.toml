@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pu'o sísti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [5,10],
-  },
+  Cmavo "pu'o",
+  Gismu "sísti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pu'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"sisti","kind":"gismu"}}]"""
 
@@ -38,15 +30,7 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"pu'o","kind":"cmavo"}},{"Bare":{"sp
 brackets = "(pu'o sísti)"
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "pu'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [5,10],
-  },
+  tense_modal: Cmavo "pu'o",
+  Gismu "sísti",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pu'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"sisti","kind":"gismu"}}}}}}}}}}}}}]}]}"""

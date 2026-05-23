@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le tútci co me la kápnaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tutci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kapnaŭ",
-    span: [19,25],
-  },
+  Cmavo "le",
+  Gismu "tútci",
+  Cmavo "co",
+  Cmavo "me",
+  Cmavo "la",
+  Lujvo "kápnaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tutci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"kapnaŭ","kind":"lujvo"}}]'
 
@@ -56,39 +32,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Co {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "tutci",
-          span: [3,8],
-        },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [9,11],
-        },
+        leading_relation: Gismu "tútci",
+        co: Cmavo "co",
         trailing_relation: Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [12,14],
-          },
+          me: Cmavo "me",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [15,17],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "kapnaŭ",
-              span: [19,25],
-            },
+            descriptor: Cmavo "la",
+            relation: Lujvo "kápnaŭ",
           },
         },
       },

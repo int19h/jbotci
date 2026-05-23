@@ -18,111 +18,39 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ri'a bo kamcítno jo naĭ jaĭ skámi dúkse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kamcitno",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [28,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [34,39],
-  },
+  Cmavo "i",
+  Cmavo "ri'a",
+  Cmavo "bo",
+  Lujvo "kamcítno",
+  Cmavo "jo",
+  Cmavo "naĭ",
+  Cmavo "jaĭ",
+  Gismu "skámi",
+  Gismu "dúkse",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"kamcitno","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[34,39],"phonemes":"dukse","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "ri'a",
-      span: [2,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [6,8],
-    },
+    Cmavo "ri'a",
+    Cmavo "bo",
   },
   Compound {
     Connected {
-      leading_unit: Word {
-        kind: "lujvo",
-        phonemes: "kamcitno",
-        span: [9,17],
-      },
+      leading_unit: Lujvo "kamcítno",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "jo",
-          span: [18,20],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [20,23],
-        },
+        Cmavo "jo",
+        nai: Cmavo "naĭ",
       },
       trailing_unit: Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [24,27],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [28,33],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "skámi",
       },
     },
-    Word {
-      kind: "gismu",
-      phonemes: "dukse",
-      span: [34,39],
-    },
+    Gismu "dúkse",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[2,6],"phonemes":"ri'a","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"bo","kind":"cmavo"}}}]}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[9,17],"phonemes":"kamcitno","kind":"lujvo"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"jo","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}}}}},"trailing_unit":{"Jai":{"jai":{"Bare":{"Bare":{"span":[24,27],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[28,33],"phonemes":"skami","kind":"gismu"}}}}}}}},{"Word":{"Bare":{"Bare":{"span":[34,39],"phonemes":"dukse","kind":"gismu"}}}}]}}}}}}}}]}]}"""

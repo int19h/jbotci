@@ -18,149 +18,53 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pu za na snáda le nu pílno le vi císte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snada",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [37,42],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Cmavo "na",
+  Gismu "snáda",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
+  Cmavo "le",
+  Cmavo "vi",
+  Gismu "císte",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"snada","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"ciste","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "za",
-            span: [7,9],
-          },
+          Cmavo "pu",
+          Cmavo "za",
         },
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [10,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "snada",
-            span: [13,18],
-          },
+          na: Cmavo "na",
+          Gismu "snáda",
         },
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [22,24],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "pilno",
-                span: [25,30],
-              },
+              Gismu "pílno",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [31,33],
-                  },
+                  descriptor: Cmavo "le",
                   relation: TenseModal {
-                    tense_modal: Word {
-                      kind: "cmavo",
-                      phonemes: "vi",
-                      span: [34,36],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "ciste",
-                      span: [37,42],
-                    },
+                    tense_modal: Cmavo "vi",
+                    Gismu "císte",
                   },
                 },
               ],

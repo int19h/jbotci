@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i so'e prénu go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [16,20],
-  },
+  Cmavo "pe'i",
+  Cmavo "so'e",
+  Gismu "prénu",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'e","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -46,34 +30,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'e",
-            span: [5,9],
-          },
+          Cmavo "so'e",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [10,15],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'i",
-            span: [16,20],
-          },
+          Gismu "prénu",
+          Cmavo "go'i",
         },
       },
     ],

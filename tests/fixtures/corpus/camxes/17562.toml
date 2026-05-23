@@ -19,69 +19,21 @@ brackets = "([zo .cylsyn.] cu dránymaŭ ju'o cu'i .i ku'i tu'a [zo .clsn.] zdí
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "cylsyn",
-      span: [3,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "cylsyn",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dranymaŭ",
-    span: [14,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [39,43],
-  },
+  Cmavo "cu",
+  Lujvo "dránymaŭ",
+  Cmavo "ju'o",
+  Cmavo "cu'i",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "tu'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [44,46],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "clsn",
-      span: [47,51],
-    },
+    zo: Cmavo "zo",
+    Cmevla "clsn",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [53,58],
-  },
+  Gismu "zdíle",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"cylsyn","kind":"cmevla"}}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,22],"phonemes":"dranymaŭ","kind":"lujvo"}},{"Bare":{"span":[23,27],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"tu'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[44,46],"phonemes":"zo","kind":"cmavo"},"word":{"span":[47,51],"phonemes":"clsn","kind":"cmevla"}}},{"Bare":{"span":[53,58],"phonemes":"zdile","kind":"gismu"}}]"""
 
@@ -91,83 +43,35 @@ Paragraph {
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "cylsyn",
-          span: [3,9],
-        },
+        zo: Cmavo "zo",
+        Cmevla "cylsyn",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [11,13],
-    },
+    cu: Cmavo "cu",
     WithIndicator {
       WithIndicator {
-        Word {
-          kind: "lujvo",
-          phonemes: "dranymaŭ",
-          span: [14,22],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [23,27],
-        },
+        Lujvo "dránymaŭ",
+        indicator: Cmavo "ju'o",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "cu'i",
-        span: [27,31],
-      },
+      indicator: Cmavo "cu'i",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [33,34],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [34,38],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [39,43],
-          },
+          lahe: Cmavo "tu'a",
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [44,46],
-            },
-            Word {
-              kind: "cmevla",
-              phonemes: "clsn",
-              span: [47,51],
-            },
+            zo: Cmavo "zo",
+            Cmevla "clsn",
           },
         },
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "zdile",
-        span: [53,58],
-      },
+      Gismu "zdíle",
     },
   },
 }"""

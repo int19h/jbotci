@@ -18,77 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i sálci le nu co'a nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Gismu "sálci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "co'a",
+  Gismu "nánca",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"nanca","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "salci",
-      span: [3,8],
-    },
+    Gismu "sálci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
+          nu: Cmavo "nu",
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "co'a",
-              span: [15,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nanca",
-              span: [20,25],
-            },
+            tense_modal: Cmavo "co'a",
+            Gismu "nánca",
           },
         },
       },

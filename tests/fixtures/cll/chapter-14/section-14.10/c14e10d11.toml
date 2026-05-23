@@ -24,66 +24,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi go naĭ le zárci cu kláma gi le bísli cu dánsu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bisli",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dansu",
-    span: [42,47],
-  },
+  Cmavo "mi",
+  Cmavo "go",
+  Cmavo "naĭ",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "cu",
+  Gismu "kláma",
+  Cmavo "gi",
+  Cmavo "le",
+  Gismu "bísli",
+  Cmavo "cu",
+  Gismu "dánsu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"go","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"bisli","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"dansu","kind":"gismu"}}]'
 
@@ -92,81 +44,33 @@ brackets = "(mi [{go naĭ} {(le zárci) cu kláma} gi {(le bísli) cu dánsu}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "go",
-        span: [3,5],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      Cmavo "go",
+      nai: Cmavo "naĭ",
     },
     first: Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zarci",
-            span: [12,17],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zárci",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [21,26],
-      },
+      cu: Cmavo "cu",
+      Gismu "kláma",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [27,29],
-    },
+    gik: Cmavo "gi",
     second: Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [30,32],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "bisli",
-            span: [33,38],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "bísli",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [39,41],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dansu",
-        span: [42,47],
-      },
+      cu: Cmavo "cu",
+      Gismu "dánsu",
     },
   },
 }"""

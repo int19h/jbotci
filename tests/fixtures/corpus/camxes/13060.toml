@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fágri smáni lo nunmórsi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunmorsi",
-    span: [15,23],
-  },
+  Gismu "fágri",
+  Gismu "smáni",
+  Cmavo "lo",
+  Lujvo "nunmórsi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"fagri","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"nunmorsi","kind":"lujvo"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"fagri","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "fagri",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "smani",
-      span: [6,11],
-    },
+    Gismu "fágri",
+    Gismu "smáni",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [12,14],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "nunmorsi",
-        span: [15,23],
-      },
+      descriptor: Cmavo "lo",
+      relation: Lujvo "nunmórsi",
     },
   ],
 }"""

@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i fánva lu turnycúxna sáske li'u le glíco fu [zoĭ gy Voting Theory gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [8,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "turnycuxna",
-    span: [11,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "saske",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [42,44],
-  },
+  Cmavo "i",
+  Gismu "fánva",
+  Cmavo "lu",
+  Lujvo "turnycúxna",
+  Gismu "sáske",
+  Cmavo "li'u",
+  Cmavo "le",
+  Gismu "glíco",
+  Cmavo "fu",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [45,48],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [49,51],
-    },
-    quoted_text: [51,65],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [66,68],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Voting Theory",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[11,21],"phonemes":"turnycuxna","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"saske","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"fu","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[45,48],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[49,51],"phonemes":"gy","kind":"cmavo"},"quoted_text":[51,65],"closing_delimiter":{"span":[66,68],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -87,77 +39,29 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "fanva",
-      span: [2,7],
-    },
+    Gismu "fánva",
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [8,10],
-        },
+        lu: Cmavo "lu",
         Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "turnycuxna",
-            span: [11,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "saske",
-            span: [22,27],
-          },
+          Lujvo "turnycúxna",
+          Gismu "sáske",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [28,32],
-        },
+        lihu: Cmavo "li'u",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [33,35],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "glico",
-          span: [36,41],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "glíco",
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fu",
-          span: [42,44],
-        },
+        fa: Cmavo "fu",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [45,48],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [49,51],
-          },
-          quoted_text: [51,65],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [66,68],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "Voting Theory",
+          closing_delimiter: Cmavo "gy",
         },
       },
     ],

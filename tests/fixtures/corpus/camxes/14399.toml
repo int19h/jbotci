@@ -18,134 +18,46 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cáfne fa le nu mi pílno le líste be le válsi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [38,43],
-  },
+  Gismu "cáfne",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "pílno",
+  Cmavo "le",
+  Gismu "líste",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "válsi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"valsi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [0,5],
-  },
+  Gismu "cáfne",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [6,8],
-      },
+      fa: Cmavo "fa",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [14,16],
-              },
+              Cmavo "mi",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "pilno",
-                span: [17,22],
-              },
+              Gismu "pílno",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [23,25],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Be {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "liste",
-                      span: [26,31],
-                    },
-                    be: Word {
-                      kind: "cmavo",
-                      phonemes: "be",
-                      span: [32,34],
-                    },
+                    Gismu "líste",
+                    be: Cmavo "be",
                     first_argument: Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "le",
-                        span: [35,37],
-                      },
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "valsi",
-                        span: [38,43],
-                      },
+                      descriptor: Cmavo "le",
+                      relation: Gismu "válsi",
                     },
                   },
                 },

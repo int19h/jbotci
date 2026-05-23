@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ko'a pu júkpa ri le mudyfágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jukpa",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mudyfagri",
-    span: [23,32],
-  },
+  Cmavo "i",
+  Cmavo "ko'a",
+  Cmavo "pu",
+  Gismu "júkpa",
+  Cmavo "ri",
+  Cmavo "le",
+  Lujvo "mudyfágri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"jukpa","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,32],"phonemes":"mudyfagri","kind":"lujvo"}}]"""
 
@@ -66,49 +38,21 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [ko'a {(pu júkpa) (ri [le mudyfágri])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko'a",
-        span: [3,7],
-      },
+      Cmavo "ko'a",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jukpa",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "júkpa",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ri",
-          span: [17,19],
-        },
+        Cmavo "ri",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "mudyfagri",
-            span: [23,32],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "mudyfágri",
         },
       ],
     },

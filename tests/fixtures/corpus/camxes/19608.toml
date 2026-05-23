@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mo'u gúnka .i co'o ro do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
+  Cmavo "mo'u",
+  Gismu "gúnka",
+  Cmavo "i",
+  Cmavo "co'o",
+  Cmavo "ro",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "mo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [5,10],
-    },
+    tense_modal: Cmavo "mo'u",
+    Gismu "gúnka",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [12,13],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [14,18],
-          },
+          Cmavo "co'o",
         ],
         argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [21,23],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "do",
         },
       },
     ],

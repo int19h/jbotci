@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.eĭ mi pu pílno lu cláni tráji li'u .e naĭ lu cláni dúkse li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [35,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [43,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [55,59],
-  },
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "pílno",
+  Cmavo "lu",
+  Gismu "cláni",
+  Gismu "tráji",
+  Cmavo "li'u",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "lu",
+  Gismu "cláni",
+  Gismu "dúkse",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"clani","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[35,36],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[36,39],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"clani","kind":"gismu"}},{"Bare":{"span":[49,54],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[55,59],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -96,95 +40,39 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "pílno",
       },
       terms: [
         Connected {
           leading_argument: Lu {
-            lu: Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [15,17],
-            },
+            lu: Cmavo "lu",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "clani",
-                span: [18,23],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "traji",
-                span: [24,29],
-              },
+              Gismu "cláni",
+              Gismu "tráji",
             },
-            lihu: Word {
-              kind: "cmavo",
-              phonemes: "li'u",
-              span: [30,34],
-            },
+            lihu: Cmavo "li'u",
           },
           connective: Afterthought {
-            Word {
-              kind: "cmavo",
-              phonemes: "e",
-              span: [35,36],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [36,39],
-            },
+            Cmavo "e",
+            nai: Cmavo "naĭ",
           },
           trailing_argument: Lu {
-            lu: Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [40,42],
-            },
+            lu: Cmavo "lu",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "clani",
-                span: [43,48],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "dukse",
-                span: [49,54],
-              },
+              Gismu "cláni",
+              Gismu "dúkse",
             },
-            lihu: Word {
-              kind: "cmavo",
-              phonemes: "li'u",
-              span: [55,59],
-            },
+            lihu: Cmavo "li'u",
           },
         },
       ],

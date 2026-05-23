@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na jímpe lu pa meĭ nélci li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [27,31],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "lu",
+  Cmavo "pa",
+  Cmavo "meĭ",
+  Gismu "nélci",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -65,58 +33,26 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "jímpe",
     },
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [12,14],
-        },
+        lu: Cmavo "lu",
         Compound {
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [15,17],
-              },
+              Cmavo "pa",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "meĭ",
-              span: [17,20],
-            },
+            moi: Cmavo "meĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "nelci",
-            span: [21,26],
-          },
+          Gismu "nélci",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [27,31],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

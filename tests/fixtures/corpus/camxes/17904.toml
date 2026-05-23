@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no da taĭ cméne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [10,15],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "taĭ",
+  Gismu "cméne",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cmene","kind":"gismu"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      quantifier: Cmavo "no",
+      Cmavo "da",
     },
   ],
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "taĭ",
-        span: [6,9],
-      },
+      bai: Cmavo "taĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [10,15],
-    },
+    Gismu "cméne",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[6,9],"phonemes":"taĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"cmene","kind":"gismu"}}}}}}}}}}}}}]}]}'

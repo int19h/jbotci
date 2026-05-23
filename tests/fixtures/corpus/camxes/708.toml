@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko'i xi pa so)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [8,10],
-  },
+  Cmavo "ko'i",
+  Cmavo "xi",
+  Cmavo "pa",
+  Cmavo "so",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ko'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"so","kind":"cmavo"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Koha {
-      Word {
-        kind: "cmavo",
-        phonemes: "ko'i",
-        span: [0,4],
-      },
+      Cmavo "ko'i",
       free_modifiers: [
         Xi {
-          xi: Word {
-            kind: "cmavo",
-            phonemes: "xi",
-            span: [4,6],
-          },
+          xi: Cmavo "xi",
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [6,8],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "so",
-              span: [8,10],
-            },
+            Cmavo "pa",
+            Cmavo "so",
           },
         },
       ],

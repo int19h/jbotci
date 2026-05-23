@@ -19,31 +19,11 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi píkci fo lo ckáfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pikci",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [16,21],
-  },
+  Cmavo "mi",
+  Gismu "píkci",
+  Cmavo "fo",
+  Cmavo "lo",
+  Gismu "ckáfi",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"pikci","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"ckafi","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ json = '[{"Bare":{"span":[1,3],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [1,3],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pikci",
-      span: [4,9],
-    },
+    Gismu "píkci",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [10,12],
-        },
+        fa: Cmavo "fo",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [13,15],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "ckafi",
-            span: [16,21],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "ckáfi",
         },
       },
     ],

@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ménli plúka ju ránji kákne)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranji",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [21,26],
-  },
+  Gismu "ménli",
+  Gismu "plúka",
+  Cmavo "ju",
+  Gismu "ránji",
+  Gismu "kákne",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ranji","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"kakne","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [0,5],
-  },
+  Gismu "ménli",
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [6,11],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ju",
-      span: [12,14],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "ranji",
-      span: [15,20],
-    },
+    leading_unit: Gismu "plúka",
+    connective: Cmavo "ju",
+    trailing_unit: Gismu "ránji",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [21,26],
-  },
+  Gismu "kákne",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"menli","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"pluka","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"ju","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"ranji","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"kakne","kind":"gismu"}}}}]}}}}}}}}]}]}'

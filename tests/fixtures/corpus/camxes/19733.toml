@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u meĭ fa le mi píxra .i .aĭ mi gúbgaŭ ja bénji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [30,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gubgaŭ",
-    span: [33,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [43,48],
-  },
+  Cmavo "so'u",
+  Cmavo "meĭ",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "píxra",
+  Cmavo "i",
+  Cmavo "aĭ",
+  Cmavo "mi",
+  Lujvo "gúbgaŭ",
+  Cmavo "ja",
+  Gismu "bénji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pixra","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[33,39],"phonemes":"gubgaŭ","kind":"lujvo"}},{"Bare":{"span":[40,42],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"benji","kind":"gismu"}}]"""
 
@@ -87,84 +39,36 @@ Paragraph {
   Relation {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'u",
-          span: [0,4],
-        },
+        Cmavo "so'u",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [4,7],
-      },
+      moi: Cmavo "meĭ",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [8,10],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [14,16],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "pixra",
-            span: [17,22],
-          },
+          relation: Gismu "píxra",
         },
       },
     ],
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [24,25],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [27,29],
-      },
+      Cmavo "i",
+      indicator: Cmavo "aĭ",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [30,32],
-        },
+        Cmavo "mi",
       ],
       Connected {
-        leading_relation: Word {
-          kind: "lujvo",
-          phonemes: "gubgaŭ",
-          span: [33,39],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ja",
-          span: [40,42],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "benji",
-          span: [43,48],
-        },
+        leading_relation: Lujvo "gúbgaŭ",
+        connective: Cmavo "ja",
+        trailing_relation: Gismu "bénji",
       },
     },
   },

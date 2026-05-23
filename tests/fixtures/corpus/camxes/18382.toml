@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu mi kélci [la'o gy civilization 4 gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [9,14],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "kélci",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [15,19],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [20,22],
-    },
-    quoted_text: [24,38],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [40,42],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "civilization 4",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"kelci","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[15,19],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[20,22],"phonemes":"gy","kind":"cmavo"},"quoted_text":[24,38],"closing_delimiter":{"span":[40,42],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -64,49 +36,21 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [6,8],
-            },
+            Cmavo "mi",
           ],
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "kelci",
-              span: [9,14],
-            },
+            Gismu "kélci",
             terms: [
               ZoiQuote {
-                zoi: Word {
-                  kind: "cmavo",
-                  phonemes: "la'o",
-                  span: [15,19],
-                },
-                opening_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [20,22],
-                },
-                quoted_text: [24,38],
-                closing_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [40,42],
-                },
+                zoi: Cmavo "la'o",
+                opening_delimiter: Cmavo "gy",
+                quoted_text: Verbatim "civilization 4",
+                closing_delimiter: Cmavo "gy",
               },
             ],
           },

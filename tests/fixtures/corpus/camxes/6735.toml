@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se ki'u ku .ŭo spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭo",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [13,18],
-  },
+  Cmavo "se",
+  Cmavo "ki'u",
+  Cmavo "ku",
+  Cmavo "ŭo",
+  Gismu "spófu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ŭo","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"spofu","kind":"gismu"}}]"""
 
@@ -52,37 +32,17 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ki'u",
-          span: [2,6],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "ki'u",
       },
       Zohe {
         maybe_ku: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [6,8],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭo",
-            span: [10,12],
-          },
+          Cmavo "ku",
+          indicator: Cmavo "ŭo",
         },
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [13,18],
-  },
+  Gismu "spófu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}}},"bai":{"Bare":{"Bare":{"span":[2,6],"phonemes":"ki'u","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ku","kind":"cmavo"}}},"indicator":{"span":[10,12],"phonemes":"ŭo","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"spofu","kind":"gismu"}}}}}}}}}}}]}]}"""

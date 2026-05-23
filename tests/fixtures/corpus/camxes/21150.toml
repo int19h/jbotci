@@ -18,90 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xámgu fa ro cníno nu jbópre bínxo)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [21,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [28,33],
-  },
+  Gismu "xámgu",
+  Cmavo "fa",
+  Cmavo "ro",
+  Gismu "cníno",
+  Cmavo "nu",
+  Lujvo "jbópre",
+  Gismu "bínxo",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[28,33],"phonemes":"binxo","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
+  Gismu "xámgu",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [6,8],
-      },
+      fa: Cmavo "fa",
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [9,11],
-          },
+          Cmavo "ro",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [12,17],
-          },
+          Gismu "cníno",
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [18,20],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "jbopre",
-                span: [21,27],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "binxo",
-                span: [28,33],
-              },
+              Lujvo "jbópre",
+              Gismu "bínxo",
             },
           },
         },

@@ -18,81 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pi pa ki'o pa re ki'o pa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [22,24],
-  },
+  Cmavo "pi",
+  Cmavo "pa",
+  Cmavo "ki'o",
+  Cmavo "pa",
+  Cmavo "re",
+  Cmavo "ki'o",
+  Cmavo "pa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [22,24],
-  },
+  Cmavo "pi",
+  Cmavo "pa",
+  Cmavo "ki'o",
+  Cmavo "pa",
+  Cmavo "re",
+  Cmavo "ki'o",
+  Cmavo "pa",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,10],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[11,13],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[17,21],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}}}]}}}}}}]}]}"""

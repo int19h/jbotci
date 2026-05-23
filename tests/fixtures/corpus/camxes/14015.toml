@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a mrílu fi le lójbo túrni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [23,28],
-  },
+  Cmavo "la'a",
+  Gismu "mrílu",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "túrni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"turni","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "la'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mrilu",
-      span: [5,10],
-    },
+    Gismu "mrílu",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [11,13],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "turni",
-              span: [23,28],
-            },
+            Gismu "lójbo",
+            Gismu "túrni",
           },
         },
       },

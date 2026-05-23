@@ -18,105 +18,41 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ma smúni [zo .kreĭg.] baŭ le dótco)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [5,10],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "smúni",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "kreĭg",
-      span: [14,19],
-    },
+    zo: Cmavo "zo",
+    Cmevla "kreĭg",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dotco",
-    span: [27,32],
-  },
+  Cmavo "baŭ",
+  Cmavo "le",
+  Gismu "dótco",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"smuni","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,19],"phonemes":"kreĭg","kind":"cmevla"}}},{"Bare":{"span":[20,23],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"dotco","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [2,4],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "smuni",
-        span: [5,10],
-      },
+      Gismu "smúni",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "kreĭg",
-            span: [14,19],
-          },
+          zo: Cmavo "zo",
+          Cmevla "kreĭg",
         },
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "baŭ",
-              span: [20,23],
-            },
+            bai: Cmavo "baŭ",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [24,26],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "dotco",
-              span: [27,32],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "dótco",
           },
         },
       ],

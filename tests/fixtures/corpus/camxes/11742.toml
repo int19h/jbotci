@@ -18,57 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda ca ro djédi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [12,17],
-  },
+  Gismu "bróda",
+  Cmavo "ca",
+  Cmavo "ro",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djedi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [9,11],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "djedi",
-          span: [12,17],
-        },
+        relation: Gismu "djédi",
       },
     },
   ],

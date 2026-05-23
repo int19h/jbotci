@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(taĭ ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [4,6],
-  },
+  Cmavo "taĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -37,17 +29,9 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [0,3],
-        },
+        bai: Cmavo "taĭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [4,6],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

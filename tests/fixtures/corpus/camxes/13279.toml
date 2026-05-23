@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dúkse be fi mi xríso)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xriso",
-    span: [14,19],
-  },
+  Gismu "dúkse",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "mi",
+  Gismu "xríso",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xriso","kind":"gismu"}}]'
 
@@ -50,31 +30,11 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "dukse",
-      span: [0,5],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [6,8],
-    },
-    fa: Word {
-      kind: "cmavo",
-      phonemes: "fi",
-      span: [8,10],
-    },
-    first_argument: Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [11,13],
-    },
+    Gismu "dúkse",
+    be: Cmavo "be",
+    fa: Cmavo "fi",
+    first_argument: Cmavo "mi",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "xriso",
-    span: [14,19],
-  },
+  Gismu "xríso",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"dukse","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}}},"fa":{"Bare":{"Bare":{"span":[8,10],"phonemes":"fi","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}}}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"xriso","kind":"gismu"}}}}]}}}}}}}}]}]}'

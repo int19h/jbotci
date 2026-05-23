@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa do pu cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [10,15],
-  },
+  Cmavo "ŭa",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [7,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "casnu",
-        span: [10,15],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cásnu",
     },
   },
 }"""

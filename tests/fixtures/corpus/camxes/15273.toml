@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu naĭ da pénsi leĭ vérba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "verba",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Cmavo "naĭ",
+  Cmavo "da",
+  Gismu "pénsi",
+  Cmavo "leĭ",
+  Gismu "vérba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"verba","kind":"gismu"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [2,5],
-      },
+      indicator: Cmavo "xu",
+      nai: Cmavo "naĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [6,8],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pensi",
-        span: [9,14],
-      },
+      Gismu "pénsi",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [15,18],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "verba",
-            span: [19,24],
-          },
+          descriptor: Cmavo "leĭ",
+          relation: Gismu "vérba",
         },
       ],
     },

@@ -18,125 +18,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cpácu leĭ sódva .e [la'o gy cookies gy] .e leĭ cersáĭgru)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [17,18],
-  },
+  Gismu "cpácu",
+  Cmavo "leĭ",
+  Gismu "sódva",
+  Cmavo "e",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [19,23],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [24,26],
-    },
-    quoted_text: [28,35],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [37,39],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "cookies",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [42,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [44,47],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cersaĭgru",
-    span: [48,57],
-  },
+  Cmavo "e",
+  Cmavo "leĭ",
+  Lujvo "cersáĭgru",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[19,23],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[24,26],"phonemes":"gy","kind":"cmavo"},"quoted_text":[28,35],"closing_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[42,43],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[48,57],"phonemes":"cersaĭgru","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [0,5],
-  },
+  Gismu "cpácu",
   terms: [
     Connected {
       leading_argument: Connected {
         leading_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [6,9],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "sodva",
-            span: [10,15],
-          },
+          descriptor: Cmavo "leĭ",
+          relation: Gismu "sódva",
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [17,18],
-        },
+        connective: Cmavo "e",
         trailing_argument: ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "la'o",
-            span: [19,23],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [24,26],
-          },
-          quoted_text: [28,35],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [37,39],
-          },
+          zoi: Cmavo "la'o",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "cookies",
+          closing_delimiter: Cmavo "gy",
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [42,43],
-      },
+      connective: Cmavo "e",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [44,47],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "cersaĭgru",
-          span: [48,57],
-        },
+        descriptor: Cmavo "leĭ",
+        relation: Lujvo "cersáĭgru",
       },
     },
   ],

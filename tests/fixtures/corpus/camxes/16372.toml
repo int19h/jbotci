@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .orakl. tacpé'u ro loĭ gánxo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "orakl",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tacpe'u",
-    span: [10,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganxo",
-    span: [25,30],
-  },
+  Cmavo "la",
+  Cmevla "orakl",
+  Lujvo "tacpé'u",
+  Cmavo "ro",
+  Cmavo "loĭ",
+  Gismu "gánxo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"orakl","kind":"cmevla"}},{"Bare":{"span":[10,17],"phonemes":"tacpe'u","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"ganxo","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "orakl",
-          span: [3,8],
-        },
+        Cmevla "orakl",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "tacpe'u",
-      span: [10,17],
-    },
+    Lujvo "tacpé'u",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [21,24],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [18,20],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ganxo",
-          span: [25,30],
-        },
+        descriptor: Cmavo "loĭ",
+        outer_quantifier: Cmavo "ro",
+        relation: Gismu "gánxo",
       },
     ],
   },

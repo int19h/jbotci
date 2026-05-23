@@ -24,41 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi .e naĭ do prámi ro da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [20,22],
-  },
+  Cmavo "mi",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Gismu "prámi",
+  Cmavo "ro",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -68,48 +40,20 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      leading_argument: Cmavo "mi",
       connective: Afterthought {
-        Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [4,5],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [5,8],
-        },
+        Cmavo "e",
+        nai: Cmavo "naĭ",
       },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [9,11],
-      },
+      trailing_argument: Cmavo "do",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [12,17],
-    },
+    Gismu "prámi",
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [18,20],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [20,22],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
     ],
   },

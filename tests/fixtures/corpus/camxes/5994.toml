@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi mi ji'a tróci co vécnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [20,25],
-  },
+  Cmavo "fi",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Gismu "tróci",
+  Cmavo "co",
+  Gismu "vécnu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"vecnu","kind":"gismu"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [0,2],
-      },
+      fa: Cmavo "fi",
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [6,10],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     },
   ],
   Co {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "troci",
-      span: [11,16],
-    },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [17,19],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [20,25],
-    },
+    leading_relation: Gismu "tróci",
+    co: Cmavo "co",
+    trailing_relation: Gismu "vécnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Fa":{"fa":{"Bare":{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}}},"argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}},"indicator":{"span":[6,10],"phonemes":"ji'a","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"troci","kind":"gismu"}}}},"co":{"Bare":{"Bare":{"span":[17,19],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"vecnu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

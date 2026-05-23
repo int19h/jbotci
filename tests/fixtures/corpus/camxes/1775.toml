@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro rátcu ka'e cítka da'a rátcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ratcu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ratcu",
-    span: [25,30],
-  },
+  Cmavo "ro",
+  Gismu "rátcu",
+  Cmavo "ka'e",
+  Gismu "cítka",
+  Cmavo "da'a",
+  Gismu "rátcu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ratcu","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"da'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"ratcu","kind":"gismu"}}]"""
 
@@ -57,46 +33,22 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ratcu",
-        span: [3,8],
-      },
+      relation: Gismu "rátcu",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [14,19],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "cítka",
     },
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da'a",
-            span: [20,24],
-          },
+          Cmavo "da'a",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ratcu",
-          span: [25,30],
-        },
+        relation: Gismu "rátcu",
       },
     ],
   },

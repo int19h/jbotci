@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nalcírla je ránti je nalsílna ke jgéna nánba)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcirla",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalsilna",
-    span: [21,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgena",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [39,44],
-  },
+  Lujvo "nalcírla",
+  Cmavo "je",
+  Gismu "ránti",
+  Cmavo "je",
+  Lujvo "nalsílna",
+  Cmavo "ke",
+  Gismu "jgéna",
+  Gismu "nánba",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"nalcirla","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ranti","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[21,29],"phonemes":"nalsilna","kind":"lujvo"}},{"Bare":{"span":[30,32],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"jgena","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"nanba","kind":"gismu"}}]'
 
@@ -66,50 +34,18 @@ tree = """
 Compound {
   Connected {
     leading_unit: Connected {
-      leading_unit: Word {
-        kind: "lujvo",
-        phonemes: "nalcirla",
-        span: [0,8],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [9,11],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "ranti",
-        span: [12,17],
-      },
+      leading_unit: Lujvo "nalcírla",
+      connective: Cmavo "je",
+      trailing_unit: Gismu "ránti",
     },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [18,20],
-    },
-    trailing_unit: Word {
-      kind: "lujvo",
-      phonemes: "nalsilna",
-      span: [21,29],
-    },
+    connective: Cmavo "je",
+    trailing_unit: Lujvo "nalsílna",
   },
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [30,32],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "jgena",
-        span: [33,38],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nanba",
-        span: [39,44],
-      },
+      Gismu "jgéna",
+      Gismu "nánba",
     },
   },
 }"""

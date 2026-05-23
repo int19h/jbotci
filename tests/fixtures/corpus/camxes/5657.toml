@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭe sídju fi ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [13,15],
-  },
+  Cmavo "ĭe",
+  Gismu "sídju",
+  Cmavo "fi",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ĭe",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sidju",
-      span: [4,9],
-    },
+    Gismu "sídju",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [10,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [13,15],
-        },
+        fa: Cmavo "fi",
+        Cmavo "ma",
       },
     ],
   },

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i le jbóbaŭ lérfu le bárda lérfu zmádu le ka jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbobaŭ",
-    span: [10,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [49,54],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "le",
+  Lujvo "jbóbaŭ",
+  Gismu "lérfu",
+  Cmavo "le",
+  Gismu "bárda",
+  Gismu "lérfu",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"jbobaŭ","kind":"lujvo"}},{"Bare":{"span":[17,22],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -85,79 +37,31 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "jbobaŭ",
-            span: [10,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lerfu",
-            span: [17,22],
-          },
+          Lujvo "jbóbaŭ",
+          Gismu "lérfu",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [23,25],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "barda",
-            span: [26,31],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lerfu",
-            span: [32,37],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zmadu",
-            span: [38,43],
-          },
+          Gismu "bárda",
+          Gismu "lérfu",
+          Gismu "zmádu",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [44,46],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [46,48],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jimpe",
-            span: [49,54],
-          },
+          nu: Cmavo "ka",
+          Gismu "jímpe",
         },
       },
     ],

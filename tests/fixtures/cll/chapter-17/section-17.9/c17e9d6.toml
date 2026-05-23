@@ -25,37 +25,13 @@ brackets = "([.a bu] dúnda by boĭ cy)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [1,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [2,4],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [19,21],
-  },
+  Gismu "dúnda",
+  Cmavo "by",
+  Cmavo "boĭ",
+  Cmavo "cy",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,10],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"cy","kind":"cmavo"}}]'
 
@@ -67,48 +43,24 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [1,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [2,4],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "dunda",
-      span: [5,10],
-    },
+    Gismu "dúnda",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [11,13],
-          },
+          Cmavo "by",
         ],
-        boi: Word {
-          kind: "cmavo",
-          phonemes: "boĭ",
-          span: [15,18],
-        },
+        boi: Cmavo "boĭ",
       },
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [19,21],
-          },
+          Cmavo "cy",
         ],
       },
     ],

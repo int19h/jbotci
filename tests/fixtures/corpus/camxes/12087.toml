@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ níxli cu múzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muzba",
-    span: [13,18],
-  },
+  Cmavo "loĭ",
+  Gismu "níxli",
+  Cmavo "cu",
+  Gismu "múzba",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"muzba","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [4,9],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "níxli",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muzba",
-    span: [13,18],
-  },
+  cu: Cmavo "cu",
+  Gismu "múzba",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"nixli","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"muzba","kind":"gismu"}}}}}}}}}}}]}]}'

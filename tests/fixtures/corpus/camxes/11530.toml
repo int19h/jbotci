@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to ru'a ry se kúkte toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [21,24],
-  },
+  Cmavo "to",
+  Cmavo "ru'a",
+  Cmavo "ry",
+  Cmavo "se",
+  Gismu "kúkte",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -57,47 +33,23 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'a",
-          span: [3,7],
-        },
+        Cmavo "to",
+        indicator: Cmavo "ru'a",
       },
       Predicate {
         leading_terms: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [8,10],
-              },
+              Cmavo "ry",
             ],
           },
         ],
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [12,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kukte",
-            span: [15,20],
-          },
+          se: Cmavo "se",
+          Gismu "kúkte",
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [21,24],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

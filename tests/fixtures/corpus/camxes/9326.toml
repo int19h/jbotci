@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to .u'u .oĭ ru'e bárda júfra toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [27,30],
-  },
+  Cmavo "to",
+  Cmavo "u'u",
+  Cmavo "oĭ",
+  Cmavo "ru'e",
+  Gismu "bárda",
+  Gismu "júfra",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -64,46 +36,18 @@ Text {
       to: WithIndicator {
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "to",
-              span: [0,2],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'u",
-              span: [4,7],
-            },
+            Cmavo "to",
+            indicator: Cmavo "u'u",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "oĭ",
-            span: [8,10],
-          },
+          indicator: Cmavo "oĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [10,14],
-        },
+        indicator: Cmavo "ru'e",
       },
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "barda",
-          span: [15,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jufra",
-          span: [21,26],
-        },
+        Gismu "bárda",
+        Gismu "júfra",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [27,30],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

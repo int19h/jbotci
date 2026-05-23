@@ -19,46 +19,14 @@ brackets = "([zo doĭ] símlu la .ĭa pe le xrábo)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "doĭ",
-      span: [3,6],
-    },
+    zo: Cmavo "zo",
+    Cmavo "doĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "simlu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭa",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrabo",
-    span: [26,31],
-  },
+  Gismu "símlu",
+  Cmavo "la",
+  Cmavo "ĭa",
+  Cmavo "pe",
+  Cmavo "le",
+  Gismu "xrábo",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}},{"Bare":{"span":[7,12],"phonemes":"simlu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ĭa","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"xrabo","kind":"gismu"}}]'

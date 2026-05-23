@@ -18,151 +18,55 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je la .daltn. spéni lo dráta be la .robin. vaŭ xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "daltn",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [44,46],
-  },
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "la",
+  Cmevla "daltn",
+  Gismu "spéni",
+  Cmavo "lo",
+  Gismu "dráta",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "robin",
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,3],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"daltn","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[40,43],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [4,6],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "daltn",
-            span: [7,12],
-          },
+          Cmevla "daltn",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "speni",
-        span: [13,18],
-      },
+      Gismu "spéni",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [19,21],
-          },
+          descriptor: Cmavo "lo",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "drata",
-              span: [22,27],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [28,30],
-            },
+            Gismu "dráta",
+            be: Cmavo "be",
             first_argument: Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [31,33],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "robin",
-                  span: [34,39],
-                },
+                Cmevla "robin",
               ],
             },
           },
         },
       ],
       vau: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [40,43],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [44,46],
-        },
+        Cmavo "vaŭ",
+        indicator: Cmavo "xu",
       },
     },
   },

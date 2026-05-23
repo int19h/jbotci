@@ -18,108 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ba stídi so'u cníno gísmu no'u [zo nágra] .e [zo nárga] .e [zo ránga] .e [zo rágna])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'u",
-    span: [31,35],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "stídi",
+  Cmavo "so'u",
+  Gismu "cníno",
+  Gismu "gísmu",
+  Cmavo "no'u",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [36,38],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nagra",
-      span: [39,44],
-    },
+    zo: Cmavo "zo",
+    Gismu "nágra",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [45,46],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [47,49],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "narga",
-      span: [50,55],
-    },
+    zo: Cmavo "zo",
+    Gismu "nárga",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [56,57],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [58,60],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ranga",
-      span: [61,66],
-    },
+    zo: Cmavo "zo",
+    Gismu "ránga",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [67,68],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [69,71],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ragna",
-      span: [72,77],
-    },
+    zo: Cmavo "zo",
+    Gismu "rágna",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"stidi","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"gismu","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"no'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[36,38],"phonemes":"zo","kind":"cmavo"},"word":{"span":[39,44],"phonemes":"nagra","kind":"gismu"}}},{"Bare":{"span":[45,46],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[47,49],"phonemes":"zo","kind":"cmavo"},"word":{"span":[50,55],"phonemes":"narga","kind":"gismu"}}},{"Bare":{"span":[56,57],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[58,60],"phonemes":"zo","kind":"cmavo"},"word":{"span":[61,66],"phonemes":"ranga","kind":"gismu"}}},{"Bare":{"span":[67,68],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[69,71],"phonemes":"zo","kind":"cmavo"},"word":{"span":[72,77],"phonemes":"ragna","kind":"gismu"}}}]"""
@@ -127,127 +51,51 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "stidi",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "stídi",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "so'u",
-              span: [14,18],
-            },
+            Cmavo "so'u",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [19,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gismu",
-              span: [25,30],
-            },
+            Gismu "cníno",
+            Gismu "gísmu",
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "no'u",
-                span: [31,35],
-              },
+              goi: Cmavo "no'u",
               Connected {
                 leading_argument: Connected {
                   leading_argument: Connected {
                     leading_argument: ZoQuote {
-                      zo: Word {
-                        kind: "cmavo",
-                        phonemes: "zo",
-                        span: [36,38],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "nagra",
-                        span: [39,44],
-                      },
+                      zo: Cmavo "zo",
+                      Gismu "nágra",
                     },
-                    connective: Word {
-                      kind: "cmavo",
-                      phonemes: "e",
-                      span: [45,46],
-                    },
+                    connective: Cmavo "e",
                     trailing_argument: ZoQuote {
-                      zo: Word {
-                        kind: "cmavo",
-                        phonemes: "zo",
-                        span: [47,49],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "narga",
-                        span: [50,55],
-                      },
+                      zo: Cmavo "zo",
+                      Gismu "nárga",
                     },
                   },
-                  connective: Word {
-                    kind: "cmavo",
-                    phonemes: "e",
-                    span: [56,57],
-                  },
+                  connective: Cmavo "e",
                   trailing_argument: ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [58,60],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "ranga",
-                      span: [61,66],
-                    },
+                    zo: Cmavo "zo",
+                    Gismu "ránga",
                   },
                 },
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "e",
-                  span: [67,68],
-                },
+                connective: Cmavo "e",
                 trailing_argument: ZoQuote {
-                  zo: Word {
-                    kind: "cmavo",
-                    phonemes: "zo",
-                    span: [69,71],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "ragna",
-                    span: [72,77],
-                  },
+                  zo: Cmavo "zo",
+                  Gismu "rágna",
                 },
               },
             },

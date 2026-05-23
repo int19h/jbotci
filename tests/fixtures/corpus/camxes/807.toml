@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djan. xi pa cúsku lu mi'e naĭ do li'u la .djan. xi re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [42,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [50,52],
-  },
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "xi",
+  Cmavo "pa",
+  Gismu "cúsku",
+  Cmavo "lu",
+  Cmavo "mi'e",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Cmavo "li'u",
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "xi",
+  Cmavo "re",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[48,50],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"re","kind":"cmavo"}}]"""
 
@@ -96,100 +40,44 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [3,7],
-        },
+        Cmevla "djan",
       ],
       free_modifiers: [
         Xi {
-          xi: Word {
-            kind: "cmavo",
-            phonemes: "xi",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [11,13],
-          },
+          xi: Cmavo "xi",
+          Cmavo "pa",
         },
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [14,19],
-    },
+    Gismu "cúsku",
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [20,22],
-        },
+        lu: Cmavo "lu",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi'e",
-                span: [23,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [27,30],
-              },
+              Cmavo "mi'e",
+              Cmavo "naĭ",
             ],
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [31,33],
-            },
+            argument: Cmavo "do",
           },
         ],
         Text {},
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [34,38],
-        },
+        lihu: Cmavo "li'u",
       },
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [39,41],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [42,46],
-          },
+          Cmevla "djan",
         ],
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [48,50],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [50,52],
-            },
+            xi: Cmavo "xi",
+            Cmavo "re",
           },
         ],
       },

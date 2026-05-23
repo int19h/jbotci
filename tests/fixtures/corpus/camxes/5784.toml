@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(so la .ŭeb. linlerdátni seltcána)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ŭeb",
-    span: [7,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "linlerdatni",
-    span: [11,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltcana",
-    span: [23,31],
-  },
+  Cmavo "so",
+  Cmavo "la",
+  Cmevla "ŭeb",
+  Lujvo "linlerdátni",
+  Lujvo "seltcána",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"ŭeb","kind":"cmevla"}},{"Bare":{"span":[11,22],"phonemes":"linlerdatni","kind":"lujvo"}},{"Bare":{"span":[23,31],"phonemes":"seltcana","kind":"lujvo"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "so",
-        span: [0,2],
-      },
+      quantifier: Cmavo "so",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ŭeb",
-            span: [7,10],
-          },
+          Cmevla "ŭeb",
         ],
       },
     },
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "linlerdatni",
-      span: [11,22],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "seltcana",
-      span: [23,31],
-    },
+    Lujvo "linlerdátni",
+    Lujvo "seltcána",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}}}]}},"inner_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[7,10],"phonemes":"ŭeb","kind":"cmevla"}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,22],"phonemes":"linlerdatni","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[23,31],"phonemes":"seltcana","kind":"lujvo"}}}}]}}}}}}}}]}]}'

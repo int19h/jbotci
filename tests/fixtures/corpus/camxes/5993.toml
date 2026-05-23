@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.b. pu za vécnu tróci)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "b",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [13,18],
-  },
+  Cmevla "b",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "vécnu",
+  Gismu "tróci",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"b","kind":"cmevla"}},{"Bare":{"span":[2,4],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"troci","kind":"gismu"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"b","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "b",
-      span: [0,1],
-    },
+    Cmevla "b",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [2,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "za",
-        span: [4,6],
-      },
+      Cmavo "pu",
+      Cmavo "za",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "vecnu",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "troci",
-        span: [13,18],
-      },
+      Gismu "vécnu",
+      Gismu "tróci",
     },
   },
 }"""

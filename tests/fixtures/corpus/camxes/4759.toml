@@ -19,58 +19,18 @@ brackets = "([.a bu] du ny .i je by du [.o bu])"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [0,1],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [1,3],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [18,20],
-  },
+  Cmavo "du",
+  Cmavo "ny",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "by",
+  Cmavo "du",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "o",
-      span: [21,22],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [22,24],
-    },
+    Cmavo "o",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[4,6],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"du","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[21,22],"phonemes":"o","kind":"cmavo"}},"bu":{"span":[22,24],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -83,81 +43,41 @@ Connected {
       Letter {
         letter: [
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [0,1],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [1,3],
-            },
+            Cmavo "a",
+            bu: Cmavo "bu",
           },
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [4,6],
-      },
+      Cmavo "du",
       terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ny",
-              span: [7,9],
-            },
+            Cmavo "ny",
           ],
         },
       ],
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [12,14],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [15,17],
-          },
+          Cmavo "by",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [18,20],
-      },
+      Cmavo "du",
       terms: [
         Letter {
           letter: [
             Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "o",
-                span: [21,22],
-              },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [22,24],
-              },
+              Cmavo "o",
+              bu: Cmavo "bu",
             },
           ],
         },

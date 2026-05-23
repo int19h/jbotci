@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .agvorbis. selfríti ca le cábdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "agvorbis",
-    span: [3,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selfriti",
-    span: [14,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [29,35],
-  },
+  Cmavo "la",
+  Cmevla "agvorbis",
+  Lujvo "selfríti",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "cábdeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"agvorbis","kind":"cmevla"}},{"Bare":{"span":[14,22],"phonemes":"selfriti","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,35],"phonemes":"cabdeĭ","kind":"lujvo"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "agvorbis",
-          span: [3,12],
-        },
+        Cmevla "agvorbis",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "selfriti",
-      span: [14,22],
-    },
+    Lujvo "selfríti",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [23,25],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [26,28],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "cabdeĭ",
-            span: [29,35],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "cábdeĭ",
         },
       },
     ],

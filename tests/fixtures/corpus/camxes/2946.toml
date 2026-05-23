@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la bróca kúrji ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broca",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kurji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [15,17],
-  },
+  Cmavo "la",
+  Gismu "bróca",
+  Gismu "kúrji",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broca","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"kurji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "broca",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kurji",
-          span: [9,14],
-        },
+        Gismu "bróca",
+        Gismu "kúrji",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [15,17],
-    },
+    Cmavo "ra",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"broca","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"kurji","kind":"gismu"}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"ra","kind":"cmavo"}}}}}]}}}}]}]}'

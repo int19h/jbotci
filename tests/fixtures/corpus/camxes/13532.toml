@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i saĭ xájmi vécnu sámymri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xajmi",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [13,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samymri",
-    span: [19,26],
-  },
+  Cmavo "u'i",
+  Cmavo "saĭ",
+  Gismu "xájmi",
+  Gismu "vécnu",
+  Lujvo "sámymri",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"xajmi","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[19,26],"phonemes":"samymri","kind":"lujvo"}}]"""
 
@@ -52,35 +32,15 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "u'i",
-          span: [0,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "u'i",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xajmi",
-      span: [7,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [13,18],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "samymri",
-      span: [19,26],
-    },
+    Gismu "xájmi",
+    Gismu "vécnu",
+    Lujvo "sámymri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"xajmi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"vecnu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,26],"phonemes":"samymri","kind":"lujvo"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}}]}"""

@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i leĭ za'u da djíca la'e do'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [26,30],
-  },
+  Cmavo "i",
+  Cmavo "leĭ",
+  Cmavo "za'u",
+  Cmavo "da",
+  Gismu "djíca",
+  Cmavo "la'e",
+  Cmavo "do'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"do'i","kind":"cmavo"}}]"""
 
@@ -63,51 +35,23 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{leĭ (za'u da)} {djíca (la'e do'i)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [3,6],
-        },
+        descriptor: Cmavo "leĭ",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [7,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [12,14],
-          },
+          Cmavo "za'u",
+          Cmavo "da",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [15,20],
-      },
+      Gismu "djíca",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [21,25],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do'i",
-            span: [26,30],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "do'i",
         },
       ],
     },

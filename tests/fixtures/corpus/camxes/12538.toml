@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to lérci mútcu toĭ go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerci",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutcu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [19,23],
-  },
+  Cmavo "to",
+  Gismu "lérci",
+  Gismu "mútcu",
+  Cmavo "toĭ",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lerci","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"mutcu","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"toĭ","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "lerci",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mutcu",
-          span: [9,14],
-        },
+        Gismu "lérci",
+        Gismu "mútcu",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [15,18],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [19,23],
-  },
+  Cmavo "go'i",
 }"""
 json = """{"leading_free_modifiers":[{"To":{"to":{"Bare":{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"lerci","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"mutcu","kind":"gismu"}}}}]}}}}}}}}]}]},"toi":{"Bare":{"Bare":{"span":[15,18],"phonemes":"toĭ","kind":"cmavo"}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,23],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

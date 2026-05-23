@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le se brívla cu jaĭ cfípu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "brivla",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [20,25],
-  },
+  Cmavo "le",
+  Cmavo "se",
+  Lujvo "brívla",
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "cfípu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"brivla","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cfipu","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [3,5],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "brivla",
-          span: [6,12],
-        },
+        se: Cmavo "se",
+        Lujvo "brívla",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
+  cu: Cmavo "cu",
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [16,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cfipu",
-      span: [20,25],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "cfípu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,12],"phonemes":"brivla","kind":"lujvo"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[16,19],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"cfipu","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

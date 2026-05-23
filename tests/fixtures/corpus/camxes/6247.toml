@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na vájni .i mi pu cfípu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [18,23],
-  },
+  Cmavo "na",
+  Gismu "vájni",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cfípu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"vajni","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cfipu","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Paragraph {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vajni",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "vájni",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [12,14],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cfipu",
-          span: [18,23],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "cfípu",
       },
     },
   },

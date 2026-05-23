@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xo ni fy cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [10,15],
-  },
+  Cmavo "xo",
+  Cmavo "ni",
+  Cmavo "fy",
+  Gismu "cértu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"certu","kind":"gismu"}}]'
 
@@ -47,35 +31,19 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [0,2],
-        },
+        Cmavo "xo",
       ],
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Predicate {
           leading_terms: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "fy",
-                  span: [6,8],
-                },
+                Cmavo "fy",
               ],
             },
           ],
-          Word {
-            kind: "gismu",
-            phonemes: "certu",
-            span: [10,15],
-          },
+          Gismu "cértu",
         },
       },
     },

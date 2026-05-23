@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to ta'o le jvóste cu vásru toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jvoste",
-    span: [11,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [27,30],
-  },
+  Cmavo "to",
+  Cmavo "ta'o",
+  Cmavo "le",
+  Lujvo "jvóste",
+  Cmavo "cu",
+  Gismu "vásru",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,17],"phonemes":"jvoste","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -62,48 +34,20 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ta'o",
-          span: [3,7],
-        },
+        Cmavo "to",
+        indicator: Cmavo "ta'o",
       },
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [8,10],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "jvoste",
-              span: [11,17],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "jvóste",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vasru",
-          span: [21,26],
-        },
+        cu: Cmavo "cu",
+        Gismu "vásru",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [27,30],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

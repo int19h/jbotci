@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.or. mílxe le ka tcídu)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "or",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [14,19],
-  },
+  Cmevla "or",
+  Gismu "mílxe",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "tcídu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"tcidu","kind":"gismu"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "or",
-      span: [0,2],
-    },
+    Cmevla "or",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "milxe",
-      span: [3,8],
-    },
+    Gismu "mílxe",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [11,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tcidu",
-            span: [14,19],
-          },
+          nu: Cmavo "ka",
+          Gismu "tcídu",
         },
       },
     ],

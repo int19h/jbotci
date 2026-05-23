@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bu'u do co'o távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [13,18],
-  },
+  Cmavo "bu'u",
+  Cmavo "do",
+  Cmavo "co'o",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "bu'u",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "bu'u",
       Koha {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [5,7],
-        },
+        Cmavo "do",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "co'o",
-                span: [8,12],
-              },
+              Cmavo "co'o",
             ],
             argument: RelationVocative {
-              relation: Word {
-                kind: "gismu",
-                phonemes: "tavla",
-                span: [13,18],
-              },
+              relation: Gismu "távla",
             },
           },
         ],

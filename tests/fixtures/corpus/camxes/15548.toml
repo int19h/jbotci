@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .tirnos. do pílno lójbo vlácku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tirnos",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [21,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlacku",
-    span: [27,33],
-  },
+  Cmavo "doĭ",
+  Cmevla "tirnos",
+  Cmavo "do",
+  Gismu "pílno",
+  Gismu "lójbo",
+  Lujvo "vlácku",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"tirnos","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[27,33],"phonemes":"vlacku","kind":"lujvo"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "tirnos",
-        span: [4,10],
-      },
+      argument: Cmevla "tirnos",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [15,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [21,26],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "vlacku",
-        span: [27,33],
-      },
+      Gismu "pílno",
+      Gismu "lójbo",
+      Lujvo "vlácku",
     },
   },
 }"""

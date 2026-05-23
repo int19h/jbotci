@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do djíca le nu gúnka ca pi ro le crísa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crisa",
-    span: [35,40],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "gúnka",
+  Cmavo "ca",
+  Cmavo "pi",
+  Cmavo "ro",
+  Cmavo "le",
+  Gismu "crísa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"crisa","kind":"gismu"}}]'
 
@@ -81,76 +37,32 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [6,11],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [15,17],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "gunka",
-                span: [18,23],
-              },
+              Gismu "gúnka",
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [24,26],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [32,34],
-                    },
+                    descriptor: Cmavo "le",
                     outer_quantifier: Number {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "pi",
-                        span: [27,29],
-                      },
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "ro",
-                        span: [29,31],
-                      },
+                      Cmavo "pi",
+                      Cmavo "ro",
                     },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "crisa",
-                      span: [35,40],
-                    },
+                    relation: Gismu "crísa",
                   },
                 },
               ],

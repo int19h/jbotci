@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do se bangrnesperánto)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "bangrnesperanto",
-    span: [9,24],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "se",
+  Fuhivla "bangrnesperánto",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,24],"phonemes":"bangrnesperanto","kind":"fu'ivla"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [6,8],
-      },
-      Word {
-        kind: "fu'ivla",
-        phonemes: "bangrnesperanto",
-        span: [9,24],
-      },
+      se: Cmavo "se",
+      Fuhivla "bangrnesperánto",
     },
   },
 }"""

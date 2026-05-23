@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i lórxu xo da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lorxu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
+  Cmavo "i",
+  Gismu "lórxu",
+  Cmavo "xo",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lorxu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "lorxu",
-      span: [3,8],
-    },
+    Gismu "lórxu",
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [11,13],
-        },
+        quantifier: Cmavo "xo",
+        Cmavo "da",
       },
     ],
   },

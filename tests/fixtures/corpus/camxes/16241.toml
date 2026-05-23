@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i coĭ doĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [10,15],
-  },
+  Cmavo "i",
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"robin","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [2,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [6,9],
-        },
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "robin",
-        span: [10,15],
-      },
+      argument: Cmevla "robin",
     },
   ],
 }"""

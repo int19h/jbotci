@@ -18,53 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu'o zbásu la .linuks. pe [zoĭ gy , 2.6.0test2 gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "linuks",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [25,27],
-  },
+  Cmavo "mi",
+  Cmavo "pu'o",
+  Gismu "zbásu",
+  Cmavo "la",
+  Cmevla "linuks",
+  Cmavo "pe",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [28,31],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [32,34],
-    },
-    quoted_text: [34,46],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [47,49],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim ", 2.6.0test2",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pu'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"linuks","kind":"cmevla"}},{"Bare":{"span":[25,27],"phonemes":"pe","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[28,31],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[32,34],"phonemes":"gy","kind":"cmavo"},"quoted_text":[34,46],"closing_delimiter":{"span":[47,49],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -73,65 +37,29 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu'o",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "pu'o",
+      Gismu "zbásu",
     },
     terms: [
       RelativeClause {
         base_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [14,16],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "linuks",
-              span: [17,23],
-            },
+            Cmevla "linuks",
           ],
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [25,27],
-            },
+            goi: Cmavo "pe",
             ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "zoĭ",
-                span: [28,31],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [32,34],
-              },
-              quoted_text: [34,46],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [47,49],
-              },
+              zoi: Cmavo "zoĭ",
+              opening_delimiter: Cmavo "gy",
+              quoted_text: Verbatim ", 2.6.0test2",
+              closing_delimiter: Cmavo "gy",
             },
           },
         ],

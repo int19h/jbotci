@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti bárda prénu co mélbi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Cmavo "ti",
+  Gismu "bárda",
+  Gismu "prénu",
+  Cmavo "co",
+  Gismu "mélbi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -62,43 +38,19 @@ brackets = "(ti [{(bárda prénu) co mélbi} mi])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Relation {
     Co {
       leading_relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "barda",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [9,14],
-        },
+        Gismu "bárda",
+        Gismu "prénu",
       },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [15,17],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "melbi",
-        span: [18,23],
-      },
+      co: Cmavo "co",
+      trailing_relation: Gismu "mélbi",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [24,26],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

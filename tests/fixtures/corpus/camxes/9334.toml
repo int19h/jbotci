@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le deĭ seltcána di'i spófu .oĭ saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltcana",
-    span: [7,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [30,33],
-  },
+  Cmavo "le",
+  Cmavo "deĭ",
+  Lujvo "seltcána",
+  Cmavo "di'i",
+  Gismu "spófu",
+  Cmavo "oĭ",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[7,15],"phonemes":"seltcana","kind":"lujvo"}},{"Bare":{"span":[16,20],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "deĭ",
-          span: [3,6],
-        },
+        Cmavo "deĭ",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "seltcana",
-        span: [7,15],
-      },
+      relation: Lujvo "seltcána",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "di'i",
-      span: [16,20],
-    },
+    tense_modal: Cmavo "di'i",
     WithIndicator {
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "spofu",
-          span: [21,26],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [28,30],
-        },
+        Gismu "spófu",
+        indicator: Cmavo "oĭ",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "saĭ",
-        span: [30,33],
-      },
+      indicator: Cmavo "saĭ",
     },
   },
 }"""

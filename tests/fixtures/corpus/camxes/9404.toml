@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na pónse le cúkta poĭ do pu távla fi ke'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [40,44],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "pónse",
+  Cmavo "le",
+  Gismu "cúkta",
+  Cmavo "poĭ",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "távla",
+  Cmavo "fi",
+  Cmavo "ke'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
@@ -80,77 +36,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ponse",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "pónse",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [15,20],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "cúkta",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [21,24],
-            },
+            poi: Cmavo "poĭ",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [25,27],
-                },
+                Cmavo "do",
               ],
               Relation {
                 TenseModal {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "pu",
-                    span: [28,30],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "tavla",
-                    span: [31,36],
-                  },
+                  tense_modal: Cmavo "pu",
+                  Gismu "távla",
                 },
                 terms: [
                   Fa {
-                    fa: Word {
-                      kind: "cmavo",
-                      phonemes: "fi",
-                      span: [37,39],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ke'a",
-                      span: [40,44],
-                    },
+                    fa: Cmavo "fi",
+                    Cmavo "ke'a",
                   },
                 ],
               },

@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'a do mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [8,10],
-  },
+  Cmavo "fi'a",
+  Cmavo "do",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -41,22 +29,10 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi'a",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      fa: Cmavo "fi'a",
+      Cmavo "do",
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [8,10],
-  },
+  Cmavo "mo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Fa":{"fa":{"Bare":{"Bare":{"span":[0,4],"phonemes":"fi'a","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,10],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}"""

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le gérku voĭ blábi cu kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blabi",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [22,27],
-  },
+  Cmavo "le",
+  Gismu "gérku",
+  Cmavo "voĭ",
+  Gismu "blábi",
+  Cmavo "cu",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"blabi","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "gérku",
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "voĭ",
-            span: [9,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "blabi",
-            span: [13,18],
-          },
+          noi: Cmavo "voĭ",
+          Gismu "blábi",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [22,27],
-  },
+  cu: Cmavo "cu",
+  Gismu "kláma",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"gerku","kind":"gismu"}}}},"relative_clauses":[{"Noi":{"noi":{"Bare":{"Bare":{"span":[9,12],"phonemes":"voĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"blabi","kind":"gismu"}}}}}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}'

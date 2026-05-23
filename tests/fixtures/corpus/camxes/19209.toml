@@ -18,87 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi do na brúna pe'a naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bruna",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [21,24],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "brúna",
+  Cmavo "pe'a",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "mi",
+      Cmavo "do",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [8,10],
-      },
+      na: Cmavo "na",
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "bruna",
-          span: [11,16],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "pe'a",
-          span: [17,21],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [21,24],
-        },
+        Gismu "brúna",
+        indicator: Cmavo "pe'a",
+        nai: Cmavo "naĭ",
       },
     },
   },

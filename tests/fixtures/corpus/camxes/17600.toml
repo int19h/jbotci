@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to'e se sánji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [8,13],
-  },
+  Cmavo "to'e",
+  Cmavo "se",
+  Gismu "sánji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sanji","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Nahe {
-  nahe: Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [0,4],
-  },
+  nahe: Cmavo "to'e",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sanji",
-      span: [8,13],
-    },
+    se: Cmavo "se",
+    Gismu "sánji",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"to'e","kind":"cmavo"}}},"inner_unit":{"Se":{"se":{"Bare":{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"sanji","kind":"gismu"}}}}}}}}]}}}}}}}}]}]}"""

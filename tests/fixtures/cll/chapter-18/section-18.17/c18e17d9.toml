@@ -24,71 +24,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pi mu su'i ni'u pi mu ga'o bi'o ke'i ma'u pi mu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'u",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'o",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'o",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'i",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'u",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [43,45],
-  },
+  Cmavo "li",
+  Cmavo "pi",
+  Cmavo "mu",
+  Cmavo "su'i",
+  Cmavo "ni'u",
+  Cmavo "pi",
+  Cmavo "mu",
+  Cmavo "ga'o",
+  Cmavo "bi'o",
+  Cmavo "ke'i",
+  Cmavo "ma'u",
+  Cmavo "pi",
+  Cmavo "mu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ni'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"bi'o","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"ke'i","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"ma'u","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"mu","kind":"cmavo"}}]"""
 
@@ -98,80 +46,28 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [5,7],
-          },
+          Cmavo "pi",
+          Cmavo "mu",
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [8,12],
-        },
+        operator: Cmavo "su'i",
         right_expression: Connected {
           left_expression: Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "ni'u",
-              span: [13,17],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "pi",
-              span: [17,19],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [19,21],
-            },
+            Cmavo "ni'u",
+            Cmavo "pi",
+            Cmavo "mu",
           },
           connective: Interval {
-            Word {
-              kind: "cmavo",
-              phonemes: "ga'o",
-              span: [22,26],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "bi'o",
-              span: [27,31],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ke'i",
-              span: [32,36],
-            },
+            Cmavo "ga'o",
+            Cmavo "bi'o",
+            Cmavo "ke'i",
           },
           right_expression: Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "ma'u",
-              span: [37,41],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "pi",
-              span: [41,43],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [43,45],
-            },
+            Cmavo "ma'u",
+            Cmavo "pi",
+            Cmavo "mu",
           },
         },
       },

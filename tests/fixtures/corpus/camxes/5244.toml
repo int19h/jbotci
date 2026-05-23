@@ -18,33 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(selsmúni ma)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "selsmuni",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
+  Lujvo "selsmúni",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[5,13],"phonemes":"selsmuni","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "selsmuni",
-    span: [5,13],
-  },
+  Lujvo "selsmúni",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [14,16],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[5,13],"phonemes":"selsmuni","kind":"lujvo"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

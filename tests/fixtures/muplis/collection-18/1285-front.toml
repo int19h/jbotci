@@ -21,71 +21,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ga naĭ la cévni na zásti gi sárcu fa lo nu fínti ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [48,50],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "la",
+  Gismu "cévni",
+  Cmavo "na",
+  Gismu "zásti",
+  Cmavo "gi",
+  Gismu "sárcu",
+  Cmavo "fa",
+  Cmavo "lo",
+  Cmavo "nu",
+  Gismu "fínti",
+  Cmavo "ri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"sarcu","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"ri","kind":"cmavo"}}]'
 
@@ -94,87 +42,35 @@ brackets = "([ga naĭ] [{la cévni} {na zásti}] gi [sárcu {fa (lo [nu {fínti 
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "ga",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [6,8],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cevni",
-          span: [9,14],
-        },
+        descriptor: Cmavo "la",
+        relation: Gismu "cévni",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [15,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zasti",
-        span: [18,23],
-      },
+      na: Cmavo "na",
+      Gismu "zásti",
     },
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [24,26],
-  },
+  gik: Cmavo "gi",
   second: Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sarcu",
-      span: [27,32],
-    },
+    Gismu "sárcu",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [33,35],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [36,38],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [39,41],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "finti",
-                span: [42,47],
-              },
+              Gismu "fínti",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ri",
-                  span: [48,50],
-                },
+                Cmavo "ri",
               ],
             },
           },

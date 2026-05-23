@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le lójbo naclérfu cu zmádu fi le ka tcídu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naclerfu",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [35,40],
-  },
+  Cmavo "le",
+  Gismu "lójbo",
+  Lujvo "naclérfu",
+  Cmavo "cu",
+  Gismu "zmádu",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "tcídu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[9,17],"phonemes":"naclerfu","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"tcidu","kind":"gismu"}}]'
 
@@ -71,60 +35,24 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [3,8],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "naclerfu",
-          span: [9,17],
-        },
+        Gismu "lójbo",
+        Lujvo "naclérfu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zmadu",
-      span: [21,26],
-    },
+    Gismu "zmádu",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [27,29],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [30,32],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [32,34],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tcidu",
-              span: [35,40],
-            },
+            nu: Cmavo "ka",
+            Gismu "tcídu",
           },
         },
       },

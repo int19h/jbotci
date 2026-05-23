@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu mi dárxi pe'a la .lojbab. cu kréfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darxi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojbab",
-    span: [23,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krefu",
-    span: [34,39],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "dárxi",
+  Cmavo "pe'a",
+  Cmavo "la",
+  Cmevla "lojbab",
+  Cmavo "cu",
+  Gismu "kréfu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"darxi","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"lojbab","kind":"cmevla"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"krefu","kind":"gismu"}}]"""
 
@@ -71,51 +35,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [6,8],
-            },
+            Cmavo "mi",
           ],
           Relation {
             WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "darxi",
-                span: [9,14],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "pe'a",
-                span: [15,19],
-              },
+              Gismu "dárxi",
+              indicator: Cmavo "pe'a",
             },
             terms: [
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [20,22],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "lojbab",
-                    span: [23,29],
-                  },
+                  Cmevla "lojbab",
                 ],
               },
             ],
@@ -124,15 +60,7 @@ Predicate {
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krefu",
-    span: [34,39],
-  },
+  cu: Cmavo "cu",
+  Gismu "kréfu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"darxi","kind":"gismu"}}},"indicator":{"span":[15,19],"phonemes":"pe'a","kind":"cmavo"}}}},"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[20,22],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[23,29],"phonemes":"lojbab","kind":"cmevla"}}}]}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[34,39],"phonemes":"krefu","kind":"gismu"}}}}}}}}}}}]}]}"""

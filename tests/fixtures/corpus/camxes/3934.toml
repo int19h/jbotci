@@ -18,96 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu mi na gúnka cu plúka mi .i je le go'i na rínka le nu mi círko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [45,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [54,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [57,59],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cirko",
-    span: [60,65],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "gúnka",
+  Cmavo "cu",
+  Gismu "plúka",
+  Cmavo "mi",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "le",
+  Cmavo "go'i",
+  Cmavo "na",
+  Gismu "rínka",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "círko",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[51,53],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[57,59],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[60,65],"phonemes":"cirko","kind":"gismu"}}]"""
 
@@ -117,125 +45,53 @@ Connected {
   leading_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [3,5],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [6,8],
-              },
+              Cmavo "mi",
             ],
             Na {
-              na: Word {
-                kind: "cmavo",
-                phonemes: "na",
-                span: [9,11],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gunka",
-                span: [12,17],
-              },
+              na: Cmavo "na",
+              Gismu "gúnka",
             },
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [18,20],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pluka",
-        span: [21,26],
-      },
+      Gismu "plúka",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [27,29],
-        },
+        Cmavo "mi",
       ],
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [32,34],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [35,37],
-        },
-        relation: Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [37,41],
-        },
+        descriptor: Cmavo "le",
+        relation: Cmavo "go'i",
       },
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [42,44],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "rinka",
-          span: [45,50],
-        },
+        na: Cmavo "na",
+        Gismu "rínka",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [51,53],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [54,56],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [57,59],
-                },
+                Cmavo "mi",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "cirko",
-                span: [60,65],
-              },
+              Gismu "círko",
             },
           },
         },

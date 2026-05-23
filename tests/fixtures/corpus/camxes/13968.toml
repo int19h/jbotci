@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ ma'a xáksu le rácli velcíksi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xaksu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "racli",
-    span: [18,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velciksi",
-    span: [24,32],
-  },
+  Cmavo "oĭ",
+  Cmavo "ma'a",
+  Gismu "xáksu",
+  Cmavo "le",
+  Gismu "rácli",
+  Lujvo "velcíksi",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xaksu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"racli","kind":"gismu"}},{"Bare":{"span":[24,32],"phonemes":"velciksi","kind":"lujvo"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma'a",
-        span: [4,8],
-      },
+      Cmavo "ma'a",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xaksu",
-        span: [9,14],
-      },
+      Gismu "xáksu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "racli",
-              span: [18,23],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "velciksi",
-              span: [24,32],
-            },
+            Gismu "rácli",
+            Lujvo "velcíksi",
           },
         },
       ],

@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da zo'u la .ralf. gérku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ralf",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [17,22],
-  },
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "la",
+  Cmevla "ralf",
+  Gismu "gérku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ralf","kind":"cmevla"}},{"Bare":{"span":[17,22],"phonemes":"gerku","kind":"gismu"}}]"""
 
@@ -57,39 +37,19 @@ brackets = "(da zo'u [{la .ralf.} gérku])"
 tree = """
 Prenex {
   prenex_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [0,2],
-    },
+    Cmavo "da",
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [8,10],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ralf",
-            span: [11,15],
-          },
+          Cmevla "ralf",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "gerku",
-      span: [17,22],
-    },
+    Gismu "gérku",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}}}}}],"zohu":{"Bare":{"Bare":{"span":[3,7],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[11,15],"phonemes":"ralf","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"gerku","kind":"gismu"}}}}}}}}}}}}}]}]}"""

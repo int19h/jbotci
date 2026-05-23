@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi se mánci le za'e brádyraĭ pe la .ĭocis. .i mútce zdíle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "manci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bradyraĭ",
-    span: [20,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ĭocis",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [42,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [44,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [50,55],
-  },
+  Cmavo "mi",
+  Cmavo "se",
+  Gismu "mánci",
+  Cmavo "le",
+  Cmavo "za'e",
+  Lujvo "brádyraĭ",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "ĭocis",
+  Cmavo "i",
+  Gismu "mútce",
+  Gismu "zdíle",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"manci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"za'e","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"bradyraĭ","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"ĭocis","kind":"cmevla"}},{"Bare":{"span":[42,43],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"zdile","kind":"gismu"}}]"""
 
@@ -86,63 +38,27 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "manci",
-          span: [6,11],
-        },
+        se: Cmavo "se",
+        Gismu "mánci",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "za'e",
-              span: [15,19],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "bradyraĭ",
-              span: [20,28],
-            },
+            bahe: Cmavo "za'e",
+            Lujvo "brádyraĭ",
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [29,31],
-              },
+              goi: Cmavo "pe",
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [32,34],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "ĭocis",
-                    span: [35,40],
-                  },
+                  Cmevla "ĭocis",
                 ],
               },
             },
@@ -152,22 +68,10 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [42,43],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [44,49],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zdile",
-        span: [50,55],
-      },
+      Gismu "mútce",
+      Gismu "zdíle",
     },
   },
 }"""

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi na féngu ca le purlámji cérni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fengu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "purlamji",
-    span: [18,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [27,32],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "féngu",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "purlámji",
+  Gismu "cérni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"fengu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,26],"phonemes":"purlamji","kind":"lujvo"}},{"Bare":{"span":[27,32],"phonemes":"cerni","kind":"gismu"}}]'
 
@@ -60,49 +32,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fengu",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "féngu",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [12,14],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "purlamji",
-              span: [18,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cerni",
-              span: [27,32],
-            },
+            Lujvo "purlámji",
+            Gismu "cérni",
           },
         },
       },

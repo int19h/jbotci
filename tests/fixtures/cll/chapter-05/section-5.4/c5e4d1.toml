@@ -24,41 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do mútce bo bárda gérku bo kávbu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kavbu",
-    span: [27,32],
-  },
+  Cmavo "do",
+  Gismu "mútce",
+  Cmavo "bo",
+  Gismu "bárda",
+  Gismu "gérku",
+  Cmavo "bo",
+  Gismu "kávbu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"kavbu","kind":"gismu"}}]'
 
@@ -67,46 +39,18 @@ brackets = "(do [{mútce bo bárda} {gérku bo kávbu}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Compound {
     Bo {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [3,8],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [9,11],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "barda",
-        span: [12,17],
-      },
+      leading_unit: Gismu "mútce",
+      bo: Cmavo "bo",
+      trailing_unit: Gismu "bárda",
     },
     Bo {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [18,23],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [24,26],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "kavbu",
-        span: [27,32],
-      },
+      leading_unit: Gismu "gérku",
+      bo: Cmavo "bo",
+      trailing_unit: Gismu "kávbu",
     },
   },
 }"""

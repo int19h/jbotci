@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cméne gálfi pu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [12,14],
-  },
+  Gismu "cméne",
+  Gismu "gálfi",
+  Cmavo "pu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}}]'
 
@@ -40,24 +28,12 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "galfi",
-      span: [6,11],
-    },
+    Gismu "cméne",
+    Gismu "gálfi",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [12,14],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {},
     },
   ],

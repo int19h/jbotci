@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i na sárcu dátni zo'o ru'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [26,30],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "na",
+  Gismu "sárcu",
+  Gismu "dátni",
+  Cmavo "zo'o",
+  Cmavo "ru'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sarcu","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ru'e","kind":"cmavo"}}]"""
 
@@ -60,47 +32,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [7,9],
-    },
+    na: Cmavo "na",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "sarcu",
-        span: [10,15],
-      },
+      Gismu "sárcu",
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "datni",
-            span: [16,21],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [22,26],
-          },
+          Gismu "dátni",
+          indicator: Cmavo "zo'o",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [26,30],
-        },
+        indicator: Cmavo "ru'e",
       },
     },
   },

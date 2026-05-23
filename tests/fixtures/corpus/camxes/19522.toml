@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mi ba .ŭa sélmri vaŭ xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selmri",
-    span: [13,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [24,26],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "ŭa",
+  Lujvo "sélmri",
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[13,19],"phonemes":"selmri","kind":"lujvo"}},{"Bare":{"span":[20,23],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -61,50 +33,22 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
       ],
       relation: TenseModal {
         tense_modal: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [6,8],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭa",
-            span: [10,12],
-          },
+          Cmavo "ba",
+          indicator: Cmavo "ŭa",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "selmri",
-          span: [13,19],
-        },
+        Lujvo "sélmri",
       },
     },
   ],
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [20,23],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [24,26],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}}],"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}}},"indicator":{"span":[10,12],"phonemes":"ŭa","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[13,19],"phonemes":"selmri","kind":"lujvo"}}}}}}}}}],"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[20,23],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[24,26],"phonemes":"xu","kind":"cmavo"}}}}}}}]}]}'

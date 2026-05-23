@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo kulnrmérka zo'e líjda kamjécta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "kulnrmerka",
-    span: [3,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lijda",
-    span: [19,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kamjecta",
-    span: [25,33],
-  },
+  Cmavo "lo",
+  Fuhivla "kulnrmérka",
+  Cmavo "zo'e",
+  Gismu "líjda",
+  Lujvo "kamjécta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,13],"phonemes":"kulnrmerka","kind":"fu'ivla"}},{"Bare":{"span":[14,18],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"lijda","kind":"gismu"}},{"Bare":{"span":[25,33],"phonemes":"kamjecta","kind":"lujvo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "fu'ivla",
-        phonemes: "kulnrmerka",
-        span: [3,13],
-      },
+      descriptor: Cmavo "lo",
+      relation: Fuhivla "kulnrmérka",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'e",
-      span: [14,18],
-    },
+    Cmavo "zo'e",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "lijda",
-      span: [19,24],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "kamjecta",
-      span: [25,33],
-    },
+    Gismu "líjda",
+    Lujvo "kamjécta",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,13],"phonemes":"kulnrmerka","kind":"fu'ivla"}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,18],"phonemes":"zo'e","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"lijda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[25,33],"phonemes":"kamjecta","kind":"lujvo"}}}}]}}}}}}}}]}]}"""

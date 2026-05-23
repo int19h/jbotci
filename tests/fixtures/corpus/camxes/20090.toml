@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la zdabártu djédi cu naljíbri crádi terjívna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zdabartu",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljibri",
-    span: [21,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cradi",
-    span: [30,35],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terjivna",
-    span: [36,44],
-  },
+  Cmavo "la",
+  Lujvo "zdabártu",
+  Gismu "djédi",
+  Cmavo "cu",
+  Lujvo "naljíbri",
+  Gismu "crádi",
+  Lujvo "terjívna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"zdabartu","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,29],"phonemes":"naljibri","kind":"lujvo"}},{"Bare":{"span":[30,35],"phonemes":"cradi","kind":"gismu"}},{"Bare":{"span":[36,44],"phonemes":"terjivna","kind":"lujvo"}}]'
 
@@ -61,46 +33,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "zdabartu",
-          span: [3,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djedi",
-          span: [12,17],
-        },
+        Lujvo "zdabártu",
+        Gismu "djédi",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "naljibri",
-      span: [21,29],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cradi",
-      span: [30,35],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "terjivna",
-      span: [36,44],
-    },
+    Lujvo "naljíbri",
+    Gismu "crádi",
+    Lujvo "terjívna",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"zdabartu","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"djedi","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[21,29],"phonemes":"naljibri","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[30,35],"phonemes":"cradi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[36,44],"phonemes":"terjivna","kind":"lujvo"}}}}]}}}}}}}}]}]}'

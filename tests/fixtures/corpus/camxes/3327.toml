@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cukmakyvélveĭ rénro te jívna)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "cukmakyvelveĭ",
-    span: [0,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "renro",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jivna",
-    span: [23,28],
-  },
+  Lujvo "cukmakyvélveĭ",
+  Gismu "rénro",
+  Cmavo "te",
+  Gismu "jívna",
 ]"""
 json = '[{"Bare":{"span":[0,13],"phonemes":"cukmakyvelveĭ","kind":"lujvo"}},{"Bare":{"span":[14,19],"phonemes":"renro","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"jivna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "cukmakyvelveĭ",
-    span: [0,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "renro",
-    span: [14,19],
-  },
+  Lujvo "cukmakyvélveĭ",
+  Gismu "rénro",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jivna",
-      span: [23,28],
-    },
+    se: Cmavo "te",
+    Gismu "jívna",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,13],"phonemes":"cukmakyvelveĭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"renro","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[20,22],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"jivna","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

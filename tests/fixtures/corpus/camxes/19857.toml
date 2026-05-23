@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pu ku no jbópre cu púnjo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "punjo",
-    span: [19,24],
-  },
+  Cmavo "pu",
+  Cmavo "ku",
+  Cmavo "no",
+  Lujvo "jbópre",
+  Cmavo "cu",
+  Gismu "púnjo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"punjo","kind":"gismu"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [3,5],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [6,8],
-        },
+        Cmavo "no",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "jbopre",
-        span: [9,15],
-      },
+      relation: Lujvo "jbópre",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "punjo",
-    span: [19,24],
-  },
+  cu: Cmavo "cu",
+  Gismu "púnjo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}}}}}},{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"no","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[9,15],"phonemes":"jbopre","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"punjo","kind":"gismu"}}}}}}}}}}}]}]}'

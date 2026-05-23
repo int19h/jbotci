@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.jilks. no sélbri)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "jilks",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selbri",
-    span: [10,16],
-  },
+  Cmevla "jilks",
+  Cmavo "no",
+  Lujvo "sélbri",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"selbri","kind":"lujvo"}}]'
 
@@ -40,27 +28,15 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "jilks",
-      span: [0,5],
-    },
+    Cmevla "jilks",
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [7,9],
-          },
+          Cmavo "no",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "selbri",
-          span: [10,16],
-        },
+        relation: Lujvo "sélbri",
       },
     ],
   },

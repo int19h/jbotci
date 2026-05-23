@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ra pu na'e djíca le nu ra ca'o távla fi la'e do'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [26,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [45,49],
-  },
+  Cmavo "ra",
+  Cmavo "pu",
+  Cmavo "na'e",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ra",
+  Cmavo "ca'o",
+  Gismu "távla",
+  Cmavo "fi",
+  Cmavo "la'e",
+  Cmavo "do'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[45,49],"phonemes":"do'i","kind":"cmavo"}}]"""
 
@@ -89,84 +41,36 @@ brackets = "(ra [{pu (na'e djíca)} {le (nu [ra {(ca'o távla) (fi [la'e do'i])}
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "pu",
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [6,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [11,16],
-        },
+        nahe: Cmavo "na'e",
+        Gismu "djíca",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [20,22],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ra",
-                span: [23,25],
-              },
+              Cmavo "ra",
             ],
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ca'o",
-                  span: [26,30],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "tavla",
-                  span: [31,36],
-                },
+                tense_modal: Cmavo "ca'o",
+                Gismu "távla",
               },
               terms: [
                 Fa {
-                  fa: Word {
-                    kind: "cmavo",
-                    phonemes: "fi",
-                    span: [37,39],
-                  },
+                  fa: Cmavo "fi",
                   Lahe {
-                    lahe: Word {
-                      kind: "cmavo",
-                      phonemes: "la'e",
-                      span: [40,44],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "do'i",
-                      span: [45,49],
-                    },
+                    lahe: Cmavo "la'e",
+                    Cmavo "do'i",
                   },
                 },
               ],

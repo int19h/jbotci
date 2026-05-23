@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.damn. du de)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "damn",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [7,9],
-  },
+  Cmevla "damn",
+  Cmavo "du",
+  Cmavo "de",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"de","kind":"cmavo"}}]'
 
@@ -40,24 +28,12 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"damn","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "damn",
-      span: [0,4],
-    },
+    Cmevla "damn",
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [5,7],
-    },
+    Cmavo "du",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [7,9],
-      },
+      Cmavo "de",
     ],
   },
 }"""

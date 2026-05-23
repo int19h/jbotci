@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o ni'o dénpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [9,14],
-  },
+  Cmavo "ni'o",
+  Cmavo "ni'o",
+  Gismu "dénpa",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"denpa","kind":"gismu"}}]"""
 
@@ -40,21 +28,9 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [4,8],
-    },
+    Cmavo "ni'o",
+    Cmavo "ni'o",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [9,14],
-  },
+  Gismu "dénpa",
 }"""
 json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}}}],"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"denpa","kind":"gismu"}}}}}}}}}}}]}]}"""

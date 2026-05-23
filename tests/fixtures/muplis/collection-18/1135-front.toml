@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi'aĭ se nábmi su'o da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'aĭ",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "mi'aĭ",
+  Cmavo "se",
+  Gismu "nábmi",
+  Cmavo "su'o",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mi'aĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nabmi","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -58,44 +34,20 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi'aĭ {(se nábmi) (su'o da)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'aĭ",
-        span: [3,8],
-      },
+      Cmavo "mi'aĭ",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [9,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nabmi",
-          span: [12,17],
-        },
+        se: Cmavo "se",
+        Gismu "nábmi",
       },
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [18,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [23,25],
-          },
+          quantifier: Cmavo "su'o",
+          Cmavo "da",
         },
       ],
     },

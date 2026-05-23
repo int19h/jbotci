@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ .i mu'i ma na taĭ no'e dánfu baŭ la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [22,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danfu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [40,46],
-  },
+  Cmavo "oĭ",
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "na",
+  Cmavo "taĭ",
+  Cmavo "no'e",
+  Gismu "dánfu",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"danfu","kind":"gismu"}},{"Bare":{"span":[33,36],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,46],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -81,86 +37,42 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [5,6],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "mu'i",
-              span: [7,11],
-            },
+            bai: Cmavo "mu'i",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [12,14],
-          },
+          Cmavo "ma",
         },
       ],
       Relation {
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [15,17],
-          },
+          na: Cmavo "na",
           TenseModal {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "taĭ",
-                span: [18,21],
-              },
+              bai: Cmavo "taĭ",
             },
             Nahe {
-              nahe: Word {
-                kind: "cmavo",
-                phonemes: "no'e",
-                span: [22,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "danfu",
-                span: [27,32],
-              },
+              nahe: Cmavo "no'e",
+              Gismu "dánfu",
             },
           },
         },
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baŭ",
-                span: [33,36],
-              },
+              bai: Cmavo "baŭ",
             },
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [37,39],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "lojban",
-                  span: [40,46],
-                },
+                Cmevla "lojban",
               ],
             },
           },

@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba zútse le stízu pe mi zi'e po do zi'e poĭ xúnre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zutse",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stizu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'e",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'e",
-    span: [38,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [47,52],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "zútse",
+  Cmavo "le",
+  Gismu "stízu",
+  Cmavo "pe",
+  Cmavo "mi",
+  Cmavo "zi'e",
+  Cmavo "po",
+  Cmavo "do",
+  Cmavo "zi'e",
+  Cmavo "poĭ",
+  Gismu "xúnre",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zutse","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"stizu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"zi'e","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"zi'e","kind":"cmavo"}},{"Bare":{"span":[43,46],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"xunre","kind":"gismu"}}]"""
 
@@ -90,86 +38,34 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zutse",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "zútse",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "stizu",
-          span: [15,20],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "stízu",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [21,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [24,26],
-            },
+            goi: Cmavo "pe",
+            Cmavo "mi",
           },
           Zihe {
-            zihe: Word {
-              kind: "cmavo",
-              phonemes: "zi'e",
-              span: [27,31],
-            },
+            zihe: Cmavo "zi'e",
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "po",
-                span: [32,34],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [35,37],
-              },
+              goi: Cmavo "po",
+              Cmavo "do",
             },
           },
           Zihe {
-            zihe: Word {
-              kind: "cmavo",
-              phonemes: "zi'e",
-              span: [38,42],
-            },
+            zihe: Cmavo "zi'e",
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [43,46],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "xunre",
-                span: [47,52],
-              },
+              poi: Cmavo "poĭ",
+              Gismu "xúnre",
             },
           },
         ],

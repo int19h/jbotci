@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi do túgni doĭ .rlp.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [16,19],
-  },
+  Cmavo "mi",
+  Cmavo "do",
+  Gismu "túgni",
+  Cmavo "doĭ",
+  Cmevla "rlp",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tugni","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"rlp","kind":"cmevla"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [3,5],
-    },
+    Cmavo "mi",
+    Cmavo "do",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "tugni",
-      span: [6,11],
-    },
+    Gismu "túgni",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [12,15],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "rlp",
-          span: [16,19],
-        },
+        argument: Cmevla "rlp",
       },
     ],
   },

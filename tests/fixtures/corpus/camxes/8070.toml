@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ na sátci srána lo xúkmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satci",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xukmi",
-    span: [22,27],
-  },
+  Cmavo "oĭ",
+  Cmavo "na",
+  Gismu "sátci",
+  Gismu "srána",
+  Cmavo "lo",
+  Gismu "xúkmi",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"satci","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"xukmi","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [4,6],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "satci",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "srana",
-          span: [13,18],
-        },
+        Gismu "sátci",
+        Gismu "srána",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [19,21],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "xukmi",
-          span: [22,27],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "xúkmi",
       },
     ],
   },

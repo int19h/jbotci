@@ -18,54 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'a tríxe córtu .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "trixe",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [17,19],
-  },
+  Cmavo "di'a",
+  Gismu "tríxe",
+  Gismu "córtu",
+  Cmavo "oĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"trixe","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"oĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [0,4],
-  },
+  tense_modal: Cmavo "di'a",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "trixe",
-      span: [5,10],
-    },
+    Gismu "tríxe",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "cortu",
-        span: [11,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [17,19],
-      },
+      Gismu "córtu",
+      indicator: Cmavo "oĭ",
     },
   },
 }"""

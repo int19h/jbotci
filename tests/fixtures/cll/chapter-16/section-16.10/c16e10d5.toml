@@ -24,71 +24,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u mi prámi da .i je na ku do prámi da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [41,43],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "prámi",
+  Cmavo "da",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "do",
+  Gismu "prámi",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -98,89 +46,37 @@ tree = """
 Prenex {
   prenex_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [5,9],
-  },
+  zohu: Cmavo "zo'u",
   Connected {
     leading_statement: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [10,12],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "prami",
-          span: [13,18],
-        },
+        Gismu "prámi",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [19,21],
-          },
+          Cmavo "da",
         ],
       },
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [24,26],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Predicate {
       leading_terms: [
         NaKu {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [27,29],
-          },
-          na_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [29,31],
-          },
+          na: Cmavo "na",
+          na_ku: Cmavo "ku",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [32,34],
-        },
+        Cmavo "do",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "prami",
-          span: [35,40],
-        },
+        Gismu "prámi",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [41,43],
-          },
+          Cmavo "da",
         ],
       },
     },

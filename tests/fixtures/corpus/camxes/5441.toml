@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti mútce lójbo júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [15,20],
-  },
+  Cmavo "ti",
+  Gismu "mútce",
+  Gismu "lójbo",
+  Gismu "júfra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"jufra","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lojbo",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jufra",
-      span: [15,20],
-    },
+    Gismu "mútce",
+    Gismu "lójbo",
+    Gismu "júfra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"jufra","kind":"gismu"}}}}]}}}}}}}}]}]}'

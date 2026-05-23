@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(súrla po'o xu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [11,13],
-  },
+  Gismu "súrla",
+  Cmavo "po'o",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"po'o","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"xu","kind":"cmavo"}}]"""
 
@@ -40,21 +28,9 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"surla","kind":"gismu"}},{"Bare":{"s
 tree = """
 WithIndicator {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "surla",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "po'o",
-      span: [6,10],
-    },
+    Gismu "súrla",
+    indicator: Cmavo "po'o",
   },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [11,13],
-  },
+  indicator: Cmavo "xu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"surla","kind":"gismu"}}},"indicator":{"span":[6,10],"phonemes":"po'o","kind":"cmavo"}}},"indicator":{"span":[11,13],"phonemes":"xu","kind":"cmavo"}}}}}}}}}}}]}]}"""

@@ -18,33 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma sélvla [zoĭ gy webpage gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selvla",
-    span: [3,9],
-  },
+  Cmavo "ma",
+  Lujvo "sélvla",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [10,13],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [14,16],
-    },
-    quoted_text: [18,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [27,29],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "webpage",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"selvla","kind":"lujvo"}},{"ZoiQuote":{"zoi":{"span":[10,13],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[14,16],"phonemes":"gy","kind":"cmavo"},"quoted_text":[18,25],"closing_delimiter":{"span":[27,29],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -53,36 +33,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "selvla",
-      span: [3,9],
-    },
+    Lujvo "sélvla",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [10,13],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [14,16],
-        },
-        quoted_text: [18,25],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [27,29],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "webpage",
+        closing_delimiter: Cmavo "gy",
       },
     ],
   },

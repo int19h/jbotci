@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le fínpe zo'u cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finpe",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [14,19],
-  },
+  Cmavo "le",
+  Gismu "fínpe",
+  Cmavo "zo'u",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"finpe","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -46,27 +30,11 @@ tree = """
 Prenex {
   prenex_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "finpe",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "fínpe",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [14,19],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "cítka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"finpe","kind":"gismu"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"citka","kind":"gismu"}}}}}}}}}}}}}]}]}"""

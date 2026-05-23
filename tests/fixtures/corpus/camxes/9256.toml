@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'a cpácu lo cidjrpítsa .i ba za xrúkla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [14,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [26,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [30,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [33,39],
-  },
+  Cmavo "co'a",
+  Gismu "cpácu",
+  Cmavo "lo",
+  Fuhivla "cidjrpítsa",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "za",
+  Lujvo "xrúkla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,24],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[26,27],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[33,39],"phonemes":"xrukla","kind":"lujvo"}}]"""
 
@@ -66,56 +34,24 @@ tree = """
 Paragraph {
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [0,4],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cpacu",
-        span: [5,10],
-      },
+      tense_modal: Cmavo "co'a",
+      Gismu "cpácu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "fu'ivla",
-          phonemes: "cidjrpitsa",
-          span: [14,24],
-        },
+        descriptor: Cmavo "lo",
+        relation: Fuhivla "cidjrpítsa",
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [26,27],
-    },
+    i: Cmavo "i",
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [28,30],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [30,32],
-        },
+        Cmavo "ba",
+        Cmavo "za",
       },
-      Word {
-        kind: "lujvo",
-        phonemes: "xrukla",
-        span: [33,39],
-      },
+      Lujvo "xrúkla",
     },
   },
 }"""

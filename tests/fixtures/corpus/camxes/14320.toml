@@ -18,147 +18,51 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ba zi lójbo vréji bo zbásu prénu gi'e jdíni káncu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [38,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdini",
-    span: [43,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [49,54],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "lójbo",
+  Gismu "vréji",
+  Cmavo "bo",
+  Gismu "zbásu",
+  Gismu "prénu",
+  Cmavo "gi'e",
+  Gismu "jdíni",
+  Gismu "káncu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"vreji","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[38,42],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"jdini","kind":"gismu"}},{"Bare":{"span":[49,54],"phonemes":"kancu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     PredicateTail1 {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [8,10],
-          },
+          Cmavo "ba",
+          Cmavo "zi",
         },
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [11,16],
-          },
+          Gismu "lójbo",
           Bo {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "vreji",
-              span: [17,22],
-            },
-            bo: Word {
-              kind: "cmavo",
-              phonemes: "bo",
-              span: [23,25],
-            },
-            trailing_unit: Word {
-              kind: "gismu",
-              phonemes: "zbasu",
-              span: [26,31],
-            },
+            leading_unit: Gismu "vréji",
+            bo: Cmavo "bo",
+            trailing_unit: Gismu "zbásu",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [32,37],
-          },
+          Gismu "prénu",
         },
       },
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [38,42],
-          },
+          connective: Cmavo "gi'e",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "jdini",
-              span: [43,48],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kancu",
-              span: [49,54],
-            },
+            Gismu "jdíni",
+            Gismu "káncu",
           },
         },
       ],

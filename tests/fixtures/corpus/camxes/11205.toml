@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.z. kúkte .aŭ)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "z",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [9,11],
-  },
+  Cmevla "z",
+  Gismu "kúkte",
+  Cmavo "aŭ",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"z","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"aŭ","kind":"cmavo"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"z","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "z",
-      span: [0,1],
-    },
+    Cmevla "z",
   ],
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "kukte",
-      span: [2,7],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "aŭ",
-      span: [9,11],
-    },
+    Gismu "kúkte",
+    indicator: Cmavo "aŭ",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"z","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"kukte","kind":"gismu"}}},"indicator":{"span":[9,11],"phonemes":"aŭ","kind":"cmavo"}}}}}}}}}}}]}]}'

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i na pónse le bánzu témci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [23,28],
-  },
+  Cmavo "pe'i",
+  Cmavo "na",
+  Gismu "pónse",
+  Cmavo "le",
+  Gismu "bánzu",
+  Gismu "témci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"banzu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"temci","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ponse",
-        span: [8,13],
-      },
+      na: Cmavo "na",
+      Gismu "pónse",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "banzu",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "temci",
-            span: [23,28],
-          },
+          Gismu "bánzu",
+          Gismu "témci",
         },
       },
     ],

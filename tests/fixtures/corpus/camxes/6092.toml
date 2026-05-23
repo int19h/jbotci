@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(paŭ naĭ xu go'i .i mútce cízra je bo xláli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [35,40],
-  },
+  Cmavo "paŭ",
+  Cmavo "naĭ",
+  Cmavo "xu",
+  Cmavo "go'i",
+  Cmavo "i",
+  Gismu "mútce",
+  Gismu "cízra",
+  Cmavo "je",
+  Cmavo "bo",
+  Gismu "xláli",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"xlali","kind":"gismu"}}]"""
 
@@ -76,64 +36,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "paŭ",
-        span: [0,3],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [3,6],
-      },
+      indicator: Cmavo "paŭ",
+      nai: Cmavo "naĭ",
     },
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [7,9],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Paragraph {
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [10,14],
-    },
+    Cmavo "go'i",
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [16,17],
-      },
+      i: Cmavo "i",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [18,23],
-        },
+        Gismu "mútce",
         Bo {
-          leading_unit: Word {
-            kind: "gismu",
-            phonemes: "cizra",
-            span: [24,29],
-          },
-          bo_connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [30,32],
-          },
-          bo: Word {
-            kind: "cmavo",
-            phonemes: "bo",
-            span: [32,34],
-          },
-          trailing_unit: Word {
-            kind: "gismu",
-            phonemes: "xlali",
-            span: [35,40],
-          },
+          leading_unit: Gismu "cízra",
+          bo_connective: Cmavo "je",
+          bo: Cmavo "bo",
+          trailing_unit: Gismu "xláli",
         },
       },
     },

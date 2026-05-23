@@ -18,42 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ tsáli xu do pílno [zo rálcku])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [16,21],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [22,24],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "ralcku",
-      span: [25,31],
-    },
+    zo: Cmavo "zo",
+    Lujvo "rálcku",
   },
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[22,24],"phonemes":"zo","kind":"cmavo"},"word":{"span":[25,31],"phonemes":"ralcku","kind":"lujvo"}}}]'
@@ -64,54 +36,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "tsali",
-            span: [4,9],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [10,12],
-          },
+          Gismu "tsáli",
+          indicator: Cmavo "xu",
         },
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [13,15],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [16,21],
-      },
+      Gismu "pílno",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [22,24],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "ralcku",
-            span: [25,31],
-          },
+          zo: Cmavo "zo",
+          Lujvo "rálcku",
         },
       ],
     },

@@ -18,39 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to mi dúkse nélci [la'oĭ hydrocodone] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [12,17],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Gismu "dúkse",
+  Gismu "nélci",
   SingleWordQuote {
-    marker: Word {
-      kind: "cmavo",
-      phonemes: "la'oĭ",
-      span: [18,23],
-    },
+    marker: Cmavo "la'oĭ",
     [24,35],
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [36,39],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"nelci","kind":"gismu"}},{"SingleWordQuote":{"marker":{"span":[18,23],"phonemes":"la'oĭ","kind":"cmavo"},"quoted_text":[24,35]}},{"Bare":{"span":[36,39],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -59,49 +35,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "dukse",
-              span: [6,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nelci",
-              span: [12,17],
-            },
+            Gismu "dúkse",
+            Gismu "nélci",
           },
           terms: [
             SingleWordQuote {
-              marker: Word {
-                kind: "cmavo",
-                phonemes: "la'oĭ",
-                span: [18,23],
-              },
+              marker: Cmavo "la'oĭ",
               [24,35],
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [36,39],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi .e naĭ .ŭi do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
+  Cmavo "mi",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "ŭi",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      leading_argument: Cmavo "mi",
       connective: Afterthought {
-        Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [4,5],
-        },
+        Cmavo "e",
         nai: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [6,9],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭi",
-            span: [11,13],
-          },
+          Cmavo "naĭ",
+          indicator: Cmavo "ŭi",
         },
       },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [14,16],
-      },
+      trailing_argument: Cmavo "do",
     },
   ],
 }"""

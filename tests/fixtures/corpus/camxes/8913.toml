@@ -18,68 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le pu te pílno [zo kaŭ] cu se vásru le xúnre cúkta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [9,14],
-  },
+  Cmavo "le",
+  Cmavo "pu",
+  Cmavo "te",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [15,17],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "kaŭ",
-      span: [18,21],
-    },
+    zo: Cmavo "zo",
+    Cmavo "kaŭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [43,48],
-  },
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "vásru",
+  Cmavo "le",
+  Gismu "xúnre",
+  Gismu "cúkta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[15,17],"phonemes":"zo","kind":"cmavo"},"word":{"span":[18,21],"phonemes":"kaŭ","kind":"cmavo"}}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"cukta","kind":"gismu"}}]'
 
@@ -88,80 +40,32 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
+        tense_modal: Cmavo "pu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [6,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pilno",
-            span: [9,14],
-          },
+          se: Cmavo "te",
+          Gismu "pílno",
         },
       },
     },
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [15,17],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "kaŭ",
-        span: [18,21],
-      },
+      zo: Cmavo "zo",
+      Cmavo "kaŭ",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [25,27],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vasru",
-        span: [28,33],
-      },
+      se: Cmavo "se",
+      Gismu "vásru",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [34,36],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xunre",
-            span: [37,42],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cukta",
-            span: [43,48],
-          },
+          Gismu "xúnre",
+          Gismu "cúkta",
         },
       },
     ],

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le skámi bángu me'e ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Cmavo "le",
+  Gismu "skámi",
+  Gismu "bángu",
+  Cmavo "me'e",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"me'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -51,37 +31,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [9,14],
-        },
+        Gismu "skámi",
+        Gismu "bángu",
       },
     },
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "me'e",
-          span: [15,19],
-        },
+        bai: Cmavo "me'e",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [20,22],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

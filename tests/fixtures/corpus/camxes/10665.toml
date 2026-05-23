@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mútce cízra núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [2,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [14,19],
-  },
+  Cmavo "i",
+  Gismu "mútce",
+  Gismu "cízra",
+  Gismu "núzba",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[8,13],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"nuzba","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [2,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cizra",
-      span: [8,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [14,19],
-    },
+    Gismu "mútce",
+    Gismu "cízra",
+    Gismu "núzba",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[2,7],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"cizra","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"nuzba","kind":"gismu"}}}}]}}}}}}}}]}]}'

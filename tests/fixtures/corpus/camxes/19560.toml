@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o la .supermemos. jaĭ nábmi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "súpermemos",
-    span: [8,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [29,31],
-  },
+  Cmavo "ni'o",
+  Cmavo "la",
+  Cmevla "supermemos",
+  Cmavo "jaĭ",
+  Gismu "nábmi",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[8,18],"phonemes":"súpermemos","kind":"cmevla"}},{"Bare":{"span":[19,22],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"nabmi","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -55,48 +31,24 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [5,7],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "súpermemos",
-            span: [8,18],
-          },
+          Cmevla "supermemos",
         ],
       },
     ],
     Relation {
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [19,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nabmi",
-          span: [23,28],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "nábmi",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [29,31],
-        },
+        Cmavo "mi",
       ],
     },
   },

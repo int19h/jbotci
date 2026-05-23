@@ -18,50 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma [zo fi'u] ba'e [zo pa] cmávo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fi'u",
-      span: [11,15],
-    },
+    zo: Cmavo "zo",
+    Cmavo "fi'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [16,20],
-  },
+  Cmavo "ba'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pa",
-      span: [24,26],
-    },
+    zo: Cmavo "zo",
+    Cmavo "pa",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [27,32],
-  },
+  Gismu "cmávo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,15],"phonemes":"fi'u","kind":"cmavo"}}},{"Bare":{"span":[16,20],"phonemes":"ba'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,26],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"span":[27,32],"phonemes":"cmavo","kind":"gismu"}}]"""
 
@@ -71,54 +39,22 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "fi'u",
-        span: [11,15],
-      },
+      zo: Cmavo "zo",
+      Cmavo "fi'u",
     },
     Emphasized {
-      bahe: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [16,20],
-      },
+      bahe: Cmavo "ba'e",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [21,23],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [24,26],
-        },
+        zo: Cmavo "zo",
+        Cmavo "pa",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [27,32],
-  },
+  Gismu "cmávo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,15],"phonemes":"fi'u","kind":"cmavo"}}}}}}},{"Argument":{"Quote":{"Zo":{"Emphasized":{"bahe":{"span":[16,20],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,26],"phonemes":"pa","kind":"cmavo"}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"cmavo","kind":"gismu"}}}}}}}}}}}]}]}"""

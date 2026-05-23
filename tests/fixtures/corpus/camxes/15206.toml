@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no da mi pánzi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "panzi",
-    span: [17,22],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "mi",
+  Gismu "pánzi",
 ]"""
 json = '[{"Bare":{"span":[9,11],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"panzi","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [9,11],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [11,13],
-      },
+      quantifier: Cmavo "no",
+      Cmavo "da",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [14,16],
-    },
+    Cmavo "mi",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "panzi",
-    span: [17,22],
-  },
+  Gismu "pánzi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"panzi","kind":"gismu"}}}}}}}}}}}]}]}'

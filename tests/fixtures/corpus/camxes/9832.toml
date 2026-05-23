@@ -19,37 +19,13 @@ brackets = "([zo pórpi] .e naĭ la pórpi)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "porpi",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "pórpi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [18,23],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "la",
+  Gismu "pórpi",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"porpi","kind":"gismu"}}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"porpi","kind":"gismu"}}]'
 
@@ -59,40 +35,16 @@ Term {
   terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "porpi",
-          span: [3,8],
-        },
+        zo: Cmavo "zo",
+        Gismu "pórpi",
       },
       connective: Afterthought {
-        Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [10,11],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [11,14],
-        },
+        Cmavo "e",
+        nai: Cmavo "naĭ",
       },
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "porpi",
-          span: [18,23],
-        },
+        descriptor: Cmavo "la",
+        relation: Gismu "pórpi",
       },
     },
   ],

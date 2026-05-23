@@ -18,84 +18,24 @@ error = { position = 11, allowed-next = [] }
 brackets = "(mi na jímpe le nu do pílno [zo xu] .e [zo ku'i] ca míntu témci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [20,25],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [26,28],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [29,31],
-    },
+    zo: Cmavo "zo",
+    Cmavo "xu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [33,34],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [35,37],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [38,42],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ku'i",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mintu",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [52,57],
-  },
+  Cmavo "ca",
+  Gismu "míntu",
+  Gismu "témci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[26,28],"phonemes":"zo","kind":"cmavo"},"word":{"span":[29,31],"phonemes":"xu","kind":"cmavo"}}},{"Bare":{"span":[33,34],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[35,37],"phonemes":"zo","kind":"cmavo"},"word":{"span":[38,42],"phonemes":"ku'i","kind":"cmavo"}}},{"Bare":{"span":[43,45],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"mintu","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"temci","kind":"gismu"}}]"""

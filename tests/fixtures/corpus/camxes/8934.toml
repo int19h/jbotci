@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.lol. réctu)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "lól",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rectu",
-    span: [4,9],
-  },
+  Cmevla "lol",
+  Gismu "réctu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"lól","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"rectu","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"lól","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "lól",
-      span: [0,3],
-    },
+    Cmevla "lol",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "rectu",
-    span: [4,9],
-  },
+  Gismu "réctu",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"lól","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"rectu","kind":"gismu"}}}}}}}}}}}]}]}'

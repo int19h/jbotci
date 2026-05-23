@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(te zu'e le gúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [10,15],
-  },
+  Cmavo "te",
+  Cmavo "zu'e",
+  Cmavo "le",
+  Gismu "gúnka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"gunka","kind":"gismu"}}]"""
 
@@ -47,28 +31,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [2,6],
-        },
+        se: Cmavo "te",
+        bai: Cmavo "zu'e",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gunka",
-          span: [10,15],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "gúnka",
       },
     },
   ],

@@ -24,76 +24,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi kláma nu'i ge le zárci le bríju nu'u gi le zdáni le ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'i",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "briju",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'u",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [46,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [52,54],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [55,60],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "nu'i",
+  Cmavo "ge",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "le",
+  Gismu "bríju",
+  Cmavo "nu'u",
+  Cmavo "gi",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "le",
+  Gismu "ckúle",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"nu'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"briju","kind":"gismu"}},{"Bare":{"span":[35,39],"phonemes":"nu'u","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[52,54],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[55,60],"phonemes":"ckule","kind":"gismu"}}]"""
 
@@ -102,90 +46,34 @@ brackets = "(mi [kláma {nu'i ge ([le zárci] [le bríju]) nu'u gi ([le zdáni] 
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
+    Gismu "kláma",
     terms: [
       GekNuhiTermset {
-        m_nuhi: Word {
-          kind: "cmavo",
-          phonemes: "nu'i",
-          span: [9,13],
-        },
-        gek: Word {
-          kind: "cmavo",
-          phonemes: "ge",
-          span: [14,16],
-        },
+        m_nuhi: Cmavo "nu'i",
+        gek: Cmavo "ge",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [17,19],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "zarci",
-              span: [20,25],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "zárci",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [26,28],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "briju",
-              span: [29,34],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "bríju",
           },
         ],
-        nuhu: Word {
-          kind: "cmavo",
-          phonemes: "nu'u",
-          span: [35,39],
-        },
-        gik: Word {
-          kind: "cmavo",
-          phonemes: "gi",
-          span: [40,42],
-        },
+        nuhu: Cmavo "nu'u",
+        gik: Cmavo "gi",
         gik_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [43,45],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "zdani",
-              span: [46,51],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "zdáni",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [52,54],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ckule",
-              span: [55,60],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "ckúle",
           },
         ],
       },

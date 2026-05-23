@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to'e rínsa .i do malbébna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinsa",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malbebna",
-    span: [17,25],
-  },
+  Cmavo "to'e",
+  Gismu "rínsa",
+  Cmavo "i",
+  Cmavo "do",
+  Lujvo "malbébna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"rinsa","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,25],"phonemes":"malbebna","kind":"lujvo"}}]"""
 
@@ -50,36 +30,16 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "to'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "rinsa",
-      span: [5,10],
-    },
+    nahe: Cmavo "to'e",
+    Gismu "rínsa",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [12,13],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [14,16],
-        },
+        Cmavo "do",
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "malbebna",
-        span: [17,25],
-      },
+      Lujvo "malbébna",
     },
   },
 }"""

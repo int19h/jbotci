@@ -19,37 +19,13 @@ brackets = "([zo nu'o] na sínxa le múkti)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "nu'o",
-      span: [3,7],
-    },
+    zo: Cmavo "zo",
+    Cmavo "nu'o",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sinxa",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [20,25],
-  },
+  Cmavo "na",
+  Gismu "sínxa",
+  Cmavo "le",
+  Gismu "múkti",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,7],"phonemes":"nu'o","kind":"cmavo"}}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"sinxa","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mukti","kind":"gismu"}}]"""
 
@@ -58,43 +34,19 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "nu'o",
-        span: [3,7],
-      },
+      zo: Cmavo "zo",
+      Cmavo "nu'o",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [8,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sinxa",
-        span: [11,16],
-      },
+      na: Cmavo "na",
+      Gismu "sínxa",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mukti",
-          span: [20,25],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "múkti",
       },
     ],
   },

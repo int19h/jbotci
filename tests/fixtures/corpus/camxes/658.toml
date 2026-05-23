@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(go naĭ la .djan. nánmu gi la .djeĭmyz. nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭmyz",
-    span: [27,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [36,41],
-  },
+  Cmavo "go",
+  Cmavo "naĭ",
+  Cmavo "la",
+  Cmevla "djan",
+  Gismu "nánmu",
+  Cmavo "gi",
+  Cmavo "la",
+  Cmevla "djeĭmyz",
+  Gismu "nínmu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"go","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[15,20],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,34],"phonemes":"djeĭmyz","kind":"cmevla"}},{"Bare":{"span":[36,41],"phonemes":"ninmu","kind":"gismu"}}]'
 
@@ -70,67 +34,31 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"go","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "go",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "go",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [6,8],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [9,13],
-          },
+          Cmevla "djan",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "nanmu",
-      span: [15,20],
-    },
+    Gismu "nánmu",
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [21,23],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [24,26],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djeĭmyz",
-            span: [27,34],
-          },
+          Cmevla "djeĭmyz",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "ninmu",
-      span: [36,41],
-    },
+    Gismu "nínmu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"go","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}}}},"first":{"Plain":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[9,13],"phonemes":"djan","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nanmu","kind":"gismu"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[21,23],"phonemes":"gi","kind":"cmavo"}}}]}},"second":{"Plain":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[27,34],"phonemes":"djeĭmyz","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"ninmu","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

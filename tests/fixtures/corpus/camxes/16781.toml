@@ -18,125 +18,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pílno [la'o ke Mozilla Firebird ke] le nu sísku fi lo'i gísmu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [0,5],
-  },
+  Gismu "pílno",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [6,10],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [11,13],
-    },
-    quoted_text: [13,30],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [31,33],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "ke",
+    quoted_text: Verbatim "Mozilla Firebird",
+    closing_delimiter: Cmavo "ke",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisku",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [48,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [53,58],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "sísku",
+  Cmavo "fi",
+  Cmavo "lo'i",
+  Gismu "gísmu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"pilno","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[6,10],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[11,13],"phonemes":"ke","kind":"cmavo"},"quoted_text":[13,30],"closing_delimiter":{"span":[31,33],"phonemes":"ke","kind":"cmavo"}}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"sisku","kind":"gismu"}},{"Bare":{"span":[45,47],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[48,52],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[53,58],"phonemes":"gismu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [0,5],
-  },
+  Gismu "pílno",
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [6,10],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [11,13],
-      },
-      quoted_text: [13,30],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [31,33],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "ke",
+      quoted_text: Verbatim "Mozilla Firebird",
+      closing_delimiter: Cmavo "ke",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [34,36],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [36,38],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "sisku",
-            span: [39,44],
-          },
+          Gismu "sísku",
           terms: [
             Fa {
-              fa: Word {
-                kind: "cmavo",
-                phonemes: "fi",
-                span: [45,47],
-              },
+              fa: Cmavo "fi",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo'i",
-                  span: [48,52],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "gismu",
-                  span: [53,58],
-                },
+                descriptor: Cmavo "lo'i",
+                relation: Gismu "gísmu",
               },
             },
           ],

@@ -19,52 +19,16 @@ brackets = "([zo bróda] pe mi vlípa báncu tu'a la .bancus.)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "bróda",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bancu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [35,41],
-  },
+  Cmavo "pe",
+  Cmavo "mi",
+  Gismu "vlípa",
+  Gismu "báncu",
+  Cmavo "tu'a",
+  Cmavo "la",
+  Cmevla "bancus",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"broda","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"bancu","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,41],"phonemes":"bancus","kind":"cmevla"}}]"""
 
@@ -74,65 +38,29 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "broda",
-          span: [3,8],
-        },
+        zo: Cmavo "zo",
+        Gismu "bróda",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [12,14],
-          },
+          goi: Cmavo "pe",
+          Cmavo "mi",
         },
       ],
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "vlipa",
-        span: [15,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "bancu",
-        span: [21,26],
-      },
+      Gismu "vlípa",
+      Gismu "báncu",
     },
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [27,31],
-        },
+        lahe: Cmavo "tu'a",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [32,34],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "bancus",
-              span: [35,41],
-            },
+            Cmevla "bancus",
           ],
         },
       },

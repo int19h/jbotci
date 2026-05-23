@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(goĭ ko'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [31,35],
-  },
+  Cmavo "goĭ",
+  Cmavo "ko'a",
 ]"""
 json = """[{"Bare":{"span":[27,30],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 GoiRelativeClause {
-  goi: Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [31,35],
-  },
+  goi: Cmavo "goĭ",
+  Cmavo "ko'a",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[27,30],"phonemes":"goĭ","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[31,35],"phonemes":"ko'a","kind":"cmavo"}}}}}}]}}}]}]}"""

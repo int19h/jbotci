@@ -19,27 +19,11 @@ brackets = "([.a bu] cu lérfu)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [1,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [2,4],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [9,14],
-  },
+  Cmavo "cu",
+  Gismu "lérfu",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lerfu","kind":"gismu"}}]'
 
@@ -50,29 +34,13 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [1,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [2,4],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [9,14],
-  },
+  cu: Cmavo "cu",
+  Gismu "lérfu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"lerfu","kind":"gismu"}}}}}}}}}}}]}]}'

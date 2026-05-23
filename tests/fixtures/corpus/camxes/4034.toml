@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(vo'a po deĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [8,11],
-  },
+  Cmavo "vo'a",
+  Cmavo "po",
+  Cmavo "deĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"vo'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"deĭ","kind":"cmavo"}}]"""
 
@@ -41,23 +29,11 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "vo'a",
-        span: [0,4],
-      },
+      base_argument: Cmavo "vo'a",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "deĭ",
-            span: [8,11],
-          },
+          goi: Cmavo "po",
+          Cmavo "deĭ",
         },
       ],
     },

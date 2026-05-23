@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ ro do .oĭ saĭ mi mútce tátpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [25,30],
-  },
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "tátpi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"tatpi","kind":"gismu"}}]'
 
@@ -67,59 +35,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [4,6],
-        },
+        quantifier: Cmavo "ro",
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [6,8],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "oĭ",
-              span: [10,12],
-            },
+            Cmavo "do",
+            indicator: Cmavo "oĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "saĭ",
-            span: [12,15],
-          },
+          indicator: Cmavo "saĭ",
         },
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [16,18],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [19,24],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [25,30],
-      },
+      Gismu "mútce",
+      Gismu "tátpi",
     },
   },
 }"""

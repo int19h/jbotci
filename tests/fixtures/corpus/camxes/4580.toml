@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu dy sy cníno je na múlno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Cmavo "dy",
+  Cmavo "sy",
+  Gismu "cníno",
+  Cmavo "je",
+  Cmavo "na",
+  Gismu "múlno",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mulno","kind":"gismu"}}]'
 
@@ -61,54 +33,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "dy",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "sy",
-            span: [5,7],
-          },
+          Cmavo "dy",
+          Cmavo "sy",
         ],
       },
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "cnino",
-        span: [8,13],
-      },
+      Gismu "cníno",
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [14,16],
-          },
+          connective: Cmavo "je",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [16,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "mulno",
-              span: [19,24],
-            },
+            na: Cmavo "na",
+            Gismu "múlno",
           },
         },
       ],

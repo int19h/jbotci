@@ -18,91 +18,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pu dénpa lo cácra xádba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xadba",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "dénpa",
+  Cmavo "lo",
+  Gismu "cácra",
+  Gismu "xádba",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cacra","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"xadba","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "denpa",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "dénpa",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [14,16],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cacra",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "xadba",
-              span: [23,28],
-            },
+            Gismu "cácra",
+            Gismu "xádba",
           },
         },
       ],

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o mi djíca tu'a le grúsko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "grusko",
-    span: [22,28],
-  },
+  Cmavo "ni'o",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "grúsko",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"grusko","kind":"lujvo"}}]"""
 
@@ -55,44 +31,20 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [8,13],
-      },
+      Gismu "djíca",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [14,18],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [19,21],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "grusko",
-              span: [22,28],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "grúsko",
           },
         },
       ],

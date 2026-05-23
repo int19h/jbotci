@@ -10,7 +10,7 @@ use jbotci_syntax::ast::{
 };
 use jbotci_tree::{FieldRef, TreeVisitor};
 
-use crate::{OutputError, TreeRenderOptions};
+use crate::{OutputError, TreeRenderOptions, surface};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -38,18 +38,28 @@ struct TreeNode {
 enum TreeValue {
     Node(TreeNode),
     Collection(Vec<TreeValue>),
+    Word {
+        constructor: &'static str,
+        phonemes: String,
+    },
+    Verbatim(String),
     Text(String),
-    Span { char_start: usize, char_end: usize },
+    Span {
+        byte_start: usize,
+        byte_end: usize,
+        char_start: usize,
+        char_end: usize,
+    },
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub(crate) fn pretty_tree_with_options(
     tree: &TextSyntax,
-    _source: &str,
+    source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    let value = collapse_value(syntax_tree_value(tree));
+    let value = collapse_value(syntax_tree_value(tree, source));
     let mut renderer = TreeRenderer {
         color: options.color,
         indent_step: options.indent,
@@ -63,11 +73,14 @@ pub(crate) fn pretty_tree_with_options(
 #[ensures(true)]
 pub(crate) fn pretty_morphology_tree_with_options(
     words: &[WordLike],
-    _source: &str,
+    source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     let value = collapse_value(TreeValue::Collection(
-        words.iter().map(morphology_tree_value).collect(),
+        words
+            .iter()
+            .map(|word_like| morphology_tree_value(word_like, source))
+            .collect(),
     ));
     let mut renderer = TreeRenderer {
         color: options.color,
@@ -80,19 +93,19 @@ pub(crate) fn pretty_morphology_tree_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn with_indicators_tree_value(word: &WithIndicators<WordLike>) -> TreeValue {
+fn with_indicators_tree_value(word: &WithIndicators<WordLike>, source: &str) -> TreeValue {
     match word {
-        WithIndicators::Bare(word_like) => morphology_tree_value(word_like),
+        WithIndicators::Bare(word_like) => morphology_tree_value(word_like, source),
         WithIndicators::Emphasized { bahe, word_like } => TreeValue::Node(TreeNode {
             constructor: "Emphasized",
             entries: vec![
                 TreeEntry {
                     label: Some("bahe"),
-                    value: word_tree_value(bahe),
+                    value: word_tree_value(bahe, source),
                 },
                 TreeEntry {
                     label: None,
-                    value: morphology_tree_value(word_like),
+                    value: morphology_tree_value(word_like, source),
                 },
             ],
         }),
@@ -104,17 +117,17 @@ fn with_indicators_tree_value(word: &WithIndicators<WordLike>) -> TreeValue {
             let mut entries = vec![
                 TreeEntry {
                     label: None,
-                    value: with_indicators_tree_value(base),
+                    value: with_indicators_tree_value(base, source),
                 },
                 TreeEntry {
                     label: Some("indicator"),
-                    value: word_tree_value(indicator),
+                    value: word_tree_value(indicator, source),
                 },
             ];
             if let Some(nai) = nai {
                 entries.push(TreeEntry {
                     label: Some("nai"),
-                    value: word_tree_value(nai),
+                    value: word_tree_value(nai, source),
                 });
             }
             TreeValue::Node(TreeNode {
@@ -127,22 +140,22 @@ fn with_indicators_tree_value(word: &WithIndicators<WordLike>) -> TreeValue {
 
 #[requires(true)]
 #[ensures(true)]
-fn word_tree_value(word: &Word) -> TreeValue {
-    morphology_tree_value(&WordLike::bare(word.clone()))
+fn word_tree_value(word: &Word, source: &str) -> TreeValue {
+    morphology_tree_value(&WordLike::bare(word.clone()), source)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_tree_value(word_like: &WordLike) -> TreeValue {
-    let mut visitor = MorphologyTreeBuilder::default();
+fn morphology_tree_value(word_like: &WordLike, source: &str) -> TreeValue {
+    let mut visitor = MorphologyTreeBuilder::new(source);
     word_like.visit_in_order(&mut visitor);
     visitor.finish()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tree_value(tree: &TextSyntax) -> TreeValue {
-    let mut visitor = SyntaxTreeBuilder::default();
+fn syntax_tree_value(tree: &TextSyntax, source: &str) -> TreeValue {
+    let mut visitor = SyntaxTreeBuilder::new(source);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
 }
@@ -167,12 +180,23 @@ enum SyntaxFrame {
 
 #[derive(Debug, Default)]
 #[invariant(true)]
-struct SyntaxTreeBuilder {
+struct SyntaxTreeBuilder<'source> {
+    source: &'source str,
     stack: Vec<SyntaxFrame>,
     root: Option<TreeValue>,
 }
 
-impl SyntaxTreeBuilder {
+impl<'source> SyntaxTreeBuilder<'source> {
+    #[requires(true)]
+    #[ensures(ret.source == source)]
+    fn new(source: &'source str) -> Self {
+        Self {
+            source,
+            stack: Vec::new(),
+            root: None,
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn finish(self) -> TreeValue {
@@ -258,7 +282,7 @@ impl SyntaxTreeBuilder {
     }
 }
 
-impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
+impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'_> {
     type Node = SyntaxNodeRef<'tree>;
     type Atom = SyntaxAtomRef<'tree>;
 
@@ -343,8 +367,10 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => with_indicators_tree_value(word),
-            SyntaxAtomRef::Word(word) => word_tree_value(word),
+            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
+                with_indicators_tree_value(word, self.source)
+            }
+            SyntaxAtomRef::Word(word) => word_tree_value(word, self.source),
         });
     }
 }
@@ -363,7 +389,10 @@ fn collapse_value(value: TreeValue) -> TreeValue {
         TreeValue::Collection(items) => {
             TreeValue::Collection(items.into_iter().map(collapse_value).collect())
         }
-        TreeValue::Text(..) | TreeValue::Span { .. } => value,
+        TreeValue::Word { .. }
+        | TreeValue::Verbatim(..)
+        | TreeValue::Text(..)
+        | TreeValue::Span { .. } => value,
     }
 }
 
@@ -406,14 +435,37 @@ impl TreeRenderer {
         match value {
             TreeValue::Node(node) => self.render_node(node, indent),
             TreeValue::Collection(items) => self.render_collection(items, indent),
+            TreeValue::Word {
+                constructor,
+                phonemes,
+            } => self.render_word(constructor, phonemes),
+            TreeValue::Verbatim(text) => self.render_verbatim(text),
             TreeValue::Text(text) => self.output.push_str(&self.string_literal(text)),
             TreeValue::Span {
+                byte_start: _,
+                byte_end: _,
                 char_start,
                 char_end,
             } => self
                 .output
                 .push_str(&self.span_literal(*char_start, *char_end)),
         }
+    }
+
+    #[requires(!constructor.is_empty())]
+    #[ensures(true)]
+    fn render_word(&mut self, constructor: &str, phonemes: &str) {
+        self.output.push_str(&self.constructor_token(constructor));
+        self.output.push(' ');
+        self.output.push_str(&self.string_literal(phonemes));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_verbatim(&mut self, text: &str) {
+        self.output.push_str(&self.constructor_token("Verbatim"));
+        self.output.push(' ');
+        self.output.push_str(&self.string_literal(text));
     }
 
     #[requires(true)]
@@ -596,14 +648,25 @@ enum MorphologyFrame {
     },
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[invariant(true)]
-struct MorphologyTreeBuilder {
+struct MorphologyTreeBuilder<'source> {
+    source: &'source str,
     stack: Vec<MorphologyFrame>,
     root: Option<TreeValue>,
 }
 
-impl MorphologyTreeBuilder {
+impl<'source> MorphologyTreeBuilder<'source> {
+    #[requires(true)]
+    #[ensures(ret.source == source)]
+    fn new(source: &'source str) -> Self {
+        Self {
+            source,
+            stack: Vec::new(),
+            root: None,
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn finish(self) -> TreeValue {
@@ -623,7 +686,7 @@ impl MorphologyTreeBuilder {
     }
 }
 
-impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder {
+impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
     type Node = jbotci_morphology::NodeRef<'tree>;
     type Atom = jbotci_morphology::AtomRef<'tree>;
 
@@ -646,9 +709,11 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder {
         else {
             panic!("morphology tree walker exited a node without entering it");
         };
-        self.push_value(TreeValue::Node(TreeNode {
-            constructor,
-            entries,
+        self.push_value(word_node_value(constructor, &entries).unwrap_or_else(|| {
+            TreeValue::Node(TreeNode {
+                constructor,
+                entries,
+            })
         }));
     }
 
@@ -693,7 +758,12 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder {
                 }
             }
         } else {
-            let value = if values.len() == 1 {
+            let value = if name == Some("quoted_text") && values.len() == 1 {
+                quoted_text_value(
+                    values.into_iter().next().expect("length checked"),
+                    self.source,
+                )
+            } else if values.len() == 1 {
                 values.into_iter().next().expect("length checked")
             } else {
                 TreeValue::Collection(values)
@@ -715,6 +785,79 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder {
 
 #[requires(true)]
 #[ensures(true)]
+fn word_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Option<TreeValue> {
+    if constructor != "Word" {
+        return None;
+    }
+    let mut kind = None;
+    let mut phonemes = None;
+    for entry in entries {
+        match (entry.label, &entry.value) {
+            (Some("kind"), TreeValue::Text(text)) => kind = Some(text.as_str()),
+            (Some("phonemes"), TreeValue::Text(text)) => phonemes = Some(text.as_str()),
+            _ => {}
+        }
+    }
+    let kind = word_kind_constructor(kind?)?;
+    let phonemes =
+        surface::render_word_phonemes_without_pause(word_kind_from_constructor(kind), phonemes?);
+    Some(TreeValue::Word {
+        constructor: kind,
+        phonemes,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_kind_constructor(kind: &str) -> Option<&'static str> {
+    match kind {
+        "cmavo" => Some("Cmavo"),
+        "gismu" => Some("Gismu"),
+        "lujvo" => Some("Lujvo"),
+        "fu'ivla" => Some("Fuhivla"),
+        "cmevla" => Some("Cmevla"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_kind_from_constructor(constructor: &str) -> WordKind {
+    match constructor {
+        "Cmavo" => WordKind::Cmavo,
+        "Gismu" => WordKind::Gismu,
+        "Lujvo" => WordKind::Lujvo,
+        "Fuhivla" => WordKind::Fuhivla,
+        "Cmevla" => WordKind::Cmevla,
+        _ => unreachable!("word kind constructor was produced locally"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quoted_text_value(value: TreeValue, source: &str) -> TreeValue {
+    match value {
+        TreeValue::Span {
+            byte_start,
+            byte_end,
+            ..
+        } => TreeValue::Verbatim(
+            source
+                .get(byte_start..byte_end)
+                .unwrap_or_default()
+                .trim()
+                .to_owned(),
+        ),
+        TreeValue::Node(..)
+        | TreeValue::Collection(..)
+        | TreeValue::Word { .. }
+        | TreeValue::Verbatim(..)
+        | TreeValue::Text(..) => value,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn word_kind_value(kind: &WordKind) -> TreeValue {
     TreeValue::Text(kind.to_string())
 }
@@ -723,6 +866,8 @@ fn word_kind_value(kind: &WordKind) -> TreeValue {
 #[ensures(true)]
 fn source_span_value(span: &SourceSpan) -> TreeValue {
     TreeValue::Span {
+        byte_start: span.byte_start,
+        byte_end: span.byte_end,
         char_start: span.char_start,
         char_end: span.char_end,
     }
@@ -769,7 +914,7 @@ mod tests {
         let output = render("mi klama", false);
         assert_eq!(
             output,
-            "Predicate {\n  leading_terms: [\n    Word {\n      kind: \"cmavo\",\n      phonemes: \"mi\",\n      span: [0,2],\n    },\n  ],\n  Word {\n    kind: \"gismu\",\n    phonemes: \"klama\",\n    span: [3,8],\n  },\n}"
+            "Predicate {\n  leading_terms: [\n    Cmavo \"mi\",\n  ],\n  Gismu \"kláma\",\n}"
         );
     }
 
@@ -781,10 +926,10 @@ mod tests {
         assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
         assert!(output.contains("\x1b[32mleading_terms\x1b[39m"));
         assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
+        assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
         assert!(output.contains("\x1b[90m{\x1b[39m"));
         assert!(output.contains("\x1b[36m[\x1b[39m"));
         assert!(output.contains("\x1b[36m]\x1b[39m"));
-        assert!(output.contains("\x1b[35m0\x1b[39m\x1b[90m,\x1b[39m\x1b[35m2\x1b[39m"));
     }
 
     #[test]
@@ -802,23 +947,24 @@ mod tests {
     fn renders_compound_word_like_values_as_structured_nodes() {
         let zo = render("zo broda cu melbi", false);
         assert!(zo.contains("ZoQuote {"));
-        assert!(zo.contains("phonemes: \"broda\""));
+        assert!(zo.contains("Cmavo \"zo\""));
+        assert!(zo.contains("Gismu \"bróda\""));
 
         let zoi = render("zoi gy hello gy cu melbi", false);
         assert!(zoi.contains("ZoiQuote {"));
-        assert!(zoi.contains("quoted_text: [6,12]"));
+        assert!(zoi.contains("quoted_text: Verbatim \"hello\""));
 
         let lohu = render("lo'u mi klama le'u cu melbi", false);
         assert!(lohu.contains("LohuQuote {"));
-        assert!(lohu.contains("phonemes: \"klama\""));
+        assert!(lohu.contains("Gismu \"kláma\""));
 
         let bu = render("abu cu lerfu", false);
         assert!(bu.contains("Letter {"));
-        assert!(bu.contains("bu: Word {"));
+        assert!(bu.contains("bu: Cmavo \"bu\""));
 
         let zei = render("mi broda zei brode", false);
         assert!(zei.contains("ZeiLujvo {"));
-        assert!(zei.contains("phonemes: \"brode\""));
+        assert!(zei.contains("Gismu \"bróde\""));
     }
 
     #[test]
@@ -838,7 +984,7 @@ mod tests {
         .expect("tree render");
         assert_eq!(
             output,
-            r#"Predicate{leading_terms:[Word{kind:"cmavo",phonemes:"mi",span:[0,2]}],Word{kind:"gismu",phonemes:"klama",span:[3,8]}}"#
+            r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
         );
     }
 

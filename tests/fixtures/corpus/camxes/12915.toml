@@ -18,148 +18,52 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i gu ta gi ko sálci le nu la .byfyb. cu co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "byfyb",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [39,43],
-  },
+  Cmavo "i",
+  Cmavo "gu",
+  Cmavo "ta",
+  Cmavo "gi",
+  Cmavo "ko",
+  Gismu "sálci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "la",
+  Cmevla "byfyb",
+  Cmavo "cu",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"gu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"byfyb","kind":"cmevla"}},{"Bare":{"span":[36,38],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"co'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Gek {
-        gek: Word {
-          kind: "cmavo",
-          phonemes: "gu",
-          span: [3,5],
-        },
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "ta",
-          span: [6,8],
-        },
-        gik: Word {
-          kind: "cmavo",
-          phonemes: "gi",
-          span: [9,11],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [12,14],
-        },
+        gek: Cmavo "gu",
+        leading_argument: Cmavo "ta",
+        gik: Cmavo "gi",
+        trailing_argument: Cmavo "ko",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "salci",
-        span: [15,20],
-      },
+      Gismu "sálci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [23,25],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [26,28],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "byfyb",
-                      span: [29,34],
-                    },
+                    Cmevla "byfyb",
                   ],
                 },
               ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [36,38],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "co'e",
-                span: [39,43],
-              },
+              cu: Cmavo "cu",
+              Cmavo "co'e",
             },
           },
         },

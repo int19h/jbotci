@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a do tolzánru le si'o sévzi cármi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolzanru",
-    span: [8,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sevzi",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [31,36],
-  },
+  Cmavo "ru'a",
+  Cmavo "do",
+  Lujvo "tolzánru",
+  Cmavo "le",
+  Cmavo "si'o",
+  Gismu "sévzi",
+  Gismu "cármi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"tolzanru","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"sevzi","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"carmi","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "tolzanru",
-        span: [8,16],
-      },
+      Lujvo "tolzánru",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "si'o",
-              span: [20,24],
-            },
+            nu: Cmavo "si'o",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "sevzi",
-                span: [25,30],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "carmi",
-                span: [31,36],
-              },
+              Gismu "sévzi",
+              Gismu "cármi",
             },
           },
         },

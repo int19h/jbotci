@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ma do se djíca da'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [18,22],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "djíca",
+  Cmavo "da'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"da'i","kind":"cmavo"}}]"""
 
@@ -58,41 +34,17 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{ma do} {se (djíca da'i)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "ma",
+      Cmavo "do",
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [9,11],
-      },
+      se: Cmavo "se",
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [12,17],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "da'i",
-          span: [18,22],
-        },
+        Gismu "djíca",
+        indicator: Cmavo "da'i",
       },
     },
   },

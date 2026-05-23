@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do pu'i zváti la .paris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "paris",
-    span: [21,26],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "pu'i",
+  Gismu "zváti",
+  Cmavo "la",
+  Cmevla "paris",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"pu'i","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"paris","kind":"cmevla"}}]"""
 
@@ -60,47 +36,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu'i",
-          span: [6,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "pu'i",
+        Gismu "zváti",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "paris",
-              span: [21,26],
-            },
+            Cmevla "paris",
           ],
         },
       ],

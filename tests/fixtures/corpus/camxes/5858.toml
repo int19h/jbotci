@@ -19,32 +19,12 @@ brackets = "([zo málnaŭ] cu símlu dráni)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "malnaŭ",
-      span: [3,9],
-    },
+    zo: Cmavo "zo",
+    Lujvo "málnaŭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simlu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [19,24],
-  },
+  Cmavo "cu",
+  Gismu "símlu",
+  Gismu "dráni",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"malnaŭ","kind":"lujvo"}}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"simlu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"drani","kind":"gismu"}}]'
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "malnaŭ",
-        span: [3,9],
-      },
+      zo: Cmavo "zo",
+      Lujvo "málnaŭ",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "simlu",
-      span: [13,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "drani",
-      span: [19,24],
-    },
+    Gismu "símlu",
+    Gismu "dráni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"malnaŭ","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"simlu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"drani","kind":"gismu"}}}}]}}}}}}}}]}]}'

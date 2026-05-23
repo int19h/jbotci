@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu zi kélci la .dydyrys. .i bo zdíle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dydyrys",
-    span: [17,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [27,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [31,36],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zi",
+  Gismu "kélci",
+  Cmavo "la",
+  Cmevla "dydyrys",
+  Cmavo "i",
+  Cmavo "bo",
+  Gismu "zdíle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,24],"phonemes":"dydyrys","kind":"cmevla"}},{"Bare":{"span":[27,28],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"zdile","kind":"gismu"}}]'
 
@@ -71,64 +35,28 @@ tree = """
 Connected {
   leading_statement: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [5,7],
-          },
+          Cmavo "pu",
+          Cmavo "zi",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "kelci",
-          span: [8,13],
-        },
+        Gismu "kélci",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [14,16],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "dydyrys",
-              span: [17,24],
-            },
+            Cmevla "dydyrys",
           ],
         },
       ],
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [27,28],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [28,30],
-  },
-  trailing_statement: Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [31,36],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "bo",
+  trailing_statement: Gismu "zdíle",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}}}}}},"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[17,24],"phonemes":"dydyrys","kind":"cmevla"}}}]}}}]}}}}}}},"i":{"Bare":{"Bare":{"span":[27,28],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[28,30],"phonemes":"bo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[31,36],"phonemes":"zdile","kind":"gismu"}}}}}}}}}}}}}]}]}'

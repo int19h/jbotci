@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no cínri vi núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [12,17],
-  },
+  Cmavo "no",
+  Gismu "cínri",
+  Cmavo "vi",
+  Gismu "núzba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nuzba","kind":"gismu"}}]'
 
@@ -47,30 +31,14 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
+        Cmavo "no",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [3,8],
-      },
+      relation: Gismu "cínri",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [9,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [12,17],
-    },
+    tense_modal: Cmavo "vi",
+    Gismu "núzba",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"cinri","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[9,11],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"nuzba","kind":"gismu"}}}}}}}}}}}}}]}]}'

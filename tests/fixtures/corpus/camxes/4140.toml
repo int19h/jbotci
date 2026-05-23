@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu lu skámi jórne nírna li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [28,32],
-  },
+  Cmavo "xu",
+  Cmavo "lu",
+  Gismu "skámi",
+  Gismu "jórne",
+  Gismu "nírna",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"jorne","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [4,6],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [7,9],
-        },
+        lu: Cmavo "lu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jorne",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nirna",
-            span: [22,27],
-          },
+          Gismu "skámi",
+          Gismu "jórne",
+          Gismu "nírna",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [28,32],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

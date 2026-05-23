@@ -19,27 +19,11 @@ brackets = "([zo nalslábu] vaŭ xu)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nalslabu",
-      span: [3,11],
-    },
+    zo: Cmavo "zo",
+    Lujvo "nalslábu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [15,17],
-  },
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"nalslabu","kind":"lujvo"}}},{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -48,29 +32,13 @@ tree = """
 Term {
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "nalslabu",
-        span: [3,11],
-      },
+      zo: Cmavo "zo",
+      Lujvo "nalslábu",
     },
   ],
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [12,15],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [15,17],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"nalslabu","kind":"lujvo"}}}}}}}],"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}}}}}}]}]}'

@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ba zi ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
+  Cmavo "ba",
+  Cmavo "zi",
+  Cmavo "ku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}}]'
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [2,4],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],

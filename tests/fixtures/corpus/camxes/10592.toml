@@ -18,139 +18,51 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ro roĭ le nu mi nérkla keĭ ro da cándo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nerkla",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cando",
-    span: [33,38],
-  },
+  Cmavo "i",
+  Cmavo "ro",
+  Cmavo "roĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Lujvo "nérkla",
+  Cmavo "keĭ",
+  Cmavo "ro",
+  Cmavo "da",
+  Gismu "cándo",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"nerkla","kind":"lujvo"}},{"Bare":{"span":[24,27],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"cando","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [2,4],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [4,7],
-          },
+          Cmavo "ro",
+          Cmavo "roĭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [8,10],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [11,13],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [14,16],
-                },
+                Cmavo "mi",
               ],
-              Word {
-                kind: "lujvo",
-                phonemes: "nerkla",
-                span: [17,23],
-              },
+              Lujvo "nérkla",
             },
-            kei: Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [24,27],
-            },
+            kei: Cmavo "keĭ",
           },
         },
       },
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [28,30],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [30,32],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cando",
-      span: [33,38],
-    },
+    Gismu "cándo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ro","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[4,7],"phonemes":"roĭ","kind":"cmavo"}}}}]}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,23],"phonemes":"nerkla","kind":"lujvo"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[24,27],"phonemes":"keĭ","kind":"cmavo"}}}}}}}}},{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[28,30],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[30,32],"phonemes":"da","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[33,38],"phonemes":"cando","kind":"gismu"}}}}}}}}}}}]}]}'

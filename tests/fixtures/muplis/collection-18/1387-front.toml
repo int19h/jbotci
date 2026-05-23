@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le za'u da cu jaĭ nándu faĭ le ka se zvafá'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [37,39],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zvafa'i",
-    span: [40,47],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "za'u",
+  Cmavo "da",
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "nándu",
+  Cmavo "faĭ",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "se",
+  Lujvo "zvafá'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[40,47],"phonemes":"zvafa'i","kind":"lujvo"}}]"""
 
@@ -88,81 +40,33 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{le (za'u da)} cu {(jaĭ nándu) (faĭ [le {ka (se zvafá'i)}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [11,13],
-          },
+          Cmavo "za'u",
+          Cmavo "da",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    cu: Cmavo "cu",
     Relation {
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [17,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nandu",
-          span: [21,26],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "nándu",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "faĭ",
-            span: [27,30],
-          },
+          fa: Cmavo "faĭ",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [31,33],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ka",
-                span: [34,36],
-              },
+              nu: Cmavo "ka",
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [37,39],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "zvafa'i",
-                  span: [40,47],
-                },
+                se: Cmavo "se",
+                Lujvo "zvafá'i",
               },
             },
           },

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ga naĭ do na jímpe gi .e'o cíksi le ma cfípu págbu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [43,48],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "gi",
+  Cmavo "e'o",
+  Gismu "cíksi",
+  Cmavo "le",
+  Cmavo "ma",
+  Gismu "cfípu",
+  Gismu "págbu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"pagbu","kind":"gismu"}}]"""
 
@@ -85,81 +37,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "ga",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "do",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [12,17],
-      },
+      na: Cmavo "na",
+      Gismu "jímpe",
     },
   },
   gik: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [18,20],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'o",
-      span: [21,24],
-    },
+    Cmavo "gi",
+    indicator: Cmavo "e'o",
   },
   second: Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ciksi",
-      span: [25,30],
-    },
+    Gismu "cíksi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [31,33],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [34,36],
-          },
+          Cmavo "ma",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cfipu",
-            span: [37,42],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pagbu",
-            span: [43,48],
-          },
+          Gismu "cfípu",
+          Gismu "págbu",
         },
       },
     ],

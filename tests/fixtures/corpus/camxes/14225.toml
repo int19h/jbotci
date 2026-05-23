@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kampráne cu seldjíca nalcúmki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kamprane",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seldjica",
-    span: [15,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcumki",
-    span: [24,32],
-  },
+  Cmavo "le",
+  Lujvo "kampráne",
+  Cmavo "cu",
+  Lujvo "seldjíca",
+  Lujvo "nalcúmki",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"kamprane","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"seldjica","kind":"lujvo"}},{"Bare":{"span":[24,32],"phonemes":"nalcumki","kind":"lujvo"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "kamprane",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "kampráne",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "seldjica",
-      span: [15,23],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nalcumki",
-      span: [24,32],
-    },
+    Lujvo "seldjíca",
+    Lujvo "nalcúmki",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"kamprane","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[15,23],"phonemes":"seldjica","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[24,32],"phonemes":"nalcumki","kind":"lujvo"}}}}]}}}}}}}}]}]}'

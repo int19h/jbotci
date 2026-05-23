@@ -21,26 +21,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na ku mi mórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [9,14],
-  },
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "mórsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"morsi","kind":"gismu"}}]'
 
@@ -50,27 +34,11 @@ tree = """
 Predicate {
   leading_terms: [
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [3,5],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [6,8],
-    },
+    Cmavo "mi",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [9,14],
-  },
+  Gismu "mórsi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"NaKu":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"na_ku":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"morsi","kind":"gismu"}}}}}}}}}}}]}]}'

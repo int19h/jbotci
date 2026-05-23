@@ -18,56 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti píxra le pa ze xa vo moĭ rálju námcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ralju",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namcu",
-    span: [30,35],
-  },
+  Cmavo "ti",
+  Gismu "píxra",
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "ze",
+  Cmavo "xa",
+  Cmavo "vo",
+  Cmavo "moĭ",
+  Gismu "rálju",
+  Gismu "námcu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pixra","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ralju","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"namcu","kind":"gismu"}}]'
 
@@ -75,65 +35,25 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pixra",
-      span: [3,8],
-    },
+    Gismu "píxra",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [12,14],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "ze",
-                span: [14,16],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "xa",
-                span: [16,18],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "vo",
-                span: [18,20],
-              },
+              Cmavo "pa",
+              Cmavo "ze",
+              Cmavo "xa",
+              Cmavo "vo",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "moĭ",
-              span: [20,23],
-            },
+            moi: Cmavo "moĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "ralju",
-            span: [24,29],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "namcu",
-            span: [30,35],
-          },
+          Gismu "rálju",
+          Gismu "námcu",
         },
       },
     ],

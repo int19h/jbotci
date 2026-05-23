@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi ke cmálu je níxli ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [24,29],
-  },
+  Gismu "mélbi",
+  Cmavo "ke",
+  Gismu "cmálu",
+  Cmavo "je",
+  Gismu "níxli",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -61,40 +37,16 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"spa
 brackets = "(mélbi [ke {(cmálu je níxli) ckúle}])"
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
+  Gismu "mélbi",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
       Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "cmalu",
-          span: [9,14],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [15,17],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [18,23],
-        },
+        leading_unit: Gismu "cmálu",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "níxli",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [24,29],
-      },
+      Gismu "ckúle",
     },
   },
 }"""

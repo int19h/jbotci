@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu do mo li'u lu mo vi do li'u zmádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [26,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [31,36],
-  },
+  Cmavo "lu",
+  Cmavo "do",
+  Cmavo "mo",
+  Cmavo "li'u",
+  Cmavo "lu",
+  Cmavo "mo",
+  Cmavo "vi",
+  Cmavo "do",
+  Cmavo "li'u",
+  Gismu "zmádu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"zmadu","kind":"gismu"}}]"""
 
@@ -76,69 +36,29 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [3,5],
-          },
+          Cmavo "do",
         ],
-        Word {
-          kind: "cmavo",
-          phonemes: "mo",
-          span: [6,8],
-        },
+        Cmavo "mo",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [9,13],
-      },
+      lihu: Cmavo "li'u",
     },
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [14,16],
-      },
+      lu: Cmavo "lu",
       Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "mo",
-          span: [17,19],
-        },
+        Cmavo "mo",
         terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "vi",
-              span: [20,22],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [23,25],
-            },
+            tense_modal: Cmavo "vi",
+            Cmavo "do",
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [26,30],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [31,36],
-  },
+  Gismu "zmádu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[9,13],"phonemes":"li'u","kind":"cmavo"}}}}}}},{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[14,16],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[17,19],"phonemes":"mo","kind":"cmavo"}}}},"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[20,22],"phonemes":"vi","kind":"cmavo"}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"span":[23,25],"phonemes":"do","kind":"cmavo"}}}}}}]}}}}}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[26,30],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[31,36],"phonemes":"zmadu","kind":"gismu"}}}}}}}}}}}]}]}"""

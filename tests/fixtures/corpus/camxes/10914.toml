@@ -18,138 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gírzu le ka mi pu tráji nélci le nu kélci ke'a)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [42,46],
-  },
+  Gismu "gírzu",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tráji",
+  Gismu "nélci",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "kélci",
+  Cmavo "ke'a",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[42,46],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
+  Gismu "gírzu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [9,11],
-        },
+        nu: Cmavo "ka",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [12,14],
-            },
+            Cmavo "mi",
           ],
           Relation {
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "pu",
-                span: [15,17],
-              },
+              tense_modal: Cmavo "pu",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "traji",
-                  span: [18,23],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "nelci",
-                  span: [24,29],
-                },
+                Gismu "tráji",
+                Gismu "nélci",
               },
             },
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [30,32],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "nu",
-                    span: [33,35],
-                  },
+                  nu: Cmavo "nu",
                   Relation {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "kelci",
-                      span: [36,41],
-                    },
+                    Gismu "kélci",
                     terms: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "ke'a",
-                        span: [42,46],
-                      },
+                      Cmavo "ke'a",
                     ],
                   },
                 },

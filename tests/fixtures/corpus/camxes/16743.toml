@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ tsáli cu'u go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [15,19],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "cu'u",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,14],"phonemes":"cu'u","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -47,34 +31,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [4,9],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "cu'u",
-        span: [10,14],
-      },
+      bai: Cmavo "cu'u",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [15,19],
-    },
+    Cmavo "go'i",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[10,14],"phonemes":"cu'u","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,19],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

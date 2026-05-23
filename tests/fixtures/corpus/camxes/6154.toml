@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu le samsélpla jímpe lójbo vóksa zásti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [6,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "voksa",
-    span: [28,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [34,39],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Lujvo "samsélpla",
+  Gismu "jímpe",
+  Gismu "lójbo",
+  Gismu "vóksa",
+  Gismu "zásti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,15],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[16,21],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"voksa","kind":"gismu"}},{"Bare":{"span":[34,39],"phonemes":"zasti","kind":"gismu"}}]'
 
@@ -61,47 +33,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "samselpla",
-            span: [6,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jimpe",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [22,27],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "voksa",
-            span: [28,33],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zasti",
-            span: [34,39],
-          },
+          Lujvo "samsélpla",
+          Gismu "jímpe",
+          Gismu "lójbo",
+          Gismu "vóksa",
+          Gismu "zásti",
         },
       },
     ],

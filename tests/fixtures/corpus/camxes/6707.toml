@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'a .i la pórpi cu mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [20,22],
-  },
+  Cmavo "ki'a",
+  Cmavo "i",
+  Cmavo "la",
+  Gismu "pórpi",
+  Cmavo "cu",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"porpi","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ki'a",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [8,10],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "porpi",
-            span: [11,16],
-          },
+          descriptor: Cmavo "la",
+          relation: Gismu "pórpi",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [17,19],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [20,22],
-      },
+      cu: Cmavo "cu",
+      Cmavo "mo",
     },
   },
 }"""

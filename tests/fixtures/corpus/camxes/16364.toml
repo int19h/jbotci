@@ -19,44 +19,16 @@ brackets = "([zoĭ ly cab ly] na ráfsi [zo ca'a])"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [4,6],
-    },
-    quoted_text: [6,10],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [11,13],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "cab",
+    closing_delimiter: Cmavo "ly",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [17,22],
-  },
+  Cmavo "na",
+  Gismu "ráfsi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [23,25],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ca'a",
-      span: [26,30],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ca'a",
   },
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"ly","kind":"cmavo"},"quoted_text":[6,10],"closing_delimiter":{"span":[11,13],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"rafsi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[23,25],"phonemes":"zo","kind":"cmavo"},"word":{"span":[26,30],"phonemes":"ca'a","kind":"cmavo"}}}]"""
@@ -66,49 +38,21 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ly",
-        span: [4,6],
-      },
-      quoted_text: [6,10],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ly",
-        span: [11,13],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "ly",
+      quoted_text: Verbatim "cab",
+      closing_delimiter: Cmavo "ly",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [14,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "rafsi",
-        span: [17,22],
-      },
+      na: Cmavo "na",
+      Gismu "ráfsi",
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [23,25],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'a",
-          span: [26,30],
-        },
+        zo: Cmavo "zo",
+        Cmavo "ca'a",
       },
     ],
   },

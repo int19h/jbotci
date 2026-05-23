@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cítka cérsaĭ ca le nu cásnu se pi'o la .iburycys.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cersaĭ",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "iburycys",
-    span: [40,48],
-  },
+  Cmavo "mi",
+  Gismu "cítka",
+  Lujvo "cérsaĭ",
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cásnu",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "la",
+  Cmevla "iburycys",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[9,15],"phonemes":"cersaĭ","kind":"lujvo"}},{"Bare":{"span":[16,18],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,48],"phonemes":"iburycys","kind":"cmevla"}}]"""
 
@@ -80,76 +36,32 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [3,8],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "cersaĭ",
-        span: [9,15],
-      },
+      Gismu "cítka",
+      Lujvo "cérsaĭ",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [16,18],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [21,23],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "casnu",
-                span: [24,29],
-              },
+              Gismu "cásnu",
               terms: [
                 Tagged {
                   tense_modal: Simple {
-                    se: Word {
-                      kind: "cmavo",
-                      phonemes: "se",
-                      span: [30,32],
-                    },
-                    bai: Word {
-                      kind: "cmavo",
-                      phonemes: "pi'o",
-                      span: [32,36],
-                    },
+                    se: Cmavo "se",
+                    bai: Cmavo "pi'o",
                   },
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [37,39],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "iburycys",
-                        span: [40,48],
-                      },
+                      Cmevla "iburycys",
                     ],
                   },
                 },

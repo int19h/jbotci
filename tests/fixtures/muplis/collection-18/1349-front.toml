@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la .ken. cu djíca le nu ri rálte su'o relxilmá'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ken",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ralte",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [36,40],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "relxilma'e",
-    span: [41,51],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "ken",
+  Cmavo "cu",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ri",
+  Gismu "rálte",
+  Cmavo "su'o",
+  Lujvo "relxilmá'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"ken","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"ralte","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[41,51],"phonemes":"relxilma'e","kind":"lujvo"}}]"""
 
@@ -83,80 +39,36 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{la .ken.} cu {djíca (le [nu {ri (rálte [su'o relxilmá'e])}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ken",
-            span: [7,10],
-          },
+          Cmevla "ken",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [12,14],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [15,20],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [24,26],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ri",
-                  span: [27,29],
-                },
+                Cmavo "ri",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "ralte",
-                  span: [30,35],
-                },
+                Gismu "rálte",
                 terms: [
                   Descriptor {
                     tail_elements: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "su'o",
-                        span: [36,40],
-                      },
+                      Cmavo "su'o",
                     ],
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "relxilma'e",
-                      span: [41,51],
-                    },
+                    relation: Lujvo "relxilmá'e",
                   },
                 ],
               },

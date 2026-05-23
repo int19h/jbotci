@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ tsáli ma me do moĭ júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [21,26],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "ma",
+  Cmavo "me",
+  Cmavo "do",
+  Cmavo "moĭ",
+  Gismu "júfra",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"jufra","kind":"gismu"}}]'
 
@@ -62,52 +34,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [4,9],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [10,12],
-      },
+      Cmavo "ma",
     ],
     Compound {
       Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [13,15],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [15,17],
-        },
-        moi_marker: Word {
-          kind: "cmavo",
-          phonemes: "moĭ",
-          span: [17,20],
-        },
+        me: Cmavo "me",
+        Cmavo "do",
+        moi_marker: Cmavo "moĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "jufra",
-        span: [21,26],
-      },
+      Gismu "júfra",
     },
   },
 }"""

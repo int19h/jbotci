@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sicmérko jbonúnsla)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "sicmerko",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [9,18],
-  },
+  Lujvo "sicmérko",
+  Lujvo "jbonúnsla",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"sicmerko","kind":"lujvo"}},{"Bare":{"span":[9,18],"phonemes":"jbonunsla","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "sicmerko",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [9,18],
-  },
+  Lujvo "sicmérko",
+  Lujvo "jbonúnsla",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"sicmerko","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,18],"phonemes":"jbonunsla","kind":"lujvo"}}}}]}}}}}}}}]}]}'

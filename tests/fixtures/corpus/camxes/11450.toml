@@ -19,32 +19,12 @@ brackets = "([zo cínri] pu se djíca)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "cínri",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [15,20],
-  },
+  Cmavo "pu",
+  Cmavo "se",
+  Gismu "djíca",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"cinri","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"djica","kind":"gismu"}}]'
 
@@ -53,35 +33,15 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "cínri",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [9,11],
-    },
+    tense_modal: Cmavo "pu",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [12,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [15,20],
-      },
+      se: Cmavo "se",
+      Gismu "djíca",
     },
   },
 }"""

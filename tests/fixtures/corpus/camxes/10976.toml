@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(baĭ seĭ níbli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "baĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nibli",
-    span: [8,13],
-  },
+  Cmavo "baĭ",
+  Cmavo "seĭ",
+  Gismu "níbli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nibli","kind":"gismu"}}]'
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baĭ",
-          span: [0,3],
-        },
+        bai: Cmavo "baĭ",
         free_modifiers: [
           Sei {
-            sei: Word {
-              kind: "cmavo",
-              phonemes: "seĭ",
-              span: [4,7],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "nibli",
-              span: [8,13],
-            },
+            sei: Cmavo "seĭ",
+            relation: Gismu "níbli",
           },
         ],
       },

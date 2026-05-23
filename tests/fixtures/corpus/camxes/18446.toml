@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .xorxes. .i la'a do pílno [zo zu] pe lo kláni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xorxes",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [21,26],
-  },
+  Cmavo "doĭ",
+  Cmevla "xorxes",
+  Cmavo "i",
+  Cmavo "la'a",
+  Cmavo "do",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [27,29],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zu",
-      span: [30,32],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klani",
-    span: [39,44],
-  },
+  Cmavo "pe",
+  Cmavo "lo",
+  Gismu "kláni",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"xorxes","kind":"cmevla"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[27,29],"phonemes":"zo","kind":"cmavo"},"word":{"span":[30,32],"phonemes":"zu","kind":"cmavo"}}},{"Bare":{"span":[33,35],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"klani","kind":"gismu"}}]"""
 
@@ -84,78 +40,34 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xorxes",
-        span: [4,10],
-      },
+      argument: Cmevla "xorxes",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [11,12],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [13,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "la'a",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [18,20],
-        },
+        Cmavo "do",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [21,26],
-        },
+        Gismu "pílno",
         terms: [
           RelativeClause {
             base_argument: ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [27,29],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "zu",
-                span: [30,32],
-              },
+              zo: Cmavo "zo",
+              Cmavo "zu",
             },
             relative_clauses: [
               GoiRelativeClause {
-                goi: Word {
-                  kind: "cmavo",
-                  phonemes: "pe",
-                  span: [33,35],
-                },
+                goi: Cmavo "pe",
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "lo",
-                    span: [36,38],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "klani",
-                    span: [39,44],
-                  },
+                  descriptor: Cmavo "lo",
+                  relation: Gismu "kláni",
                 },
               },
             ],

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i do cpáre vaŭ xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [20,22],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "do",
+  Gismu "cpáre",
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"xu","kind":"cmavo"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cpare",
-        span: [10,15],
-      },
+      Gismu "cpáre",
       vau: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [16,19],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [20,22],
-        },
+        Cmavo "vaŭ",
+        indicator: Cmavo "xu",
       },
     },
   },

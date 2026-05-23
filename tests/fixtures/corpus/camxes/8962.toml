@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu re moĭ júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [3,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [8,13],
-  },
+  Cmavo "xu",
+  Cmavo "re",
+  Cmavo "moĭ",
+  Gismu "júfra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jufra","kind":"gismu"}}]'
 
@@ -46,33 +30,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [3,4],
-        },
+        Cmavo "re",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [4,7],
-      },
+      moi: Cmavo "moĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "jufra",
-      span: [8,13],
-    },
+    Gismu "júfra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[3,4],"phonemes":"re","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[4,7],"phonemes":"moĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"jufra","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

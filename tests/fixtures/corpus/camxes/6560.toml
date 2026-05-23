@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi távla baŭ re le bángu to glíbaŭ .e mérbaŭ toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glibaŭ",
-    span: [28,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [36,37],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "merbaŭ",
-    span: [38,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [45,48],
-  },
+  Cmavo "mi",
+  Gismu "távla",
+  Cmavo "baŭ",
+  Cmavo "re",
+  Cmavo "le",
+  Gismu "bángu",
+  Cmavo "to",
+  Lujvo "glíbaŭ",
+  Cmavo "e",
+  Lujvo "mérbaŭ",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"glibaŭ","kind":"lujvo"}},{"Bare":{"span":[36,37],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[38,44],"phonemes":"merbaŭ","kind":"lujvo"}},{"Bare":{"span":[45,48],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -80,73 +36,29 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [3,8],
-    },
+    Gismu "távla",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [9,12],
-          },
+          bai: Cmavo "baŭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
-          outer_quantifier: Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
+          outer_quantifier: Cmavo "re",
           relation: Word {
-            Word {
-              kind: "gismu",
-              phonemes: "bangu",
-              span: [19,24],
-            },
+            Gismu "bángu",
             free_modifiers: [
               To {
-                to: Word {
-                  kind: "cmavo",
-                  phonemes: "to",
-                  span: [25,27],
-                },
+                to: Cmavo "to",
                 Connected {
-                  leading_relation: Word {
-                    kind: "lujvo",
-                    phonemes: "glibaŭ",
-                    span: [28,34],
-                  },
-                  connective: Word {
-                    kind: "cmavo",
-                    phonemes: "e",
-                    span: [36,37],
-                  },
-                  trailing_relation: Word {
-                    kind: "lujvo",
-                    phonemes: "merbaŭ",
-                    span: [38,44],
-                  },
+                  leading_relation: Lujvo "glíbaŭ",
+                  connective: Cmavo "e",
+                  trailing_relation: Lujvo "mérbaŭ",
                 },
-                toi: Word {
-                  kind: "cmavo",
-                  phonemes: "toĭ",
-                  span: [45,48],
-                },
+                toi: Cmavo "toĭ",
               },
             ],
           },

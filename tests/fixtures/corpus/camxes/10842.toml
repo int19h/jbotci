@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi do kákne le nu pénmi mi'a vi le vi vélcku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [36,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velcku",
-    span: [39,45],
-  },
+  Cmavo "ŭi",
+  Cmavo "do",
+  Gismu "kákne",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pénmi",
+  Cmavo "mi'a",
+  Cmavo "vi",
+  Cmavo "le",
+  Cmavo "vi",
+  Lujvo "vélcku",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"penmi","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[39,45],"phonemes":"velcku","kind":"lujvo"}}]"""
 
@@ -81,75 +37,31 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [7,12],
-      },
+      Gismu "kákne",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [16,18],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "penmi",
-                span: [19,24],
-              },
+              Gismu "pénmi",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi'a",
-                  span: [25,29],
-                },
+                Cmavo "mi'a",
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "vi",
-                    span: [30,32],
-                  },
+                  tense_modal: Cmavo "vi",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [33,35],
-                    },
+                    descriptor: Cmavo "le",
                     relation: TenseModal {
-                      tense_modal: Word {
-                        kind: "cmavo",
-                        phonemes: "vi",
-                        span: [36,38],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "velcku",
-                        span: [39,45],
-                      },
+                      tense_modal: Cmavo "vi",
+                      Lujvo "vélcku",
                     },
                   },
                 },

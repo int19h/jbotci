@@ -18,48 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i ma .i [zo xávdeĭ] mílxe cfípu mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
+  Cmavo "go'i",
+  Cmavo "ma",
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xavdeĭ",
-      span: [14,20],
-    },
+    zo: Cmavo "zo",
+    Lujvo "xávdeĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
+  Gismu "mílxe",
+  Gismu "cfípu",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,20],"phonemes":"xavdeĭ","kind":"lujvo"}}},{"Bare":{"span":[21,26],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -67,59 +35,27 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [0,4],
-    },
+    Cmavo "go'i",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [11,13],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "xavdeĭ",
-            span: [14,20],
-          },
+          zo: Cmavo "zo",
+          Lujvo "xávdeĭ",
         },
       ],
       Relation {
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "milxe",
-            span: [21,26],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cfipu",
-            span: [27,32],
-          },
+          Gismu "mílxe",
+          Gismu "cfípu",
         },
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [33,35],
-          },
+          Cmavo "mi",
         ],
       },
     },

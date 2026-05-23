@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu coĭ fractúre li'u bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fracture",
-    span: [7,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [21,26],
-  },
+  Cmavo "lu",
+  Cmavo "coĭ",
+  Lujvo "fractúre",
+  Cmavo "li'u",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,15],"phonemes":"fracture","kind":"lujvo"}},{"Bare":{"span":[16,20],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -51,41 +31,21 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "coĭ",
-              span: [3,6],
-            },
+            Cmavo "coĭ",
           ],
           argument: RelationVocative {
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "fracture",
-              span: [7,15],
-            },
+            relation: Lujvo "fractúre",
           },
         },
       ],
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [16,20],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [21,26],
-  },
+  Gismu "bánzu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"span":[7,15],"phonemes":"fracture","kind":"lujvo"}}}}}}}}],"text":{},"lihu":{"Bare":{"Bare":{"span":[16,20],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭu do ba zi di'a sónci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sonci",
-    span: [17,22],
-  },
+  Cmavo "ŭu",
+  Cmavo "do",
+  Cmavo "ba",
+  Cmavo "zi",
+  Cmavo "di'a",
+  Gismu "sónci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"sonci","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭu",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'a",
-          span: [12,16],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
+        Cmavo "di'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "sonci",
-        span: [17,22],
-      },
+      Gismu "sónci",
     },
   },
 }"""

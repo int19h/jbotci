@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a le do ckúle na mápti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapti",
-    span: [20,25],
-  },
+  Cmavo "la'a",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "ckúle",
+  Cmavo "na",
+  Gismu "mápti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mapti","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "la'a",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [8,10],
-          },
+          Cmavo "do",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ckule",
-          span: [11,16],
-        },
+        relation: Gismu "ckúle",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [17,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "mapti",
-        span: [20,25],
-      },
+      na: Cmavo "na",
+      Gismu "mápti",
     },
   },
 }"""

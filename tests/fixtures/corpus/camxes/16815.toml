@@ -18,76 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zmádu mi le ka cértu .u'i)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [20,23],
-  },
+  Gismu "zmádu",
+  Cmavo "mi",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "cértu",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"u'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [0,5],
-  },
+  Gismu "zmádu",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [6,8],
-    },
+    Cmavo "mi",
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [11,13],
-        },
+        nu: Cmavo "ka",
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "certu",
-            span: [14,19],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "u'i",
-            span: [20,23],
-          },
+          Gismu "cértu",
+          indicator: Cmavo "u'i",
         },
       },
     },

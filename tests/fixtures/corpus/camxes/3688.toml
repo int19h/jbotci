@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ra se lásna le vórme ki'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lasna",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [21,25],
-  },
+  Cmavo "ra",
+  Cmavo "se",
+  Gismu "lásna",
+  Cmavo "le",
+  Gismu "vórme",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"lasna","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"vorme","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lasna",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "lásna",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "vorme",
-            span: [15,20],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ki'a",
-            span: [21,25],
-          },
+          Gismu "vórme",
+          indicator: Cmavo "ki'a",
         },
       },
     ],

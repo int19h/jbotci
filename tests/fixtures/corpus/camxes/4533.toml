@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kónju lektitladykrúji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "konju",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lektitladykruji",
-    span: [9,24],
-  },
+  Cmavo "le",
+  Gismu "kónju",
+  Lujvo "lektitladykrúji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"konju","kind":"gismu"}},{"Bare":{"span":[9,24],"phonemes":"lektitladykruji","kind":"lujvo"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "konju",
-          span: [3,8],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "lektitladykruji",
-          span: [9,24],
-        },
+        Gismu "kónju",
+        Lujvo "lektitladykrúji",
       },
     },
   ],

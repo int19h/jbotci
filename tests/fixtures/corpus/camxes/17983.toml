@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cénsa malkálci .ŭe saĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "censa",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malkalci",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [18,21],
-  },
+  Gismu "cénsa",
+  Lujvo "malkálci",
+  Cmavo "ŭe",
+  Cmavo "saĭ",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"censa","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"malkalci","kind":"lujvo"}},{"Bare":{"span":[16,18],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"saĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "censa",
-    span: [0,5],
-  },
+  Gismu "cénsa",
   WithIndicator {
     WithIndicator {
-      Word {
-        kind: "lujvo",
-        phonemes: "malkalci",
-        span: [6,14],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [16,18],
-      },
+      Lujvo "malkálci",
+      indicator: Cmavo "ŭe",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [18,21],
-    },
+    indicator: Cmavo "saĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"censa","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,14],"phonemes":"malkalci","kind":"lujvo"}}},"indicator":{"span":[16,18],"phonemes":"ŭe","kind":"cmavo"}}},"indicator":{"span":[18,21],"phonemes":"saĭ","kind":"cmavo"}}}}]}}}}}}}}]}]}'

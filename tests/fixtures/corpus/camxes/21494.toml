@@ -18,69 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i pe'u .vim. spófu bínxo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "vim",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "pe'u",
+  Cmevla "vim",
+  Gismu "spófu",
+  Gismu "bínxo",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"vim","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"binxo","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pe'u",
-          span: [3,7],
-        },
+        Cmavo "pe'u",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "vim",
-        span: [8,11],
-      },
+      argument: Cmevla "vim",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "spofu",
-      span: [13,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "binxo",
-      span: [19,24],
-    },
+    Gismu "spófu",
+    Gismu "bínxo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"pe'u","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[8,11],"phonemes":"vim","kind":"cmevla"}}}]}}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"spofu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"binxo","kind":"gismu"}}}}]}}}}}}}}]}]}"""

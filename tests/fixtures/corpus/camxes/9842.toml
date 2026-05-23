@@ -18,99 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i stídi le nu pílno lu skúdji li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skudji",
-    span: [24,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [31,35],
-  },
+  Cmavo "i",
+  Gismu "stídi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
+  Cmavo "lu",
+  Lujvo "skúdji",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"stidi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[24,30],"phonemes":"skudji","kind":"lujvo"}},{"Bare":{"span":[31,35],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "stidi",
-      span: [3,8],
-    },
+    Gismu "stídi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [15,20],
-            },
+            Gismu "pílno",
             terms: [
               Lu {
-                lu: Word {
-                  kind: "cmavo",
-                  phonemes: "lu",
-                  span: [21,23],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "skudji",
-                  span: [24,30],
-                },
-                lihu: Word {
-                  kind: "cmavo",
-                  phonemes: "li'u",
-                  span: [31,35],
-                },
+                lu: Cmavo "lu",
+                Lujvo "skúdji",
+                lihu: Cmavo "li'u",
               },
             ],
           },

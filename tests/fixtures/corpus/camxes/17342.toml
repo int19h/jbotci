@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da krúvi gi'u fáncu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kruvi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [14,19],
-  },
+  Cmavo "da",
+  Gismu "krúvi",
+  Cmavo "gi'u",
+  Gismu "fáncu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kruvi","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"gi'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"fancu","kind":"gismu"}}]"""
 
@@ -45,30 +29,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [0,2],
-    },
+    Cmavo "da",
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "kruvi",
-      span: [3,8],
-    },
+    Gismu "krúvi",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'u",
-          span: [9,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fancu",
-          span: [14,19],
-        },
+        connective: Cmavo "gi'u",
+        Gismu "fáncu",
       },
     ],
   },

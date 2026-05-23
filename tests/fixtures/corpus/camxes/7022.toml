@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko'a poĭ re meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [11,14],
-  },
+  Cmavo "ko'a",
+  Cmavo "poĭ",
+  Cmavo "re",
+  Cmavo "meĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"meĭ","kind":"cmavo"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ko'a",
-        span: [0,4],
-      },
+      base_argument: Cmavo "ko'a",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [5,8],
-          },
+          poi: Cmavo "poĭ",
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [9,11],
-              },
+              Cmavo "re",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "meĭ",
-              span: [11,14],
-            },
+            moi: Cmavo "meĭ",
           },
         },
       ],

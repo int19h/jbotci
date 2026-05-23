@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le péndo po'u le glétu se prámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [26,31],
-  },
+  Cmavo "le",
+  Gismu "péndo",
+  Cmavo "po'u",
+  Cmavo "le",
+  Gismu "glétu",
+  Cmavo "se",
+  Gismu "prámi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"prami","kind":"gismu"}}]"""
 
@@ -61,46 +33,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "pendo",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "péndo",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po'u",
-            span: [9,13],
-          },
+          goi: Cmavo "po'u",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [14,16],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "gletu",
-                span: [17,22],
-              },
+              Gismu "glétu",
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [23,25],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "prami",
-                  span: [26,31],
-                },
+                se: Cmavo "se",
+                Gismu "prámi",
               },
             },
           },

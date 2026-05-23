@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. xu do ca zváti le jaĭ vi jíbri be do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [41,43],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "zváti",
+  Cmavo "le",
+  Cmavo "jaĭ",
+  Cmavo "vi",
+  Gismu "jíbri",
+  Cmavo "be",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -87,82 +39,34 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [4,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [8,10],
-        },
+        Cmevla "xod",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [14,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "zváti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
             Jai {
-              jai: Word {
-                kind: "cmavo",
-                phonemes: "jaĭ",
-                span: [26,29],
-              },
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "vi",
-                span: [29,31],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "jibri",
-                span: [32,37],
-              },
+              jai: Cmavo "jaĭ",
+              tense_modal: Cmavo "vi",
+              Gismu "jíbri",
             },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [38,40],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [41,43],
-            },
+            be: Cmavo "be",
+            first_argument: Cmavo "do",
           },
         },
       ],

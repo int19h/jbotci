@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu le péndo ca flálu ke glétu zérgaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flalu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [24,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zergaŭ",
-    span: [30,36],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "péndo",
+  Cmavo "ca",
+  Gismu "flálu",
+  Cmavo "ke",
+  Gismu "glétu",
+  Lujvo "zérgaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[30,36],"phonemes":"zergaŭ","kind":"lujvo"}}]'
 
@@ -66,57 +34,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "pendo",
-          span: [6,11],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "péndo",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [12,14],
-      },
+      tense_modal: Cmavo "ca",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "flalu",
-          span: [15,20],
-        },
+        Gismu "flálu",
         Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [21,23],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "gletu",
-              span: [24,29],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "zergaŭ",
-              span: [30,36],
-            },
+            Gismu "glétu",
+            Lujvo "zérgaŭ",
           },
         },
       },

@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(poĭ mútce xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [10,15],
-  },
+  Cmavo "poĭ",
+  Gismu "mútce",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"xamgu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
+  poi: Cmavo "poĭ",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [4,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [10,15],
-    },
+    Gismu "mútce",
+    Gismu "xámgu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"xamgu","kind":"gismu"}}}}]}}}}}}}}}]}}}]}]}'

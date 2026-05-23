@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'i ma do te vécnu le cníno dícysro va'o le nu do na kákne tu'a le kárce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [23,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dicysro",
-    span: [29,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [51,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [54,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [60,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [65,67],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [68,73],
-  },
+  Cmavo "ta'i",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "te",
+  Gismu "vécnu",
+  Cmavo "le",
+  Gismu "cníno",
+  Lujvo "dícysro",
+  Cmavo "va'o",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "kákne",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "kárce",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[29,36],"phonemes":"dicysro","kind":"lujvo"}},{"Bare":{"span":[37,41],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[54,59],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[60,64],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[65,67],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[68,73],"phonemes":"karce","kind":"gismu"}}]"""
 
@@ -112,116 +44,48 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ta'i",
-          span: [0,4],
-        },
+        bai: Cmavo "ta'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    Cmavo "do",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "te",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vecnu",
-        span: [14,19],
-      },
+      se: Cmavo "te",
+      Gismu "vécnu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [23,28],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "dicysro",
-            span: [29,36],
-          },
+          Gismu "cníno",
+          Lujvo "dícysro",
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "va'o",
-            span: [37,41],
-          },
+          bai: Cmavo "va'o",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [42,44],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [45,47],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [48,50],
-                },
+                Cmavo "do",
               ],
               Relation {
                 Na {
-                  na: Word {
-                    kind: "cmavo",
-                    phonemes: "na",
-                    span: [51,53],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "kakne",
-                    span: [54,59],
-                  },
+                  na: Cmavo "na",
+                  Gismu "kákne",
                 },
                 terms: [
                   Lahe {
-                    lahe: Word {
-                      kind: "cmavo",
-                      phonemes: "tu'a",
-                      span: [60,64],
-                    },
+                    lahe: Cmavo "tu'a",
                     Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "le",
-                        span: [65,67],
-                      },
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "karce",
-                        span: [68,73],
-                      },
+                      descriptor: Cmavo "le",
+                      relation: Gismu "kárce",
                     },
                   },
                 ],

@@ -18,46 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tivyskína .i co'o)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "tivyskina",
-    span: [0,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [13,17],
-  },
+  Lujvo "tivyskína",
+  Cmavo "i",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,9],"phonemes":"tivyskina","kind":"lujvo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"co'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "lujvo",
-    phonemes: "tivyskina",
-    span: [0,9],
-  },
+  Lujvo "tivyskína",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [13,17],
-          },
+          Cmavo "co'o",
         ],
       },
     ],

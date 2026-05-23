@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo gásnu poĭ rínka le za'i pórpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [26,31],
-  },
+  Cmavo "lo",
+  Gismu "gásnu",
+  Cmavo "poĭ",
+  Gismu "rínka",
+  Cmavo "le",
+  Cmavo "za'i",
+  Gismu "pórpi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"porpi","kind":"gismu"}}]"""
 
@@ -61,47 +33,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gasnu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "gásnu",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [9,12],
-          },
+          poi: Cmavo "poĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "rinka",
-              span: [13,18],
-            },
+            Gismu "rínka",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [19,21],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "za'i",
-                    span: [21,25],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "porpi",
-                    span: [26,31],
-                  },
+                  nu: Cmavo "za'i",
+                  Gismu "pórpi",
                 },
               },
             ],

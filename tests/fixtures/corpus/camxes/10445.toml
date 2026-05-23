@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. la sélgre spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selgre",
-    span: [12,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [19,24],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "la",
+  Lujvo "sélgre",
+  Gismu "spófu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"selgre","kind":"lujvo"}},{"Bare":{"span":[19,24],"phonemes":"spofu","kind":"gismu"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xod",
-        span: [4,7],
-      },
+      argument: Cmevla "xod",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "selgre",
-            span: [12,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "spofu",
-            span: [19,24],
-          },
+          Lujvo "sélgre",
+          Gismu "spófu",
         },
       },
     ],

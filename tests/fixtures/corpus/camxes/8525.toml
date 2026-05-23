@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ mi .eĭ pu za sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [16,21],
-  },
+  Cmavo "oĭ",
+  Cmavo "mi",
+  Cmavo "eĭ",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "sípna",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"sipna","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [4,6],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [8,10],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "eĭ",
       },
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [13,15],
-        },
+        Cmavo "pu",
+        Cmavo "za",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "sipna",
-        span: [16,21],
-      },
+      Gismu "sípna",
     },
   },
 }"""

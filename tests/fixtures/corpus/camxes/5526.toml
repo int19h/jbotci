@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nítcu lo sánce réjgaŭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rejgaŭ",
-    span: [15,21],
-  },
+  Gismu "nítcu",
+  Cmavo "lo",
+  Gismu "sánce",
+  Lujvo "réjgaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[15,21],"phonemes":"rejgaŭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [0,5],
-  },
+  Gismu "nítcu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [6,8],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "sance",
-          span: [9,14],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "rejgaŭ",
-          span: [15,21],
-        },
+        Gismu "sánce",
+        Lujvo "réjgaŭ",
       },
     },
   ],

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu ma do cu xráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [14,19],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "cu",
+  Gismu "xráni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xrani","kind":"gismu"}}]'
 
@@ -56,40 +32,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [2,4],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [5,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [8,10],
-            },
+            Cmavo "ma",
+            Cmavo "do",
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [11,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "xrani",
-            span: [14,19],
-          },
+          cu: Cmavo "cu",
+          Gismu "xráni",
         },
       },
     },

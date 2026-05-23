@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'i ma do jaĭ cípra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cipra",
-    span: [15,20],
-  },
+  Cmavo "ta'i",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "jaĭ",
+  Gismu "cípra",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cipra","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ta'i",
-          span: [0,4],
-        },
+        bai: Cmavo "ta'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [8,10],
-    },
+    Cmavo "do",
   ],
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [11,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cipra",
-      span: [15,20],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "cípra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ta'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[11,14],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"cipra","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

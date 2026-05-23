@@ -21,46 +21,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma me le cúkta gi'e se pónse do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [29,31],
-  },
+  Cmavo "ma",
+  Cmavo "me",
+  Cmavo "le",
+  Gismu "cúkta",
+  Cmavo "gi'e",
+  Cmavo "se",
+  Gismu "pónse",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -69,58 +37,26 @@ brackets = "(ma [{me (le cúkta)} {gi'e ([se pónse] do)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   PredicateTail1 {
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [3,5],
-      },
+      me: Cmavo "me",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [9,14],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "cúkta",
       },
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [15,19],
-        },
+        connective: Cmavo "gi'e",
         Relation {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [20,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ponse",
-              span: [23,28],
-            },
+            se: Cmavo "se",
+            Gismu "pónse",
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [29,31],
-            },
+            Cmavo "do",
           ],
         },
       },

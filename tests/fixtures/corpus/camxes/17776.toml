@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cítno je mílxe bébna)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [15,20],
-  },
+  Gismu "cítno",
+  Cmavo "je",
+  Gismu "mílxe",
+  Gismu "bébna",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"citno","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"bebna","kind":"gismu"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"citno","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "citno",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [6,8],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "milxe",
-      span: [9,14],
-    },
+    leading_unit: Gismu "cítno",
+    connective: Cmavo "je",
+    trailing_unit: Gismu "mílxe",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [15,20],
-  },
+  Gismu "bébna",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"citno","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"milxe","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"bebna","kind":"gismu"}}}}]}}}}}}}}]}]}'

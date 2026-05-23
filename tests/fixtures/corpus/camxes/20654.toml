@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu kaŭ ma mrobí'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mrobi'o",
-    span: [9,16],
-  },
+  Cmavo "xu",
+  Cmavo "kaŭ",
+  Cmavo "ma",
+  Lujvo "mrobí'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,16],"phonemes":"mrobi'o","kind":"lujvo"}}]"""
 
@@ -47,32 +31,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "kaŭ",
-          span: [2,5],
-        },
+        Cmavo "xu",
+        indicator: Cmavo "kaŭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [6,8],
-      },
+      Cmavo "ma",
     ],
-    Word {
-      kind: "lujvo",
-      phonemes: "mrobi'o",
-      span: [9,16],
-    },
+    Lujvo "mrobí'o",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,16],"phonemes":"mrobi'o","kind":"lujvo"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}},"indicator":{"span":[2,5],"phonemes":"kaŭ","kind":"cmavo"}}}}]}"""

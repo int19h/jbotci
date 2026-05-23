@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le do plíse cu se djícti mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plise",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djicti",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "plíse",
+  Cmavo "cu",
+  Cmavo "se",
+  Lujvo "djícti",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"plise","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"djicti","kind":"lujvo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [2,4],
-        },
+        Cmavo "do",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "plise",
-        span: [5,10],
-      },
+      relation: Gismu "plíse",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [14,16],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "djicti",
-        span: [17,23],
-      },
+      se: Cmavo "se",
+      Lujvo "djícti",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [24,26],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

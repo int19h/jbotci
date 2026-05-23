@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e lu [.a bu] li'u cu lérfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [5,7],
-  },
+  Cmavo "la'e",
+  Cmavo "lu",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [9,10],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [10,12],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [21,26],
-  },
+  Cmavo "li'u",
+  Cmavo "cu",
+  Gismu "lérfu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lu","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[9,10],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[10,12],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"lerfu","kind":"gismu"}}]"""
 
@@ -63,54 +35,26 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
+      lahe: Cmavo "la'e",
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [5,7],
-        },
+        lu: Cmavo "lu",
         Term {
           terms: [
             Letter {
               letter: [
                 Letter {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "a",
-                    span: [9,10],
-                  },
-                  bu: Word {
-                    kind: "cmavo",
-                    phonemes: "bu",
-                    span: [10,12],
-                  },
+                  Cmavo "a",
+                  bu: Cmavo "bu",
                 },
               ],
             },
           ],
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [13,17],
-        },
+        lihu: Cmavo "li'u",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [21,26],
-  },
+  cu: Cmavo "cu",
+  Gismu "lérfu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}}},"inner_argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[5,7],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[9,10],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[10,12],"phonemes":"bu","kind":"cmavo"}}}}]}}}]}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"lerfu","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'a vi kélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'a",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [8,13],
-  },
+  Cmavo "e'a",
+  Cmavo "vi",
+  Gismu "kélci",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'a",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'a",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kelci",
-      span: [8,13],
-    },
+    tense_modal: Cmavo "vi",
+    Gismu "kélci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"e'a","kind":"cmavo"}}}}]}"""

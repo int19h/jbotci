@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i peĭ [zo mábla] cu toljúnri dúkse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [4,7],
-  },
+  Cmavo "pe'i",
+  Cmavo "peĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [8,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mabla",
-      span: [11,16],
-    },
+    zo: Cmavo "zo",
+    Gismu "mábla",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "toljunri",
-    span: [20,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [29,34],
-  },
+  Cmavo "cu",
+  Lujvo "toljúnri",
+  Gismu "dúkse",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"peĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,16],"phonemes":"mabla","kind":"gismu"}}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"toljunri","kind":"lujvo"}},{"Bare":{"span":[29,34],"phonemes":"dukse","kind":"gismu"}}]"""
 
@@ -64,50 +36,22 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "pe'i",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "peĭ",
-          span: [4,7],
-        },
+        Cmavo "pe'i",
+        indicator: Cmavo "peĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mabla",
-          span: [11,16],
-        },
+        zo: Cmavo "zo",
+        Gismu "mábla",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [17,19],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "toljunri",
-        span: [20,28],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dukse",
-        span: [29,34],
-      },
+      Lujvo "toljúnri",
+      Gismu "dúkse",
     },
   },
 }"""

@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i tátpi .i djádji .i .aŭ naĭ pínca .i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djadji",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinca",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
+  Cmavo "i",
+  Gismu "tátpi",
+  Cmavo "i",
+  Lujvo "djádji",
+  Cmavo "i",
+  Cmavo "aŭ",
+  Cmavo "naĭ",
+  Gismu "pínca",
+  Cmavo "i",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"djadji","kind":"lujvo"}},{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"pinca","kind":"gismu"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}}]'
 
@@ -70,59 +34,23 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [3,8],
-    },
+    i: Cmavo "i",
+    Gismu "tátpi",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "djadji",
-      span: [12,18],
-    },
+    i: Cmavo "i",
+    Lujvo "djádji",
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [20,21],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [23,25],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [25,28],
-      },
+      Cmavo "i",
+      indicator: Cmavo "aŭ",
+      nai: Cmavo "naĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "pinca",
-      span: [29,34],
-    },
+    Gismu "pínca",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [36,37],
-    },
+    i: Cmavo "i",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,18],"phonemes":"djadji","kind":"lujvo"}}}}}}}}}}},{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[23,25],"phonemes":"aŭ","kind":"cmavo"},"nai":{"span":[25,28],"phonemes":"naĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[29,34],"phonemes":"pinca","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}}}}]}]}'

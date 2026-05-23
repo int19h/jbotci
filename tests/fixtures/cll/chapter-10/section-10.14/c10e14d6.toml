@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ko'e lébna leĭ réctu ko'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lebna",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rectu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [24,28],
-  },
+  Cmavo "i",
+  Cmavo "ko'e",
+  Gismu "lébna",
+  Cmavo "leĭ",
+  Gismu "réctu",
+  Cmavo "ko'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ko'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lebna","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"rectu","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
@@ -61,43 +37,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [ko'e {lébna ([leĭ réctu] ko'a)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko'e",
-        span: [3,7],
-      },
+      Cmavo "ko'e",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "lebna",
-        span: [8,13],
-      },
+      Gismu "lébna",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [14,17],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "rectu",
-            span: [18,23],
-          },
+          descriptor: Cmavo "leĭ",
+          relation: Gismu "réctu",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ko'a",
-          span: [24,28],
-        },
+        Cmavo "ko'a",
       ],
     },
   },

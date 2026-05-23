@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(leĭ mi rátcu cu ci meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ratcu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [18,21],
-  },
+  Cmavo "leĭ",
+  Cmavo "mi",
+  Gismu "rátcu",
+  Cmavo "cu",
+  Cmavo "ci",
+  Cmavo "meĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"ratcu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"meĭ","kind":"cmavo"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "leĭ",
-        span: [0,3],
-      },
+      descriptor: Cmavo "leĭ",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [4,6],
-        },
+        Cmavo "mi",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ratcu",
-        span: [7,12],
-      },
+      relation: Gismu "rátcu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
+  cu: Cmavo "cu",
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ci",
-        span: [16,18],
-      },
+      Cmavo "ci",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "meĭ",
-      span: [18,21],
-    },
+    moi: Cmavo "meĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"ratcu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[16,18],"phonemes":"ci","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[18,21],"phonemes":"meĭ","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

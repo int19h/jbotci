@@ -18,52 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.aĭ mi'o fínti le cníno lújvo fo [zo tcána])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'o",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lujvo",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [30,32],
-  },
+  Cmavo "aĭ",
+  Cmavo "mi'o",
+  Gismu "fínti",
+  Cmavo "le",
+  Gismu "cníno",
+  Gismu "lújvo",
+  Cmavo "fo",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [33,35],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tcana",
-      span: [36,41],
-    },
+    zo: Cmavo "zo",
+    Gismu "tcána",
   },
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"lujvo","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"fo","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[33,35],"phonemes":"zo","kind":"cmavo"},"word":{"span":[36,41],"phonemes":"tcana","kind":"gismu"}}}]"""
@@ -73,64 +37,28 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'o",
-        span: [4,8],
-      },
+      Cmavo "mi'o",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [9,14],
-      },
+      Gismu "fínti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "lujvo",
-              span: [24,29],
-            },
+            Gismu "cníno",
+            Gismu "lújvo",
           },
         },
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fo",
-            span: [30,32],
-          },
+          fa: Cmavo "fo",
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [33,35],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tcana",
-              span: [36,41],
-            },
+            zo: Cmavo "zo",
+            Gismu "tcána",
           },
         },
       ],

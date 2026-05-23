@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(selxébni be mi sélfu mutmí'i)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "selxebni",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "selfu",
-    span: [15,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mutmi'i",
-    span: [21,28],
-  },
+  Lujvo "selxébni",
+  Cmavo "be",
+  Cmavo "mi",
+  Gismu "sélfu",
+  Lujvo "mutmí'i",
 ]"""
 json = """[{"Bare":{"span":[0,8],"phonemes":"selxebni","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"selfu","kind":"gismu"}},{"Bare":{"span":[21,28],"phonemes":"mutmi'i","kind":"lujvo"}}]"""
 
@@ -50,31 +30,11 @@ json = """[{"Bare":{"span":[0,8],"phonemes":"selxebni","kind":"lujvo"}},{"Bare":
 tree = """
 Compound {
   Be {
-    Word {
-      kind: "lujvo",
-      phonemes: "selxebni",
-      span: [0,8],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [9,11],
-    },
-    first_argument: Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [12,14],
-    },
+    Lujvo "selxébni",
+    be: Cmavo "be",
+    first_argument: Cmavo "mi",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "selfu",
-    span: [15,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mutmi'i",
-    span: [21,28],
-  },
+  Gismu "sélfu",
+  Lujvo "mutmí'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"selxebni","kind":"lujvo"}}}},"be":{"Bare":{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"selfu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,28],"phonemes":"mutmi'i","kind":"lujvo"}}}}]}}}}}}}}]}]}"""

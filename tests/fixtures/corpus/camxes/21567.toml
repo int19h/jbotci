@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le du'u deĭ co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [12,16],
-  },
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "deĭ",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "du'u",
-          span: [3,7],
-        },
+        nu: Cmavo "du'u",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "deĭ",
-              span: [8,11],
-            },
+            Cmavo "deĭ",
           ],
-          Word {
-            kind: "cmavo",
-            phonemes: "co'e",
-            span: [12,16],
-          },
+          Cmavo "co'e",
         },
       },
     },

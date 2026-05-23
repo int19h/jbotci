@@ -18,92 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ny bárda je bánli cármi tcádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banli",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcadu",
-    span: [28,33],
-  },
+  Cmavo "i",
+  Cmavo "ny",
+  Gismu "bárda",
+  Cmavo "je",
+  Gismu "bánli",
+  Gismu "cármi",
+  Gismu "tcádu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"banli","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"carmi","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"tcadu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ny",
-            span: [3,5],
-          },
+          Cmavo "ny",
         ],
       },
     ],
     Compound {
       Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "barda",
-          span: [7,12],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [13,15],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "banli",
-          span: [16,21],
-        },
+        leading_unit: Gismu "bárda",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "bánli",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "carmi",
-        span: [22,27],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcadu",
-        span: [28,33],
-      },
+      Gismu "cármi",
+      Gismu "tcádu",
     },
   },
 }"""

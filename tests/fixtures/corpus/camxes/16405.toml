@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [5,10],
-  },
+  Cmavo "go'i",
+  Gismu "zdáni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zdani","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [5,10],
-  },
+  Cmavo "go'i",
+  Gismu "zdáni",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"zdani","kind":"gismu"}}}}]}}}}}}}}]}]}"""

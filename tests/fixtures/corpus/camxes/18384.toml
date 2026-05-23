@@ -18,81 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i na'e zásti du'o la .gugl.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "gugl",
-    span: [21,25],
-  },
+  Cmavo "i",
+  Cmavo "na'e",
+  Gismu "zásti",
+  Cmavo "du'o",
+  Cmavo "la",
+  Cmevla "gugl",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"gugl","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [2,6],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zasti",
-        span: [7,12],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "zásti",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "du'o",
-            span: [13,17],
-          },
+          bai: Cmavo "du'o",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "gugl",
-              span: [21,25],
-            },
+            Cmevla "gugl",
           ],
         },
       },

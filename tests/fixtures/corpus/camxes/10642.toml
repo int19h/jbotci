@@ -18,82 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ki'u ma do taĭ térpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "ki'u",
+  Cmavo "ma",
+  Cmavo "do",
+  Cmavo "taĭ",
+  Gismu "térpa",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"terpa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ki'u",
-            span: [2,6],
-          },
+          bai: Cmavo "ki'u",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [7,9],
-        },
+        Cmavo "ma",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [13,16],
-        },
+        bai: Cmavo "taĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "terpa",
-        span: [17,22],
-      },
+      Gismu "térpa",
     },
   },
 }"""

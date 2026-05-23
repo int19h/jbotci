@@ -18,105 +18,41 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi na cásnu vi ku ze'a ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [24,26],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "cásnu",
+  Cmavo "vi",
+  Cmavo "ku",
+  Cmavo "ze'a",
+  Cmavo "ku",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ku","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "casnu",
-          span: [9,14],
-        },
+        na: Cmavo "na",
+        Gismu "cásnu",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [15,17],
-          },
+          tense_modal: Cmavo "vi",
           Zohe {
-            maybe_ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [17,19],
-            },
+            maybe_ku: Cmavo "ku",
           },
         },
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ze'a",
-            span: [20,24],
-          },
+          tense_modal: Cmavo "ze'a",
           Zohe {
-            maybe_ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [24,26],
-            },
+            maybe_ku: Cmavo "ku",
           },
         },
       ],

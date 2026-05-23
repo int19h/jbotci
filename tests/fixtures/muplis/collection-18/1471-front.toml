@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi jaĭ lérci .aŭ naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerci",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [15,18],
-  },
+  Cmavo "mi",
+  Cmavo "jaĭ",
+  Gismu "lérci",
+  Cmavo "aŭ",
+  Cmavo "naĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"lerci","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"naĭ","kind":"cmavo"}}]'
 
@@ -54,34 +34,14 @@ brackets = "(mi [jaĭ {lérci .aŭ naĭ}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [3,6],
-    },
+    jai: Cmavo "jaĭ",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "lerci",
-        span: [7,12],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [13,15],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [15,18],
-      },
+      Gismu "lérci",
+      indicator: Cmavo "aŭ",
+      nai: Cmavo "naĭ",
     },
   },
 }"""

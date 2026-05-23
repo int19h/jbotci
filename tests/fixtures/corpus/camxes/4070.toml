@@ -19,43 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cu se córtu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [6,11],
-  },
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "córtu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cortu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
+  cu: Cmavo "cu",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cortu",
-      span: [6,11],
-    },
+    se: Cmavo "se",
+    Gismu "córtu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cortu","kind":"gismu"}}}}}}}}}}}}}]}]}'

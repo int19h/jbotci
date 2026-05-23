@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cílre vaŭ xu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [10,12],
-  },
+  Gismu "cílre",
+  Cmavo "vaŭ",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [0,5],
-  },
+  Gismu "cílre",
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [6,9],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [10,12],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cilre","kind":"gismu"}}}},"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,9],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}}}}}}}}}}}]}]}'

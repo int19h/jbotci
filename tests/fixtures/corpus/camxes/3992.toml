@@ -18,68 +18,20 @@ error = { position = 9, allowed-next = [] }
 brackets = "(.i mi ca tínra le zgíke be fa [zoĭ ly Magma ly] zoĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tinra",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [27,29],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "tínra",
+  Cmavo "le",
+  Gismu "zgíke",
+  Cmavo "be",
+  Cmavo "fa",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [30,33],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [34,36],
-    },
-    quoted_text: [38,43],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [45,47],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "Magma",
+    closing_delimiter: Cmavo "ly",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zoĭ",
-    span: [50,53],
-  },
+  Cmavo "zoĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"tinra","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"fa","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[30,33],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[34,36],"phonemes":"ly","kind":"cmavo"},"quoted_text":[38,43],"closing_delimiter":{"span":[45,47],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[50,53],"phonemes":"zoĭ","kind":"cmavo"}}]'

@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'u [zo bo] se nítcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [4,7],
-  },
+  Cmavo "i",
+  Cmavo "e'u",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [11,13],
-    },
+    zo: Cmavo "zo",
+    Cmavo "bo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [17,22],
-  },
+  Cmavo "se",
+  Gismu "nítcu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[8,10],"phonemes":"zo","kind":"cmavo"},"word":{"span":[11,13],"phonemes":"bo","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"nitcu","kind":"gismu"}}]"""
 
@@ -57,43 +33,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'u",
-      span: [4,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "e'u",
   },
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [11,13],
-        },
+        zo: Cmavo "zo",
+        Cmavo "bo",
       },
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [14,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [17,22],
-      },
+      se: Cmavo "se",
+      Gismu "nítcu",
     },
   },
 }"""

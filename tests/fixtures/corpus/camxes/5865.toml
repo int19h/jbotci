@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kérfa tóldi cu selsmúni ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kerfa",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "toldi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsmuni",
-    span: [18,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [27,29],
-  },
+  Cmavo "le",
+  Gismu "kérfa",
+  Gismu "tóldi",
+  Cmavo "cu",
+  Lujvo "selsmúni",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kerfa","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"toldi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,26],"phonemes":"selsmuni","kind":"lujvo"}},{"Bare":{"span":[27,29],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "kerfa",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "toldi",
-          span: [9,14],
-        },
+        Gismu "kérfa",
+        Gismu "tóldi",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "selsmuni",
-      span: [18,26],
-    },
+    Lujvo "selsmúni",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [27,29],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

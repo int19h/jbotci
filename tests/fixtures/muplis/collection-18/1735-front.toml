@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xu leĭ za'u da mo'u kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "leĭ",
+  Cmavo "za'u",
+  Cmavo "da",
+  Cmavo "mo'u",
+  Gismu "kláma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"klama","kind":"gismu"}}]"""
 
@@ -64,50 +36,22 @@ brackets = "([.i xu] [{leĭ (za'u da)} {mo'u kláma}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [6,9],
-        },
+        descriptor: Cmavo "leĭ",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [10,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [15,17],
-          },
+          Cmavo "za'u",
+          Cmavo "da",
         ],
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "mo'u",
-        span: [18,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [23,28],
-      },
+      tense_modal: Cmavo "mo'u",
+      Gismu "kláma",
     },
   },
 }"""

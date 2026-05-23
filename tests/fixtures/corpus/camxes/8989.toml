@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ tsáli bénji fi le mríste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mriste",
-    span: [22,28],
-  },
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Gismu "bénji",
+  Cmavo "fi",
+  Cmavo "le",
+  Lujvo "mríste",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"mriste","kind":"lujvo"}}]'
 
@@ -57,24 +33,12 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "tsali",
-            span: [4,9],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "benji",
-            span: [10,15],
-          },
+          Gismu "tsáli",
+          Gismu "bénji",
         },
       },
     },
@@ -82,22 +46,10 @@ Text {
   Term {
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [16,18],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "mriste",
-            span: [22,28],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "mríste",
         },
       },
     ],

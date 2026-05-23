@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .oĭ mi djúno [zo gúnka])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [10,15],
-  },
+  Cmavo "i",
+  Cmavo "oĭ",
+  Cmavo "mi",
+  Gismu "djúno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [16,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [19,24],
-    },
+    zo: Cmavo "zo",
+    Gismu "gúnka",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"djuno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[19,24],"phonemes":"gunka","kind":"gismu"}}}]'
@@ -57,43 +33,19 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "oĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [10,15],
-      },
+      Gismu "djúno",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "gunka",
-            span: [19,24],
-          },
+          zo: Cmavo "zo",
+          Gismu "gúnka",
         },
       ],
     },

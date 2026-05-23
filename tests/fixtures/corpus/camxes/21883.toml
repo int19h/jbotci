@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do kákne kláma datpápri pílno termifterckíku sámpu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "datpapri",
-    span: [15,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [24,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "termifterckiku",
-    span: [30,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sampu",
-    span: [45,50],
-  },
+  Cmavo "do",
+  Gismu "kákne",
+  Gismu "kláma",
+  Lujvo "datpápri",
+  Gismu "pílno",
+  Lujvo "termifterckíku",
+  Gismu "sámpu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[15,23],"phonemes":"datpapri","kind":"lujvo"}},{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[30,44],"phonemes":"termifterckiku","kind":"lujvo"}},{"Bare":{"span":[45,50],"phonemes":"sampu","kind":"gismu"}}]'
 
@@ -60,43 +32,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "kakne",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [9,14],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "datpapri",
-      span: [15,23],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [24,29],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "termifterckiku",
-      span: [30,44],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sampu",
-      span: [45,50],
-    },
+    Gismu "kákne",
+    Gismu "kláma",
+    Lujvo "datpápri",
+    Gismu "pílno",
+    Lujvo "termifterckíku",
+    Gismu "sámpu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"kakne","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,23],"phonemes":"datpapri","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[30,44],"phonemes":"termifterckiku","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[45,50],"phonemes":"sampu","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mo'a dárno .i ku'i na jíbni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darno",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibni",
-    span: [21,26],
-  },
+  Cmavo "mo'a",
+  Gismu "dárno",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "na",
+  Gismu "jíbni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mo'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"darno","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"jibni","kind":"gismu"}}]"""
 
@@ -58,44 +34,20 @@ Paragraph {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mo'a",
-            span: [0,4],
-          },
+          Cmavo "mo'a",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "darno",
-          span: [5,10],
-        },
+        relation: Gismu "dárno",
       },
     ],
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [12,13],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [13,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jibni",
-        span: [21,26],
-      },
+      na: Cmavo "na",
+      Gismu "jíbni",
     },
   },
 }"""

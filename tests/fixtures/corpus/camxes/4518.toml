@@ -18,57 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ zírpu ma jálge tu'a le ráfsi be [zo bólci])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zirpu",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jalge",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [33,35],
-  },
+  Cmavo "doĭ",
+  Gismu "zírpu",
+  Cmavo "ma",
+  Gismu "jálge",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "ráfsi",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [36,38],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bolci",
-      span: [39,44],
-    },
+    zo: Cmavo "zo",
+    Gismu "bólci",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"zirpu","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jalge","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"rafsi","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[36,38],"phonemes":"zo","kind":"cmavo"},"word":{"span":[39,44],"phonemes":"bolci","kind":"gismu"}}}]"""
@@ -79,70 +39,30 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zirpu",
-          span: [4,9],
-        },
+        relation: Gismu "zírpu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [10,12],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jalge",
-        span: [13,18],
-      },
+      Gismu "jálge",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [19,23],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [24,26],
-            },
+            descriptor: Cmavo "le",
             relation: Be {
-              Word {
-                kind: "gismu",
-                phonemes: "rafsi",
-                span: [27,32],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [33,35],
-              },
+              Gismu "ráfsi",
+              be: Cmavo "be",
               first_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [36,38],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "bolci",
-                  span: [39,44],
-                },
+                zo: Cmavo "zo",
+                Gismu "bólci",
               },
             },
           },

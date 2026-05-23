@@ -18,58 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le no meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [7,10],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "no",
+  Cmavo "meĭ",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"meĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [5,7],
-            },
+            Cmavo "no",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "meĭ",
-            span: [7,10],
-          },
+          moi: Cmavo "meĭ",
         },
       },
     ],

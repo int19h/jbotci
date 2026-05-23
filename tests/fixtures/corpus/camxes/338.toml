@@ -18,22 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi [zo si])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
+  Cmavo "mi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [6,8],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,8],"phonemes":"si","kind":"cmavo"}}}]'
@@ -42,22 +30,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZoQuote":{"zo"
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [6,8],
-      },
+      zo: Cmavo "zo",
+      Cmavo "si",
     },
   ],
 }"""

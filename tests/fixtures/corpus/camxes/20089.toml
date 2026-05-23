@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i la zdabártu djédi jaĭ cíksi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zdabartu",
-    span: [10,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [29,34],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "la",
+  Lujvo "zdabártu",
+  Gismu "djédi",
+  Cmavo "jaĭ",
+  Gismu "cíksi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,18],"phonemes":"zdabartu","kind":"lujvo"}},{"Bare":{"span":[19,24],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[25,28],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"ciksi","kind":"gismu"}}]"""
 
@@ -60,47 +32,19 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "zdabartu",
-            span: [10,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djedi",
-            span: [19,24],
-          },
+          Lujvo "zdabártu",
+          Gismu "djédi",
           Jai {
-            jai: Word {
-              kind: "cmavo",
-              phonemes: "jaĭ",
-              span: [25,28],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ciksi",
-              span: [29,34],
-            },
+            jai: Cmavo "jaĭ",
+            Gismu "cíksi",
           },
         },
       },

@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi la .avganistan. pu zi co'a se lánci lo cníno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "avganistán",
-    span: [7,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lanci",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [40,45],
-  },
+  Cmavo "ŭi",
+  Cmavo "la",
+  Cmevla "avganistan",
+  Cmavo "pu",
+  Cmavo "zi",
+  Cmavo "co'a",
+  Cmavo "se",
+  Gismu "lánci",
+  Cmavo "lo",
+  Gismu "cníno",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,17],"phonemes":"avganistán","kind":"cmevla"}},{"Bare":{"span":[18,20],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"lanci","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cnino","kind":"gismu"}}]"""
 
@@ -76,74 +36,34 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [4,6],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "avganistán",
-            span: [7,17],
-          },
+          Cmevla "avganistan",
         ],
       },
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [18,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [20,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "co'a",
-            span: [23,27],
-          },
+          Cmavo "pu",
+          Cmavo "zi",
+          Cmavo "co'a",
         },
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [28,30],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lanci",
-            span: [31,36],
-          },
+          se: Cmavo "se",
+          Gismu "lánci",
         },
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [37,39],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cnino",
-            span: [40,45],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "cníno",
         },
       ],
     },

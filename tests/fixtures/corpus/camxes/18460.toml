@@ -18,100 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi zmáneĭ lu mivyvánbi stíka kúmfa li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zmaneĭ",
-    span: [5,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mivyvanbi",
-    span: [15,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stika",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [37,41],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "zmáneĭ",
+  Cmavo "lu",
+  Lujvo "mivyvánbi",
+  Gismu "stíka",
+  Gismu "kúmfa",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,11],"phonemes":"zmaneĭ","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"mivyvanbi","kind":"lujvo"}},{"Bare":{"span":[25,30],"phonemes":"stika","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"kumfa","kind":"gismu"}},{"Bare":{"span":[37,41],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "zmaneĭ",
-        span: [5,11],
-      },
+      Lujvo "zmáneĭ",
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [12,14],
-          },
+          lu: Cmavo "lu",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "mivyvanbi",
-              span: [15,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "stika",
-              span: [25,30],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kumfa",
-              span: [31,36],
-            },
+            Lujvo "mivyvánbi",
+            Gismu "stíka",
+            Gismu "kúmfa",
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [37,41],
-          },
+          lihu: Cmavo "li'u",
         },
       ],
     },

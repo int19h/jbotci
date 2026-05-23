@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu mútce féngygaŭ la .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [6,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fengygaŭ",
-    span: [12,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [24,27],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "mútce",
+  Lujvo "féngygaŭ",
+  Cmavo "la",
+  Cmevla "xod",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[12,20],"phonemes":"fengygaŭ","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"xod","kind":"cmevla"}}]'
 
@@ -55,45 +31,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "pu",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [6,11],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "fengygaŭ",
-          span: [12,20],
-        },
+        Gismu "mútce",
+        Lujvo "féngygaŭ",
       },
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [21,23],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "xod",
-            span: [24,27],
-          },
+          Cmevla "xod",
         ],
       },
     ],

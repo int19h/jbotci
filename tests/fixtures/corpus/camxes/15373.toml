@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le mi fúkpi be la .leming.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fukpi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "leming",
-    span: [21,27],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "fúkpi",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "leming",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"fukpi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"leming","kind":"cmevla"}}]'
 
@@ -57,41 +33,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [6,8],
-        },
+        Cmavo "mi",
       ],
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "fukpi",
-          span: [9,14],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [15,17],
-        },
+        Gismu "fúkpi",
+        be: Cmavo "be",
         first_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "leming",
-              span: [21,27],
-            },
+            Cmevla "leming",
           ],
         },
       },

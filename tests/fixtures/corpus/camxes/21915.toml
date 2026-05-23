@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e naĭ ty pe'u ko me lu ta'u naĭ li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ty",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'u",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [38,42],
-  },
+  Cmavo "je'e",
+  Cmavo "naĭ",
+  Cmavo "ty",
+  Cmavo "pe'u",
+  Cmavo "ko",
+  Cmavo "me",
+  Cmavo "lu",
+  Cmavo "ta'u",
+  Cmavo "naĭ",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"ta'u","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -77,74 +37,34 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "je'e",
+        Cmavo "naĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ty",
-            span: [8,10],
-          },
+          Cmavo "ty",
         ],
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pe'u",
-                span: [12,16],
-              },
+              Cmavo "pe'u",
             ],
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "ko",
-              span: [17,19],
-            },
+            argument: Cmavo "ko",
           },
         ],
       },
     },
   ],
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [24,26],
-    },
+    me: Cmavo "me",
     Lu {
       lu: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [27,29],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ta'u",
-          span: [30,34],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [34,37],
-        },
+        Cmavo "lu",
+        indicator: Cmavo "ta'u",
+        nai: Cmavo "naĭ",
       },
       Text {},
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [38,42],
-      },
+      lihu: Cmavo "li'u",
     },
   },
 }"""

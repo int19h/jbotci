@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ru'a jálge le nu mi cílra cíkna ca le prulámdeĭ ji'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jalge",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilra",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikna",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "prulamdeĭ",
-    span: [40,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [50,54],
-  },
+  Cmavo "i",
+  Cmavo "ru'a",
+  Gismu "jálge",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "cílra",
+  Gismu "cíkna",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "prulámdeĭ",
+  Cmavo "ji'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jalge","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cilra","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"cikna","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,49],"phonemes":"prulamdeĭ","kind":"lujvo"}},{"Bare":{"span":[50,54],"phonemes":"ji'a","kind":"cmavo"}}]"""
 
@@ -85,81 +37,33 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ru'a",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ru'a",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jalge",
-      span: [8,13],
-    },
+    Gismu "jálge",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [16,18],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [19,21],
-              },
+              Cmavo "mi",
             ],
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cilra",
-                  span: [22,27],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cikna",
-                  span: [28,33],
-                },
+                Gismu "cílra",
+                Gismu "cíkna",
               },
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [34,36],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [37,39],
-                    },
+                    descriptor: Cmavo "le",
                     relation: WithIndicator {
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "prulamdeĭ",
-                        span: [40,49],
-                      },
-                      indicator: Word {
-                        kind: "cmavo",
-                        phonemes: "ji'a",
-                        span: [50,54],
-                      },
+                      Lujvo "prulámdeĭ",
+                      indicator: Cmavo "ji'a",
                     },
                   },
                 },

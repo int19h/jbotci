@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi gúnka le nu skámi mínde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minde",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "gúnka",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "skámi",
+  Gismu "mínde",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"minde","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [3,8],
-    },
+    Gismu "gúnka",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
+          nu: Cmavo "nu",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [15,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "minde",
-              span: [21,26],
-            },
+            Gismu "skámi",
+            Gismu "mínde",
           },
         },
       },

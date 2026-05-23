@@ -18,43 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi pu cúsku [zo térpa] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [9,14],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cúsku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [15,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "terpa",
-      span: [18,23],
-    },
+    zo: Cmavo "zo",
+    Gismu "térpa",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [24,27],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cusku","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[15,17],"phonemes":"zo","kind":"cmavo"},"word":{"span":[18,23],"phonemes":"terpa","kind":"gismu"}}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -63,53 +35,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [6,8],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cusku",
-              span: [9,14],
-            },
+            tense_modal: Cmavo "pu",
+            Gismu "cúsku",
           },
           terms: [
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [15,17],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "terpa",
-                span: [18,23],
-              },
+              zo: Cmavo "zo",
+              Gismu "térpa",
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [24,27],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

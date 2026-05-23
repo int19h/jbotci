@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.from. lújvo líste)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "from",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lujvo",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [11,16],
-  },
+  Cmevla "from",
+  Gismu "lújvo",
+  Gismu "líste",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"lujvo","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"liste","kind":"gismu"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "from",
-      span: [0,4],
-    },
+    Cmevla "from",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "lujvo",
-      span: [5,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "liste",
-      span: [11,16],
-    },
+    Gismu "lújvo",
+    Gismu "líste",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"from","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"lujvo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"liste","kind":"gismu"}}}}]}}}}}}}}]}]}'

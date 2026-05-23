@@ -19,37 +19,13 @@ brackets = "([zo .fantik.] cméne le mi mlátu)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "fantik",
-      span: [3,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "fantik",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [22,27],
-  },
+  Gismu "cméne",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "mlátu",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"fantik","kind":"cmevla"}}},{"Bare":{"span":[10,15],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"mlatu","kind":"gismu"}}]'
 
@@ -58,43 +34,19 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmevla",
-        phonemes: "fantik",
-        span: [3,9],
-      },
+      zo: Cmavo "zo",
+      Cmevla "fantik",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [10,15],
-    },
+    Gismu "cméne",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [16,18],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [19,21],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mlatu",
-          span: [22,27],
-        },
+        relation: Gismu "mlátu",
       },
     ],
   },

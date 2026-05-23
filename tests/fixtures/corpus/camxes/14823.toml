@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o xu da cínri je cníno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [20,25],
-  },
+  Cmavo "ni'o",
+  Cmavo "xu",
+  Cmavo "da",
+  Gismu "cínri",
+  Cmavo "je",
+  Gismu "cníno",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cnino","kind":"gismu"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Paragraph {
   niho: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ni'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [5,7],
-      },
+      Cmavo "ni'o",
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [8,10],
-      },
+      Cmavo "da",
     ],
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [11,16],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [17,19],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "cnino",
-        span: [20,25],
-      },
+      leading_relation: Gismu "cínri",
+      connective: Cmavo "je",
+      trailing_relation: Gismu "cníno",
     },
   },
 }"""

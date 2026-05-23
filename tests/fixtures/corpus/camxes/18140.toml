@@ -18,59 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i la .mumym. mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mumym",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [11,13],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "mumym",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"mo","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [2,4],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "mumym",
-            span: [5,10],
-          },
+          Cmevla "mumym",
         ],
       },
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [11,13],
-    },
+    Cmavo "mo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[5,10],"phonemes":"mumym","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,13],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

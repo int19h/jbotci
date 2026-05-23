@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o mi pu zi spúda le do nótci pe lu kúnti bótpi li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "notci",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [38,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "botpi",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [50,54],
-  },
+  Cmavo "ta'o",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zi",
+  Gismu "spúda",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "nótci",
+  Cmavo "pe",
+  Cmavo "lu",
+  Gismu "kúnti",
+  Gismu "bótpi",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"spuda","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"notci","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"kunti","kind":"gismu"}},{"Bare":{"span":[44,49],"phonemes":"botpi","kind":"gismu"}},{"Bare":{"span":[50,54],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -91,90 +39,38 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ta'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [8,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [11,13],
-          },
+          Cmavo "pu",
+          Cmavo "zi",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "spuda",
-          span: [14,19],
-        },
+        Gismu "spúda",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [23,25],
-            },
+            Cmavo "do",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "notci",
-            span: [26,31],
-          },
+          relation: Gismu "nótci",
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [32,34],
-              },
+              goi: Cmavo "pe",
               Lu {
-                lu: Word {
-                  kind: "cmavo",
-                  phonemes: "lu",
-                  span: [35,37],
-                },
+                lu: Cmavo "lu",
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "kunti",
-                    span: [38,43],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "botpi",
-                    span: [44,49],
-                  },
+                  Gismu "kúnti",
+                  Gismu "bótpi",
                 },
-                lihu: Word {
-                  kind: "cmavo",
-                  phonemes: "li'u",
-                  span: [50,54],
-                },
+                lihu: Cmavo "li'u",
               },
             },
           ],

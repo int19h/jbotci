@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'u ma .ŭe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [9,11],
-  },
+  Cmavo "ki'u",
+  Cmavo "ma",
+  Cmavo "ŭe",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ŭe","kind":"cmavo"}}]"""
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ki'u",
-          span: [0,4],
-        },
+        bai: Cmavo "ki'u",
       },
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [5,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭe",
-          span: [9,11],
-        },
+        Cmavo "ma",
+        indicator: Cmavo "ŭe",
       },
     },
   ],

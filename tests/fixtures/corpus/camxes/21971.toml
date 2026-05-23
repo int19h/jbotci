@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo vimstízu na tánsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [2,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vimstizu",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tansi",
-    span: [17,22],
-  },
+  Cmavo "lo",
+  Lujvo "vimstízu",
+  Cmavo "na",
+  Gismu "tánsi",
 ]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"vimstizu","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tansi","kind":"gismu"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [2,4],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "vimstizu",
-        span: [5,13],
-      },
+      descriptor: Cmavo "lo",
+      relation: Lujvo "vimstízu",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [14,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tansi",
-      span: [17,22],
-    },
+    na: Cmavo "na",
+    Gismu "tánsi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[2,4],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[5,13],"phonemes":"vimstizu","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"tansi","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -18,65 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda jaĭ bróde jaĭ bródu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [20,25],
-  },
+  Gismu "bróda",
+  Cmavo "jaĭ",
+  Gismu "bróde",
+  Cmavo "jaĭ",
+  Gismu "bródu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"brodu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
+  Gismu "bróda",
+  Jai {
+    jai: Cmavo "jaĭ",
+    Gismu "bróde",
   },
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [6,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "brode",
-      span: [10,15],
-    },
-  },
-  Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [16,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "brodu",
-      span: [20,25],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "bródu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},{"Jai":{"jai":{"Bare":{"Bare":{"span":[6,9],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"brode","kind":"gismu"}}}}}},{"Jai":{"jai":{"Bare":{"Bare":{"span":[16,19],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"brodu","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

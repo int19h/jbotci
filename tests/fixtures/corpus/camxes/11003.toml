@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i pu'o kregúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kregunka",
-    span: [8,16],
-  },
+  Cmavo "i",
+  Cmavo "pu'o",
+  Lujvo "kregúnka",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pu'o","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"kregunka","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu'o",
-      span: [3,7],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "kregunka",
-      span: [8,16],
-    },
+    tense_modal: Cmavo "pu'o",
+    Lujvo "kregúnka",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"pu'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,16],"phonemes":"kregunka","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

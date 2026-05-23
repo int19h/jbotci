@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(jámna fi la .irak.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "irak",
-    span: [12,16],
-  },
+  Gismu "jámna",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "irak",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"jamna","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"irak","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [0,5],
-  },
+  Gismu "jámna",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "irak",
-            span: [12,16],
-          },
+          Cmevla "irak",
         ],
       },
     },

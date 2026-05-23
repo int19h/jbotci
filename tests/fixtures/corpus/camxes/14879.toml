@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi le mi selnélci pu jínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selnelci",
-    span: [10,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [22,27],
-  },
+  Cmavo "ŭi",
+  Cmavo "le",
+  Cmavo "mi",
+  Lujvo "selnélci",
+  Cmavo "pu",
+  Gismu "jínga",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,18],"phonemes":"selnelci","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"jinga","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [7,9],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "selnelci",
-          span: [10,18],
-        },
+        relation: Lujvo "selnélci",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [19,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jinga",
-        span: [22,27],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "jínga",
     },
   },
 }"""

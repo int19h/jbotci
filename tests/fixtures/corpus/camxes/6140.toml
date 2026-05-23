@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ da poĭ de cméne ke'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [20,24],
-  },
+  Cmavo "coĭ",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "de",
+  Gismu "cméne",
+  Cmavo "ke'a",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [4,6],
-        },
+        base_argument: Cmavo "da",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [7,10],
-            },
+            poi: Cmavo "poĭ",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "de",
-                  span: [11,13],
-                },
+                Cmavo "de",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cmene",
-                  span: [14,19],
-                },
+                Gismu "cméne",
                 terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ke'a",
-                    span: [20,24],
-                  },
+                  Cmavo "ke'a",
                 ],
               },
             },

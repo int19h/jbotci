@@ -18,44 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(stídi [zo fo] .e naĭ [zo fi])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [0,5],
-  },
+  Gismu "stídi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fo",
-      span: [9,11],
-    },
+    zo: Cmavo "zo",
+    Cmavo "fo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fi",
-      span: [21,23],
-    },
+    zo: Cmavo "zo",
+    Cmavo "fi",
   },
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"stidi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,11],"phonemes":"fo","kind":"cmavo"}}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,23],"phonemes":"fi","kind":"cmavo"}}}]'
@@ -63,48 +35,20 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"stidi","kind":"gismu"}},{"ZoQuote":{"
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [0,5],
-  },
+  Gismu "stídi",
   terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [9,11],
-        },
+        zo: Cmavo "zo",
+        Cmavo "fo",
       },
       connective: Afterthought {
-        Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [13,14],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [14,17],
-        },
+        Cmavo "e",
+        nai: Cmavo "naĭ",
       },
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [18,20],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [21,23],
-        },
+        zo: Cmavo "zo",
+        Cmavo "fi",
       },
     },
   ],

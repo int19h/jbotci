@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'i naĭ nírna .ŭi naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [17,20],
-  },
+  Cmavo "di'i",
+  Cmavo "naĭ",
+  Gismu "nírna",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -50,33 +30,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "di'i",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [4,7],
-    },
+    Cmavo "di'i",
+    Cmavo "naĭ",
   },
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "nirna",
-      span: [8,13],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [15,17],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [17,20],
-    },
+    Gismu "nírna",
+    indicator: Cmavo "ŭi",
+    nai: Cmavo "naĭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"di'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"nirna","kind":"gismu"}}},"indicator":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"},"nai":{"span":[17,20],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

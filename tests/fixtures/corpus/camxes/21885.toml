@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se zu'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [2,6],
-  },
+  Cmavo "se",
+  Cmavo "zu'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"zu'e","kind":"cmavo"}}]"""
 
@@ -37,16 +29,8 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [2,6],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "zu'e",
       },
       Zohe {},
     },

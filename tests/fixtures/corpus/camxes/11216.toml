@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi joĭ ko cásnu da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
+  Cmavo "mi",
+  Cmavo "joĭ",
+  Cmavo "ko",
+  Gismu "cásnu",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "joĭ",
-        span: [3,6],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [7,9],
-      },
+      leading_argument: Cmavo "mi",
+      connective: Cmavo "joĭ",
+      trailing_argument: Cmavo "ko",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "casnu",
-      span: [10,15],
-    },
+    Gismu "cásnu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [16,18],
-      },
+      Cmavo "da",
     ],
   },
 }"""

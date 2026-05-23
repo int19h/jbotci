@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .norpan. ma se gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "norpan",
-    span: [7,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [21,26],
-  },
+  Cmavo "coĭ",
+  Cmevla "norpan",
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "gásnu",
 ]"""
 json = '[{"Bare":{"span":[2,5],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"norpan","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"gasnu","kind":"gismu"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [2,5],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "norpan",
-        span: [7,13],
-      },
+      argument: Cmevla "norpan",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [15,17],
-      },
+      Cmavo "ma",
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gasnu",
-        span: [21,26],
-      },
+      se: Cmavo "se",
+      Gismu "gásnu",
     },
   },
 }"""

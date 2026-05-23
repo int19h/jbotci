@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .frac. do pu dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frac",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [16,21],
-  },
+  Cmavo "doĭ",
+  Cmevla "frac",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "dráni",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"frac","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"drani","kind":"gismu"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "frac",
-        span: [4,8],
-      },
+      argument: Cmevla "frac",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [13,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [16,21],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "dráni",
     },
   },
 }"""

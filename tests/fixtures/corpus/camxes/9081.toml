@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.for. re fe rénce)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "for",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rence",
-    span: [8,13],
-  },
+  Cmevla "for",
+  Cmavo "re",
+  Cmavo "fe",
+  Gismu "rénce",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"for","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"rence","kind":"gismu"}}]'
 
@@ -45,33 +29,17 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"for","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "for",
-      span: [0,3],
-    },
+    Cmevla "for",
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [4,6],
-          },
+          Cmavo "re",
         ],
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "fe",
-            span: [6,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "rence",
-            span: [8,13],
-          },
+          tense_modal: Cmavo "fe",
+          Gismu "rénce",
         },
       },
     ],

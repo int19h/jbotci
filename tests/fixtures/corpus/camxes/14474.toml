@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'o samjúdri ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samjudri",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
+  Cmavo "fi'o",
+  Lujvo "samjúdri",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"samjudri","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -42,22 +30,10 @@ Term {
   terms: [
     Tagged {
       tense_modal: Fiho {
-        fiho: Word {
-          kind: "cmavo",
-          phonemes: "fi'o",
-          span: [0,4],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "samjudri",
-          span: [5,13],
-        },
+        fiho: Cmavo "fi'o",
+        Lujvo "samjúdri",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [14,16],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

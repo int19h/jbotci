@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi víska gi'e ku'i na tcídu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "víska",
+  Cmavo "gi'e",
+  Cmavo "ku'i",
+  Cmavo "na",
+  Gismu "tcídu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tcidu","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     continuations: [
       PredicateTailContinuation {
         connective: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [9,13],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ku'i",
-            span: [13,17],
-          },
+          Cmavo "gi'e",
+          indicator: Cmavo "ku'i",
         },
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [18,20],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tcidu",
-            span: [21,26],
-          },
+          na: Cmavo "na",
+          Gismu "tcídu",
         },
       },
     ],

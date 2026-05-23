@@ -19,66 +19,18 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le cévni na ka'e káncu le'i cánre se pi'o ci re jetká'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'i",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canre",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [46,48],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jetka'u",
-    span: [49,56],
-  },
+  Cmavo "le",
+  Gismu "cévni",
+  Cmavo "na",
+  Cmavo "ka'e",
+  Gismu "káncu",
+  Cmavo "le'i",
+  Gismu "cánre",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "ci",
+  Cmavo "re",
+  Lujvo "jetká'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"kancu","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"le'i","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"canre","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[49,56],"phonemes":"jetka'u","kind":"lujvo"}}]"""
 
@@ -87,84 +39,36 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cevni",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "cévni",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [9,11],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [12,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kancu",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "káncu",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le'i",
-          span: [23,27],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "canre",
-          span: [28,33],
-        },
+        descriptor: Cmavo "le'i",
+        relation: Gismu "cánre",
       },
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [37,39],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "pi'o",
-            span: [39,43],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "pi'o",
         },
         Descriptor {
           tail_elements: [
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "ci",
-                span: [44,46],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [46,48],
-              },
+              Cmavo "ci",
+              Cmavo "re",
             },
           ],
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "jetka'u",
-            span: [49,56],
-          },
+          relation: Lujvo "jetká'u",
         },
       },
     ],

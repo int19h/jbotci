@@ -18,48 +18,16 @@ error = { position = 2, allowed-next = [] }
 brackets = "(baŭ le .gliban. se cméne [zoĭ zo golf zo])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "gliban",
-    span: [7,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [18,23],
-  },
+  Cmavo "baŭ",
+  Cmavo "le",
+  Cmevla "gliban",
+  Cmavo "se",
+  Gismu "cméne",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [24,27],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [28,30],
-    },
-    quoted_text: [32,36],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [38,40],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zo",
+    quoted_text: Verbatim "golf",
+    closing_delimiter: Cmavo "zo",
   },
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"gliban","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cmene","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[24,27],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[28,30],"phonemes":"zo","kind":"cmavo"},"quoted_text":[32,36],"closing_delimiter":{"span":[38,40],"phonemes":"zo","kind":"cmavo"}}}]'

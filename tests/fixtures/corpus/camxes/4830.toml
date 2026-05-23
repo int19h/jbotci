@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le jaĭ se cméne be la .meris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [22,27],
-  },
+  Cmavo "le",
+  Cmavo "jaĭ",
+  Cmavo "se",
+  Gismu "cméne",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "meris",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"meris","kind":"cmevla"}}]'
 
@@ -61,48 +33,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
         Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [3,6],
-          },
+          jai: Cmavo "jaĭ",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [7,9],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cmene",
-              span: [10,15],
-            },
+            se: Cmavo "se",
+            Gismu "cméne",
           },
         },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [16,18],
-        },
+        be: Cmavo "be",
         first_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [19,21],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "meris",
-              span: [22,27],
-            },
+            Cmevla "meris",
           ],
         },
       },

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.aŭ mi'o xánce jórne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'o",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xance",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [15,20],
-  },
+  Cmavo "aŭ",
+  Cmavo "mi'o",
+  Gismu "xánce",
+  Gismu "jórne",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"jorne","kind":"gismu"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aŭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'o",
-        span: [4,8],
-      },
+      Cmavo "mi'o",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xance",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jorne",
-        span: [15,20],
-      },
+      Gismu "xánce",
+      Gismu "jórne",
     },
   },
 }"""

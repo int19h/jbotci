@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ tátpi tátpi fa mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
+  Cmavo "oĭ",
+  Gismu "tátpi",
+  Gismu "tátpi",
+  Cmavo "fa",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [9,14],
-      },
+      Gismu "tátpi",
+      Gismu "tátpi",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [15,17],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [18,20],
-        },
+        fa: Cmavo "fa",
+        Cmavo "mi",
       },
     ],
   },

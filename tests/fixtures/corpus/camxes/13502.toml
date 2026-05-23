@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ta ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [2,4],
-  },
+  Cmavo "ta",
+  Cmavo "ta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [2,4],
-    },
+    Cmavo "ta",
+    Cmavo "ta",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}}}}]}}}}]}]}'

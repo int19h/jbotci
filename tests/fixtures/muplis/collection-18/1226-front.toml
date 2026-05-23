@@ -21,26 +21,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i do zábna tádni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zabna",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [12,17],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "zábna",
+  Gismu "tádni",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zabna","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"tadni","kind":"gismu"}}]'
 
@@ -48,30 +32,14 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [do {zábna tádni}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zabna",
-        span: [6,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tadni",
-        span: [12,17],
-      },
+      Gismu "zábna",
+      Gismu "tádni",
     },
   },
 }"""

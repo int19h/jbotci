@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .i leĭ mérko túrni leĭ rópno túrni cu toltúgni le cúntu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ropno",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [36,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "toltugni",
-    span: [39,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [48,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [51,56],
-  },
+  Cmavo "i",
+  Cmavo "i",
+  Cmavo "leĭ",
+  Gismu "mérko",
+  Gismu "túrni",
+  Cmavo "leĭ",
+  Gismu "rópno",
+  Gismu "túrni",
+  Cmavo "cu",
+  Lujvo "toltúgni",
+  Cmavo "le",
+  Gismu "cúntu",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,3],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"turni","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ropno","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"turni","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[39,47],"phonemes":"toltugni","kind":"lujvo"}},{"Bare":{"span":[48,50],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"cuntu","kind":"gismu"}}]'
 
@@ -85,82 +37,34 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
+    i: Cmavo "i",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [2,3],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [4,7],
-          },
+          descriptor: Cmavo "leĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "merko",
-              span: [8,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "turni",
-              span: [14,19],
-            },
+            Gismu "mérko",
+            Gismu "túrni",
           },
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [20,23],
-          },
+          descriptor: Cmavo "leĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "ropno",
-              span: [24,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "turni",
-              span: [30,35],
-            },
+            Gismu "rópno",
+            Gismu "túrni",
           },
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [36,38],
-      },
+      cu: Cmavo "cu",
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "toltugni",
-          span: [39,47],
-        },
+        Lujvo "toltúgni",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [48,50],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "cuntu",
-              span: [51,56],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "cúntu",
           },
         ],
       },

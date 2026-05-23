@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba'e [da zeĭ do])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [3,7],
-  },
+  Cmavo "mi",
+  Cmavo "ba'e",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [8,10],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [11,14],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [15,17],
-    },
+    left: Cmavo "da",
+    zei: Cmavo "zeĭ",
+    Cmavo "do",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'e","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}},"zei":{"span":[11,14],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[15,17],"phonemes":"do","kind":"cmavo"}}}]"""
@@ -52,34 +32,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Emphasized {
-    bahe: Word {
-      kind: "cmavo",
-      phonemes: "ba'e",
-      span: [3,7],
-    },
+    bahe: Cmavo "ba'e",
     ZeiLujvo {
-      left: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [8,10],
-      },
-      zei: Word {
-        kind: "cmavo",
-        phonemes: "zeĭ",
-        span: [11,14],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [15,17],
-      },
+      left: Cmavo "da",
+      zei: Cmavo "zeĭ",
+      Cmavo "do",
     },
   },
 }"""

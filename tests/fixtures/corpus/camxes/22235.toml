@@ -18,57 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(nítcu [zo po'e] ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [0,5],
-  },
+  Gismu "nítcu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "po'e",
-      span: [9,13],
-    },
+    zo: Cmavo "zo",
+    Cmavo "po'e",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"nitcu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,13],"phonemes":"po'e","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [0,5],
-  },
+  Gismu "nítcu",
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "po'e",
-        span: [9,13],
-      },
+      zo: Cmavo "zo",
+      Cmavo "po'e",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [14,16],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"nitcu","kind":"gismu"}}}},"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,13],"phonemes":"po'e","kind":"cmavo"}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

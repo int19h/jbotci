@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .lojban. coĭ ro do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
+  Cmavo "coĭ",
+  Cmevla "lojban",
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [4,10],
-        },
+        Cmevla "lojban",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "coĭ",
-                span: [12,15],
-              },
+              Cmavo "coĭ",
             ],
             argument: Quantified {
-              quantifier: Word {
-                kind: "cmavo",
-                phonemes: "ro",
-                span: [16,18],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [18,20],
-              },
+              quantifier: Cmavo "ro",
+              Cmavo "do",
             },
           },
         ],

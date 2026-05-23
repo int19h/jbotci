@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ni'u mu cu nu'a va'a li ma'u mu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'a",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'u",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [30,32],
-  },
+  Cmavo "li",
+  Cmavo "ni'u",
+  Cmavo "mu",
+  Cmavo "cu",
+  Cmavo "nu'a",
+  Cmavo "va'a",
+  Cmavo "li",
+  Cmavo "ma'u",
+  Cmavo "mu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ni'u","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"nu'a","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"va'a","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ma'u","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mu","kind":"cmavo"}}]"""
 
@@ -71,61 +35,25 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "ni'u",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mu",
-          span: [7,9],
-        },
+        Cmavo "ni'u",
+        Cmavo "mu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Relation {
     Nuha {
-      nuha: Word {
-        kind: "cmavo",
-        phonemes: "nu'a",
-        span: [13,17],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "va'a",
-        span: [18,22],
-      },
+      nuha: Cmavo "nu'a",
+      Cmavo "va'a",
     },
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [23,25],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "ma'u",
-            span: [26,30],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [30,32],
-          },
+          Cmavo "ma'u",
+          Cmavo "mu",
         },
       },
     ],

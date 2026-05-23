@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .byfyb. du la bárda fórca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "byfyb",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "forca",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "byfyb",
+  Cmavo "du",
+  Cmavo "la",
+  Gismu "bárda",
+  Gismu "fórca",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"byfyb","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"forca","kind":"gismu"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "byfyb",
-          span: [3,8],
-        },
+        Cmevla "byfyb",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [10,12],
-    },
+    Cmavo "du",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [13,15],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "barda",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "forca",
-            span: [22,27],
-          },
+          Gismu "bárda",
+          Gismu "fórca",
         },
       },
     ],

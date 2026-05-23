@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(pa ci mu mu vi cábna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [3,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cabna",
-    span: [9,14],
-  },
+  Cmavo "pa",
+  Cmavo "ci",
+  Cmavo "mu",
+  Cmavo "mu",
+  Cmavo "vi",
+  Gismu "cábna",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cabna","kind":"gismu"}}]'
 
@@ -59,39 +35,15 @@ Term {
     Descriptor {
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [0,1],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [1,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [3,4],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [4,5],
-          },
+          Cmavo "pa",
+          Cmavo "ci",
+          Cmavo "mu",
+          Cmavo "mu",
         },
       ],
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cabna",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "vi",
+        Gismu "cábna",
       },
     },
   ],

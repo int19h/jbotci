@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i .a'o do ze'u di'i vítke)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "a'o",
+  Cmavo "do",
+  Cmavo "ze'u",
+  Cmavo "di'i",
+  Gismu "vítke",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"vitke","kind":"gismu"}}]"""
 
@@ -61,49 +33,21 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [0,1],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [2,6],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "a'o",
-      span: [7,10],
-    },
+    indicator: Cmavo "a'o",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [11,13],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ze'u",
-          span: [14,18],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'i",
-          span: [19,23],
-        },
+        Cmavo "ze'u",
+        Cmavo "di'i",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "vitke",
-        span: [24,29],
-      },
+      Gismu "vítke",
     },
   },
 }"""

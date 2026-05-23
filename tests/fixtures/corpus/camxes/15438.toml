@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do tcídu ma kaŭ poĭ pu zi cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [27,32],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "tcídu",
+  Cmavo "ma",
+  Cmavo "kaŭ",
+  Cmavo "poĭ",
+  Cmavo "pu",
+  Cmavo "zi",
+  Gismu "cínri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"cinri","kind":"gismu"}}]'
 
@@ -71,66 +35,30 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      Gismu "tcídu",
       terms: [
         RelativeClause {
           base_argument: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [12,14],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "kaŭ",
-              span: [14,17],
-            },
+            Cmavo "ma",
+            indicator: Cmavo "kaŭ",
           },
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [18,21],
-              },
+              poi: Cmavo "poĭ",
               TenseModal {
                 tense_modal: Composite {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "pu",
-                    span: [22,24],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "zi",
-                    span: [24,26],
-                  },
+                  Cmavo "pu",
+                  Cmavo "zi",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cinri",
-                  span: [27,32],
-                },
+                Gismu "cínri",
               },
             },
           ],

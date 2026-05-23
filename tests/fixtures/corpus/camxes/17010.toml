@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ sy li xa pi'e mu xa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [21,23],
-  },
+  Cmavo "doĭ",
+  Cmavo "sy",
+  Cmavo "li",
+  Cmavo "xa",
+  Cmavo "pi'e",
+  Cmavo "mu",
+  Cmavo "xa",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"xa","kind":"cmavo"}}]"""
 
@@ -62,19 +34,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "sy",
-            span: [4,6],
-          },
+          Cmavo "sy",
         ],
       },
     },
@@ -82,32 +46,12 @@ Text {
   Term {
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [8,10],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi'e",
-            span: [14,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [21,23],
-          },
+          Cmavo "xa",
+          Cmavo "pi'e",
+          Cmavo "mu",
+          Cmavo "xa",
         },
       },
     ],

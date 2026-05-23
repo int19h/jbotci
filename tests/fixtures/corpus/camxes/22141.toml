@@ -18,47 +18,15 @@ error = { position = 5, allowed-next = [] }
 brackets = "(le nu pílno [zo vo] re cu cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [6,11],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [12,14],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vo",
-      span: [15,17],
-    },
+    zo: Cmavo "zo",
+    Cmavo "vo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [23,28],
-  },
+  Cmavo "re",
+  Cmavo "cu",
+  Gismu "cínri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[12,14],"phonemes":"zo","kind":"cmavo"},"word":{"span":[15,17],"phonemes":"vo","kind":"cmavo"}}},{"Bare":{"span":[17,19],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cinri","kind":"gismu"}}]'

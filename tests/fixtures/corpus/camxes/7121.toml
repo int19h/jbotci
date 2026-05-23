@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to .oĭ nu jmíve)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmive",
-    span: [17,22],
-  },
+  Cmavo "to",
+  Cmavo "oĭ",
+  Cmavo "nu",
+  Gismu "jmíve",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"jmive","kind":"gismu"}}]'
 
@@ -47,28 +31,12 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [4,6],
-        },
+        Cmavo "to",
+        indicator: Cmavo "oĭ",
       },
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [14,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jmive",
-          span: [17,22],
-        },
+        nu: Cmavo "nu",
+        Gismu "jmíve",
       },
     },
   ],

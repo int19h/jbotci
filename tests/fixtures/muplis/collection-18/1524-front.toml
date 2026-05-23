@@ -21,61 +21,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu zúkte fi lo nu gaŭ mi xráni la .tom.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tom",
-    span: [37,40],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "zúkte",
+  Cmavo "fi",
+  Cmavo "lo",
+  Cmavo "nu",
+  Cmavo "gaŭ",
+  Cmavo "mi",
+  Gismu "xráni",
+  Cmavo "la",
+  Cmevla "tom",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"xrani","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"tom","kind":"cmevla"}}]'
 
@@ -84,80 +40,36 @@ brackets = "(mi [{pu zúkte} {fi (lo [nu {(gaŭ mi) (xráni [la .tom.])}])}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zukte",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "zúkte",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [12,14],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [15,17],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [18,20],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 Tagged {
                   tense_modal: Simple {
-                    bai: Word {
-                      kind: "cmavo",
-                      phonemes: "gaŭ",
-                      span: [21,24],
-                    },
+                    bai: Cmavo "gaŭ",
                   },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [25,27],
-                  },
+                  Cmavo "mi",
                 },
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "xrani",
-                  span: [28,33],
-                },
+                Gismu "xráni",
                 terms: [
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [34,36],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "tom",
-                        span: [37,40],
-                      },
+                      Cmevla "tom",
                     ],
                   },
                 ],

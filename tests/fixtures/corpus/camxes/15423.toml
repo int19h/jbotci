@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko dáspo ro le trugúnma zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "trugunma",
-    span: [15,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [24,28],
-  },
+  Cmavo "ko",
+  Gismu "dáspo",
+  Cmavo "ro",
+  Cmavo "le",
+  Lujvo "trugúnma",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"daspo","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"trugunma","kind":"lujvo"}},{"Bare":{"span":[24,28],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "daspo",
-      span: [3,8],
-    },
+    Gismu "dáspo",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
+        outer_quantifier: Cmavo "ro",
         relation: WithIndicator {
-          Word {
-            kind: "lujvo",
-            phonemes: "trugunma",
-            span: [15,23],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [24,28],
-          },
+          Lujvo "trugúnma",
+          indicator: Cmavo "zo'o",
         },
       },
     ],

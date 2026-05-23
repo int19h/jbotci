@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.tcravis. .ŭa naĭ le jbofí'e mo)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "tcravis",
-    span: [1,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbofi'e",
-    span: [20,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [28,30],
-  },
+  Cmevla "tcravis",
+  Cmavo "ŭa",
+  Cmavo "naĭ",
+  Cmavo "le",
+  Lujvo "jbofí'e",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[1,8],"phonemes":"tcravis","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,27],"phonemes":"jbofi'e","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -57,42 +33,18 @@ tree = """
 Text {
   leading_cmevla: [
     WithIndicator {
-      Word {
-        kind: "cmevla",
-        phonemes: "tcravis",
-        span: [1,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [11,13],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [13,16],
-      },
+      Cmevla "tcravis",
+      indicator: Cmavo "ŭa",
+      nai: Cmavo "naĭ",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "jbofi'e",
-            span: [20,27],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [28,30],
-          },
+          Lujvo "jbofí'e",
+          Cmavo "mo",
         },
       },
     ],

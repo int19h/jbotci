@@ -18,63 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi tcétce nélci [zo tcétce] .i mílxe mélbi válsi toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tcetce",
-    span: [6,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [13,18],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Lujvo "tcétce",
+  Gismu "nélci",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [19,21],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "tcetce",
-      span: [22,28],
-    },
+    zo: Cmavo "zo",
+    Lujvo "tcétce",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [38,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [50,53],
-  },
+  Cmavo "i",
+  Gismu "mílxe",
+  Gismu "mélbi",
+  Gismu "válsi",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"tcetce","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"nelci","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,28],"phonemes":"tcetce","kind":"lujvo"}}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[44,49],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[50,53],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -83,79 +39,35 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Paragraph {
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [3,5],
-            },
+            Cmavo "mi",
           ],
           Relation {
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "tcetce",
-                span: [6,12],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "nelci",
-                span: [13,18],
-              },
+              Lujvo "tcétce",
+              Gismu "nélci",
             },
             terms: [
               ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [19,21],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "tcetce",
-                  span: [22,28],
-                },
+                zo: Cmavo "zo",
+                Lujvo "tcétce",
               },
             ],
           },
         },
         ParagraphStatement {
-          i: Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [30,31],
-          },
+          i: Cmavo "i",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "milxe",
-              span: [32,37],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "melbi",
-              span: [38,43],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "valsi",
-              span: [44,49],
-            },
+            Gismu "mílxe",
+            Gismu "mélbi",
+            Gismu "válsi",
           },
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [50,53],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

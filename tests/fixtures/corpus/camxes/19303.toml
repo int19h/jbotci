@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i le ti co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [10,14],
-  },
+  Cmavo "go'i",
+  Cmavo "le",
+  Cmavo "ti",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"co'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [5,7],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [7,9],
-        },
+        Cmavo "ti",
       ],
-      relation: Word {
-        kind: "cmavo",
-        phonemes: "co'e",
-        span: [10,14],
-      },
+      relation: Cmavo "co'e",
     },
   ],
 }"""

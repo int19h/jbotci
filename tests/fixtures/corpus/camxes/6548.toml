@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na go'i .i cúsku vlípa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [17,22],
-  },
+  Cmavo "na",
+  Cmavo "go'i",
+  Cmavo "i",
+  Gismu "cúsku",
+  Gismu "vlípa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"vlipa","kind":"gismu"}}]"""
 
@@ -50,34 +30,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Paragraph {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [3,7],
-    },
+    na: Cmavo "na",
+    Cmavo "go'i",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [11,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vlipa",
-        span: [17,22],
-      },
+      Gismu "cúsku",
+      Gismu "vlípa",
     },
   },
 }"""

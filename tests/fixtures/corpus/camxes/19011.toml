@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na se dársi ki'u ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darsi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
+  Cmavo "na",
+  Cmavo "se",
+  Gismu "dársi",
+  Cmavo "ki'u",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"darsi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -50,38 +30,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
+    na: Cmavo "na",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "darsi",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "dársi",
     },
   },
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ki'u",
-          span: [12,16],
-        },
+        bai: Cmavo "ki'u",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [17,19],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

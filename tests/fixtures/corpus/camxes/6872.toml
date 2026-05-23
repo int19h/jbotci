@@ -19,51 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ca le cárvi ji le líndi ji le lídvru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lindi",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lidvru",
-    span: [38,44],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "cárvi",
+  Cmavo "ji",
+  Cmavo "le",
+  Gismu "líndi",
+  Cmavo "ji",
+  Cmavo "le",
+  Lujvo "lídvru",
 ]"""
 json = '[{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"lindi","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,44],"phonemes":"lidvru","kind":"lujvo"}}]'
 
@@ -72,59 +36,23 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [8,10],
-      },
+      tense_modal: Cmavo "ca",
       Connected {
         leading_argument: Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [11,13],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "carvi",
-              span: [14,19],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "cárvi",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "ji",
-            span: [20,22],
-          },
+          connective: Cmavo "ji",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [23,25],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "lindi",
-              span: [26,31],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "líndi",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "ji",
-          span: [32,34],
-        },
+        connective: Cmavo "ji",
         trailing_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [35,37],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "lidvru",
-            span: [38,44],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "lídvru",
         },
       },
     },

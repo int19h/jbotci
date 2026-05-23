@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ra me le pe mi xírma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xirma",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "ra",
+  Cmavo "me",
+  Cmavo "le",
+  Cmavo "pe",
+  Cmavo "mi",
+  Gismu "xírma",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xirma","kind":"gismu"}}]'
 
@@ -63,50 +35,22 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [ra {me (le [pe mi] xírma)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [3,5],
-      },
+      Cmavo "ra",
     ],
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [6,8],
-      },
+      me: Cmavo "me",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [12,14],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [15,17],
-            },
+            goi: Cmavo "pe",
+            Cmavo "mi",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "xirma",
-          span: [18,23],
-        },
+        relation: Gismu "xírma",
       },
     },
   },

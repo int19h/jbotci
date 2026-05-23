@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu cílre xo xa no loĭ cmávo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cílre",
+  Cmavo "xo",
+  Cmavo "xa",
+  Cmavo "no",
+  Cmavo "loĭ",
+  Gismu "cmávo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cmavo","kind":"gismu"}}]'
 
@@ -65,54 +33,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cílre",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [20,23],
-        },
+        descriptor: Cmavo "loĭ",
         outer_quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "xo",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [17,19],
-          },
+          Cmavo "xo",
+          Cmavo "xa",
+          Cmavo "no",
         },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cmavo",
-          span: [24,29],
-        },
+        relation: Gismu "cmávo",
       },
     ],
   },

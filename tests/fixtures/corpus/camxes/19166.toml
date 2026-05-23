@@ -18,48 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xo xábju xo me [la'o gy channels gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [14,16],
-  },
+  Cmavo "i",
+  Cmavo "xo",
+  Gismu "xábju",
+  Cmavo "xo",
+  Cmavo "me",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [16,20],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [20,22],
-    },
-    quoted_text: [22,31],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [32,34],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "channels",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"me","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[16,20],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[20,22],"phonemes":"gy","kind":"cmavo"},"quoted_text":[22,31],"closing_delimiter":{"span":[32,34],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -67,58 +35,26 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "xo",
-            span: [2,4],
-          },
+          Cmavo "xo",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [5,10],
-        },
+        relation: Gismu "xábju",
       },
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "xo",
-            span: [11,13],
-          },
+          Cmavo "xo",
         ],
         relation: Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [14,16],
-          },
+          me: Cmavo "me",
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [16,20],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [20,22],
-            },
-            quoted_text: [22,31],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [32,34],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "channels",
+            closing_delimiter: Cmavo "gy",
           },
         },
       },

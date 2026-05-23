@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'a do na je'a cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'a",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "e'a",
+  Cmavo "do",
+  Cmavo "na",
+  Cmavo "je'a",
+  Gismu "cúsku",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"je'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cusku","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'a",
-      span: [4,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "e'a",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [11,13],
-      },
+      na: Cmavo "na",
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "je'a",
-          span: [14,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [19,24],
-        },
+        nahe: Cmavo "je'a",
+        Gismu "cúsku",
       },
     },
   },

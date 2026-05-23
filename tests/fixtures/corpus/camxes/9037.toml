@@ -19,27 +19,11 @@ brackets = "([zo malylíjda] válsi cínri)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "malylijda",
-      span: [3,12],
-    },
+    zo: Cmavo "zo",
+    Lujvo "malylíjda",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [19,24],
-  },
+  Gismu "válsi",
+  Gismu "cínri",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,12],"phonemes":"malylijda","kind":"lujvo"}}},{"Bare":{"span":[13,18],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"cinri","kind":"gismu"}}]'
 
@@ -48,29 +32,13 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "malylijda",
-        span: [3,12],
-      },
+      zo: Cmavo "zo",
+      Lujvo "malylíjda",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [13,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [19,24],
-    },
+    Gismu "válsi",
+    Gismu "cínri",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,12],"phonemes":"malylijda","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"valsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"cinri","kind":"gismu"}}}}]}}}}}}}}]}]}'

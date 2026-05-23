@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ saĭ bádri djédi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "badri",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [13,18],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Gismu "bádri",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"badri","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"djedi","kind":"gismu"}}]'
 
@@ -47,30 +31,14 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "badri",
-      span: [7,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djedi",
-      span: [13,18],
-    },
+    Gismu "bádri",
+    Gismu "djédi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"badri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"djedi","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

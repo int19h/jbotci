@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca xrúkla .i coĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [13,16],
-  },
+  Cmavo "ca",
+  Lujvo "xrúkla",
+  Cmavo "i",
+  Cmavo "coĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"xrukla","kind":"lujvo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"coĭ","kind":"cmavo"}}]'
 
@@ -45,31 +29,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xrukla",
-      span: [3,9],
-    },
+    tense_modal: Cmavo "ca",
+    Lujvo "xrúkla",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "coĭ",
-            span: [13,16],
-          },
+          Cmavo "coĭ",
         ],
       },
     ],

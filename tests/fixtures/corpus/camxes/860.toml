@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .nu,ĭork. po'u le tcádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nu,ĭork",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcadu",
-    span: [19,24],
-  },
+  Cmavo "la",
+  Cmevla "nu,ĭork",
+  Cmavo "po'u",
+  Cmavo "le",
+  Gismu "tcádu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"nu,ĭork","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"tcadu","kind":"gismu"}}]"""
 
@@ -52,37 +32,17 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "nu,ĭork",
-            span: [3,10],
-          },
+          Cmevla "nu,ĭork",
         ],
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po'u",
-            span: [11,15],
-          },
+          goi: Cmavo "po'u",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [16,18],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "tcadu",
-              span: [19,24],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "tcádu",
           },
         },
       ],

@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ba do ba zénba le ka cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [23,28],
-  },
+  Cmavo "ba",
+  Cmavo "do",
+  Cmavo "ba",
+  Gismu "zénba",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "cértu",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zenba","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"certu","kind":"gismu"}}]'
 
@@ -62,49 +34,21 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "ba",
+      Cmavo "do",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zenba",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "zénba",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [20,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "certu",
-            span: [23,28],
-          },
+          nu: Cmavo "ka",
+          Gismu "cértu",
         },
       },
     ],

@@ -18,88 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pu za je taĭ gásni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasni",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Cmavo "je",
+  Cmavo "taĭ",
+  Gismu "gásni",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"gasni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [14,17],
-        },
+        Cmavo "pu",
+        Cmavo "za",
+        Cmavo "je",
+        Cmavo "taĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "gasni",
-        span: [18,23],
-      },
+      Gismu "gásni",
     },
   },
 }"""

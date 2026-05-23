@@ -18,90 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i lo ca dámba cu tráji xláli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "damba",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Cmavo "lo",
+  Cmavo "ca",
+  Gismu "dámba",
+  Cmavo "cu",
+  Gismu "tráji",
+  Gismu "xláli",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"damba","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"xlali","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [3,5],
-        },
+        descriptor: Cmavo "lo",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [6,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "damba",
-            span: [9,14],
-          },
+          tense_modal: Cmavo "ca",
+          Gismu "dámba",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "traji",
-        span: [18,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xlali",
-        span: [24,29],
-      },
+      Gismu "tráji",
+      Gismu "xláli",
     },
   },
 }"""

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(paŭ ru'a lo'e mlátu poĭ cítka loĭ sfáni cu sfáni mlátu xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sfani",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sfani",
-    span: [43,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [55,57],
-  },
+  Cmavo "paŭ",
+  Cmavo "ru'a",
+  Cmavo "lo'e",
+  Gismu "mlátu",
+  Cmavo "poĭ",
+  Gismu "cítka",
+  Cmavo "loĭ",
+  Gismu "sfáni",
+  Cmavo "cu",
+  Gismu "sfáni",
+  Gismu "mlátu",
+  Cmavo "xu",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[30,33],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"sfani","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"sfani","kind":"gismu"}},{"Bare":{"span":[49,54],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"xu","kind":"cmavo"}}]"""
 
@@ -87,57 +39,25 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "paŭ",
-          span: [0,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'a",
-          span: [4,8],
-        },
+        Cmavo "paŭ",
+        indicator: Cmavo "ru'a",
       },
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [9,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mlatu",
-          span: [14,19],
-        },
+        descriptor: Cmavo "lo'e",
+        relation: Gismu "mlátu",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [20,23],
-            },
+            poi: Cmavo "poĭ",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "citka",
-                span: [24,29],
-              },
+              Gismu "cítka",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "loĭ",
-                    span: [30,33],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "sfani",
-                    span: [34,39],
-                  },
+                  descriptor: Cmavo "loĭ",
+                  relation: Gismu "sfáni",
                 },
               ],
             },
@@ -145,28 +65,12 @@ Text {
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [40,42],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "sfani",
-        span: [43,48],
-      },
+      Gismu "sfáni",
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "mlatu",
-          span: [49,54],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [55,57],
-        },
+        Gismu "mlátu",
+        indicator: Cmavo "xu",
       },
     },
   },

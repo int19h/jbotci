@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ja'a xi pi mu gánra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganra",
-    span: [15,20],
-  },
+  Cmavo "mi",
+  Cmavo "ja'a",
+  Cmavo "xi",
+  Cmavo "pi",
+  Cmavo "mu",
+  Gismu "gánra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ganra","kind":"gismu"}}]"""
 
@@ -55,44 +31,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "ja'a",
-      span: [3,7],
-    },
+    na: Cmavo "ja'a",
     free_modifiers: [
       Xi {
-        xi: Word {
-          kind: "cmavo",
-          phonemes: "xi",
-          span: [8,10],
-        },
+        xi: Cmavo "xi",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [10,12],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [12,14],
-          },
+          Cmavo "pi",
+          Cmavo "mu",
         },
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "ganra",
-      span: [15,20],
-    },
+    Gismu "gánra",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"ja'a","kind":"cmavo"}}},{"Xi":{"xi":{"Bare":{"Bare":{"span":[8,10],"phonemes":"xi","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[10,12],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[12,14],"phonemes":"mu","kind":"cmavo"}}}]}}}}}],"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"ganra","kind":"gismu"}}}}}}}}}}}}}]}]}"""

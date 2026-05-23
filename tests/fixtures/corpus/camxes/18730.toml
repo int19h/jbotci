@@ -18,27 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i be [zo go'a])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [3,5],
-  },
+  Cmavo "i",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'a",
-      span: [9,13],
-    },
+    zo: Cmavo "zo",
+    Cmavo "go'a",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,13],"phonemes":"go'a","kind":"cmavo"}}}]"""
@@ -46,28 +30,12 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   BeLink {
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [3,5],
-    },
+    be: Cmavo "be",
     first_argument: ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [9,13],
-      },
+      zo: Cmavo "zo",
+      Cmavo "go'a",
     },
   },
 }"""

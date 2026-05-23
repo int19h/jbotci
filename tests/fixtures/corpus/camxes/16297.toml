@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa coĭ .elron. ji'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elron",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [13,17],
-  },
+  Cmavo "ŭa",
+  Cmavo "coĭ",
+  Cmevla "elron",
+  Cmavo "ji'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"elron","kind":"cmevla"}},{"Bare":{"span":[13,17],"phonemes":"ji'a","kind":"cmavo"}}]"""
 
@@ -46,33 +30,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [3,6],
-        },
+        Cmavo "coĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "elron",
-          span: [7,12],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [13,17],
-        },
+        Cmevla "elron",
+        indicator: Cmavo "ji'a",
       },
     },
   ],

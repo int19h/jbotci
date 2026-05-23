@@ -24,96 +24,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ni'e ni cláni pi'i ni'e ni gánra pi'i ni'e ni cóndi te'u du li ni'e ni cánlu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'e",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganra",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'i",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'e",
-    span: [41,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "condi",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te'u",
-    span: [55,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [60,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [63,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'e",
-    span: [66,70],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [71,73],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canlu",
-    span: [74,79],
-  },
+  Cmavo "li",
+  Cmavo "ni'e",
+  Cmavo "ni",
+  Gismu "cláni",
+  Cmavo "pi'i",
+  Cmavo "ni'e",
+  Cmavo "ni",
+  Gismu "gánra",
+  Cmavo "pi'i",
+  Cmavo "ni'e",
+  Cmavo "ni",
+  Gismu "cóndi",
+  Cmavo "te'u",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "ni'e",
+  Cmavo "ni",
+  Gismu "cánlu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ni'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"clani","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"pi'i","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ni'e","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"ganra","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"pi'i","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"ni'e","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"condi","kind":"gismu"}},{"Bare":{"span":[55,59],"phonemes":"te'u","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[63,65],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[66,70],"phonemes":"ni'e","kind":"cmavo"}},{"Bare":{"span":[71,73],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[74,79],"phonemes":"canlu","kind":"gismu"}}]"""
 
@@ -123,119 +51,47 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
         left_expression: Binary {
           left_expression: Nihe {
-            nihe: Word {
-              kind: "cmavo",
-              phonemes: "ni'e",
-              span: [3,7],
-            },
+            nihe: Cmavo "ni'e",
             Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ni",
-                span: [8,10],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "clani",
-                span: [11,16],
-              },
+              nu: Cmavo "ni",
+              Gismu "cláni",
             },
           },
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "pi'i",
-            span: [17,21],
-          },
+          operator: Cmavo "pi'i",
           right_expression: Nihe {
-            nihe: Word {
-              kind: "cmavo",
-              phonemes: "ni'e",
-              span: [22,26],
-            },
+            nihe: Cmavo "ni'e",
             Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ni",
-                span: [27,29],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "ganra",
-                span: [30,35],
-              },
+              nu: Cmavo "ni",
+              Gismu "gánra",
             },
           },
         },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "pi'i",
-          span: [36,40],
-        },
+        operator: Cmavo "pi'i",
         right_expression: Nihe {
-          nihe: Word {
-            kind: "cmavo",
-            phonemes: "ni'e",
-            span: [41,45],
-          },
+          nihe: Cmavo "ni'e",
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ni",
-              span: [46,48],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "condi",
-              span: [49,54],
-            },
+            nu: Cmavo "ni",
+            Gismu "cóndi",
           },
-          tehu: Word {
-            kind: "cmavo",
-            phonemes: "te'u",
-            span: [55,59],
-          },
+          tehu: Cmavo "te'u",
         },
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [60,62],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [63,65],
-        },
+        li: Cmavo "li",
         Nihe {
-          nihe: Word {
-            kind: "cmavo",
-            phonemes: "ni'e",
-            span: [66,70],
-          },
+          nihe: Cmavo "ni'e",
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ni",
-              span: [71,73],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "canlu",
-              span: [74,79],
-            },
+            nu: Cmavo "ni",
+            Gismu "cánlu",
           },
         },
       },

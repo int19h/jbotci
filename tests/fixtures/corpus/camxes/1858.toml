@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta ri'u ve'i fínpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finpe",
-    span: [13,18],
-  },
+  Cmavo "ta",
+  Cmavo "ri'u",
+  Cmavo "ve'i",
+  Gismu "fínpe",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ri'u","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ve'i","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"finpe","kind":"gismu"}}]"""
 
@@ -45,30 +29,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ri'u",
-        span: [3,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ve'i",
-        span: [8,12],
-      },
+      Cmavo "ri'u",
+      Cmavo "ve'i",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "finpe",
-      span: [13,18],
-    },
+    Gismu "fínpe",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ri'u","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[8,12],"phonemes":"ve'i","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"finpe","kind":"gismu"}}}}}}}}}}}}}]}]}"""

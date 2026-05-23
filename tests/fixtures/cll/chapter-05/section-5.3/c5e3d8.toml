@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ta cmálu bo níxli ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [20,25],
-  },
+  Cmavo "ta",
+  Gismu "cmálu",
+  Cmavo "bo",
+  Gismu "níxli",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -57,35 +37,15 @@ brackets = "(ta [{cmálu bo níxli} ckúle])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   Compound {
     Bo {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [4,9],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [10,12],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [13,18],
-      },
+      leading_unit: Gismu "cmálu",
+      bo: Cmavo "bo",
+      trailing_unit: Gismu "níxli",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "ckule",
-      span: [20,25],
-    },
+    Gismu "ckúle",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Bo":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"cmalu","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"nixli","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"ckule","kind":"gismu"}}}}]}}}}}}}}]}]}'

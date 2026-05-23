@@ -19,61 +19,17 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(lu mrílu líste li'u du le líste be skámi mrílu júdri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [35,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [41,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [47,52],
-  },
+  Cmavo "lu",
+  Gismu "mrílu",
+  Gismu "líste",
+  Cmavo "li'u",
+  Cmavo "du",
+  Cmavo "le",
+  Gismu "líste",
+  Cmavo "be",
+  Gismu "skámi",
+  Gismu "mrílu",
+  Gismu "júdri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[41,46],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[47,52],"phonemes":"judri","kind":"gismu"}}]"""
 
@@ -82,71 +38,27 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mrilu",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "liste",
-          span: [9,14],
-        },
+        Gismu "mrílu",
+        Gismu "líste",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [15,19],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [20,22],
-    },
+    Cmavo "du",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [23,25],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Be {
-            Word {
-              kind: "gismu",
-              phonemes: "liste",
-              span: [26,31],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [32,34],
-            },
+            Gismu "líste",
+            be: Cmavo "be",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [35,40],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mrilu",
-            span: [41,46],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "judri",
-            span: [47,52],
-          },
+          Gismu "skámi",
+          Gismu "mrílu",
+          Gismu "júdri",
         },
       },
     ],

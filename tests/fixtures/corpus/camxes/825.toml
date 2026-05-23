@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djordj. ca'o co'a císka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [21,26],
-  },
+  Cmavo "la",
+  Cmevla "djordj",
+  Cmavo "ca'o",
+  Cmavo "co'a",
+  Gismu "císka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"ciska","kind":"gismu"}}]"""
 
@@ -51,38 +31,18 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djordj",
-          span: [3,9],
-        },
+        Cmevla "djordj",
       ],
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [11,15],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [16,20],
-      },
+      Cmavo "ca'o",
+      Cmavo "co'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "ciska",
-      span: [21,26],
-    },
+    Gismu "císka",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,9],"phonemes":"djordj","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[11,15],"phonemes":"ca'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[16,20],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ciska","kind":"gismu"}}}}}}}}}}}}}]}]}"""

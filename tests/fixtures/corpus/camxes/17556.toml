@@ -18,79 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i lu klési cúste li'u bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klesi",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "custe",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [22,27],
-  },
+  Cmavo "i",
+  Cmavo "lu",
+  Gismu "klési",
+  Gismu "cúste",
+  Cmavo "li'u",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"klesi","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"custe","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"banzu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [2,4],
-        },
+        lu: Cmavo "lu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "klesi",
-            span: [5,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "custe",
-            span: [11,16],
-          },
+          Gismu "klési",
+          Gismu "cúste",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [17,21],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "banzu",
-      span: [22,27],
-    },
+    Gismu "bánzu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[2,4],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"klesi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"custe","kind":"gismu"}}}}]}}}}}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[17,21],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}"""

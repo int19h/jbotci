@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi le mrílu cu jaĭ bénji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [20,25],
-  },
+  Cmavo "ŭi",
+  Cmavo "le",
+  Gismu "mrílu",
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "bénji",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"benji","kind":"gismu"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mrilu",
-          span: [7,12],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "mrílu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
+    cu: Cmavo "cu",
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [16,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "benji",
-        span: [20,25],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "bénji",
     },
   },
 }"""

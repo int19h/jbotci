@@ -24,41 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ta mélbi cmálu bo níxli bo ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [27,32],
-  },
+  Cmavo "ta",
+  Gismu "mélbi",
+  Gismu "cmálu",
+  Cmavo "bo",
+  Gismu "níxli",
+  Cmavo "bo",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -67,45 +39,17 @@ brackets = "(ta [mélbi {cmálu bo (níxli bo ckúle)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "melbi",
-      span: [3,8],
-    },
+    Gismu "mélbi",
     Bo {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [9,14],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [15,17],
-      },
+      leading_unit: Gismu "cmálu",
+      bo: Cmavo "bo",
       trailing_unit: Bo {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [18,23],
-        },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [24,26],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "ckule",
-          span: [27,32],
-        },
+        leading_unit: Gismu "níxli",
+        bo: Cmavo "bo",
+        trailing_unit: Gismu "ckúle",
       },
     },
   },

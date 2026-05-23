@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ le di'i pórpi ne'i le távla císte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [32,37],
-  },
+  Cmavo "oĭ",
+  Cmavo "le",
+  Cmavo "di'i",
+  Gismu "pórpi",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Gismu "távla",
+  Gismu "císte",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"porpi","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"ciste","kind":"gismu"}}]"""
 
@@ -66,57 +34,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "di'i",
-            span: [7,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "porpi",
-            span: [12,17],
-          },
+          tense_modal: Cmavo "di'i",
+          Gismu "pórpi",
         },
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ne'i",
-          span: [18,22],
-        },
+        tense_modal: Cmavo "ne'i",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "tavla",
-              span: [26,31],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ciste",
-              span: [32,37],
-            },
+            Gismu "távla",
+            Gismu "císte",
           },
         },
       },

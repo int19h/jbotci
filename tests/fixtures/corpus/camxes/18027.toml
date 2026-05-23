@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do do do mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [7,9],
-  },
+  Cmavo "do",
+  Cmavo "do",
+  Cmavo "do",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [4,6],
-    },
+    Cmavo "do",
+    Cmavo "do",
+    Cmavo "do",
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [7,9],
-  },
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,9],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

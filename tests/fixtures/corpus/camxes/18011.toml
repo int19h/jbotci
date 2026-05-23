@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .bancus. mi pu cúsku la'e di'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [29,33],
-  },
+  Cmavo "doĭ",
+  Cmevla "bancus",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cúsku",
+  Cmavo "la'e",
+  Cmavo "di'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"di'u","kind":"cmavo"}}]"""
 
@@ -62,52 +34,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "bancus",
-        span: [4,10],
-      },
+      argument: Cmevla "bancus",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [18,23],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "cúsku",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [24,28],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "di'u",
-            span: [29,33],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "di'u",
         },
       ],
     },

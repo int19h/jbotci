@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(tolmánfo kublysímsa)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "tolmanfo",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kublysimsa",
-    span: [9,19],
-  },
+  Lujvo "tolmánfo",
+  Lujvo "kublysímsa",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"tolmanfo","kind":"lujvo"}},{"Bare":{"span":[9,19],"phonemes":"kublysimsa","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "tolmanfo",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kublysimsa",
-    span: [9,19],
-  },
+  Lujvo "tolmánfo",
+  Lujvo "kublysímsa",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"tolmanfo","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,19],"phonemes":"kublysimsa","kind":"lujvo"}}}}]}}}}}}}}]}]}'

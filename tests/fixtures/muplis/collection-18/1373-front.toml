@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ra se jámfu za'u cmálu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamfu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [17,22],
-  },
+  Cmavo "ra",
+  Cmavo "se",
+  Gismu "jámfu",
+  Cmavo "za'u",
+  Gismu "cmálu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jamfu","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cmalu","kind":"gismu"}}]"""
 
@@ -54,39 +34,19 @@ brackets = "(ra [{se jámfu} {za'u cmálu}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jamfu",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "jámfu",
     },
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [12,16],
-          },
+          Cmavo "za'u",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cmalu",
-          span: [17,22],
-        },
+        relation: Gismu "cmálu",
       },
     ],
   },

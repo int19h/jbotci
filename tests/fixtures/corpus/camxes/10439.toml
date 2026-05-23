@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ bísli ládru na slábu mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bisli",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ladru",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slabu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
+  Cmavo "loĭ",
+  Gismu "bísli",
+  Gismu "ládru",
+  Cmavo "na",
+  Gismu "slábu",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"bisli","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"ladru","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"slabu","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
+      descriptor: Cmavo "loĭ",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "bisli",
-          span: [4,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ladru",
-          span: [10,15],
-        },
+        Gismu "bísli",
+        Gismu "ládru",
       },
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [16,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "slabu",
-        span: [19,24],
-      },
+      na: Cmavo "na",
+      Gismu "slábu",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [25,27],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

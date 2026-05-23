@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo fráso prénu cu ca mútce távla mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fraso",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
+  Cmavo "lo",
+  Gismu "fráso",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "ca",
+  Gismu "mútce",
+  Gismu "távla",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fraso","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -66,56 +34,24 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "fraso",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [9,14],
-        },
+        Gismu "fráso",
+        Gismu "prénu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [18,20],
-      },
+      tense_modal: Cmavo "ca",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [21,26],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [27,32],
-        },
+        Gismu "mútce",
+        Gismu "távla",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [33,35],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

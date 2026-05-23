@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ro xalbygírzu cu xálbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xalbygirzu",
-    span: [6,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalbo",
-    span: [20,25],
-  },
+  Cmavo "ro",
+  Lujvo "xalbygírzu",
+  Cmavo "cu",
+  Gismu "xálbo",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,16],"phonemes":"xalbygirzu","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xalbo","kind":"gismu"}}]'
 
@@ -48,28 +32,12 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [3,5],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "xalbygirzu",
-        span: [6,16],
-      },
+      relation: Lujvo "xalbygírzu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalbo",
-    span: [20,25],
-  },
+  cu: Cmavo "cu",
+  Gismu "xálbo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[6,16],"phonemes":"xalbygirzu","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"xalbo","kind":"gismu"}}}}}}}}}}}]}]}'

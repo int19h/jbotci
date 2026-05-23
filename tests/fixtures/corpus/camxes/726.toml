@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .alis. sípna le ri kúmfa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alis",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "alis",
+  Gismu "sípna",
+  Cmavo "le",
+  Cmavo "ri",
+  Gismu "kúmfa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"kumfa","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "alis",
-          span: [4,8],
-        },
+        Cmevla "alis",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [10,15],
-    },
+    Gismu "sípna",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [16,18],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [19,21],
-          },
+          Cmavo "ri",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "kumfa",
-          span: [22,27],
-        },
+        relation: Gismu "kúmfa",
       },
     ],
   },

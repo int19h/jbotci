@@ -18,75 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi mílxe xébni le nu pílno [zo xu] .e [xu bu] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [24,29],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Gismu "mílxe",
+  Gismu "xébni",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [30,32],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [33,35],
-    },
+    zo: Cmavo "zo",
+    Cmavo "xu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [37,38],
-  },
+  Cmavo "e",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [39,41],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [41,43],
-    },
+    Cmavo "xu",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [44,47],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[30,32],"phonemes":"zo","kind":"cmavo"},"word":{"span":[33,35],"phonemes":"xu","kind":"cmavo"}}},{"Bare":{"span":[37,38],"phonemes":"e","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[39,41],"phonemes":"xu","kind":"cmavo"}},"bu":{"span":[41,43],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[44,47],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -95,83 +43,35 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "milxe",
-              span: [6,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "xebni",
-              span: [12,17],
-            },
+            Gismu "mílxe",
+            Gismu "xébni",
           },
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [18,20],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "nu",
-                  span: [21,23],
-                },
+                nu: Cmavo "nu",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "pilno",
-                    span: [24,29],
-                  },
+                  Gismu "pílno",
                   terms: [
                     Connected {
                       leading_argument: ZoQuote {
-                        zo: Word {
-                          kind: "cmavo",
-                          phonemes: "zo",
-                          span: [30,32],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "xu",
-                          span: [33,35],
-                        },
+                        zo: Cmavo "zo",
+                        Cmavo "xu",
                       },
-                      connective: Word {
-                        kind: "cmavo",
-                        phonemes: "e",
-                        span: [37,38],
-                      },
+                      connective: Cmavo "e",
                       trailing_argument: Letter {
                         letter: [
                           Letter {
-                            Word {
-                              kind: "cmavo",
-                              phonemes: "xu",
-                              span: [39,41],
-                            },
-                            bu: Word {
-                              kind: "cmavo",
-                              phonemes: "bu",
-                              span: [41,43],
-                            },
+                            Cmavo "xu",
+                            bu: Cmavo "bu",
                           },
                         ],
                       },
@@ -183,11 +83,7 @@ Text {
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [44,47],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(py my rútni .ŭi naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rutni",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
+  Cmavo "py",
+  Cmavo "my",
+  Gismu "rútni",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"rutni","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}}]'
 
@@ -52,35 +32,15 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "py",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "my",
-          span: [2,4],
-        },
+        Cmavo "py",
+        Cmavo "my",
       ],
     },
   ],
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "rutni",
-      span: [5,10],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [12,14],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [14,17],
-    },
+    Gismu "rútni",
+    indicator: Cmavo "ŭi",
+    nai: Cmavo "naĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"py","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"my","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"rutni","kind":"gismu"}}},"indicator":{"span":[12,14],"phonemes":"ŭi","kind":"cmavo"},"nai":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}}}}]}]}'

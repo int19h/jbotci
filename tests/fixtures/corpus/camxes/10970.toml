@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi mo'u tcídu ro la pálta plíni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "palta",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plini",
-    span: [26,31],
-  },
+  Cmavo "mi",
+  Cmavo "mo'u",
+  Gismu "tcídu",
+  Cmavo "ro",
+  Cmavo "la",
+  Gismu "pálta",
+  Gismu "plíni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"palta","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"plini","kind":"gismu"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "mo'u",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [8,13],
-      },
+      tense_modal: Cmavo "mo'u",
+      Gismu "tcídu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [17,19],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [14,16],
-        },
+        descriptor: Cmavo "la",
+        outer_quantifier: Cmavo "ro",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "palta",
-            span: [20,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "plini",
-            span: [26,31],
-          },
+          Gismu "pálta",
+          Gismu "plíni",
         },
       },
     ],

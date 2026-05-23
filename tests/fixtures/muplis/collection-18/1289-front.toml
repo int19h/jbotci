@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi zandápma do le ka gléki ca le cníno detná'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zandapma",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [36,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "detna'a",
-    span: [42,49],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "zandápma",
+  Cmavo "do",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "gléki",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "cníno",
+  Lujvo "detná'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"zandapma","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[42,49],"phonemes":"detna'a","kind":"lujvo"}}]"""
 
@@ -83,73 +39,29 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {zandápma (do [le {ka (gléki [ca {le (cníno detná'a)}])}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "zandapma",
-        span: [6,14],
-      },
+      Lujvo "zandápma",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [15,17],
-        },
+        Cmavo "do",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [21,23],
-            },
+            nu: Cmavo "ka",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "gleki",
-                span: [24,29],
-              },
+              Gismu "gléki",
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [30,32],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [33,35],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "cnino",
-                        span: [36,41],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "detna'a",
-                        span: [42,49],
-                      },
+                      Gismu "cníno",
+                      Lujvo "detná'a",
                     },
                   },
                 },

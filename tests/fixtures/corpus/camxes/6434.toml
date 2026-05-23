@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'o .oĭ mi na se cínri lo plíse ku joĭ lo nárju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plise",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "narju",
-    span: [42,47],
-  },
+  Cmavo "zo'o",
+  Cmavo "oĭ",
+  Cmavo "mi",
+  Cmavo "na",
+  Cmavo "se",
+  Gismu "cínri",
+  Cmavo "lo",
+  Gismu "plíse",
+  Cmavo "ku",
+  Cmavo "joĭ",
+  Cmavo "lo",
+  Gismu "nárju",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"plise","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"narju","kind":"gismu"}}]"""
 
@@ -87,82 +39,34 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [5,7],
-        },
+        Cmavo "zo'o",
+        indicator: Cmavo "oĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [11,13],
-        },
+        na: Cmavo "na",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cinri",
-            span: [17,22],
-          },
+          se: Cmavo "se",
+          Gismu "cínri",
         },
       },
       terms: [
         Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [23,25],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "plise",
-              span: [26,31],
-            },
-            ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [32,34],
-            },
+            descriptor: Cmavo "lo",
+            relation: Gismu "plíse",
+            ku: Cmavo "ku",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [35,38],
-          },
+          connective: Cmavo "joĭ",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [39,41],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "narju",
-              span: [42,47],
-            },
+            descriptor: Cmavo "lo",
+            relation: Gismu "nárju",
           },
         },
       ],

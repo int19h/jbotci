@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu kríci le du'u la'a cínri .i ku'i mi na víska)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [32,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [44,49],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "kríci",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "la'a",
+  Gismu "cínri",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "víska",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[32,33],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"viska","kind":"gismu"}}]"""
 
@@ -86,50 +38,22 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "krici",
-          span: [6,11],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "kríci",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
             nu: WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "du'u",
-                span: [15,19],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "la'a",
-                span: [20,24],
-              },
+              Cmavo "du'u",
+              indicator: Cmavo "la'a",
             },
-            Word {
-              kind: "gismu",
-              phonemes: "cinri",
-              span: [25,30],
-            },
+            Gismu "cínri",
           },
         },
       ],
@@ -137,36 +61,16 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [32,33],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [33,37],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [38,40],
-        },
+        Cmavo "mi",
       ],
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [41,43],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "viska",
-          span: [44,49],
-        },
+        na: Cmavo "na",
+        Gismu "víska",
       },
     },
   },

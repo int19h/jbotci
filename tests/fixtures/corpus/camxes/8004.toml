@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'e mlátu cu níctu dánlu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nictu",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danlu",
-    span: [20,25],
-  },
+  Cmavo "lo'e",
+  Gismu "mlátu",
+  Cmavo "cu",
+  Gismu "níctu",
+  Gismu "dánlu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"nictu","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"danlu","kind":"gismu"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [0,4],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "mlatu",
-        span: [5,10],
-      },
+      descriptor: Cmavo "lo'e",
+      relation: Gismu "mlátu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "nictu",
-      span: [14,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "danlu",
-      span: [20,25],
-    },
+    Gismu "níctu",
+    Gismu "dánlu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"mlatu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"nictu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"danlu","kind":"gismu"}}}}]}}}}}}}}]}]}"""

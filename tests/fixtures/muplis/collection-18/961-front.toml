@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'eĭ se'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'eĭ",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'a",
-    span: [5,9],
-  },
+  Cmavo "e'eĭ",
+  Cmavo "se'a",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"e'eĭ","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"se'a","kind":"cmavo"}}]"""
 
@@ -41,16 +33,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "e'eĭ",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "se'a",
-          span: [5,9],
-        },
+        Cmavo "e'eĭ",
+        indicator: Cmavo "se'a",
       },
     },
   ],

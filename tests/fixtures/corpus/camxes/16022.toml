@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ dy xy dy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [10,12],
-  },
+  Cmavo "coĭ",
+  Cmavo "dy",
+  Cmavo "xy",
+  Cmavo "dy",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"dy","kind":"cmavo"}}]'
 
@@ -47,29 +31,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "dy",
-            span: [4,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xy",
-            span: [7,9],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "dy",
-            span: [10,12],
-          },
+          Cmavo "dy",
+          Cmavo "xy",
+          Cmavo "dy",
         ],
       },
     },

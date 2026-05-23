@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ saĭ mi na pónse loĭ sódva .i je mi xágji ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xagji",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [43,45],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "pónse",
+  Cmavo "loĭ",
+  Gismu "sódva",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "mi",
+  Gismu "xágji",
+  Cmavo "ri",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"xagji","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"ri","kind":"cmavo"}}]'
 
@@ -87,87 +39,39 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Connected {
     leading_statement: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [7,9],
-        },
+        Cmavo "mi",
       ],
       Relation {
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [10,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ponse",
-            span: [13,18],
-          },
+          na: Cmavo "na",
+          Gismu "pónse",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [19,22],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "sodva",
-              span: [23,28],
-            },
+            descriptor: Cmavo "loĭ",
+            relation: Gismu "sódva",
           },
         ],
       },
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [30,31],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [31,33],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [34,36],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xagji",
-          span: [37,42],
-        },
+        Gismu "xágji",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [43,45],
-          },
+          Cmavo "ri",
         ],
       },
     },

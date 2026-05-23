@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le válsi mórji cu na bánzu vaŭ .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [32,35],
-  },
+  Cmavo "le",
+  Gismu "válsi",
+  Gismu "mórji",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "bánzu",
+  Cmavo "vaŭ",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"banzu","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -66,54 +34,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "valsi",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "morji",
-          span: [9,14],
-        },
+        Gismu "válsi",
+        Gismu "mórji",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "banzu",
-        span: [21,26],
-      },
+      na: Cmavo "na",
+      Gismu "bánzu",
     },
     vau: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "vaŭ",
-        span: [27,30],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [32,35],
-      },
+      Cmavo "vaŭ",
+      indicator: Cmavo "u'i",
     },
   },
 }"""

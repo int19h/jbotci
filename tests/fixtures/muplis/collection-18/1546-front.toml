@@ -21,46 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi ca ku zgípli pa cmálu jgíta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zgipli",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgita",
-    span: [28,33],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "ku",
+  Lujvo "zgípli",
+  Cmavo "pa",
+  Gismu "cmálu",
+  Gismu "jgíta",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"zgipli","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"jgita","kind":"gismu"}}]'
 
@@ -68,59 +36,27 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{mi (ca ku)} {zgípli (pa [cmálu jgíta])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "ca",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [9,11],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "zgipli",
-        span: [12,18],
-      },
+      Lujvo "zgípli",
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [19,21],
-            },
+            Cmavo "pa",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cmalu",
-              span: [22,27],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jgita",
-              span: [28,33],
-            },
+            Gismu "cmálu",
+            Gismu "jgíta",
           },
         },
       ],

@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ le xúnre pástu níxli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pastu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [19,24],
-  },
+  Cmavo "coĭ",
+  Cmavo "le",
+  Gismu "xúnre",
+  Gismu "pástu",
+  Gismu "níxli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"pastu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"nixli","kind":"gismu"}}]'
 
@@ -59,34 +39,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xunre",
-            span: [7,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pastu",
-            span: [13,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nixli",
-            span: [19,24],
-          },
+          Gismu "xúnre",
+          Gismu "pástu",
+          Gismu "níxli",
         },
       },
     },

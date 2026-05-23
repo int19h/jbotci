@@ -18,34 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cátlu ca'u)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'u",
-    span: [6,10],
-  },
+  Gismu "cátlu",
+  Cmavo "ca'u",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ca'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [0,5],
-  },
+  Gismu "cátlu",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'u",
-        span: [6,10],
-      },
+      tense_modal: Cmavo "ca'u",
       Zohe {},
     },
   ],

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu di'u gérna dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [14,19],
-  },
+  Cmavo "xu",
+  Cmavo "di'u",
+  Gismu "gérna",
+  Gismu "dráni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"drani","kind":"gismu"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [3,7],
-      },
+      Cmavo "di'u",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "gerna",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [14,19],
-      },
+      Gismu "gérna",
+      Gismu "dráni",
     },
   },
 }"""

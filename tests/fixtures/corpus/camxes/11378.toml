@@ -19,76 +19,20 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le ka lu zúkte fi zi'o cu fríca lu zúkte fi no da ce'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [51,55],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "lu",
+  Gismu "zúkte",
+  Cmavo "fi",
+  Cmavo "zi'o",
+  Cmavo "cu",
+  Gismu "fríca",
+  Cmavo "lu",
+  Gismu "zúkte",
+  Cmavo "fi",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "ce'u",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"zi'o","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[51,55],"phonemes":"ce'u","kind":"cmavo"}}]"""
 
@@ -97,97 +41,41 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [5,7],
-        },
+        nu: Cmavo "ka",
         Predicate {
           leading_terms: [
             Lu {
-              lu: Word {
-                kind: "cmavo",
-                phonemes: "lu",
-                span: [8,10],
-              },
+              lu: Cmavo "lu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "zukte",
-                  span: [11,16],
-                },
+                Gismu "zúkte",
                 terms: [
                   Fa {
-                    fa: Word {
-                      kind: "cmavo",
-                      phonemes: "fi",
-                      span: [17,19],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "zi'o",
-                      span: [20,24],
-                    },
+                    fa: Cmavo "fi",
+                    Cmavo "zi'o",
                   },
                 ],
               },
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [25,27],
-          },
+          cu: Cmavo "cu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "frica",
-              span: [28,33],
-            },
+            Gismu "fríca",
             terms: [
               Lu {
-                lu: Word {
-                  kind: "cmavo",
-                  phonemes: "lu",
-                  span: [34,36],
-                },
+                lu: Cmavo "lu",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "zukte",
-                    span: [37,42],
-                  },
+                  Gismu "zúkte",
                   terms: [
                     Fa {
-                      fa: Word {
-                        kind: "cmavo",
-                        phonemes: "fi",
-                        span: [43,45],
-                      },
+                      fa: Cmavo "fi",
                       Quantified {
-                        quantifier: Word {
-                          kind: "cmavo",
-                          phonemes: "no",
-                          span: [46,48],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "da",
-                          span: [48,50],
-                        },
+                        quantifier: Cmavo "no",
+                        Cmavo "da",
                       },
                     },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ce'u",
-                      span: [51,55],
-                    },
+                    Cmavo "ce'u",
                   ],
                 },
               },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi xágji gi'e ba zi cidjrpítsa cpácu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xagji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [16,18],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [19,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [30,35],
-  },
+  Cmavo "mi",
+  Gismu "xágji",
+  Cmavo "gi'e",
+  Cmavo "ba",
+  Cmavo "zi",
+  Fuhivla "cidjrpítsa",
+  Gismu "cpácu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xagji","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[19,29],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[30,35],"phonemes":"cpacu","kind":"gismu"}}]"""
 
@@ -60,49 +32,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "xagji",
-      span: [3,8],
-    },
+    Gismu "xágji",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [9,13],
-        },
+        connective: Cmavo "gi'e",
         TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "ba",
-              span: [14,16],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "zi",
-              span: [16,18],
-            },
+            Cmavo "ba",
+            Cmavo "zi",
           },
           Compound {
-            Word {
-              kind: "fu'ivla",
-              phonemes: "cidjrpitsa",
-              span: [19,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cpacu",
-              span: [30,35],
-            },
+            Fuhivla "cidjrpítsa",
+            Gismu "cpácu",
           },
         },
       },

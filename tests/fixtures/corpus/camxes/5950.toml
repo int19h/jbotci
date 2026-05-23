@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu tcídu so'u leĭ selfánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selfanva",
-    span: [21,29],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tcídu",
+  Cmavo "so'u",
+  Cmavo "leĭ",
+  Lujvo "selfánva",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[21,29],"phonemes":"selfanva","kind":"lujvo"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "tcídu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [17,20],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "so'u",
-          span: [12,16],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "selfanva",
-          span: [21,29],
-        },
+        descriptor: Cmavo "leĭ",
+        outer_quantifier: Cmavo "so'u",
+        relation: Lujvo "selfánva",
       },
     ],
   },

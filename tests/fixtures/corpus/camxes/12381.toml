@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.just. fácki le stúzi le dácti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "just",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "facki",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stuzi",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dacti",
-    span: [23,28],
-  },
+  Cmevla "just",
+  Gismu "fácki",
+  Cmavo "le",
+  Gismu "stúzi",
+  Cmavo "le",
+  Gismu "dácti",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"just","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"facki","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"stuzi","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"dacti","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"just","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "just",
-      span: [0,4],
-    },
+    Cmevla "just",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "facki",
-      span: [5,10],
-    },
+    Gismu "fácki",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "stuzi",
-          span: [14,19],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "stúzi",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "dacti",
-          span: [23,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "dácti",
       },
     ],
   },

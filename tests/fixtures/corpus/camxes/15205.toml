@@ -18,70 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(stídi lu no da li'u)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [15,19],
-  },
+  Gismu "stídi",
+  Cmavo "lu",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"stidi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [0,5],
-  },
+  Gismu "stídi",
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [6,8],
-      },
+      lu: Cmavo "lu",
       Term {
         terms: [
           Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [9,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [12,14],
-            },
+            quantifier: Cmavo "no",
+            Cmavo "da",
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [15,19],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

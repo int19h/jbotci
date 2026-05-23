@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ty mábla glíco)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ty",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [10,15],
-  },
+  Cmavo "ty",
+  Gismu "mábla",
+  Gismu "glíco",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"glico","kind":"gismu"}}]'
 
@@ -42,25 +30,13 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ty",
-          span: [0,2],
-        },
+        Cmavo "ty",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mabla",
-      span: [4,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "glico",
-      span: [10,15],
-    },
+    Gismu "mábla",
+    Gismu "glíco",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ty","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"mabla","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"glico","kind":"gismu"}}}}]}}}}}}}}]}]}'

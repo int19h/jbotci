@@ -18,70 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i doĭ tsáli .a'o go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [18,22],
-  },
+  Cmavo "i",
+  Cmavo "doĭ",
+  Gismu "tsáli",
+  Cmavo "a'o",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [3,6],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "tsali",
-              span: [7,12],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "a'o",
-              span: [14,17],
-            },
+            Gismu "tsáli",
+            indicator: Cmavo "a'o",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'i",
-            span: [18,22],
-          },
+          Cmavo "go'i",
         },
       },
     },

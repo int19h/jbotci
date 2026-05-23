@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i do dráni .i mi pórpi pa le mi tríxe kámju bóngu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porpi",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "trixe",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kamju",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bongu",
-    span: [45,50],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "dráni",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "pórpi",
+  Cmavo "pa",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "tríxe",
+  Gismu "kámju",
+  Gismu "bóngu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"porpi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"trixe","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"kamju","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"bongu","kind":"gismu"}}]'
 
@@ -85,81 +37,33 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [6,11],
-      },
+      Gismu "dráni",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [15,17],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "porpi",
-          span: [18,23],
-        },
+        Gismu "pórpi",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [27,29],
-            },
-            outer_quantifier: Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [24,26],
-            },
+            descriptor: Cmavo "le",
+            outer_quantifier: Cmavo "pa",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [30,32],
-              },
+              Cmavo "mi",
             ],
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "trixe",
-                span: [33,38],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "kamju",
-                span: [39,44],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "bongu",
-                span: [45,50],
-              },
+              Gismu "tríxe",
+              Gismu "kámju",
+              Gismu "bóngu",
             },
           },
         ],

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa le tíxnu ji'a cu térpa bájra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tixnu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bajra",
-    span: [27,32],
-  },
+  Cmavo "ŭa",
+  Cmavo "le",
+  Gismu "tíxnu",
+  Cmavo "ji'a",
+  Cmavo "cu",
+  Gismu "térpa",
+  Gismu "bájra",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"tixnu","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"bajra","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "tixnu",
-            span: [7,12],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [13,17],
-          },
+          Gismu "tíxnu",
+          indicator: Cmavo "ji'a",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [18,20],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "terpa",
-        span: [21,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "bajra",
-        span: [27,32],
-      },
+      Gismu "térpa",
+      Gismu "bájra",
     },
   },
 }"""

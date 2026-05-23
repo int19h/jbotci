@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .lobyfest. po le ca nácna cu xo moĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lobyfest",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nacna",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [33,36],
-  },
+  Cmavo "la",
+  Cmevla "lobyfest",
+  Cmavo "po",
+  Cmavo "le",
+  Cmavo "ca",
+  Gismu "nácna",
+  Cmavo "cu",
+  Cmavo "xo",
+  Cmavo "moĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"lobyfest","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"nacna","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[33,36],"phonemes":"moĭ","kind":"cmavo"}}]'
 
@@ -72,67 +36,31 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "lobyfest",
-            span: [3,11],
-          },
+          Cmevla "lobyfest",
         ],
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po",
-            span: [12,14],
-          },
+          goi: Cmavo "po",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [15,17],
-            },
+            descriptor: Cmavo "le",
             relation: TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ca",
-                span: [18,20],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "nacna",
-                span: [21,26],
-              },
+              tense_modal: Cmavo "ca",
+              Gismu "nácna",
             },
           },
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
+  cu: Cmavo "cu",
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "xo",
-        span: [30,32],
-      },
+      Cmavo "xo",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "moĭ",
-      span: [33,36],
-    },
+    moi: Cmavo "moĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,11],"phonemes":"lobyfest","kind":"cmevla"}}}]}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[12,14],"phonemes":"po","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"nacna","kind":"gismu"}}}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[30,32],"phonemes":"xo","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[33,36],"phonemes":"moĭ","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

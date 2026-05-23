@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro jbópre poĭ vi cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [17,22],
-  },
+  Cmavo "ro",
+  Lujvo "jbópre",
+  Cmavo "poĭ",
+  Cmavo "vi",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -52,35 +32,15 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "jbopre",
-        span: [3,9],
-      },
+      relation: Lujvo "jbópre",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [10,13],
-          },
+          poi: Cmavo "poĭ",
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "vi",
-              span: [14,16],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "casnu",
-              span: [17,22],
-            },
+            tense_modal: Cmavo "vi",
+            Gismu "cásnu",
           },
         },
       ],

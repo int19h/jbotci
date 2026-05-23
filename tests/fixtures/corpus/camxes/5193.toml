@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi xábju la .aŭstin. vi la cúkla rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "aŭstin",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukla",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [31,36],
-  },
+  Cmavo "mi",
+  Gismu "xábju",
+  Cmavo "la",
+  Cmevla "aŭstin",
+  Cmavo "vi",
+  Cmavo "la",
+  Gismu "cúkla",
+  Gismu "rókci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"aŭstin","kind":"cmevla"}},{"Bare":{"span":[19,21],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cukla","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"rokci","kind":"gismu"}}]'
 
@@ -65,56 +33,24 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xabju",
-      span: [3,8],
-    },
+    Gismu "xábju",
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "aŭstin",
-            span: [12,18],
-          },
+          Cmevla "aŭstin",
         ],
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [19,21],
-        },
+        tense_modal: Cmavo "vi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [22,24],
-          },
+          descriptor: Cmavo "la",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cukla",
-              span: [25,30],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "rokci",
-              span: [31,36],
-            },
+            Gismu "cúkla",
+            Gismu "rókci",
           },
         },
       },

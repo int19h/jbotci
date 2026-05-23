@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca fárvi gaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farvi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [9,12],
-  },
+  Cmavo "ca",
+  Gismu "fárvi",
+  Cmavo "gaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"farvi","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"gaŭ","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "farvi",
-      span: [3,8],
-    },
+    tense_modal: Cmavo "ca",
+    Gismu "fárvi",
   },
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [9,12],
-        },
+        bai: Cmavo "gaŭ",
       },
       Zohe {},
     },

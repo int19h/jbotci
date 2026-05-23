@@ -18,71 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu távla keĭ le nu na távla cu zmádu le ka cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [46,51],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "távla",
+  Cmavo "keĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "na",
+  Gismu "távla",
+  Cmavo "cu",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "cínri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"cinri","kind":"gismu"}}]'
 
@@ -91,85 +39,33 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [6,11],
-        },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [12,15],
-        },
+        nu: Cmavo "nu",
+        Gismu "távla",
+        kei: Cmavo "keĭ",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [16,18],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [19,21],
-        },
+        nu: Cmavo "nu",
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [22,24],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [25,30],
-          },
+          na: Cmavo "na",
+          Gismu "távla",
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zmadu",
-      span: [34,39],
-    },
+    Gismu "zmádu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [40,42],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [43,45],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cinri",
-            span: [46,51],
-          },
+          nu: Cmavo "ka",
+          Gismu "cínri",
         },
       },
     ],

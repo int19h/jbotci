@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(se taĭ la ctatánru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ctatanru",
-    span: [9,17],
-  },
+  Cmavo "se",
+  Cmavo "taĭ",
+  Cmavo "la",
+  Lujvo "ctatánru",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"ctatanru","kind":"lujvo"}}]'
 
@@ -47,28 +31,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [2,5],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "taĭ",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [6,8],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "ctatanru",
-          span: [9,17],
-        },
+        descriptor: Cmavo "la",
+        relation: Lujvo "ctatánru",
       },
     },
   ],

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do nélci leĭ sálci djédi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [22,27],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "nélci",
+  Cmavo "leĭ",
+  Gismu "sálci",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"djedi","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [6,11],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [12,15],
-          },
+          descriptor: Cmavo "leĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "salci",
-              span: [16,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "djedi",
-              span: [22,27],
-            },
+            Gismu "sálci",
+            Gismu "djédi",
           },
         },
       ],

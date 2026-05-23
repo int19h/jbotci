@@ -24,21 +24,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi cy cláxu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "claxu",
-    span: [7,12],
-  },
+  Cmavo "mi",
+  Cmavo "cy",
+  Gismu "cláxu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"claxu","kind":"gismu"}}]'
 
@@ -47,25 +35,13 @@ brackets = "([mi cy] cláxu)"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [3,5],
-        },
+        Cmavo "cy",
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "claxu",
-    span: [7,12],
-  },
+  Gismu "cláxu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"cy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"claxu","kind":"gismu"}}}}}}}}}}}]}]}'

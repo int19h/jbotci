@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(jmáji cpácu lo prusélpli ke bírje kábri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "jmaji",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "pruselpli",
-    span: [18,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birje",
-    span: [31,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kabri",
-    span: [37,42],
-  },
+  Gismu "jmáji",
+  Gismu "cpácu",
+  Cmavo "lo",
+  Lujvo "prusélpli",
+  Cmavo "ke",
+  Gismu "bírje",
+  Gismu "kábri",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"jmaji","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,27],"phonemes":"pruselpli","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"birje","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"kabri","kind":"gismu"}}]'
 
@@ -61,47 +33,19 @@ json = '[{"Bare":{"span":[3,8],"phonemes":"jmaji","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "jmaji",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cpacu",
-      span: [9,14],
-    },
+    Gismu "jmáji",
+    Gismu "cpácu",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [15,17],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "pruselpli",
-          span: [18,27],
-        },
+        Lujvo "prusélpli",
         Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [28,30],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "birje",
-              span: [31,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kabri",
-              span: [37,42],
-            },
+            Gismu "bírje",
+            Gismu "kábri",
           },
         },
       },

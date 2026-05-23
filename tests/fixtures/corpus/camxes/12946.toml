@@ -18,87 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i tútci le nu pénsi keĭ po'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tutci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [24,28],
-  },
+  Cmavo "i",
+  Gismu "tútci",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pénsi",
+  Cmavo "keĭ",
+  Cmavo "po'o",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tutci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"po'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tutci",
-      span: [3,8],
-    },
+    Gismu "tútci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pensi",
-            span: [14,19],
-          },
+          nu: Cmavo "nu",
+          Gismu "pénsi",
           kei: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [20,23],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "po'o",
-              span: [24,28],
-            },
+            Cmavo "keĭ",
+            indicator: Cmavo "po'o",
           },
         },
       },

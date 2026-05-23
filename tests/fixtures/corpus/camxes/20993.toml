@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi kúcli le du'u rínka ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kucli",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "kúcli",
+  Cmavo "le",
+  Cmavo "du'u",
+  Gismu "rínka",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kucli","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kucli",
-        span: [6,11],
-      },
+      Gismu "kúcli",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "du'u",
-              span: [15,19],
-            },
+            nu: Cmavo "du'u",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "rinka",
-                span: [20,25],
-              },
+              Gismu "rínka",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ma",
-                  span: [26,28],
-                },
+                Cmavo "ma",
               ],
             },
           },

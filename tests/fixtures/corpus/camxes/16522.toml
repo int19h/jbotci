@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(du se cméne ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
+  Cmavo "du",
+  Cmavo "se",
+  Gismu "cméne",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [0,2],
-    },
+    Cmavo "du",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "cméne",
     },
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [12,14],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"du","kind":"cmavo"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cmene","kind":"gismu"}}}}}}]},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

@@ -21,46 +21,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .a'o do gléki ca le cníno detná'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [23,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "detna'a",
-    span: [29,36],
-  },
+  Cmavo "i",
+  Cmavo "a'o",
+  Cmavo "do",
+  Gismu "gléki",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "cníno",
+  Lujvo "detná'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[29,36],"phonemes":"detna'a","kind":"lujvo"}}]"""
 
@@ -69,55 +37,23 @@ brackets = "([.i .a'o] [do {gléki (ca [le {cníno detná'a}])}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "a'o",
-      span: [4,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "a'o",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "gleki",
-        span: [11,16],
-      },
+      Gismu "gléki",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [17,19],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [20,22],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "cnino",
-                span: [23,28],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "detna'a",
-                span: [29,36],
-              },
+              Gismu "cníno",
+              Lujvo "detná'a",
             },
           },
         },

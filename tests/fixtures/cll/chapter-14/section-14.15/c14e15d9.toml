@@ -24,96 +24,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djan. fa'u la .frank. cúsku nu'i fa'u gi baŭ la .lojban. nu'u gi baĭ tu'a la .djordj.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'i",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'u",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [44,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [52,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'u",
-    span: [60,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [65,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baĭ",
-    span: [68,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [72,76],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [77,79],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [81,87],
-  },
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "fa'u",
+  Cmavo "la",
+  Cmevla "frank",
+  Gismu "cúsku",
+  Cmavo "nu'i",
+  Cmavo "fa'u",
+  Cmavo "gi",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "nu'u",
+  Cmavo "gi",
+  Cmavo "baĭ",
+  Cmavo "tu'a",
+  Cmavo "la",
+  Cmevla "djordj",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[10,14],"phonemes":"fa'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[26,31],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[32,36],"phonemes":"nu'i","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"fa'u","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[52,58],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[60,64],"phonemes":"nu'u","kind":"cmavo"}},{"Bare":{"span":[65,67],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[68,71],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[72,76],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[77,79],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[81,87],"phonemes":"djordj","kind":"cmevla"}}]"""
 
@@ -124,127 +52,55 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [4,8],
-          },
+          Cmevla "djan",
         ],
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "fa'u",
-        span: [10,14],
-      },
+      connective: Cmavo "fa'u",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "frank",
-            span: [19,24],
-          },
+          Cmevla "frank",
         ],
       },
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [26,31],
-    },
+    Gismu "cúsku",
     terms: [
       GekNuhiTermset {
-        m_nuhi: Word {
-          kind: "cmavo",
-          phonemes: "nu'i",
-          span: [32,36],
-        },
+        m_nuhi: Cmavo "nu'i",
         gek: NonLogical {
-          Word {
-            kind: "cmavo",
-            phonemes: "fa'u",
-            span: [37,41],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "gi",
-            span: [41,43],
-          },
+          Cmavo "fa'u",
+          Cmavo "gi",
         },
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baŭ",
-                span: [44,47],
-              },
+              bai: Cmavo "baŭ",
             },
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [48,50],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "lojban",
-                  span: [52,58],
-                },
+                Cmevla "lojban",
               ],
             },
           },
         ],
-        nuhu: Word {
-          kind: "cmavo",
-          phonemes: "nu'u",
-          span: [60,64],
-        },
-        gik: Word {
-          kind: "cmavo",
-          phonemes: "gi",
-          span: [65,67],
-        },
+        nuhu: Cmavo "nu'u",
+        gik: Cmavo "gi",
         gik_terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baĭ",
-                span: [68,71],
-              },
+              bai: Cmavo "baĭ",
             },
             Lahe {
-              lahe: Word {
-                kind: "cmavo",
-                phonemes: "tu'a",
-                span: [72,76],
-              },
+              lahe: Cmavo "tu'a",
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [77,79],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "djordj",
-                    span: [81,87],
-                  },
+                  Cmevla "djordj",
                 ],
               },
             },

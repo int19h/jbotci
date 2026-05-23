@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .tal. xámgu spúda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tal",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [14,19],
-  },
+  Cmavo "doĭ",
+  Cmevla "tal",
+  Gismu "xámgu",
+  Gismu "spúda",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[8,13],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"spuda","kind":"gismu"}}]'
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "tal",
-        span: [4,7],
-      },
+      argument: Cmevla "tal",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [8,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "spuda",
-      span: [14,19],
-    },
+    Gismu "xámgu",
+    Gismu "spúda",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"xamgu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"spuda","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to go'i .i le zdíle prénu ca xábju vi mi toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [41,44],
-  },
+  Cmavo "to",
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "zdíle",
+  Gismu "prénu",
+  Cmavo "ca",
+  Gismu "xábju",
+  Cmavo "vi",
+  Cmavo "mi",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -81,81 +37,37 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Paragraph {
-        Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [3,7],
-        },
+        Cmavo "go'i",
         ParagraphStatement {
-          i: Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [9,10],
-          },
+          i: Cmavo "i",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [11,13],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "zdile",
-                    span: [14,19],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "prenu",
-                    span: [20,25],
-                  },
+                  Gismu "zdíle",
+                  Gismu "prénu",
                 },
               },
             ],
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ca",
-                  span: [26,28],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "xabju",
-                  span: [29,34],
-                },
+                tense_modal: Cmavo "ca",
+                Gismu "xábju",
               },
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "vi",
-                    span: [35,37],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [38,40],
-                  },
+                  tense_modal: Cmavo "vi",
+                  Cmavo "mi",
                 },
               ],
             },
           },
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [41,44],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

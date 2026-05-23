@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'u se cúsku lo péndo be mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [26,28],
-  },
+  Cmavo "di'u",
+  Cmavo "se",
+  Gismu "cúsku",
+  Cmavo "lo",
+  Gismu "péndo",
+  Cmavo "be",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "di'u",
-      span: [0,4],
-    },
+    Cmavo "di'u",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [8,13],
-      },
+      se: Cmavo "se",
+      Gismu "cúsku",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [14,16],
-        },
+        descriptor: Cmavo "lo",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "pendo",
-            span: [17,22],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [23,25],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [26,28],
-          },
+          Gismu "péndo",
+          be: Cmavo "be",
+          first_argument: Cmavo "mi",
         },
       },
     ],

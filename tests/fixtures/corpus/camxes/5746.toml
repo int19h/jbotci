@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .fractur. [zo selpápri] se pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "fractur",
-    span: [4,11],
-  },
+  Cmavo "doĭ",
+  Cmevla "fractur",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [12,14],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selpapri",
-      span: [15,23],
-    },
+    zo: Cmavo "zo",
+    Lujvo "selpápri",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [27,32],
-  },
+  Cmavo "se",
+  Gismu "pílno",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"fractur","kind":"cmevla"}},{"ZoQuote":{"zo":{"span":[12,14],"phonemes":"zo","kind":"cmavo"},"word":{"span":[15,23],"phonemes":"selpapri","kind":"lujvo"}}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"pilno","kind":"gismu"}}]'
 
@@ -59,45 +35,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "fractur",
-        span: [4,11],
-      },
+      argument: Cmevla "fractur",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [12,14],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selpapri",
-          span: [15,23],
-        },
+        zo: Cmavo "zo",
+        Lujvo "selpápri",
       },
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [24,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [27,32],
-      },
+      se: Cmavo "se",
+      Gismu "pílno",
     },
   },
 }"""

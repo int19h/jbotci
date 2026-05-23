@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi vlapónse .i ja'e ma kéĭdji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlaponse",
-    span: [5,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "keĭdji",
-    span: [23,29],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "vlapónse",
+  Cmavo "i",
+  Cmavo "ja'e",
+  Cmavo "ma",
+  Lujvo "kéĭdji",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"vlaponse","kind":"lujvo"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ja'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"keĭdji","kind":"lujvo"}}]"""
 
@@ -60,54 +32,26 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [2,4],
-        },
+        Cmavo "mi",
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "vlaponse",
-        span: [5,13],
-      },
+      Lujvo "vlapónse",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [14,15],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ja'e",
-              span: [15,19],
-            },
+            bai: Cmavo "ja'e",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [20,22],
-          },
+          Cmavo "ma",
         },
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "keĭdji",
-        span: [23,29],
-      },
+      Lujvo "kéĭdji",
     },
   },
 }"""

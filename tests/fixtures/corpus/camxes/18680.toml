@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma se díklo la jámna pínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "diklo",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinji",
-    span: [21,26],
-  },
+  Cmavo "ma",
+  Cmavo "se",
+  Gismu "díklo",
+  Cmavo "la",
+  Gismu "jámna",
+  Gismu "pínji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"diklo","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jamna","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"pinji","kind":"gismu"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "diklo",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "díklo",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "jamna",
-            span: [15,20],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pinji",
-            span: [21,26],
-          },
+          Gismu "jámna",
+          Gismu "pínji",
         },
       },
     ],

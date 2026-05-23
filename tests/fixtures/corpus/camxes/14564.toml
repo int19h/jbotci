@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .tal. víska le mrílu líste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tal",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [24,29],
-  },
+  Cmavo "doĭ",
+  Cmevla "tal",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "mrílu",
+  Gismu "líste",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"liste","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "tal",
-        span: [4,7],
-      },
+      argument: Cmevla "tal",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [9,14],
-    },
+    Gismu "víska",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mrilu",
-            span: [18,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "liste",
-            span: [24,29],
-          },
+          Gismu "mrílu",
+          Gismu "líste",
         },
       },
     ],

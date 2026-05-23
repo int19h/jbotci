@@ -19,42 +19,14 @@ brackets = "([zo lo'u] krási lo sréra te sítna)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [3,7],
-    },
+    zo: Cmavo "zo",
+    Cmavo "lo'u",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "krasi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srera",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sitna",
-    span: [26,31],
-  },
+  Gismu "krási",
+  Cmavo "lo",
+  Gismu "sréra",
+  Cmavo "te",
+  Gismu "sítna",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,7],"phonemes":"lo'u","kind":"cmavo"}}},{"Bare":{"span":[8,13],"phonemes":"krasi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"srera","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sitna","kind":"gismu"}}]"""
 
@@ -63,48 +35,20 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [3,7],
-      },
+      zo: Cmavo "zo",
+      Cmavo "lo'u",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "krasi",
-      span: [8,13],
-    },
+    Gismu "krási",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [14,16],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "srera",
-            span: [17,22],
-          },
+          Gismu "sréra",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "te",
-              span: [23,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "sitna",
-              span: [26,31],
-            },
+            se: Cmavo "te",
+            Gismu "sítna",
           },
         },
       },

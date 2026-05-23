@@ -19,34 +19,14 @@ brackets = "([zo xámgu] [zo xágmu] básti)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "xámgu",
   },
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xagmu",
-      span: [12,17],
-    },
+    zo: Cmavo "zo",
+    Gismu "xágmu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "basti",
-    span: [18,23],
-  },
+  Gismu "básti",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,17],"phonemes":"xagmu","kind":"gismu"}}},{"Bare":{"span":[18,23],"phonemes":"basti","kind":"gismu"}}]'
 
@@ -55,34 +35,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "xámgu",
     },
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xagmu",
-        span: [12,17],
-      },
+      zo: Cmavo "zo",
+      Gismu "xágmu",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "basti",
-    span: [18,23],
-  },
+  Gismu "básti",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}}}}}}},{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,17],"phonemes":"xagmu","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"basti","kind":"gismu"}}}}}}}}}}}]}]}'

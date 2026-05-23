@@ -18,76 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i no le nínmu poĭ sorpá'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sorpa'i",
-    span: [21,28],
-  },
+  Cmavo "go'i",
+  Cmavo "no",
+  Cmavo "le",
+  Gismu "nínmu",
+  Cmavo "poĭ",
+  Lujvo "sorpá'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[17,20],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[21,28],"phonemes":"sorpa'i","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [8,10],
-      },
-      outer_quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [5,7],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ninmu",
-        span: [11,16],
-      },
+      descriptor: Cmavo "le",
+      outer_quantifier: Cmavo "no",
+      relation: Gismu "nínmu",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [17,20],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "sorpa'i",
-            span: [21,28],
-          },
+          poi: Cmavo "poĭ",
+          Lujvo "sorpá'i",
         },
       ],
     },

@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(re'i .rab.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rab",
-    span: [11,14],
-  },
+  Cmavo "re'i",
+  Cmevla "rab",
 ]"""
 json = """[{"Bare":{"span":[6,10],"phonemes":"re'i","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"rab","kind":"cmevla"}}]"""
 
@@ -37,17 +29,9 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re'i",
-          span: [6,10],
-        },
+        Cmavo "re'i",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "rab",
-        span: [11,14],
-      },
+      argument: Cmevla "rab",
     },
   ],
 }"""

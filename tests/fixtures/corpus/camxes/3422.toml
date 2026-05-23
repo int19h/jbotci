@@ -18,151 +18,55 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ro do pe vi ku cu nalcínri seĭ do ca djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcinri",
-    span: [18,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [37,42],
-  },
+  Cmavo "i",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "pe",
+  Cmavo "vi",
+  Cmavo "ku",
+  Cmavo "cu",
+  Lujvo "nalcínri",
+  Cmavo "seĭ",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "djúno",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,26],"phonemes":"nalcinri","kind":"lujvo"}},{"Bare":{"span":[27,30],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"djuno","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [2,4],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [4,6],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "do",
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [7,9],
-            },
+            goi: Cmavo "pe",
             Zohe {
-              tag: Word {
-                kind: "cmavo",
-                phonemes: "vi",
-                span: [10,12],
-              },
-              maybe_ku: Word {
-                kind: "cmavo",
-                phonemes: "ku",
-                span: [12,14],
-              },
+              tag: Cmavo "vi",
+              maybe_ku: Cmavo "ku",
             },
           },
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     Word {
-      Word {
-        kind: "lujvo",
-        phonemes: "nalcinri",
-        span: [18,26],
-      },
+      Lujvo "nalcínri",
       free_modifiers: [
         Sei {
-          sei: Word {
-            kind: "cmavo",
-            phonemes: "seĭ",
-            span: [27,30],
-          },
+          sei: Cmavo "seĭ",
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [31,33],
-            },
+            Cmavo "do",
           ],
           relation: TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [34,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "djuno",
-              span: [37,42],
-            },
+            tense_modal: Cmavo "ca",
+            Gismu "djúno",
           },
         },
       ],

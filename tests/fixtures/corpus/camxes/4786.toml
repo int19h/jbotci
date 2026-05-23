@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.m. mútce cízra .i mi bróda la .stin.)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "m",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [2,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "stin",
-    span: [29,33],
-  },
+  Cmevla "m",
+  Gismu "mútce",
+  Gismu "cízra",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "bróda",
+  Cmavo "la",
+  Cmevla "stin",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"m","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[8,13],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"stin","kind":"cmevla"}}]'
 
@@ -65,58 +33,26 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"m","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "m",
-      span: [0,1],
-    },
+    Cmevla "m",
   ],
   Paragraph {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [2,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cizra",
-        span: [8,13],
-      },
+      Gismu "mútce",
+      Gismu "cízra",
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [15,16],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
+          Cmavo "mi",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "broda",
-            span: [20,25],
-          },
+          Gismu "bróda",
           terms: [
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [26,28],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "stin",
-                  span: [29,33],
-                },
+                Cmevla "stin",
               ],
             },
           ],

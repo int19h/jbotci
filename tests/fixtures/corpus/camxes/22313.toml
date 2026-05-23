@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi la .xod. cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [11,16],
-  },
+  Cmavo "ŭi",
+  Cmavo "la",
+  Cmevla "xod",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[11,16],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -46,35 +30,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [4,6],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "xod",
-            span: [7,10],
-          },
+          Cmevla "xod",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [11,16],
-    },
+    Gismu "cúsku",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[7,10],"phonemes":"xod","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"cusku","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}}}}]}'

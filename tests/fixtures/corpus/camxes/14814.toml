@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le prénu cu súmti de'u li ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sumti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [26,28],
-  },
+  Cmavo "le",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "súmti",
+  Cmavo "de'u",
+  Cmavo "li",
+  Cmavo "ci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sumti","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"de'u","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ci","kind":"cmavo"}}]"""
 
@@ -61,46 +33,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sumti",
-      span: [12,17],
-    },
+    Gismu "súmti",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "de'u",
-        span: [18,22],
-      },
+      Cmavo "de'u",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [23,25],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [26,28],
-        },
+        li: Cmavo "li",
+        Cmavo "ci",
       },
     ],
   },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a le spéni po'u na'e bo do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [27,29],
-  },
+  Cmavo "ru'a",
+  Cmavo "le",
+  Gismu "spéni",
+  Cmavo "po'u",
+  Cmavo "na'e",
+  Cmavo "bo",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -61,49 +33,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "speni",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "spéni",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "po'u",
-              span: [14,18],
-            },
+            goi: Cmavo "po'u",
             NaheBo {
-              nahe: Word {
-                kind: "cmavo",
-                phonemes: "na'e",
-                span: [19,23],
-              },
-              bo: Word {
-                kind: "cmavo",
-                phonemes: "bo",
-                span: [24,26],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [27,29],
-              },
+              nahe: Cmavo "na'e",
+              bo: Cmavo "bo",
+              Cmavo "do",
             },
           },
         ],

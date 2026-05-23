@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dánmo víska sídyfaŭ fágri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "danmo",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sidyfaŭ",
-    span: [15,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [23,28],
-  },
+  Gismu "dánmo",
+  Gismu "víska",
+  Lujvo "sídyfaŭ",
+  Gismu "fágri",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"danmo","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[15,22],"phonemes":"sidyfaŭ","kind":"lujvo"}},{"Bare":{"span":[23,28],"phonemes":"fagri","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "danmo",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sidyfaŭ",
-    span: [15,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [23,28],
-  },
+  Gismu "dánmo",
+  Gismu "víska",
+  Lujvo "sídyfaŭ",
+  Gismu "fágri",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"danmo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"viska","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,22],"phonemes":"sidyfaŭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"fagri","kind":"gismu"}}}}]}}}}}}}}]}]}'

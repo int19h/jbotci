@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.c. plúka)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "c",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [2,7],
-  },
+  Cmevla "c",
+  Gismu "plúka",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"pluka","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "c",
-      span: [0,1],
-    },
+    Cmevla "c",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [2,7],
-  },
+  Gismu "plúka",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"pluka","kind":"gismu"}}}}}}}}}}}]}]}'

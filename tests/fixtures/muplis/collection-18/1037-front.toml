@@ -21,46 +21,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'e mélbi nu le sólri cu to'e cánci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "solri",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canci",
-    span: [30,35],
-  },
+  Cmavo "u'e",
+  Gismu "mélbi",
+  Cmavo "nu",
+  Cmavo "le",
+  Gismu "sólri",
+  Cmavo "cu",
+  Cmavo "to'e",
+  Gismu "cánci",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'e","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"solri","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"canci","kind":"gismu"}}]"""
 
@@ -70,56 +38,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'e",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "melbi",
-      span: [4,9],
-    },
+    Gismu "mélbi",
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "nu",
-        span: [10,12],
-      },
+      nu: Cmavo "nu",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [13,15],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "solri",
-              span: [16,21],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "sólri",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [22,24],
-        },
+        cu: Cmavo "cu",
         Nahe {
-          nahe: Word {
-            kind: "cmavo",
-            phonemes: "to'e",
-            span: [25,29],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "canci",
-            span: [30,35],
-          },
+          nahe: Cmavo "to'e",
+          Gismu "cánci",
         },
       },
     },

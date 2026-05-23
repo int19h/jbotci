@@ -18,64 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .slobin. paŭ do jínvi ma [zo mo'e] .e [zo gérku])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "slobin",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinvi",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [25,27],
-  },
+  Cmavo "doĭ",
+  Cmevla "slobin",
+  Cmavo "paŭ",
+  Cmavo "do",
+  Gismu "jínvi",
+  Cmavo "ma",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [28,30],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo'e",
-      span: [31,35],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mo'e",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [37,38],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [39,41],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gerku",
-      span: [42,47],
-    },
+    zo: Cmavo "zo",
+    Gismu "gérku",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"slobin","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"ma","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[28,30],"phonemes":"zo","kind":"cmavo"},"word":{"span":[31,35],"phonemes":"mo'e","kind":"cmavo"}}},{"Bare":{"span":[37,38],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[39,41],"phonemes":"zo","kind":"cmavo"},"word":{"span":[42,47],"phonemes":"gerku","kind":"gismu"}}}]"""
@@ -86,75 +42,31 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "slobin",
-          span: [4,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "paŭ",
-          span: [12,15],
-        },
+        Cmevla "slobin",
+        indicator: Cmavo "paŭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [16,18],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jinvi",
-        span: [19,24],
-      },
+      Gismu "jínvi",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [25,27],
-        },
+        Cmavo "ma",
         Connected {
           leading_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [28,30],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mo'e",
-              span: [31,35],
-            },
+            zo: Cmavo "zo",
+            Cmavo "mo'e",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [37,38],
-          },
+          connective: Cmavo "e",
           trailing_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [39,41],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gerku",
-              span: [42,47],
-            },
+            zo: Cmavo "zo",
+            Gismu "gérku",
           },
         },
       ],

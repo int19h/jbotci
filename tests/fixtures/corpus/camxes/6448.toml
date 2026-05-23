@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.and. no)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ánd",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [4,6],
-  },
+  Cmevla "and",
+  Cmavo "no",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"no","kind":"cmavo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ánd",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [4,6],
-  },
+  Cmavo "no",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"no","kind":"cmavo"}}}]}}}}}}]}]}'

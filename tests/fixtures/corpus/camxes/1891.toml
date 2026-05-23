@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti nu zdíle keĭ kúmfa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [16,21],
-  },
+  Cmavo "ti",
+  Cmavo "nu",
+  Gismu "zdíle",
+  Cmavo "keĭ",
+  Gismu "kúmfa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"kumfa","kind":"gismu"}}]'
 
@@ -50,35 +30,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "nu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zdile",
-        span: [6,11],
-      },
-      kei: Word {
-        kind: "cmavo",
-        phonemes: "keĭ",
-        span: [12,15],
-      },
+      nu: Cmavo "nu",
+      Gismu "zdíle",
+      kei: Cmavo "keĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "kumfa",
-      span: [16,21],
-    },
+    Gismu "kúmfa",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zdile","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[12,15],"phonemes":"keĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"kumfa","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.e naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Afterthought {
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [1,2],
-  },
-  nai: Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
+  Cmavo "e",
+  nai: Cmavo "naĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[1,2],"phonemes":"e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}]}]}'

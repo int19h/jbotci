@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ko na jaĭ zu'e co'e mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "ko",
+  Cmavo "na",
+  Cmavo "jaĭ",
+  Cmavo "zu'e",
+  Cmavo "co'e",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"co'e","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -63,54 +35,26 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [ko {(na [jaĭ zu'e co'e]) mi}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [3,5],
-      },
+      Cmavo "ko",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [6,8],
-        },
+        na: Cmavo "na",
         Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [9,12],
-          },
+          jai: Cmavo "jaĭ",
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "zu'e",
-              span: [13,17],
-            },
+            bai: Cmavo "zu'e",
           },
           Goha {
-            goha: Word {
-              kind: "cmavo",
-              phonemes: "co'e",
-              span: [18,22],
-            },
+            goha: Cmavo "co'e",
           },
         },
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [23,25],
-        },
+        Cmavo "mi",
       ],
     },
   },

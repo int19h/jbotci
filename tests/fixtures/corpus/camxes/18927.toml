@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gánse ji zúkte nírna)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ganse",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [15,20],
-  },
+  Gismu "gánse",
+  Cmavo "ji",
+  Gismu "zúkte",
+  Gismu "nírna",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ganse","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"nirna","kind":"gismu"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"ganse","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "ganse",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ji",
-      span: [6,8],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "zukte",
-      span: [9,14],
-    },
+    leading_unit: Gismu "gánse",
+    connective: Cmavo "ji",
+    trailing_unit: Gismu "zúkte",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [15,20],
-  },
+  Gismu "nírna",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"ganse","kind":"gismu"}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"ji","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"zukte","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nirna","kind":"gismu"}}}}]}}}}}}}}]}]}'

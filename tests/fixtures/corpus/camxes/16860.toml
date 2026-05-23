@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'o da cu taĭ núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [15,20],
-  },
+  Cmavo "so'o",
+  Cmavo "da",
+  Cmavo "cu",
+  Cmavo "taĭ",
+  Gismu "núzba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nuzba","kind":"gismu"}}]"""
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "so'o",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [5,7],
-      },
+      quantifier: Cmavo "so'o",
+      Cmavo "da",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [8,10],
-  },
+  cu: Cmavo "cu",
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "taĭ",
-        span: [11,14],
-      },
+      bai: Cmavo "taĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [15,20],
-    },
+    Gismu "núzba",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'o","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[11,14],"phonemes":"taĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nuzba","kind":"gismu"}}}}}}}}}}}}}]}]}"""

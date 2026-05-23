@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .taral. xu do mútce le ka ce'u djúno fi lo lógji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "taral",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [28,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [45,50],
-  },
+  Cmavo "doĭ",
+  Cmevla "taral",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "mútce",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "djúno",
+  Cmavo "fi",
+  Cmavo "lo",
+  Gismu "lógji",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"taral","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"logji","kind":"gismu"}}]"""
 
@@ -87,85 +39,37 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "taral",
-          span: [4,9],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [10,12],
-        },
+        Cmevla "taral",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [13,15],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [16,21],
-      },
+      Gismu "mútce",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [25,27],
-            },
+            nu: Cmavo "ka",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ce'u",
-                  span: [28,32],
-                },
+                Cmavo "ce'u",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "djuno",
-                  span: [33,38],
-                },
+                Gismu "djúno",
                 terms: [
                   Fa {
-                    fa: Word {
-                      kind: "cmavo",
-                      phonemes: "fi",
-                      span: [39,41],
-                    },
+                    fa: Cmavo "fi",
                     Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "lo",
-                        span: [42,44],
-                      },
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "logji",
-                        span: [45,50],
-                      },
+                      descriptor: Cmavo "lo",
+                      relation: Gismu "lógji",
                     },
                   },
                 ],

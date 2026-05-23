@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .sis. .plys.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "sis",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "plys",
-    span: [7,11],
-  },
+  Cmavo "la",
+  Cmevla "sis",
+  Cmevla "plys",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"sis","kind":"cmevla"}},{"Bare":{"span":[7,11],"phonemes":"plys","kind":"cmevla"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Term {
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "sis",
-          span: [3,6],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "plys",
-          span: [7,11],
-        },
+        Cmevla "sis",
+        Cmevla "plys",
       ],
     },
   ],

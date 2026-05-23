@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi no'e spáji le cy gy [.i bu] nu slílu keĭ cúntu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spaji",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [20,22],
-  },
+  Cmavo "mi",
+  Cmavo "no'e",
+  Gismu "spáji",
+  Cmavo "le",
+  Cmavo "cy",
+  Cmavo "gy",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [24,26],
-    },
+    Cmavo "i",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [40,45],
-  },
+  Cmavo "nu",
+  Gismu "slílu",
+  Cmavo "keĭ",
+  Gismu "cúntu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"spaji","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"gy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[24,26],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"slilu","kind":"gismu"}},{"Bare":{"span":[36,39],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cuntu","kind":"gismu"}}]"""
 
@@ -87,83 +39,35 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "no'e",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "spaji",
-        span: [8,13],
-      },
+      nahe: Cmavo "no'e",
+      Gismu "spáji",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "cy",
-                span: [17,19],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [20,22],
-              },
+              Cmavo "cy",
+              Cmavo "gy",
               Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "i",
-                  span: [23,24],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [24,26],
-                },
+                Cmavo "i",
+                bu: Cmavo "bu",
               },
             ],
           },
         ],
         relation: Compound {
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [27,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "slilu",
-              span: [30,35],
-            },
-            kei: Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [36,39],
-            },
+            nu: Cmavo "nu",
+            Gismu "slílu",
+            kei: Cmavo "keĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "cuntu",
-            span: [40,45],
-          },
+          Gismu "cúntu",
         },
       },
     ],

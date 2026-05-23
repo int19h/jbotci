@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le tolgérku pe mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolgerku",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
+  Cmavo "le",
+  Lujvo "tolgérku",
+  Cmavo "pe",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"tolgerku","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "tolgerku",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "tolgérku",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [15,17],
-          },
+          goi: Cmavo "pe",
+          Cmavo "mi",
         },
       ],
     },

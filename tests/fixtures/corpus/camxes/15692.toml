@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e mi pu tírna ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirna",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [17,19],
-  },
+  Cmavo "je'e",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tírna",
+  Cmavo "ta",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"tirna","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ta","kind":"cmavo"}}]"""
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [8,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tirna",
-        span: [11,16],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "tírna",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ta",
-        span: [17,19],
-      },
+      Cmavo "ta",
     ],
   },
 }"""

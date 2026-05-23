@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .rotester. pu mútce xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rotester",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "rotester",
+  Cmavo "pu",
+  Gismu "mútce",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"rotester","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -51,37 +31,17 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "rotester",
-          span: [3,11],
-        },
+        Cmevla "rotester",
       ],
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [13,15],
-    },
+    tense_modal: Cmavo "pu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [16,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [22,27],
-      },
+      Gismu "mútce",
+      Gismu "xámgu",
     },
   },
 }"""

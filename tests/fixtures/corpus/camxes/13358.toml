@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to mu'i le dúnra sálci toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunra",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [23,26],
-  },
+  Cmavo "to",
+  Cmavo "mu'i",
+  Cmavo "le",
+  Gismu "dúnra",
+  Gismu "sálci",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dunra","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -56,48 +32,24 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Term {
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "mu'i",
-                span: [3,7],
-              },
+              bai: Cmavo "mu'i",
             },
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [8,10],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "dunra",
-                  span: [11,16],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "salci",
-                  span: [17,22],
-                },
+                Gismu "dúnra",
+                Gismu "sálci",
               },
             },
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [23,26],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

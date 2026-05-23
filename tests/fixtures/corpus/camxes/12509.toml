@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko térpa ro zgikrdísko vaŭ ji'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "zgikrdisko",
-    span: [12,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [27,31],
-  },
+  Cmavo "ko",
+  Gismu "térpa",
+  Cmavo "ro",
+  Fuhivla "zgikrdísko",
+  Cmavo "vaŭ",
+  Cmavo "ji'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,22],"phonemes":"zgikrdisko","kind":"fu'ivla"}},{"Bare":{"span":[23,26],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"ji'a","kind":"cmavo"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "terpa",
-      span: [3,8],
-    },
+    Gismu "térpa",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [9,11],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "fu'ivla",
-          phonemes: "zgikrdisko",
-          span: [12,22],
-        },
+        relation: Fuhivla "zgikrdísko",
       },
     ],
     vau: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "vaŭ",
-        span: [23,26],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [27,31],
-      },
+      Cmavo "vaŭ",
+      indicator: Cmavo "ji'a",
     },
   },
 }"""

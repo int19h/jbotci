@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi kláma le zdáni be mi .i mi ba za xrúti co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [41,45],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "za",
+  Gismu "xrúti",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[25,26],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"xruti","kind":"gismu"}},{"Bare":{"span":[41,45],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -86,87 +38,39 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [3,8],
-      },
+      Gismu "kláma",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "zdani",
-              span: [12,17],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [18,20],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [21,23],
-            },
+            Gismu "zdáni",
+            be: Cmavo "be",
+            first_argument: Cmavo "mi",
           },
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [25,26],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [27,29],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [30,32],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "za",
-            span: [32,34],
-          },
+          Cmavo "ba",
+          Cmavo "za",
         },
         Word {
-          Word {
-            kind: "gismu",
-            phonemes: "xruti",
-            span: [35,40],
-          },
+          Gismu "xrúti",
           free_modifiers: [
             Vocative {
               vocative_markers: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "co'o",
-                  span: [41,45],
-                },
+                Cmavo "co'o",
               ],
             },
           ],

@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nínmu pu ta'e dásni loĭ lénjo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dasni",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenjo",
-    span: [27,32],
-  },
+  Cmavo "le",
+  Gismu "nínmu",
+  Cmavo "pu",
+  Cmavo "ta'e",
+  Gismu "dásni",
+  Cmavo "loĭ",
+  Gismu "lénjo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"dasni","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"lenjo","kind":"gismu"}}]"""
 
@@ -65,50 +37,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ninmu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "nínmu",
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ta'e",
-          span: [12,16],
-        },
+        Cmavo "pu",
+        Cmavo "ta'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "dasni",
-        span: [17,22],
-      },
+      Gismu "dásni",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [23,26],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "lenjo",
-          span: [27,32],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "lénjo",
       },
     ],
   },

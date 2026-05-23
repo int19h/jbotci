@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'o saĭ do na mútce cládu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cladu",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Cmavo "e'o",
+  Cmavo "saĭ",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "mútce",
+  Gismu "cládu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"cladu","kind":"gismu"}}]"""
 
@@ -65,48 +37,20 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'o",
-        span: [4,7],
-      },
+      Cmavo "i",
+      indicator: Cmavo "e'o",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [8,11],
-    },
+    indicator: Cmavo "saĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [15,17],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [18,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cladu",
-          span: [24,29],
-        },
+        Gismu "mútce",
+        Gismu "cládu",
       },
     },
   },

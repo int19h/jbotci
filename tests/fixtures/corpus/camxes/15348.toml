@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le li'i clúpa cásnu baŭ ro da ja'e no de cu rínka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clupa",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'e",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [42,47],
-  },
+  Cmavo "le",
+  Cmavo "li'i",
+  Gismu "clúpa",
+  Gismu "cásnu",
+  Cmavo "baŭ",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "ja'e",
+  Cmavo "no",
+  Cmavo "de",
+  Cmavo "cu",
+  Gismu "rínka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"li'i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"clupa","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"ja'e","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"rinka","kind":"gismu"}}]"""
 
@@ -86,71 +38,31 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "li'i",
-          span: [3,7],
-        },
+        nu: Cmavo "li'i",
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "clupa",
-              span: [8,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "casnu",
-              span: [14,19],
-            },
+            Gismu "clúpa",
+            Gismu "cásnu",
           },
           terms: [
             Tagged {
               tense_modal: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "baŭ",
-                  span: [20,23],
-                },
+                bai: Cmavo "baŭ",
               },
               Quantified {
-                quantifier: Word {
-                  kind: "cmavo",
-                  phonemes: "ro",
-                  span: [24,26],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "da",
-                  span: [26,28],
-                },
+                quantifier: Cmavo "ro",
+                Cmavo "da",
               },
             },
             Tagged {
               tense_modal: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "ja'e",
-                  span: [29,33],
-                },
+                bai: Cmavo "ja'e",
               },
               Quantified {
-                quantifier: Word {
-                  kind: "cmavo",
-                  phonemes: "no",
-                  span: [34,36],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "de",
-                  span: [36,38],
-                },
+                quantifier: Cmavo "no",
+                Cmavo "de",
               },
             },
           ],
@@ -158,15 +70,7 @@ Predicate {
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [42,47],
-  },
+  cu: Cmavo "cu",
+  Gismu "rínka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,7],"phonemes":"li'i","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[8,13],"phonemes":"clupa","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"casnu","kind":"gismu"}}}}]},"terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[20,23],"phonemes":"baŭ","kind":"cmavo"}}}}},"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[24,26],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[26,28],"phonemes":"da","kind":"cmavo"}}}}}}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[29,33],"phonemes":"ja'e","kind":"cmavo"}}}}},"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[34,36],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[36,38],"phonemes":"de","kind":"cmavo"}}}}}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[39,41],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[42,47],"phonemes":"rinka","kind":"gismu"}}}}}}}}}}}]}]}"""

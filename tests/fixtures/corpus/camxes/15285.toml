@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le do vricyvelskuselnírna skámi cu spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vricyvelskuselnirna",
-    span: [6,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [35,40],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Lujvo "vricyvelskuselnírna",
+  Gismu "skámi",
+  Cmavo "cu",
+  Gismu "spófu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,25],"phonemes":"vricyvelskuselnirna","kind":"lujvo"}},{"Bare":{"span":[26,31],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"spofu","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "vricyvelskuselnirna",
-          span: [6,25],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [26,31],
-        },
+        Lujvo "vricyvelskuselnírna",
+        Gismu "skámi",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [35,40],
-  },
+  cu: Cmavo "cu",
+  Gismu "spófu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}}}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,25],"phonemes":"vricyvelskuselnirna","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"skami","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[35,40],"phonemes":"spofu","kind":"gismu"}}}}}}}}}}}]}]}'

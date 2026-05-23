@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bílgo ki'a to xu bílga toĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "bilgo",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [23,26],
-  },
+  Gismu "bílgo",
+  Cmavo "ki'a",
+  Cmavo "to",
+  Cmavo "xu",
+  Gismu "bílga",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"bilgo","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"bilgo","kind":"gismu"}},{"Bare":{"s
 tree = """
 Word {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "bilgo",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ki'a",
-      span: [6,10],
-    },
+    Gismu "bílgo",
+    indicator: Cmavo "ki'a",
   },
   free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [11,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [14,16],
-        },
+        Cmavo "to",
+        indicator: Cmavo "xu",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "bilga",
-        span: [17,22],
-      },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [23,26],
-      },
+      Gismu "bílga",
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

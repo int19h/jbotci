@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to xy jaĭ fénki toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [17,20],
-  },
+  Cmavo "to",
+  Cmavo "xy",
+  Cmavo "jaĭ",
+  Gismu "fénki",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[17,20],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -51,41 +31,21 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "xy",
-                span: [3,5],
-              },
+              Cmavo "xy",
             ],
           },
         ],
         Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [7,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fenki",
-            span: [11,16],
-          },
+          jai: Cmavo "jaĭ",
+          Gismu "fénki",
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [17,20],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

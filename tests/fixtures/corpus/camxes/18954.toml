@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'i vlíle cu ja'a fádni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fadni",
-    span: [19,24],
-  },
+  Cmavo "so'i",
+  Gismu "vlíle",
+  Cmavo "cu",
+  Cmavo "ja'a",
+  Gismu "fádni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"fadni","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'i",
-          span: [0,4],
-        },
+        Cmavo "so'i",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "vlile",
-        span: [5,10],
-      },
+      relation: Gismu "vlíle",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "ja'a",
-      span: [14,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "fadni",
-      span: [19,24],
-    },
+    na: Cmavo "ja'a",
+    Gismu "fádni",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"vlile","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[14,18],"phonemes":"ja'a","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"fadni","kind":"gismu"}}}}}}}}}}}}}]}]}"""

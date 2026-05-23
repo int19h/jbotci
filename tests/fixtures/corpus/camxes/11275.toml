@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xláli síclu la .diksis.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [2,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "siclu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "diksis",
-    span: [17,23],
-  },
+  Gismu "xláli",
+  Gismu "síclu",
+  Cmavo "la",
+  Cmevla "diksis",
 ]"""
 json = '[{"Bare":{"span":[2,7],"phonemes":"xlali","kind":"gismu"}},{"Bare":{"span":[8,13],"phonemes":"siclu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"diksis","kind":"cmevla"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[2,7],"phonemes":"xlali","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xlali",
-      span: [2,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "siclu",
-      span: [8,13],
-    },
+    Gismu "xláli",
+    Gismu "síclu",
   },
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [14,16],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "diksis",
-          span: [17,23],
-        },
+        Cmevla "diksis",
       ],
     },
   ],

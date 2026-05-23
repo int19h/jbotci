@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu le jaĭ vi me do li'u gérna dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [30,35],
-  },
+  Cmavo "lu",
+  Cmavo "le",
+  Cmavo "jaĭ",
+  Cmavo "vi",
+  Cmavo "me",
+  Cmavo "do",
+  Cmavo "li'u",
+  Gismu "gérna",
+  Gismu "dráni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"drani","kind":"gismu"}}]"""
 
@@ -71,64 +35,28 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
+            descriptor: Cmavo "le",
             relation: Jai {
-              jai: Word {
-                kind: "cmavo",
-                phonemes: "jaĭ",
-                span: [6,9],
-              },
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "vi",
-                span: [10,12],
-              },
+              jai: Cmavo "jaĭ",
+              tense_modal: Cmavo "vi",
               Me {
-                me: Word {
-                  kind: "cmavo",
-                  phonemes: "me",
-                  span: [13,15],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [16,18],
-                },
+                me: Cmavo "me",
+                Cmavo "do",
               },
             },
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [19,23],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "gerna",
-      span: [24,29],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "drani",
-      span: [30,35],
-    },
+    Gismu "gérna",
+    Gismu "dráni",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[6,9],"phonemes":"jaĭ","kind":"cmavo"}}},"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[10,12],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_unit":{"Me":{"me":{"Bare":{"Bare":{"span":[13,15],"phonemes":"me","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}}}}}}}}]}}}}]}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[19,23],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"gerna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[30,35],"phonemes":"drani","kind":"gismu"}}}}]}}}}}}}}]}]}"""

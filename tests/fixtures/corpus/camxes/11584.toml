@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pónse no da poĭ se cúsku fi'o sélsnu le spéro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [27,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsnu",
-    span: [32,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spero",
-    span: [42,47],
-  },
+  Cmavo "mi",
+  Gismu "pónse",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "se",
+  Gismu "cúsku",
+  Cmavo "fi'o",
+  Lujvo "sélsnu",
+  Cmavo "le",
+  Gismu "spéro",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[32,38],"phonemes":"selsnu","kind":"lujvo"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"spero","kind":"gismu"}}]"""
 
@@ -80,77 +36,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ponse",
-      span: [3,8],
-    },
+    Gismu "pónse",
     terms: [
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [11,13],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [14,17],
-            },
+            poi: Cmavo "poĭ",
             Relation {
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cusku",
-                  span: [21,26],
-                },
+                se: Cmavo "se",
+                Gismu "cúsku",
               },
               terms: [
                 Tagged {
                   tense_modal: Fiho {
-                    fiho: Word {
-                      kind: "cmavo",
-                      phonemes: "fi'o",
-                      span: [27,31],
-                    },
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "selsnu",
-                      span: [32,38],
-                    },
+                    fiho: Cmavo "fi'o",
+                    Lujvo "sélsnu",
                   },
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [39,41],
-                    },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "spero",
-                      span: [42,47],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Gismu "spéro",
                   },
                 },
               ],

@@ -18,114 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(va'o ma le se mrílu poĭ gaŭ múvdu fo [la'o gy , procmail gy] cu cánci se caŭ le nu nunsréra te vréji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muvdu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [34,36],
-  },
+  Cmavo "va'o",
+  Cmavo "ma",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "mrílu",
+  Cmavo "poĭ",
+  Cmavo "gaŭ",
+  Gismu "múvdu",
+  Cmavo "fo",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [37,41],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [42,44],
-    },
-    quoted_text: [44,54],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [56,58],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim ", procmail",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [60,62],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canci",
-    span: [63,68],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [69,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caŭ",
-    span: [71,74],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [75,77],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [77,79],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunsrera",
-    span: [80,88],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [89,91],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [92,97],
-  },
+  Cmavo "cu",
+  Gismu "cánci",
+  Cmavo "se",
+  Cmavo "caŭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "nunsréra",
+  Cmavo "te",
+  Gismu "vréji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"muvdu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"fo","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[37,41],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[42,44],"phonemes":"gy","kind":"cmavo"},"quoted_text":[44,54],"closing_delimiter":{"span":[56,58],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[60,62],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[63,68],"phonemes":"canci","kind":"gismu"}},{"Bare":{"span":[69,71],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[71,74],"phonemes":"caŭ","kind":"cmavo"}},{"Bare":{"span":[75,77],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[77,79],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[80,88],"phonemes":"nunsrera","kind":"lujvo"}},{"Bare":{"span":[89,91],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[92,97],"phonemes":"vreji","kind":"gismu"}}]"""
 
@@ -135,82 +51,34 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "va'o",
-          span: [0,4],
-        },
+        bai: Cmavo "va'o",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [8,10],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mrilu",
-          span: [14,19],
-        },
+        se: Cmavo "se",
+        Gismu "mrílu",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [20,23],
-          },
+          poi: Cmavo "poĭ",
           Relation {
             TenseModal {
               tense_modal: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "gaŭ",
-                  span: [24,27],
-                },
+                bai: Cmavo "gaŭ",
               },
-              Word {
-                kind: "gismu",
-                phonemes: "muvdu",
-                span: [28,33],
-              },
+              Gismu "múvdu",
             },
             terms: [
               Fa {
-                fa: Word {
-                  kind: "cmavo",
-                  phonemes: "fo",
-                  span: [34,36],
-                },
+                fa: Cmavo "fo",
                 ZoiQuote {
-                  zoi: Word {
-                    kind: "cmavo",
-                    phonemes: "la'o",
-                    span: [37,41],
-                  },
-                  opening_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [42,44],
-                  },
-                  quoted_text: [44,54],
-                  closing_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [56,58],
-                  },
+                  zoi: Cmavo "la'o",
+                  opening_delimiter: Cmavo "gy",
+                  quoted_text: Verbatim ", procmail",
+                  closing_delimiter: Cmavo "gy",
                 },
               },
             ],
@@ -219,60 +87,24 @@ Predicate {
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [60,62],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "canci",
-      span: [63,68],
-    },
+    Gismu "cánci",
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [69,71],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "caŭ",
-            span: [71,74],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "caŭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [75,77],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [77,79],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "nunsrera",
-                span: [80,88],
-              },
+              Lujvo "nunsréra",
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "te",
-                  span: [89,91],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "vreji",
-                  span: [92,97],
-                },
+                se: Cmavo "te",
+                Gismu "vréji",
               },
             },
           },

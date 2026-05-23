@@ -18,33 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma jbóvla [zoĭ ke Thesaurus ke])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovla",
-    span: [3,9],
-  },
+  Cmavo "ma",
+  Lujvo "jbóvla",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [10,13],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [14,16],
-    },
-    quoted_text: [16,26],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [27,29],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ke",
+    quoted_text: Verbatim "Thesaurus",
+    closing_delimiter: Cmavo "ke",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"jbovla","kind":"lujvo"}},{"ZoiQuote":{"zoi":{"span":[10,13],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[14,16],"phonemes":"ke","kind":"cmavo"},"quoted_text":[16,26],"closing_delimiter":{"span":[27,29],"phonemes":"ke","kind":"cmavo"}}}]'
@@ -53,36 +33,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "jbovla",
-      span: [3,9],
-    },
+    Lujvo "jbóvla",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [10,13],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [14,16],
-        },
-        quoted_text: [16,26],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [27,29],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "ke",
+        quoted_text: Verbatim "Thesaurus",
+        closing_delimiter: Cmavo "ke",
       },
     ],
   },

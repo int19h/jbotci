@@ -675,10 +675,12 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
 #[requires(profile.is_valid())]
 #[ensures(true)]
 fn should_spawn_fixture_test_chunks(profile: &FixtureProfile) -> bool {
-    profile
-        .facets
-        .iter()
-        .any(|facet| matches!(facet, Facet::Syntax | Facet::VlaseiTree | Facet::GentufaTree))
+    profile.facets.iter().any(|facet| {
+        matches!(
+            facet,
+            Facet::Syntax | Facet::VlaseiTree | Facet::GentufaTree
+        )
+    })
 }
 
 #[requires(profile.is_valid())]
@@ -702,7 +704,8 @@ fn fixture_test_subprocess_chunks(
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
         let chunk_summary = parse_fixture_test_summary(&stdout)?;
-        let child_failed_without_fixture_failures = !output.status.success() && chunk_summary.failed == 0;
+        let child_failed_without_fixture_failures =
+            !output.status.success() && chunk_summary.failed == 0;
         summary.merge(chunk_summary);
         if child_failed_without_fixture_failures {
             bail!(

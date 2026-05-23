@@ -18,47 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa fe'i re bi'e pi'i [.a bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'i",
-    span: [19,23],
-  },
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "fe'i",
+  Cmavo "re",
+  Cmavo "bi'e",
+  Cmavo "pi'i",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [25,26],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [26,28],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"fe'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"bi'e","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"pi'i","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[25,26],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[26,28],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -68,49 +36,17 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Binary {
-        left_expression: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [3,5],
-        },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "fe'i",
-          span: [6,10],
-        },
+        left_expression: Cmavo "pa",
+        operator: Cmavo "fe'i",
         right_expression: Bihe {
-          left_expression: Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [11,13],
-          },
-          bihe: Word {
-            kind: "cmavo",
-            phonemes: "bi'e",
-            span: [14,18],
-          },
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "pi'i",
-            span: [19,23],
-          },
+          left_expression: Cmavo "re",
+          bihe: Cmavo "bi'e",
+          operator: Cmavo "pi'i",
           right_expression: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [25,26],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [26,28],
-            },
+            Cmavo "a",
+            bu: Cmavo "bu",
           },
         },
       },

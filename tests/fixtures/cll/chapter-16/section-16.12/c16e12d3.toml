@@ -26,76 +26,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ge la .djan. la .paris. na kláma gi la .djan. la .rom. na kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "paris",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rom",
-    span: [46,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [51,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [54,59],
-  },
+  Cmavo "ge",
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "la",
+  Cmevla "paris",
+  Cmavo "na",
+  Gismu "kláma",
+  Cmavo "gi",
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "la",
+  Cmevla "rom",
+  Cmavo "na",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"paris","kind":"cmevla"}},{"Bare":{"span":[22,24],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[43,45],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[46,49],"phonemes":"rom","kind":"cmevla"}},{"Bare":{"span":[51,53],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[54,59],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -103,102 +47,46 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":
 brackets = "(ge [{(la .djan.) (la .paris.)} {na kláma}] gi [{(la .djan.) (la .rom.)} {na kláma}])"
 tree = """
 Pair {
-  gek: Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
+  gek: Cmavo "ge",
   first: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [6,10],
-          },
+          Cmevla "djan",
         ],
       },
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "paris",
-            span: [15,20],
-          },
+          Cmevla "paris",
         ],
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [22,24],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [25,30],
-      },
+      na: Cmavo "na",
+      Gismu "kláma",
     },
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [31,33],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [34,36],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [37,41],
-          },
+          Cmevla "djan",
         ],
       },
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [43,45],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "rom",
-            span: [46,49],
-          },
+          Cmevla "rom",
         ],
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [51,53],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [54,59],
-      },
+      na: Cmavo "na",
+      Gismu "kláma",
     },
   },
 }"""

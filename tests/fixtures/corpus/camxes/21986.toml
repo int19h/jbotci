@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o .norpan. .a'o do xámgu sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "norpan",
-    span: [5,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [26,31],
-  },
+  Cmavo "co'o",
+  Cmevla "norpan",
+  Cmavo "a'o",
+  Cmavo "do",
+  Gismu "xámgu",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,11],"phonemes":"norpan","kind":"cmevla"}},{"Bare":{"span":[13,16],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "norpan",
-          span: [5,11],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "a'o",
-          span: [13,16],
-        },
+        Cmevla "norpan",
+        indicator: Cmavo "a'o",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [17,19],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [20,25],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sipna",
-        span: [26,31],
-      },
+      Gismu "xámgu",
+      Gismu "sípna",
     },
   },
 }"""

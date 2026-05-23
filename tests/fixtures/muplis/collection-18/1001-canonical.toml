@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(naŭ ku zo'u ra jmíve)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "naŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmive",
-    span: [15,20],
-  },
+  Cmavo "naŭ",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "ra",
+  Gismu "jmíve",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"naŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jmive","kind":"gismu"}}]"""
 
@@ -55,38 +35,18 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "naŭ",
-        span: [0,3],
-      },
+      tense_modal: Cmavo "naŭ",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [12,14],
-      },
+      Cmavo "ra",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "jmive",
-      span: [15,20],
-    },
+    Gismu "jmíve",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,3],"phonemes":"naŭ","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"jmive","kind":"gismu"}}}}}}}}}}}}}]}]}"""

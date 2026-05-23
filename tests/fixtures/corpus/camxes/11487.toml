@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi jímpe la'e le sélsku be do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsku",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [27,29],
-  },
+  Cmavo "mi",
+  Gismu "jímpe",
+  Cmavo "la'e",
+  Cmavo "le",
+  Lujvo "sélsku",
+  Cmavo "be",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"selsku","kind":"lujvo"}},{"Bare":{"span":[24,26],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -60,47 +32,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jimpe",
-      span: [3,8],
-    },
+    Gismu "jímpe",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [9,13],
-        },
+        lahe: Cmavo "la'e",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "lujvo",
-              phonemes: "selsku",
-              span: [17,23],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [24,26],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [27,29],
-            },
+            Lujvo "sélsku",
+            be: Cmavo "be",
+            first_argument: Cmavo "do",
           },
         },
       },

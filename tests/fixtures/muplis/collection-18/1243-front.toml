@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'o do ze'i dénpa tu'a mi'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'i",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [27,31],
-  },
+  Cmavo "i",
+  Cmavo "e'o",
+  Cmavo "do",
+  Cmavo "ze'i",
+  Gismu "dénpa",
+  Cmavo "tu'a",
+  Cmavo "mi'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ze'i","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"mi'a","kind":"cmavo"}}]"""
 
@@ -64,50 +36,22 @@ brackets = "([.i .e'o] [do {(ze'i dénpa) (tu'a mi'a)}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'o",
-      span: [4,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "e'o",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ze'i",
-          span: [11,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "denpa",
-          span: [16,21],
-        },
+        tense_modal: Cmavo "ze'i",
+        Gismu "dénpa",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [22,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi'a",
-            span: [27,31],
-          },
+          lahe: Cmavo "tu'a",
+          Cmavo "mi'a",
         },
       ],
     },

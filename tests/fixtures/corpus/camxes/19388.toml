@@ -18,108 +18,44 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ma te vítke cy do doĭ .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vitke",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [26,29],
-  },
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "te",
+  Gismu "vítke",
+  Cmavo "cy",
+  Cmavo "do",
+  Cmavo "doĭ",
+  Cmevla "xod",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"vitke","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"xod","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      Cmavo "ma",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vitke",
-          span: [9,14],
-        },
+        se: Cmavo "te",
+        Gismu "vítke",
       },
       terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "cy",
-              span: [15,17],
-            },
+            Cmavo "cy",
           ],
         },
         Koha {
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [19,21],
-          },
+          Cmavo "do",
           free_modifiers: [
             Vocative {
               vocative_markers: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "doĭ",
-                  span: [22,25],
-                },
+                Cmavo "doĭ",
               ],
-              argument: Word {
-                kind: "cmevla",
-                phonemes: "xod",
-                span: [26,29],
-              },
+              argument: Cmevla "xod",
             },
           ],
         },

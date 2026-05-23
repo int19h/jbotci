@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do víska le mabrsinómi be ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "mabrsinomi",
-    span: [12,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
+  Cmavo "do",
+  Gismu "víska",
+  Cmavo "le",
+  Fuhivla "mabrsinómi",
+  Cmavo "be",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,22],"phonemes":"mabrsinomi","kind":"fu'ivla"}},{"Bare":{"span":[23,25],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "fu'ivla",
-            phonemes: "mabrsinomi",
-            span: [12,22],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [23,25],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [26,28],
-          },
+          Fuhivla "mabrsinómi",
+          be: Cmavo "be",
+          first_argument: Cmavo "ma",
         },
       },
     ],

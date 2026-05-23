@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma ba'o se lífri do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
+  Cmavo "ma",
+  Cmavo "ba'o",
+  Cmavo "se",
+  Gismu "lífri",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"lifri","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -54,38 +34,18 @@ brackets = "(ma [{ba'o (se lífri)} do])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba'o",
-        span: [3,7],
-      },
+      tense_modal: Cmavo "ba'o",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "lifri",
-          span: [11,16],
-        },
+        se: Cmavo "se",
+        Gismu "lífri",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [17,19],
-      },
+      Cmavo "do",
     ],
   },
 }"""

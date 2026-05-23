@@ -24,21 +24,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa so mo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'o",
-    span: [4,8],
-  },
+  Cmavo "pa",
+  Cmavo "so",
+  Cmavo "mo'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"mo'o","kind":"cmavo"}}]"""
 
@@ -49,22 +37,10 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "so",
-          span: [2,4],
-        },
+        Cmavo "pa",
+        Cmavo "so",
       ],
-      mai: Word {
-        kind: "cmavo",
-        phonemes: "mo'o",
-        span: [4,8],
-      },
+      mai: Cmavo "mo'o",
     },
   ],
 }"""

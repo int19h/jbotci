@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li no ga'o bi'o ke'i pa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'i",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [21,23],
-  },
+  Cmavo "li",
+  Cmavo "no",
+  Cmavo "ga'o",
+  Cmavo "bi'o",
+  Cmavo "ke'i",
+  Cmavo "pa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"bi'o","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ke'i","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}}]"""
 
@@ -56,39 +32,15 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Connected {
-        left_expression: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [3,5],
-        },
+        left_expression: Cmavo "no",
         connective: Interval {
-          Word {
-            kind: "cmavo",
-            phonemes: "ga'o",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "bi'o",
-            span: [11,15],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ke'i",
-            span: [16,20],
-          },
+          Cmavo "ga'o",
+          Cmavo "bi'o",
+          Cmavo "ke'i",
         },
-        right_expression: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [21,23],
-        },
+        right_expression: Cmavo "pa",
       },
     },
   ],

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ ctístu na dúnli loĭ gústa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ctistu",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gusta",
-    span: [24,29],
-  },
+  Cmavo "loĭ",
+  Lujvo "ctístu",
+  Cmavo "na",
+  Gismu "dúnli",
+  Cmavo "loĭ",
+  Gismu "gústa",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"ctistu","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"gusta","kind":"gismu"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "ctistu",
-        span: [4,10],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Lujvo "ctístu",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dunli",
-        span: [14,19],
-      },
+      na: Cmavo "na",
+      Gismu "dúnli",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [20,23],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gusta",
-          span: [24,29],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "gústa",
       },
     ],
   },

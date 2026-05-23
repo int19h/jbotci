@@ -19,47 +19,15 @@ brackets = "([lo'u se ra'a le'u] cu xámgu se pílno)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ra'a",
-      span: [8,12],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [13,17],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "se",
+    Cmavo "ra'a",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [30,35],
-  },
+  Cmavo "cu",
+  Gismu "xámgu",
+  Cmavo "se",
+  Gismu "pílno",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"se","kind":"cmavo"},{"span":[8,12],"phonemes":"ra'a","kind":"cmavo"}],"lehu":{"span":[13,17],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -68,50 +36,18 @@ tree = """
 Predicate {
   leading_terms: [
     LohuQuote {
-      lohu: Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ra'a",
-        span: [8,12],
-      },
-      lehu: Word {
-        kind: "cmavo",
-        phonemes: "le'u",
-        span: [13,17],
-      },
+      lohu: Cmavo "lo'u",
+      Cmavo "se",
+      Cmavo "ra'a",
+      lehu: Cmavo "le'u",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [21,26],
-    },
+    Gismu "xámgu",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [27,29],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [30,35],
-      },
+      se: Cmavo "se",
+      Gismu "pílno",
     },
   },
 }"""

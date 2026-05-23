@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .xorxes. .i pu zu na víska)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xorxes",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [12,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [22,27],
-  },
+  Cmavo "coĭ",
+  Cmevla "xorxes",
+  Cmavo "i",
+  Cmavo "pu",
+  Cmavo "zu",
+  Cmavo "na",
+  Gismu "víska",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"xorxes","kind":"cmevla"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"viska","kind":"gismu"}}]'
 
@@ -62,49 +34,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xorxes",
-        span: [4,10],
-      },
+      argument: Cmevla "xorxes",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [12,13],
-    },
+    i: Cmavo "i",
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zu",
-          span: [16,18],
-        },
+        Cmavo "pu",
+        Cmavo "zu",
       },
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [19,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "viska",
-          span: [22,27],
-        },
+        na: Cmavo "na",
+        Gismu "víska",
       },
     },
   },

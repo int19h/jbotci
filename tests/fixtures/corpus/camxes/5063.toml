@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le do pu sélvla cu lógji cúkla pe'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selvla",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukla",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [31,35],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Cmavo "pu",
+  Lujvo "sélvla",
+  Cmavo "cu",
+  Gismu "lógji",
+  Gismu "cúkla",
+  Cmavo "pe'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"selvla","kind":"lujvo"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"logji","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"cukla","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"pe'a","kind":"cmavo"}}]"""
 
@@ -66,54 +34,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selvla",
-          span: [9,15],
-        },
+        tense_modal: Cmavo "pu",
+        Lujvo "sélvla",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "logji",
-      span: [19,24],
-    },
+    Gismu "lógji",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "cukla",
-        span: [25,30],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [31,35],
-      },
+      Gismu "cúkla",
+      indicator: Cmavo "pe'a",
     },
   },
 }"""

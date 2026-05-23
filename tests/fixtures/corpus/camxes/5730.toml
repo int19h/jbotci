@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi túgni la tsáli .i dúkse súcta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [19,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sucta",
-    span: [27,32],
-  },
+  Cmavo "mi",
+  Gismu "túgni",
+  Cmavo "la",
+  Gismu "tsáli",
+  Cmavo "i",
+  Gismu "dúkse",
+  Gismu "súcta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tugni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[19,20],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"sucta","kind":"gismu"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tugni",
-        span: [3,8],
-      },
+      Gismu "túgni",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tsali",
-            span: [12,17],
-          },
+          descriptor: Cmavo "la",
+          relation: Gismu "tsáli",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [19,20],
-    },
+    i: Cmavo "i",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "dukse",
-        span: [21,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sucta",
-        span: [27,32],
-      },
+      Gismu "dúkse",
+      Gismu "súcta",
     },
   },
 }"""

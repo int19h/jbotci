@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .ŭe la .pycyn. cu mútce gúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "pycyn",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "ŭe",
+  Cmavo "la",
+  Cmevla "pycyn",
+  Cmavo "cu",
+  Gismu "mútce",
+  Gismu "gúnka",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"pycyn","kind":"cmevla"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"gunka","kind":"gismu"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭe",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ŭe",
   },
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "pycyn",
-            span: [10,15],
-          },
+          Cmevla "pycyn",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [17,19],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [20,25],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [26,31],
-      },
+      Gismu "mútce",
+      Gismu "gúnka",
     },
   },
 }"""

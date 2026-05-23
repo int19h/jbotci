@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu [.a bu] li'u válsi re meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
+  Cmavo "lu",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [3,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [4,6],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [20,23],
-  },
+  Cmavo "li'u",
+  Gismu "válsi",
+  Cmavo "re",
+  Cmavo "meĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[4,6],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[7,11],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"meĭ","kind":"cmavo"}}]"""
 
@@ -63,57 +35,29 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Term {
         terms: [
           Letter {
             letter: [
               Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "a",
-                  span: [3,4],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [4,6],
-                },
+                Cmavo "a",
+                bu: Cmavo "bu",
               },
             ],
           },
         ],
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [7,11],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [12,17],
-    },
+    Gismu "válsi",
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [18,20],
-        },
+        Cmavo "re",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [20,23],
-      },
+      moi: Cmavo "meĭ",
     },
   },
 }"""

@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu le mi cfíka prénu cu fárlu gi'e ba mórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfika",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farlu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [40,45],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "cfíka",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "fárlu",
+  Cmavo "gi'e",
+  Cmavo "ba",
+  Gismu "mórsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cfika","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"farlu","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"morsi","kind":"gismu"}}]"""
 
@@ -81,75 +37,31 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [6,8],
-              },
+              descriptor: Cmavo "le",
               tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [9,11],
-                },
+                Cmavo "mi",
               ],
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cfika",
-                  span: [12,17],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "prenu",
-                  span: [18,23],
-                },
+                Gismu "cfíka",
+                Gismu "prénu",
               },
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [24,26],
-          },
+          cu: Cmavo "cu",
           PredicateTail1 {
-            Word {
-              kind: "gismu",
-              phonemes: "farlu",
-              span: [27,32],
-            },
+            Gismu "fárlu",
             continuations: [
               PredicateTailContinuation {
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "gi'e",
-                  span: [33,37],
-                },
+                connective: Cmavo "gi'e",
                 TenseModal {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ba",
-                    span: [37,39],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "morsi",
-                    span: [40,45],
-                  },
+                  tense_modal: Cmavo "ba",
+                  Gismu "mórsi",
                 },
               },
             ],

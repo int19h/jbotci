@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a [zo kálci] dráni xe fánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
+  Cmavo "ru'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kalci",
-      span: [8,13],
-    },
+    zo: Cmavo "zo",
+    Gismu "kálci",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [23,28],
-  },
+  Gismu "dráni",
+  Cmavo "xe",
+  Gismu "fánva",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"kalci","kind":"gismu"}}},{"Bare":{"span":[14,19],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"fanva","kind":"gismu"}}]"""
 
@@ -58,45 +34,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kalci",
-          span: [8,13],
-        },
+        zo: Cmavo "zo",
+        Gismu "kálci",
       },
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [14,19],
-      },
+      Gismu "dráni",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "xe",
-          span: [20,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fanva",
-          span: [23,28],
-        },
+        se: Cmavo "xe",
+        Gismu "fánva",
       },
     },
   },

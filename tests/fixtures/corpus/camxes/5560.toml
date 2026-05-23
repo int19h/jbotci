@@ -18,37 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le selmá'o be fa [zo nu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selma'o",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [14,16],
-  },
+  Cmavo "le",
+  Lujvo "selmá'o",
+  Cmavo "be",
+  Cmavo "fa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [20,22],
-    },
+    zo: Cmavo "zo",
+    Cmavo "nu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"selma'o","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"fa","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}}}]"""
@@ -58,38 +34,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "lujvo",
-          phonemes: "selma'o",
-          span: [3,10],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [11,13],
-        },
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [14,16],
-        },
+        Lujvo "selmá'o",
+        be: Cmavo "be",
+        fa: Cmavo "fa",
         first_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [17,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [20,22],
-          },
+          zo: Cmavo "zo",
+          Cmavo "nu",
         },
       },
     },

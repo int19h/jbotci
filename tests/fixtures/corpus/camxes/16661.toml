@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .oĭ [zo ránga] na ka'e gísmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [2,4],
-  },
+  Cmavo "i",
+  Cmavo "oĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ranga",
-      span: [8,13],
-    },
+    zo: Cmavo "zo",
+    Gismu "ránga",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [22,27],
-  },
+  Cmavo "na",
+  Cmavo "ka'e",
+  Gismu "gísmu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"oĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"ranga","kind":"gismu"}}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"gismu","kind":"gismu"}}]"""
 
@@ -62,49 +34,21 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [2,4],
-    },
+    Cmavo "i",
+    indicator: Cmavo "oĭ",
   },
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ranga",
-          span: [8,13],
-        },
+        zo: Cmavo "zo",
+        Gismu "ránga",
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [14,16],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [17,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gismu",
-          span: [22,27],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "gísmu",
       },
     },
   },

@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i tsáli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [5,10],
-  },
+  Cmavo "ju'i",
+  Gismu "tsáli",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tsali","kind":"gismu"}}]"""
 
@@ -37,18 +29,10 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
+        Cmavo "ju'i",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [5,10],
-        },
+        relation: Gismu "tsáli",
       },
     },
   ],

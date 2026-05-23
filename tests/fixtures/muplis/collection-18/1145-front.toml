@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ba zi di'a kánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanro",
-    span: [14,19],
-  },
+  Cmavo "do",
+  Cmavo "ba",
+  Cmavo "zi",
+  Cmavo "di'a",
+  Gismu "kánro",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"kanro","kind":"gismu"}}]"""
 
@@ -54,35 +34,15 @@ brackets = "(do [{ba zi di'a} kánro])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'a",
-        span: [9,13],
-      },
+      Cmavo "ba",
+      Cmavo "zi",
+      Cmavo "di'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "kanro",
-      span: [14,19],
-    },
+    Gismu "kánro",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"zi","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,13],"phonemes":"di'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"kanro","kind":"gismu"}}}}}}}}}}}}}]}]}"""

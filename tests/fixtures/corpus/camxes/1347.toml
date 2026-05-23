@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi cítka pi ro leĭ nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [18,23],
-  },
+  Cmavo "mi",
+  Gismu "cítka",
+  Cmavo "pi",
+  Cmavo "ro",
+  Cmavo "leĭ",
+  Gismu "nánba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nanba","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "citka",
-      span: [3,8],
-    },
+    Gismu "cítka",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [14,17],
-        },
+        descriptor: Cmavo "leĭ",
         outer_quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [11,13],
-          },
+          Cmavo "pi",
+          Cmavo "ro",
         },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanba",
-          span: [18,23],
-        },
+        relation: Gismu "nánba",
       },
     ],
   },

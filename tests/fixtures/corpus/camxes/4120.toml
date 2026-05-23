@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mútce xámji mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamji",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
+  Gismu "mútce",
+  Gismu "xámji",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"xamji","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"sp
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [6,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamji",
-      span: [12,17],
-    },
+    Gismu "mútce",
+    Gismu "xámji",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [18,20],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"xamji","kind":"gismu"}}}}]},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

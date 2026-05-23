@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'u pa moĭ se gásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [13,18],
-  },
+  Cmavo "ni'u",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "se",
+  Gismu "gásnu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"gasnu","kind":"gismu"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Compound {
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ni'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "pa",
-        span: [4,6],
-      },
+      Cmavo "ni'u",
+      Cmavo "pa",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "moĭ",
-      span: [6,9],
-    },
+    moi: Cmavo "moĭ",
   },
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gasnu",
-      span: [13,18],
-    },
+    se: Cmavo "se",
+    Gismu "gásnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'u","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,6],"phonemes":"pa","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[6,9],"phonemes":"moĭ","kind":"cmavo"}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[10,12],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"gasnu","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

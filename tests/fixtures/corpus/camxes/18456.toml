@@ -18,77 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .xorxes. xu do nélci lu mivyvánbi gálfi kúmfa li'u te pi'o tu'a [zo'oĭ airlock])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xorxes",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mivyvanbi",
-    span: [27,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [49,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [54,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [56,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [61,65],
-  },
+  Cmavo "doĭ",
+  Cmevla "xorxes",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "nélci",
+  Cmavo "lu",
+  Lujvo "mivyvánbi",
+  Gismu "gálfi",
+  Gismu "kúmfa",
+  Cmavo "li'u",
+  Cmavo "te",
+  Cmavo "pi'o",
+  Cmavo "tu'a",
   SingleWordQuote {
-    marker: Word {
-      kind: "cmavo",
-      phonemes: "zo'oĭ",
-      span: [66,71],
-    },
+    marker: Cmavo "zo'oĭ",
     [73,80],
   },
 ]"""
@@ -100,95 +44,39 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xorxes",
-          span: [4,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [12,14],
-        },
+        Cmevla "xorxes",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [15,17],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [18,23],
-      },
+      Gismu "nélci",
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [24,26],
-          },
+          lu: Cmavo "lu",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "mivyvanbi",
-              span: [27,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "galfi",
-              span: [37,42],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kumfa",
-              span: [43,48],
-            },
+            Lujvo "mivyvánbi",
+            Gismu "gálfi",
+            Gismu "kúmfa",
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [49,53],
-          },
+          lihu: Cmavo "li'u",
         },
         Tagged {
           tense_modal: Simple {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "te",
-              span: [54,56],
-            },
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "pi'o",
-              span: [56,60],
-            },
+            se: Cmavo "te",
+            bai: Cmavo "pi'o",
           },
           Lahe {
-            lahe: Word {
-              kind: "cmavo",
-              phonemes: "tu'a",
-              span: [61,65],
-            },
+            lahe: Cmavo "tu'a",
             SingleWordQuote {
-              marker: Word {
-                kind: "cmavo",
-                phonemes: "zo'oĭ",
-                span: [66,71],
-              },
+              marker: Cmavo "zo'oĭ",
               [73,80],
             },
           },

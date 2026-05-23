@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi mútce xébni ry py my toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [27,30],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "xébni",
+  Cmavo "ry",
+  Cmavo "py",
+  Cmavo "my",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -66,60 +34,28 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "mutce",
-              span: [6,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "xebni",
-              span: [12,17],
-            },
+            Gismu "mútce",
+            Gismu "xébni",
           },
           terms: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ry",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "py",
-                  span: [21,23],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "my",
-                  span: [24,26],
-                },
+                Cmavo "ry",
+                Cmavo "py",
+                Cmavo "my",
               ],
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [27,30],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

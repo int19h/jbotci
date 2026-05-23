@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi lo zdáni be xy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [15,17],
-  },
+  Cmavo "vi",
+  Cmavo "lo",
+  Gismu "zdáni",
+  Cmavo "be",
+  Cmavo "xy",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xy","kind":"cmavo"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "vi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [3,5],
-        },
+        descriptor: Cmavo "lo",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [6,11],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [12,14],
-          },
+          Gismu "zdáni",
+          be: Cmavo "be",
           first_argument: Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "xy",
-                span: [15,17],
-              },
+              Cmavo "xy",
             ],
           },
         },

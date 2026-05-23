@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .aĭnctaĭn. cu bálraĭ lo'i skegúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "aĭnctaĭn",
-    span: [4,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "balraĭ",
-    span: [17,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [24,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skegunka",
-    span: [29,37],
-  },
+  Cmavo "la",
+  Cmevla "aĭnctaĭn",
+  Cmavo "cu",
+  Lujvo "bálraĭ",
+  Cmavo "lo'i",
+  Lujvo "skegúnka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"aĭnctaĭn","kind":"cmevla"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"balraĭ","kind":"lujvo"}},{"Bare":{"span":[24,28],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[29,37],"phonemes":"skegunka","kind":"lujvo"}}]"""
 
@@ -63,43 +39,19 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "aĭnctaĭn",
-          span: [4,12],
-        },
+        Cmevla "aĭnctaĭn",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "balraĭ",
-      span: [17,23],
-    },
+    Lujvo "bálraĭ",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'i",
-          span: [24,28],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "skegunka",
-          span: [29,37],
-        },
+        descriptor: Cmavo "lo'i",
+        relation: Lujvo "skegúnka",
       },
     ],
   },

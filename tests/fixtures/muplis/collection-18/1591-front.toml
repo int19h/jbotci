@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .oĭ ra ca ca'o tíkpa mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tikpa",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
+  Cmavo "i",
+  Cmavo "oĭ",
+  Cmavo "ra",
+  Cmavo "ca",
+  Cmavo "ca'o",
+  Gismu "tíkpa",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tikpa","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -64,51 +36,23 @@ brackets = "([.i .oĭ] [ra {([ca ca'o] tíkpa) mi}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "oĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [6,8],
-      },
+      Cmavo "ra",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca'o",
-            span: [12,16],
-          },
+          Cmavo "ca",
+          Cmavo "ca'o",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "tikpa",
-          span: [17,22],
-        },
+        Gismu "tíkpa",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [23,25],
-        },
+        Cmavo "mi",
       ],
     },
   },

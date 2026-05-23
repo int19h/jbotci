@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ca mútce féngu le mérko játna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fengu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jatna",
-    span: [27,32],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "mútce",
+  Gismu "féngu",
+  Cmavo "le",
+  Gismu "mérko",
+  Gismu "játna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"fengu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"jatna","kind":"gismu"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "ca",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fengu",
-          span: [12,17],
-        },
+        Gismu "mútce",
+        Gismu "féngu",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "merko",
-            span: [21,26],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jatna",
-            span: [27,32],
-          },
+          Gismu "mérko",
+          Gismu "játna",
         },
       },
     ],

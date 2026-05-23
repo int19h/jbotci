@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la'a la'e di'u cu múkti le nu mi so'u roĭ lífri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [44,49],
-  },
+  Cmavo "i",
+  Cmavo "la'a",
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Cmavo "cu",
+  Gismu "múkti",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Cmavo "so'u",
+  Cmavo "roĭ",
+  Gismu "lífri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"mukti","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[40,43],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"lifri","kind":"gismu"}}]"""
 
@@ -85,82 +37,34 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "la'a",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "la'a",
   },
   Predicate {
     leading_terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [8,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [13,17],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'u",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [18,20],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mukti",
-        span: [21,26],
-      },
+      Gismu "múkti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [27,29],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [30,32],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [33,35],
-                },
+                Cmavo "mi",
               ],
               TenseModal {
                 tense_modal: Composite {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "so'u",
-                    span: [36,40],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "roĭ",
-                    span: [40,43],
-                  },
+                  Cmavo "so'u",
+                  Cmavo "roĭ",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "lifri",
-                  span: [44,49],
-                },
+                Gismu "lífri",
               },
             },
           },

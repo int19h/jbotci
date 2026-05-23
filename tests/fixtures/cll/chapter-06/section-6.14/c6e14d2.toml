@@ -24,37 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cúsku [lo'u li mi le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [3,8],
-  },
+  Cmavo "mi",
+  Gismu "cúsku",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [9,13],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "li",
-      span: [14,16],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [17,19],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [20,24],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "li",
+    Cmavo "mi",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"LohuQuote":{"lohu":{"span":[9,13],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[14,16],"phonemes":"li","kind":"cmavo"},{"span":[17,19],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[20,24],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -64,40 +40,16 @@ brackets = "(mi [cúsku {lo'u li mi le'u}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [3,8],
-    },
+    Gismu "cúsku",
     terms: [
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [9,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [17,19],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [20,24],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "li",
+        Cmavo "mi",
+        lehu: Cmavo "le'u",
       },
     ],
   },

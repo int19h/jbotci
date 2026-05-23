@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .clsn. le do spéni mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [22,24],
-  },
+  Cmavo "doĭ",
+  Cmevla "clsn",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "spéni",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "clsn",
-        span: [4,8],
-      },
+      argument: Cmevla "clsn",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [13,15],
-          },
+          Cmavo "do",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "speni",
-            span: [16,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [22,24],
-          },
+          Gismu "spéni",
+          Cmavo "mo",
         },
       },
     ],

@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa mi zmádu jímpe [zo ca])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [13,18],
-  },
+  Cmavo "ŭa",
+  Cmavo "mi",
+  Gismu "zmádu",
+  Gismu "jímpe",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [19,21],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [22,24],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ca",
   },
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"jimpe","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,24],"phonemes":"ca","kind":"cmavo"}}}]'
@@ -58,46 +34,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "zmadu",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [13,18],
-        },
+        Gismu "zmádu",
+        Gismu "jímpe",
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [22,24],
-          },
+          zo: Cmavo "zo",
+          Cmavo "ca",
         },
       ],
     },

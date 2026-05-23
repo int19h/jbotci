@@ -18,45 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(jeĭ do blánu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [7,12],
-  },
+  Cmavo "jeĭ",
+  Cmavo "do",
+  Gismu "blánu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"blanu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [0,3],
-  },
+  nu: Cmavo "jeĭ",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "blanu",
-      span: [7,12],
-    },
+    Gismu "blánu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,3],"phonemes":"jeĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"blanu","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

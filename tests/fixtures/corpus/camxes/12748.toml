@@ -18,100 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cúmki .i ma ca'a vánbi vaŭ paŭ naĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cumki",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vanbi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [30,33],
-  },
+  Gismu "cúmki",
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "ca'a",
+  Gismu "vánbi",
+  Cmavo "vaŭ",
+  Cmavo "paŭ",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cumki","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"vanbi","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "cumki",
-    span: [0,5],
-  },
+  Gismu "cúmki",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [9,11],
-        },
+        Cmavo "ma",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca'a",
-            span: [12,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vanbi",
-            span: [17,22],
-          },
+          tense_modal: Cmavo "ca'a",
+          Gismu "vánbi",
         },
         vau: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "vaŭ",
-            span: [23,26],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "paŭ",
-            span: [27,30],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [30,33],
-          },
+          Cmavo "vaŭ",
+          indicator: Cmavo "paŭ",
+          nai: Cmavo "naĭ",
         },
       },
     },

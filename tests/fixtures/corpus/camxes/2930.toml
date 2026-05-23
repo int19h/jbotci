@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le lísri fe la .babelfic.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lisri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "babelfic",
-    span: [15,23],
-  },
+  Cmavo "le",
+  Gismu "lísri",
+  Cmavo "fe",
+  Cmavo "la",
+  Cmevla "babelfic",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lisri","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"babelfic","kind":"cmevla"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "lisri",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "lísri",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fe",
-        span: [9,11],
-      },
+      fa: Cmavo "fe",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "babelfic",
-            span: [15,23],
-          },
+          Cmevla "babelfic",
         ],
       },
     },

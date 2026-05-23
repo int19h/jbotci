@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .frak. do .e naĭ mi stídi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frak",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [22,27],
-  },
+  Cmavo "doĭ",
+  Cmevla "frak",
+  Cmavo "do",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "stídi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"frak","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"stidi","kind":"gismu"}}]'
 
@@ -62,51 +34,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "frak",
-        span: [4,8],
-      },
+      argument: Cmevla "frak",
     },
   ],
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        leading_argument: Cmavo "do",
         connective: Afterthought {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [14,15],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [15,18],
-          },
+          Cmavo "e",
+          nai: Cmavo "naĭ",
         },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [19,21],
-        },
+        trailing_argument: Cmavo "mi",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "stidi",
-      span: [22,27],
-    },
+    Gismu "stídi",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,8],"phonemes":"frak","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[15,18],"phonemes":"naĭ","kind":"cmavo"}}}}},"trailing_argument":{"Koha":{"Bare":{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"stidi","kind":"gismu"}}}}}}}}}}}]}]}'

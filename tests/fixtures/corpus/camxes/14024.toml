@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nélci do .i ku'i mi zmádu nélci le nu na lénku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [43,48],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "zmádu",
+  Gismu "nélci",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "na",
+  Gismu "lénku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"lenku","kind":"gismu"}}]"""
 
@@ -86,85 +38,37 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [3,8],
-      },
+      Gismu "nélci",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [9,11],
-        },
+        Cmavo "do",
       ],
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [13,14],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [14,18],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [19,21],
-        },
+        Cmavo "mi",
       ],
       Relation {
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "zmadu",
-            span: [22,27],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nelci",
-            span: [28,33],
-          },
+          Gismu "zmádu",
+          Gismu "nélci",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [34,36],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [37,39],
-              },
+              nu: Cmavo "nu",
               Na {
-                na: Word {
-                  kind: "cmavo",
-                  phonemes: "na",
-                  span: [40,42],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "lenku",
-                  span: [43,48],
-                },
+                na: Cmavo "na",
+                Gismu "lénku",
               },
             },
           },

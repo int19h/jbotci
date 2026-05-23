@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'e prénu cu prámi le márna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marna",
-    span: [23,28],
-  },
+  Cmavo "so'e",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "prámi",
+  Cmavo "le",
+  Gismu "márna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"marna","kind":"gismu"}}]"""
 
@@ -57,42 +33,18 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'e",
-          span: [0,4],
-        },
+        Cmavo "so'e",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [5,10],
-      },
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [14,19],
-    },
+    Gismu "prámi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "marna",
-          span: [23,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "márna",
       },
     ],
   },

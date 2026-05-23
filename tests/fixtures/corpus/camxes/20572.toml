@@ -18,33 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'a zváti [la'o gy Lambdamoo gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [5,10],
-  },
+  Cmavo "pe'a",
+  Gismu "zváti",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [11,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
-    quoted_text: [18,28],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Lambdamoo",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zvati","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[11,15],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[18,28],"closing_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -54,37 +34,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [5,10],
-    },
+    Gismu "zváti",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [11,15],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [16,18],
-        },
-        quoted_text: [18,28],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [29,31],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "Lambdamoo",
+        closing_delimiter: Cmavo "gy",
       },
     ],
   },

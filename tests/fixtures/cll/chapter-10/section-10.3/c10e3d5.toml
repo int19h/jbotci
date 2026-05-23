@@ -24,66 +24,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nánmu ca'u vi ni'a va ri'u vu ne'i bátci le gérku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [33,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "batci",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [47,52],
-  },
+  Cmavo "le",
+  Gismu "nánmu",
+  Cmavo "ca'u",
+  Cmavo "vi",
+  Cmavo "ni'a",
+  Cmavo "va",
+  Cmavo "ri'u",
+  Cmavo "vu",
+  Cmavo "ne'i",
+  Gismu "bátci",
+  Cmavo "le",
+  Gismu "gérku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"ca'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ni'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"va","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"ri'u","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"batci","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"gerku","kind":"gismu"}}]"""
 
@@ -93,75 +45,27 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nanmu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "nánmu",
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'u",
-          span: [9,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ni'a",
-          span: [17,21],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "va",
-          span: [22,24],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ri'u",
-          span: [25,29],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "vu",
-          span: [30,32],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ne'i",
-          span: [33,37],
-        },
+        Cmavo "ca'u",
+        Cmavo "vi",
+        Cmavo "ni'a",
+        Cmavo "va",
+        Cmavo "ri'u",
+        Cmavo "vu",
+        Cmavo "ne'i",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "batci",
-        span: [38,43],
-      },
+      Gismu "bátci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [44,46],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gerku",
-          span: [47,52],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "gérku",
       },
     ],
   },

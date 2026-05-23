@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o be'u naĭ ko sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'u",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [15,20],
-  },
+  Cmavo "a'o",
+  Cmavo "be'u",
+  Cmavo "naĭ",
+  Cmavo "ko",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"be'u","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -52,37 +32,17 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "a'o",
-          span: [1,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "be'u",
-          span: [4,8],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [8,11],
-        },
+        Cmavo "a'o",
+        indicator: Cmavo "be'u",
+        nai: Cmavo "naĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [12,14],
-      },
+      Cmavo "ko",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [15,20],
-    },
+    Gismu "sípna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}}},"indicator":{"span":[4,8],"phonemes":"be'u","kind":"cmavo"},"nai":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}}}]}"""

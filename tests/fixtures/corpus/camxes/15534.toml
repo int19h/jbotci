@@ -18,80 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i seĭ [zo gligú'e] cu mélbymaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [2,5],
-  },
+  Cmavo "i",
+  Cmavo "seĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "gligu'e",
-      span: [9,16],
-    },
+    zo: Cmavo "zo",
+    Lujvo "gligú'e",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "melbymaŭ",
-    span: [20,28],
-  },
+  Cmavo "cu",
+  Lujvo "mélbymaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"seĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,16],"phonemes":"gligu'e","kind":"lujvo"}}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"melbymaŭ","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [2,5],
-      },
+      sei: Cmavo "seĭ",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [6,8],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "gligu'e",
-            span: [9,16],
-          },
+          zo: Cmavo "zo",
+          Lujvo "gligú'e",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [17,19],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "melbymaŭ",
-        span: [20,28],
-      },
+      cu: Cmavo "cu",
+      relation: Lujvo "mélbymaŭ",
     },
   ],
 }"""

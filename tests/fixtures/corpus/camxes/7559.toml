@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ka rápli fádni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rapli",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fadni",
-    span: [12,17],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "rápli",
+  Gismu "fádni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"rapli","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"fadni","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [3,5],
-        },
+        nu: Cmavo "ka",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "rapli",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fadni",
-            span: [12,17],
-          },
+          Gismu "rápli",
+          Gismu "fádni",
         },
       },
     },

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'i .ŭa naĭ cpédu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpedu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
+  Cmavo "na'i",
+  Cmavo "ŭa",
+  Cmavo "naĭ",
+  Gismu "cpédu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cpedu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -52,36 +32,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "na'i",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭa",
-          span: [5,7],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [7,10],
-        },
+        Cmavo "na'i",
+        indicator: Cmavo "ŭa",
+        nai: Cmavo "naĭ",
       },
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cpedu",
-      span: [11,16],
-    },
+    Gismu "cpédu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [17,19],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

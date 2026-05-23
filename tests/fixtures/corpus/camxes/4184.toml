@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo júngo prénu .a lo júngo bángu cu selpénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jungo",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jungo",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [33,35],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selpensi",
-    span: [36,44],
-  },
+  Cmavo "lo",
+  Gismu "júngo",
+  Gismu "prénu",
+  Cmavo "a",
+  Cmavo "lo",
+  Gismu "júngo",
+  Gismu "bángu",
+  Cmavo "cu",
+  Lujvo "selpénsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jungo","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"jungo","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[36,44],"phonemes":"selpensi","kind":"lujvo"}}]'
 
@@ -72,59 +36,23 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [0,2],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "jungo",
-            span: [3,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [9,14],
-          },
+          Gismu "júngo",
+          Gismu "prénu",
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "a",
-        span: [16,17],
-      },
+      connective: Cmavo "a",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [18,20],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "jungo",
-            span: [21,26],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bangu",
-            span: [27,32],
-          },
+          Gismu "júngo",
+          Gismu "bángu",
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [33,35],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selpensi",
-    span: [36,44],
-  },
+  cu: Cmavo "cu",
+  Lujvo "selpénsi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"jungo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}}}}]}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[16,17],"phonemes":"a","kind":"cmavo"}}}]}},"trailing_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"jungo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[27,32],"phonemes":"bangu","kind":"gismu"}}}}]}}}}}}],"cu":{"Bare":{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[36,44],"phonemes":"selpensi","kind":"lujvo"}}}}}}}}}}}]}]}'

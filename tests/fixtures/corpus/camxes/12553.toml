@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sípna ke kánla múvdu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanla",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muvdu",
-    span: [15,20],
-  },
+  Gismu "sípna",
+  Cmavo "ke",
+  Gismu "kánla",
+  Gismu "múvdu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"kanla","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"muvdu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
+  Gismu "sípna",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "kanla",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "muvdu",
-        span: [15,20],
-      },
+      Gismu "kánla",
+      Gismu "múvdu",
     },
   },
 }"""

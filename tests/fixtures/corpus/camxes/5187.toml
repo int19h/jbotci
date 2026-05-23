@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi la .ut. xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "út",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [9,11],
-  },
+  Cmavo "vi",
+  Cmavo "la",
+  Cmevla "ut",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"út","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "vi",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
           WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "út",
-              span: [6,8],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "xu",
-              span: [9,11],
-            },
+            Cmevla "ut",
+            indicator: Cmavo "xu",
           },
         ],
       },

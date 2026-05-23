@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi nítcu tu'a su'o vláste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlaste",
-    span: [22,28],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "nítcu",
+  Cmavo "tu'a",
+  Cmavo "su'o",
+  Lujvo "vláste",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"vlaste","kind":"lujvo"}}]"""
 
@@ -58,45 +34,21 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {nítcu (tu'a [su'o vláste])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [6,11],
-      },
+      Gismu "nítcu",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [12,16],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "su'o",
-                span: [17,21],
-              },
+              Cmavo "su'o",
             ],
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "vlaste",
-              span: [22,28],
-            },
+            relation: Lujvo "vláste",
           },
         },
       ],

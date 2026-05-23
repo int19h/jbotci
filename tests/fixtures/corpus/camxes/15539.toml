@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.eĭ mi cílre ro le lójbo válsi joĭ ráfsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [34,39],
-  },
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Gismu "cílre",
+  Cmavo "ro",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "válsi",
+  Cmavo "joĭ",
+  Gismu "ráfsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[30,33],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"rafsi","kind":"gismu"}}]'
 
@@ -71,61 +35,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [6,11],
-      },
+      Gismu "cílre",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
-          outer_quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
+          outer_quantifier: Cmavo "ro",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [18,23],
-            },
+            Gismu "lójbo",
             Connected {
-              leading_unit: Word {
-                kind: "gismu",
-                phonemes: "valsi",
-                span: [24,29],
-              },
-              connective: Word {
-                kind: "cmavo",
-                phonemes: "joĭ",
-                span: [30,33],
-              },
-              trailing_unit: Word {
-                kind: "gismu",
-                phonemes: "rafsi",
-                span: [34,39],
-              },
+              leading_unit: Gismu "válsi",
+              connective: Cmavo "joĭ",
+              trailing_unit: Gismu "ráfsi",
             },
           },
         },

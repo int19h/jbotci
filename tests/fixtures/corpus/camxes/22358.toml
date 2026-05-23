@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i [zo .bancus.] za'o zásti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [1,5],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "bancus",
-      span: [9,15],
-    },
+    zo: Cmavo "zo",
+    Cmevla "bancus",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [21,26],
-  },
+  Cmavo "za'o",
+  Gismu "zásti",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"ku'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,15],"phonemes":"bancus","kind":"cmevla"}}},{"Bare":{"span":[16,20],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"zasti","kind":"gismu"}}]"""
 
@@ -57,43 +33,19 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [1,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "bancus",
-          span: [9,15],
-        },
+        zo: Cmavo "zo",
+        Cmevla "bancus",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "za'o",
-        span: [16,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zasti",
-        span: [21,26],
-      },
+      tense_modal: Cmavo "za'o",
+      Gismu "zásti",
     },
   },
 }"""

@@ -18,136 +18,48 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i do nénri lo dínju noĭ djácu márbi lo bárda jáŭkra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dinju",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djacu",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marbi",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [40,45],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jaŭkra",
-    span: [46,52],
-  },
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "nénri",
+  Cmavo "lo",
+  Gismu "dínju",
+  Cmavo "noĭ",
+  Gismu "djácu",
+  Gismu "márbi",
+  Cmavo "lo",
+  Gismu "bárda",
+  Lujvo "jáŭkra",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"dinju","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"djacu","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"marbi","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[46,52],"phonemes":"jaŭkra","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nenri",
-        span: [6,11],
-      },
+      Gismu "nénri",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [12,14],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "dinju",
-            span: [15,20],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "dínju",
           relative_clauses: [
             Noi {
-              noi: Word {
-                kind: "cmavo",
-                phonemes: "noĭ",
-                span: [21,24],
-              },
+              noi: Cmavo "noĭ",
               Relation {
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "djacu",
-                    span: [25,30],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "marbi",
-                    span: [31,36],
-                  },
+                  Gismu "djácu",
+                  Gismu "márbi",
                 },
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "lo",
-                      span: [37,39],
-                    },
+                    descriptor: Cmavo "lo",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "barda",
-                        span: [40,45],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "jaŭkra",
-                        span: [46,52],
-                      },
+                      Gismu "bárda",
+                      Lujvo "jáŭkra",
                     },
                   },
                 ],

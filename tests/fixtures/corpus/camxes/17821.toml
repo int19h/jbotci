@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'e naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
+  Cmavo "ta'e",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -37,16 +29,8 @@ Term {
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ta'e",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "ta'e",
+        Cmavo "naĭ",
       },
       Zohe {},
     },

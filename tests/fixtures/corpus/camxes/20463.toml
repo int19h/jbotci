@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.deleted. ti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "deleted",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [8,10],
-  },
+  Cmevla "deleted",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,7],"phonemes":"deleted","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -35,19 +27,11 @@ json = '[{"Bare":{"span":[0,7],"phonemes":"deleted","kind":"cmevla"}},{"Bare":{"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "deleted",
-      span: [0,7],
-    },
+    Cmevla "deleted",
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [8,10],
-      },
+      Cmavo "ti",
     ],
   },
 }"""

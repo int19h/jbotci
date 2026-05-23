@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro prénu cu smáji de'i le prulámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smaji",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "prulamdeĭ",
-    span: [26,35],
-  },
+  Cmavo "ro",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "smáji",
+  Cmavo "de'i",
+  Cmavo "le",
+  Lujvo "prulámdeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"smaji","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"de'i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,35],"phonemes":"prulamdeĭ","kind":"lujvo"}}]"""
 
@@ -62,50 +34,22 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [3,8],
-      },
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smaji",
-      span: [12,17],
-    },
+    Gismu "smáji",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "de'i",
-            span: [18,22],
-          },
+          bai: Cmavo "de'i",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "prulamdeĭ",
-            span: [26,35],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "prulámdeĭ",
         },
       },
     ],

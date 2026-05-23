@@ -19,44 +19,16 @@ brackets = "([zo tsáli] .a [zo bróca] na cméne)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tsali",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "tsáli",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [9,10],
-  },
+  Cmavo "a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "broca",
-      span: [14,19],
-    },
+    zo: Cmavo "zo",
+    Gismu "bróca",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [23,28],
-  },
+  Cmavo "na",
+  Gismu "cméne",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"tsali","kind":"gismu"}}},{"Bare":{"span":[9,10],"phonemes":"a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,19],"phonemes":"broca","kind":"gismu"}}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cmene","kind":"gismu"}}]'
 
@@ -66,47 +38,19 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [3,8],
-        },
+        zo: Cmavo "zo",
+        Gismu "tsáli",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "a",
-        span: [9,10],
-      },
+      connective: Cmavo "a",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "broca",
-          span: [14,19],
-        },
+        zo: Cmavo "zo",
+        Gismu "bróca",
       },
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [23,28],
-    },
+    na: Cmavo "na",
+    Gismu "cméne",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"tsali","kind":"gismu"}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[9,10],"phonemes":"a","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,19],"phonemes":"broca","kind":"gismu"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"cmene","kind":"gismu"}}}}}}}}}}}}}]}]}'

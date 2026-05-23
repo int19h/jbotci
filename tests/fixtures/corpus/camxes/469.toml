@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(zo'e víska mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [1,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
+  Cmavo "zo'e",
+  Gismu "víska",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -41,24 +29,12 @@ json = """[{"Bare":{"span":[1,5],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'e",
-      span: [1,5],
-    },
+    Cmavo "zo'e",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [7,12],
-    },
+    Gismu "víska",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [13,15],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .sokrates. mórsi bínxo ni'i le nu la .sokrates. rémna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "sokrates",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'i",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "sokrates",
-    span: [39,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [49,54],
-  },
+  Cmavo "la",
+  Cmevla "sokrates",
+  Gismu "mórsi",
+  Gismu "bínxo",
+  Cmavo "ni'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "la",
+  Cmevla "sokrates",
+  Gismu "rémna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"sokrates","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"morsi","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,47],"phonemes":"sokrates","kind":"cmevla"}},{"Bare":{"span":[49,54],"phonemes":"remna","kind":"gismu"}}]"""
 
@@ -76,76 +36,36 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "sokrates",
-          span: [3,11],
-        },
+        Cmevla "sokrates",
       ],
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "morsi",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [19,24],
-      },
+      Gismu "mórsi",
+      Gismu "bínxo",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ni'i",
-            span: [25,29],
-          },
+          bai: Cmavo "ni'i",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [30,32],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [33,35],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [36,38],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "sokrates",
-                      span: [39,47],
-                    },
+                    Cmevla "sokrates",
                   ],
                 },
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "remna",
-                span: [49,54],
-              },
+              Gismu "rémna",
             },
           },
         },

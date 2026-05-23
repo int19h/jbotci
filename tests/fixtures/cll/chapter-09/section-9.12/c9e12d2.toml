@@ -24,41 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .lojban. jaĭ baŭ cúsku faĭ mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [30,32],
-  },
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "jaĭ",
+  Cmavo "baŭ",
+  Gismu "cúsku",
+  Cmavo "faĭ",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[26,29],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -68,52 +40,24 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [4,10],
-        },
+        Cmevla "lojban",
       ],
     },
   ],
   Relation {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [12,15],
-      },
+      jai: Cmavo "jaĭ",
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baŭ",
-          span: [16,19],
-        },
+        bai: Cmavo "baŭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [20,25],
-      },
+      Gismu "cúsku",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "faĭ",
-          span: [26,29],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [30,32],
-        },
+        fa: Cmavo "faĭ",
+        Cmavo "mi",
       },
     ],
   },

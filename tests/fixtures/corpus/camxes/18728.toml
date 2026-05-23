@@ -18,55 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i stídi la'e di'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [14,18],
-  },
+  Cmavo "i",
+  Gismu "stídi",
+  Cmavo "la'e",
+  Cmavo "di'e",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"stidi","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"di'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "stidi",
-      span: [3,8],
-    },
+    Gismu "stídi",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [9,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'e",
-          span: [14,18],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'e",
       },
     ],
   },

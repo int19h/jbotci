@@ -19,78 +19,30 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cu bácru ne'i le do kúmfa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [20,25],
-  },
+  Cmavo "cu",
+  Gismu "bácru",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "kúmfa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"kumfa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bacru",
-      span: [3,8],
-    },
+    Gismu "bácru",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ne'i",
-          span: [9,13],
-        },
+        tense_modal: Cmavo "ne'i",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [17,19],
-            },
+            Cmavo "do",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "kumfa",
-            span: [20,25],
-          },
+          relation: Gismu "kúmfa",
         },
       },
     ],

@@ -18,147 +18,51 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(rívbi le nu dárlu cásnu keĭ poĭ ke'a méntu li re no)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "rivbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darlu",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [30,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mentu",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [46,48],
-  },
+  Gismu "rívbi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "dárlu",
+  Gismu "cásnu",
+  Cmavo "keĭ",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Gismu "méntu",
+  Cmavo "li",
+  Cmavo "re",
+  Cmavo "no",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"rivbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"darlu","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"mentu","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"no","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "rivbi",
-    span: [0,5],
-  },
+  Gismu "rívbi",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [8,10],
-        },
+        nu: Cmavo "nu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "darlu",
-            span: [11,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [17,22],
-          },
+          Gismu "dárlu",
+          Gismu "cásnu",
         },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [23,26],
-        },
+        kei: Cmavo "keĭ",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [26,29],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [30,34],
-              },
+              Cmavo "ke'a",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "mentu",
-                span: [35,40],
-              },
+              Gismu "méntu",
               terms: [
                 MathExpression {
-                  li: Word {
-                    kind: "cmavo",
-                    phonemes: "li",
-                    span: [41,43],
-                  },
+                  li: Cmavo "li",
                   Number {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "re",
-                      span: [44,46],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "no",
-                      span: [46,48],
-                    },
+                    Cmavo "re",
+                    Cmavo "no",
                   },
                 },
               ],

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do djácu dúnda fi le spáti se ri'a le nu ri bánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djacu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spati",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banro",
-    span: [43,48],
-  },
+  Cmavo "do",
+  Gismu "djácu",
+  Gismu "dúnda",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "spáti",
+  Cmavo "se",
+  Cmavo "ri'a",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "ri",
+  Gismu "bánro",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djacu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"spati","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"banro","kind":"gismu"}}]"""
 
@@ -85,83 +37,35 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "djacu",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dunda",
-        span: [9,14],
-      },
+      Gismu "djácu",
+      Gismu "dúnda",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [15,17],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "spati",
-            span: [21,26],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "spáti",
         },
       },
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [27,29],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ri'a",
-            span: [29,33],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "ri'a",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [34,36],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [37,39],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ri",
-                  span: [40,42],
-                },
+                Cmavo "ri",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "banro",
-                span: [43,48],
-              },
+              Gismu "bánro",
             },
           },
         },

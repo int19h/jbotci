@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(si'o da cítka le da gérku cídja)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cidja",
-    span: [26,31],
-  },
+  Cmavo "si'o",
+  Cmavo "da",
+  Gismu "cítka",
+  Cmavo "le",
+  Cmavo "da",
+  Gismu "gérku",
+  Gismu "cídja",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"cidja","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [0,4],
-  },
+  nu: Cmavo "si'o",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [5,7],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [8,13],
-      },
+      Gismu "cítka",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [17,19],
-            },
+            Cmavo "da",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "gerku",
-              span: [20,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cidja",
-              span: [26,31],
-            },
+            Gismu "gérku",
+            Gismu "cídja",
           },
         },
       ],

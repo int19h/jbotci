@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le ka cnáno cármi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnano",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [15,20],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "cnáno",
+  Gismu "cármi",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cnano","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"carmi","kind":"gismu"}}]'
 
@@ -47,28 +31,12 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [6,8],
-        },
+        nu: Cmavo "ka",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cnano",
-            span: [9,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "carmi",
-            span: [15,20],
-          },
+          Gismu "cnáno",
+          Gismu "cármi",
         },
       },
     },

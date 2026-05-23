@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ta cmálu níxli bo ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [19,24],
-  },
+  Cmavo "ta",
+  Gismu "cmálu",
+  Gismu "níxli",
+  Cmavo "bo",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"ckule","kind":"gismu"}}]'
 
@@ -57,34 +37,14 @@ brackets = "(ta [cmálu {níxli bo ckúle}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [3,8],
-    },
+    Gismu "cmálu",
     Bo {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [10,15],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [16,18],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [19,24],
-      },
+      leading_unit: Gismu "níxli",
+      bo: Cmavo "bo",
+      trailing_unit: Gismu "ckúle",
     },
   },
 }"""

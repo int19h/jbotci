@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ .i ma ca'a zváti ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [21,23],
-  },
+  Cmavo "coĭ",
+  Cmavo "i",
+  Cmavo "ma",
+  Cmavo "ca'a",
+  Gismu "zváti",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -57,47 +33,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [5,6],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [7,9],
-        },
+        Cmavo "ma",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca'a",
-            span: [10,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zvati",
-            span: [15,20],
-          },
+          tense_modal: Cmavo "ca'a",
+          Gismu "zváti",
         },
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ti",
-            span: [21,23],
-          },
+          Cmavo "ti",
         ],
       },
     },

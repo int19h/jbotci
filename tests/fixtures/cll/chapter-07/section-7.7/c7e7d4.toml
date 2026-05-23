@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi zbásu le dínju loĭ múdri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dinju",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mudri",
-    span: [22,27],
-  },
+  Cmavo "mi",
+  Gismu "zbásu",
+  Cmavo "le",
+  Gismu "dínju",
+  Cmavo "loĭ",
+  Gismu "múdri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"dinju","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"mudri","kind":"gismu"}}]'
 
@@ -62,42 +38,18 @@ brackets = "(mi [zbásu {(le dínju) (loĭ múdri)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zbasu",
-      span: [3,8],
-    },
+    Gismu "zbásu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "dinju",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "dínju",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [18,21],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mudri",
-          span: [22,27],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "múdri",
       },
     ],
   },

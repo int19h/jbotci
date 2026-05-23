@@ -18,97 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mílxe gálfi to gérna .i je glíco toĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [21,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [31,34],
-  },
+  Gismu "mílxe",
+  Gismu "gálfi",
+  Cmavo "to",
+  Gismu "gérna",
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "glíco",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[21,22],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[31,34],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
+  Gismu "mílxe",
   Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    Word {
-      kind: "gismu",
-      phonemes: "galfi",
-      span: [6,11],
-    },
+    Gismu "gálfi",
     free_modifiers: [
       To {
-        to: Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [12,14],
-        },
+        to: Cmavo "to",
         Connected {
-          leading_statement: Word {
-            kind: "gismu",
-            phonemes: "gerna",
-            span: [15,20],
-          },
-          i: Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [21,22],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [22,24],
-          },
-          trailing_statement: Word {
-            kind: "gismu",
-            phonemes: "glico",
-            span: [25,30],
-          },
+          leading_statement: Gismu "gérna",
+          i: Cmavo "i",
+          connective: Cmavo "je",
+          trailing_statement: Gismu "glíco",
         },
-        toi: Word {
-          kind: "cmavo",
-          phonemes: "toĭ",
-          span: [31,34],
-        },
+        toi: Cmavo "toĭ",
       },
     ],
   },

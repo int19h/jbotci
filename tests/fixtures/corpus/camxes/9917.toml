@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo válsi na ka'e valsycúsku lo na ka'e se valsycúsku be lo válsi vaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "valsycusku",
-    span: [20,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [42,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "valsycusku",
-    span: [45,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [56,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [59,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [62,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [68,71],
-  },
+  Cmavo "lo",
+  Gismu "válsi",
+  Cmavo "na",
+  Cmavo "ka'e",
+  Lujvo "valsycúsku",
+  Cmavo "lo",
+  Cmavo "na",
+  Cmavo "ka'e",
+  Cmavo "se",
+  Lujvo "valsycúsku",
+  Cmavo "be",
+  Cmavo "lo",
+  Gismu "válsi",
+  Cmavo "vaŭ",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[20,30],"phonemes":"valsycusku","kind":"lujvo"}},{"Bare":{"span":[31,33],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[45,55],"phonemes":"valsycusku","kind":"lujvo"}},{"Bare":{"span":[56,58],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[59,61],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[62,67],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[68,71],"phonemes":"vaŭ","kind":"cmavo"}}]"""
 
@@ -96,97 +40,41 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [3,5],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [6,11],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "válsi",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [12,14],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [15,19],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "valsycusku",
-          span: [20,30],
-        },
+        tense_modal: Cmavo "ka'e",
+        Lujvo "valsycúsku",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [31,33],
-        },
+        descriptor: Cmavo "lo",
         relation: Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [34,36],
-          },
+          na: Cmavo "na",
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ka'e",
-              span: [37,41],
-            },
+            tense_modal: Cmavo "ka'e",
             Be {
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [42,44],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "valsycusku",
-                  span: [45,55],
-                },
+                se: Cmavo "se",
+                Lujvo "valsycúsku",
               },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [56,58],
-              },
+              be: Cmavo "be",
               first_argument: Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo",
-                  span: [59,61],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "valsi",
-                  span: [62,67],
-                },
+                descriptor: Cmavo "lo",
+                relation: Gismu "válsi",
               },
             },
           },
         },
       },
     ],
-    vau: Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [68,71],
-    },
+    vau: Cmavo "vaŭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"valsi","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Na":{"na":{"Bare":{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[15,19],"phonemes":"ka'e","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[20,30],"phonemes":"valsycusku","kind":"lujvo"}}}}}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[31,33],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Na":{"na":{"Bare":{"Bare":{"span":[34,36],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[37,41],"phonemes":"ka'e","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Be":{"base":{"Se":{"se":{"Bare":{"Bare":{"span":[42,44],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[45,55],"phonemes":"valsycusku","kind":"lujvo"}}}}}},"be":{"Bare":{"Bare":{"span":[56,58],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[59,61],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[62,67],"phonemes":"valsi","kind":"gismu"}}}}}}}}]}}}}}}}}],"vau":{"Bare":{"Bare":{"span":[68,71],"phonemes":"vaŭ","kind":"cmavo"}}}}}}}}}}}]}]}"""

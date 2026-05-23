@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ta'o vécnu fo lo tátpi .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [27,30],
-  },
+  Cmavo "i",
+  Cmavo "ta'o",
+  Gismu "vécnu",
+  Cmavo "fo",
+  Cmavo "lo",
+  Gismu "tátpi",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -60,47 +32,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ta'o",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ta'o",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [8,13],
-    },
+    Gismu "vécnu",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [14,16],
-        },
+        fa: Cmavo "fo",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [17,19],
-          },
+          descriptor: Cmavo "lo",
           relation: WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "tatpi",
-              span: [20,25],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'i",
-              span: [27,30],
-            },
+            Gismu "tátpi",
+            indicator: Cmavo "u'i",
           },
         },
       },

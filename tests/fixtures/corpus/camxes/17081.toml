@@ -18,33 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le [zo vonplíni] du ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
+  Cmavo "le",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "vonplini",
-      span: [6,14],
-    },
+    zo: Cmavo "zo",
+    Lujvo "vonplíni",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [18,20],
-  },
+  Cmavo "du",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,14],"phonemes":"vonplini","kind":"lujvo"}}},{"Bare":{"span":[15,17],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -53,36 +33,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [3,5],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "vonplini",
-            span: [6,14],
-          },
+          zo: Cmavo "zo",
+          Lujvo "vonplíni",
         },
       ],
-      relation: Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [15,17],
-      },
+      relation: Cmavo "du",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [18,20],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,14],"phonemes":"vonplini","kind":"lujvo"}}}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[15,17],"phonemes":"du","kind":"cmavo"}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[18,20],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}]}]}'

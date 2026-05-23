@@ -19,31 +19,11 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ma ma ca tírna mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirna",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
+  Cmavo "ma",
+  Cmavo "ma",
+  Cmavo "ca",
+  Gismu "tírna",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"tirna","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -51,36 +31,16 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [6,8],
-    },
+    Cmavo "ma",
+    Cmavo "ma",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tirna",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "tírna",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [18,20],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

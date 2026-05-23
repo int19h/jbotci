@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le pínji .e le cmálu níxli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Gismu "pínji",
+  Cmavo "e",
+  Cmavo "le",
+  Gismu "cmálu",
+  Gismu "níxli",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pinji","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"nixli","kind":"gismu"}}]'
 
@@ -57,39 +33,15 @@ Term {
   terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "pinji",
-          span: [3,8],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "pínji",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [10,11],
-      },
+      connective: Cmavo "e",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmalu",
-            span: [15,20],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nixli",
-            span: [21,26],
-          },
+          Gismu "cmálu",
+          Gismu "níxli",
         },
       },
     },

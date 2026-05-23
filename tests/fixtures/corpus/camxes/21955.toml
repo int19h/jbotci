@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ saĭ ménli tolcértu jíbri prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [7,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolcertu",
-    span: [13,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [28,33],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Gismu "ménli",
+  Lujvo "tolcértu",
+  Gismu "jíbri",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[13,21],"phonemes":"tolcertu","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"prenu","kind":"gismu"}}]'
 
@@ -57,40 +33,16 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "menli",
-      span: [7,12],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "tolcertu",
-      span: [13,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jibri",
-      span: [22,27],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "prenu",
-      span: [28,33],
-    },
+    Gismu "ménli",
+    Lujvo "tolcértu",
+    Gismu "jíbri",
+    Gismu "prénu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"menli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,21],"phonemes":"tolcertu","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"jibri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[28,33],"phonemes":"prenu","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

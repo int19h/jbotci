@@ -18,65 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pálci ke fúkpi se cúrmi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "palci",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fukpi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curmi",
-    span: [18,23],
-  },
+  Gismu "pálci",
+  Cmavo "ke",
+  Gismu "fúkpi",
+  Cmavo "se",
+  Gismu "cúrmi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"palci","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"fukpi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"curmi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "palci",
-    span: [0,5],
-  },
+  Gismu "pálci",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "fukpi",
-        span: [9,14],
-      },
+      Gismu "fúkpi",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "curmi",
-          span: [18,23],
-        },
+        se: Cmavo "se",
+        Gismu "cúrmi",
       },
     },
   },

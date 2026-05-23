@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no'e bo la .tinkit.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tinkit",
-    span: [11,17],
-  },
+  Cmavo "no'e",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "tinkit",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[11,17],"phonemes":"tinkit","kind":"cmevla"}}]"""
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     NaheBo {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "no'e",
-        span: [0,4],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [5,7],
-      },
+      nahe: Cmavo "no'e",
+      bo: Cmavo "bo",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [8,10],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "tinkit",
-            span: [11,17],
-          },
+          Cmevla "tinkit",
         ],
       },
     },

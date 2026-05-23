@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'a naljúndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljundi",
-    span: [5,13],
-  },
+  Cmavo "co'a",
+  Lujvo "naljúndi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"naljundi","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljundi",
-    span: [5,13],
-  },
+  tense_modal: Cmavo "co'a",
+  Lujvo "naljúndi",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[5,13],"phonemes":"naljundi","kind":"lujvo"}}}}}}}}}}}}}]}]}"""

@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.bancus. doĭ .mumym. brédi)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [1,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mumym",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [20,25],
-  },
+  Cmevla "bancus",
+  Cmavo "doĭ",
+  Cmevla "mumym",
+  Gismu "brédi",
 ]"""
 json = '[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[20,25],"phonemes":"bredi","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ json = '[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "bancus",
-      span: [1,7],
-    },
+    Cmevla "bancus",
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [9,12],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "mumym",
-        span: [13,18],
-      },
+      argument: Cmevla "mumym",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [20,25],
-  },
+  Gismu "brédi",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}}}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[13,18],"phonemes":"mumym","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"bredi","kind":"gismu"}}}}}}}}}}}]}]}'

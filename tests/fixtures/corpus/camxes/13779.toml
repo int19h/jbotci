@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kárbi fi le seldírce)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "karbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seldirce",
-    span: [12,20],
-  },
+  Gismu "kárbi",
+  Cmavo "fi",
+  Cmavo "le",
+  Lujvo "seldírce",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"karbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"seldirce","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "karbi",
-    span: [0,5],
-  },
+  Gismu "kárbi",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "seldirce",
-          span: [12,20],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "seldírce",
       },
     },
   ],

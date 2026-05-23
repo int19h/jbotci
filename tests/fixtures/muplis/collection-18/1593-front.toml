@@ -21,46 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ra pu ku se tíxnu pa da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tixnu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [24,26],
-  },
+  Cmavo "i",
+  Cmavo "ra",
+  Cmavo "pu",
+  Cmavo "ku",
+  Cmavo "se",
+  Gismu "tíxnu",
+  Cmavo "pa",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tixnu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -68,58 +36,26 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{ra (pu ku)} {(se tíxnu) (pa da)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [3,5],
-      },
+      Cmavo "ra",
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "pu",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [9,11],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tixnu",
-          span: [15,20],
-        },
+        se: Cmavo "se",
+        Gismu "tíxnu",
       },
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [21,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [24,26],
-          },
+          quantifier: Cmavo "pa",
+          Cmavo "da",
         },
       ],
     },

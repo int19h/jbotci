@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le selskína cu sárcu .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selskina",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [22,25],
-  },
+  Cmavo "le",
+  Lujvo "selskína",
+  Cmavo "cu",
+  Gismu "sárcu",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"selskina","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"sarcu","kind":"gismu"}},{"Bare":{"span":[22,25],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "selskina",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "selskína",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "sarcu",
-      span: [15,20],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "u'i",
-      span: [22,25],
-    },
+    Gismu "sárcu",
+    indicator: Cmavo "u'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"selskina","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"sarcu","kind":"gismu"}}},"indicator":{"span":[22,25],"phonemes":"u'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

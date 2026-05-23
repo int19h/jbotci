@@ -18,33 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma lújvo [zoĭ gy deadlock gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lujvo",
-    span: [3,8],
-  },
+  Cmavo "ma",
+  Gismu "lújvo",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [9,12],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [13,15],
-    },
-    quoted_text: [17,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [27,29],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "deadlock",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lujvo","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[9,12],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[13,15],"phonemes":"gy","kind":"cmavo"},"quoted_text":[17,25],"closing_delimiter":{"span":[27,29],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -53,36 +33,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "lujvo",
-      span: [3,8],
-    },
+    Gismu "lújvo",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [9,12],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [13,15],
-        },
-        quoted_text: [17,25],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [27,29],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "deadlock",
+        closing_delimiter: Cmavo "gy",
       },
     ],
   },

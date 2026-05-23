@@ -24,66 +24,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .djan. .pol. .djonz. le blóti cu kláma fi la .ni'uport. .ni'uz.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "pol",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djonz",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bloti",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ni'uport",
-    span: [50,58],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ni'uz",
-    span: [61,66],
-  },
+  Cmavo "doĭ",
+  Cmevla "djan",
+  Cmevla "pol",
+  Cmevla "djonz",
+  Cmavo "le",
+  Gismu "blóti",
+  Cmavo "cu",
+  Gismu "kláma",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "ni'uport",
+  Cmevla "ni'uz",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"pol","kind":"cmevla"}},{"Bare":{"span":[18,23],"phonemes":"djonz","kind":"cmevla"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"bloti","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[50,58],"phonemes":"ni'uport","kind":"cmevla"}},{"Bare":{"span":[61,66],"phonemes":"ni'uz","kind":"cmevla"}}]"""
 
@@ -94,81 +46,33 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [5,9],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "pol",
-          span: [12,15],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "djonz",
-          span: [18,23],
-        },
+        Cmevla "djan",
+        Cmevla "pol",
+        Cmevla "djonz",
       },
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [25,27],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "bloti",
-          span: [28,33],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "blóti",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [34,36],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [37,42],
-      },
+      Gismu "kláma",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [43,45],
-          },
+          fa: Cmavo "fi",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [46,48],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "ni'uport",
-                span: [50,58],
-              },
-              Word {
-                kind: "cmevla",
-                phonemes: "ni'uz",
-                span: [61,66],
-              },
+              Cmevla "ni'uport",
+              Cmevla "ni'uz",
             ],
           },
         },

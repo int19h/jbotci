@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le nu jbégaŭ loĭ ráctu cu ráctu jbégaŭ lífri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbegaŭ",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ractu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ractu",
-    span: [29,34],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbegaŭ",
-    span: [35,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [42,47],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "jbégaŭ",
+  Cmavo "loĭ",
+  Gismu "ráctu",
+  Cmavo "cu",
+  Gismu "ráctu",
+  Lujvo "jbégaŭ",
+  Gismu "lífri",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"jbegaŭ","kind":"lujvo"}},{"Bare":{"span":[16,19],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"ractu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"ractu","kind":"gismu"}},{"Bare":{"span":[35,41],"phonemes":"jbegaŭ","kind":"lujvo"}},{"Bare":{"span":[42,47],"phonemes":"lifri","kind":"gismu"}}]'
 
@@ -71,62 +35,26 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [6,8],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "lujvo",
-            phonemes: "jbegaŭ",
-            span: [9,15],
-          },
+          Lujvo "jbégaŭ",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "loĭ",
-                span: [16,19],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "ractu",
-                span: [20,25],
-              },
+              descriptor: Cmavo "loĭ",
+              relation: Gismu "ráctu",
             },
           ],
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ractu",
-      span: [29,34],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "jbegaŭ",
-      span: [35,41],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lifri",
-      span: [42,47],
-    },
+    Gismu "ráctu",
+    Lujvo "jbégaŭ",
+    Gismu "lífri",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[9,15],"phonemes":"jbegaŭ","kind":"lujvo"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[16,19],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"ractu","kind":"gismu"}}}}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[29,34],"phonemes":"ractu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[35,41],"phonemes":"jbegaŭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[42,47],"phonemes":"lifri","kind":"gismu"}}}}]}}}}}}}}]}]}'

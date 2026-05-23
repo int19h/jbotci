@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi di'a ze'i sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [12,17],
-  },
+  Cmavo "mi",
+  Cmavo "di'a",
+  Cmavo "ze'i",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ze'i","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -45,31 +29,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "di'a",
-        span: [3,7],
-      },
+      tense_modal: Cmavo "di'a",
       Zohe {},
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ze'i",
-      span: [7,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [12,17],
-    },
+    tense_modal: Cmavo "ze'i",
+    Gismu "sípna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"di'a","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[7,11],"phonemes":"ze'i","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}}}]}]}"""

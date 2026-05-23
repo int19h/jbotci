@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'u mi na'e júndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [12,17],
-  },
+  Cmavo "u'u",
+  Cmavo "mi",
+  Cmavo "na'e",
+  Gismu "júndi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jundi","kind":"gismu"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'u",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [7,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jundi",
-        span: [12,17],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "júndi",
     },
   },
 }"""

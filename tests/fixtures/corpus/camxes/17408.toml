@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭe .i ku'i do xámgu pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [3,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [19,24],
-  },
+  Cmavo "ŭe",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "do",
+  Gismu "xámgu",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭe",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [3,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [5,9],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        Cmavo "do",
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [13,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [19,24],
-        },
+        Gismu "xámgu",
+        Gismu "pílno",
       },
     },
   },

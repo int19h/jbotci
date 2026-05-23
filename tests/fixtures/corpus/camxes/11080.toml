@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o ko bínxo le na bílma prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [26,31],
-  },
+  Cmavo "a'o",
+  Cmavo "ko",
+  Gismu "bínxo",
+  Cmavo "le",
+  Cmavo "na",
+  Gismu "bílma",
+  Gismu "prénu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"bilma","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"prenu","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [5,7],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [8,13],
-      },
+      Gismu "bínxo",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [17,19],
-            },
+            na: Cmavo "na",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "bilma",
-                span: [20,25],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "prenu",
-                span: [26,31],
-              },
+              Gismu "bílma",
+              Gismu "prénu",
             },
           },
         },

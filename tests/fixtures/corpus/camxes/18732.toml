@@ -18,101 +18,37 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le mékso císte cu nalcáfne se pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mekso",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcafne",
-    span: [21,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [33,38],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "mékso",
+  Gismu "císte",
+  Cmavo "cu",
+  Lujvo "nalcáfne",
+  Cmavo "se",
+  Gismu "pílno",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mekso","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"ciste","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,29],"phonemes":"nalcafne","kind":"lujvo"}},{"Bare":{"span":[30,32],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"pilno","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mekso",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ciste",
-            span: [12,17],
-          },
+          Gismu "mékso",
+          Gismu "císte",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [18,20],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "nalcafne",
-        span: [21,29],
-      },
+      Lujvo "nalcáfne",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [30,32],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [33,38],
-        },
+        se: Cmavo "se",
+        Gismu "pílno",
       },
     },
   },

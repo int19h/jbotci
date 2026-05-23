@@ -18,42 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu cúsku [lo'u do fénki le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cúsku",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [34,38],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [39,41],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "fenki",
-      span: [42,47],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [48,52],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "do",
+    Gismu "fénki",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"LohuQuote":{"lohu":{"span":[34,38],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[39,41],"phonemes":"do","kind":"cmavo"},{"span":[42,47],"phonemes":"fenki","kind":"gismu"}],"lehu":{"span":[48,52],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -62,47 +34,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cúsku",
     },
     terms: [
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [34,38],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [39,41],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fenki",
-          span: [42,47],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [48,52],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "do",
+        Gismu "fénki",
+        lehu: Cmavo "le'u",
       },
     ],
   },

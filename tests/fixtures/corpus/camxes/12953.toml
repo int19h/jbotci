@@ -18,34 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(goĭ ky)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [4,6],
-  },
+  Cmavo "goĭ",
+  Cmavo "ky",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ky","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 GoiRelativeClause {
-  goi: Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [0,3],
-  },
+  goi: Cmavo "goĭ",
   Letter {
     letter: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ky",
-        span: [4,6],
-      },
+      Cmavo "ky",
     ],
   },
 }"""

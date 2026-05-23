@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xu la .arunas. pu zi co'a cmíma le do banrxrúsko mrígri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "arunas",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [34,36],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "banrxrusko",
-    span: [37,47],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mrigri",
-    span: [48,54],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "la",
+  Cmevla "arunas",
+  Cmavo "pu",
+  Cmavo "zi",
+  Cmavo "co'a",
+  Gismu "cmíma",
+  Cmavo "le",
+  Cmavo "do",
+  Fuhivla "banrxrúsko",
+  Lujvo "mrígri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"arunas","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[37,47],"phonemes":"banrxrusko","kind":"fu'ivla"}},{"Bare":{"span":[48,54],"phonemes":"mrigri","kind":"lujvo"}}]"""
 
@@ -85,84 +37,36 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [6,8],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "arunas",
-            span: [9,15],
-          },
+          Cmevla "arunas",
         ],
       },
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [16,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [18,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "co'a",
-            span: [20,24],
-          },
+          Cmavo "pu",
+          Cmavo "zi",
+          Cmavo "co'a",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cmima",
-          span: [25,30],
-        },
+        Gismu "cmíma",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [31,33],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [34,36],
-            },
+            Cmavo "do",
           ],
           relation: Compound {
-            Word {
-              kind: "fu'ivla",
-              phonemes: "banrxrusko",
-              span: [37,47],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "mrigri",
-              span: [48,54],
-            },
+            Fuhivla "banrxrúsko",
+            Lujvo "mrígri",
           },
         },
       ],

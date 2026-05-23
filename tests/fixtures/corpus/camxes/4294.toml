@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(súrla .e na súrla)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [12,17],
-  },
+  Gismu "súrla",
+  Cmavo "e",
+  Cmavo "na",
+  Gismu "súrla",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"surla","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 PredicateTail1 {
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [0,5],
-  },
+  Gismu "súrla",
   continuations: [
     PredicateTailContinuation {
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [7,8],
-      },
+      connective: Cmavo "e",
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [9,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "surla",
-          span: [12,17],
-        },
+        na: Cmavo "na",
+        Gismu "súrla",
       },
     },
   ],

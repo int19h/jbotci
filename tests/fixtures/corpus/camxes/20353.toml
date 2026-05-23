@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li re no go'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'u",
-    span: [8,12],
-  },
+  Cmavo "li",
+  Cmavo "re",
+  Cmavo "no",
+  Cmavo "go'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"go'u","kind":"cmavo"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [5,7],
-        },
+        Cmavo "re",
+        Cmavo "no",
       },
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "go'u",
-    span: [8,12],
-  },
+  Cmavo "go'u",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}}}]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,12],"phonemes":"go'u","kind":"cmavo"}}}}}}}}}}}]}]}"""

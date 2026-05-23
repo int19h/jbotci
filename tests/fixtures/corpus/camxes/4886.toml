@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le génja bírje na pílno le kórka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "genja",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birje",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "korka",
-    span: [27,32],
-  },
+  Cmavo "le",
+  Gismu "génja",
+  Gismu "bírje",
+  Cmavo "na",
+  Gismu "pílno",
+  Cmavo "le",
+  Gismu "kórka",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"genja","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"birje","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"korka","kind":"gismu"}}]'
 
@@ -61,50 +33,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "genja",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "birje",
-          span: [9,14],
-        },
+        Gismu "génja",
+        Gismu "bírje",
       },
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [15,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [18,23],
-      },
+      na: Cmavo "na",
+      Gismu "pílno",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [24,26],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "korka",
-          span: [27,32],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kórka",
       },
     ],
   },

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i do'u ma stúzi le vimkú'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stuzi",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vimku'a",
-    span: [22,29],
-  },
+  Cmavo "ju'i",
+  Cmavo "do'u",
+  Cmavo "ma",
+  Gismu "stúzi",
+  Cmavo "le",
+  Lujvo "vimkú'a",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"stuzi","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,29],"phonemes":"vimku'a","kind":"lujvo"}}]"""
 
@@ -61,45 +37,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
+        Cmavo "ju'i",
       ],
-      dohu: Word {
-        kind: "cmavo",
-        phonemes: "do'u",
-        span: [5,9],
-      },
+      dohu: Cmavo "do'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [10,12],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "stuzi",
-        span: [13,18],
-      },
+      Gismu "stúzi",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "vimku'a",
-            span: [22,29],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "vimkú'a",
         },
       ],
     },

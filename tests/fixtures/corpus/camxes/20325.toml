@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'e tcídu djícu da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djicu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [17,19],
-  },
+  Cmavo "mi'e",
+  Gismu "tcídu",
+  Gismu "djícu",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"djicu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -47,35 +31,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi'e",
-          span: [0,4],
-        },
+        Cmavo "mi'e",
       ],
       argument: RelationVocative {
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "tcidu",
-            span: [5,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djicu",
-            span: [11,16],
-          },
+          Gismu "tcídu",
+          Gismu "djícu",
         },
       },
     },
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [17,19],
-      },
+      Cmavo "da",
     ],
   },
 }"""

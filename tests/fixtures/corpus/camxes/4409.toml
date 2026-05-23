@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u ko krási le cníno nunsélkeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krasi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [17,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunselkeĭ",
-    span: [23,32],
-  },
+  Cmavo "e'u",
+  Cmavo "ko",
+  Gismu "krási",
+  Cmavo "le",
+  Gismu "cníno",
+  Lujvo "nunsélkeĭ",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"krasi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[23,32],"phonemes":"nunselkeĭ","kind":"lujvo"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [5,7],
-      },
+      Cmavo "ko",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "krasi",
-        span: [8,13],
-      },
+      Gismu "krási",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [17,22],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "nunselkeĭ",
-              span: [23,32],
-            },
+            Gismu "cníno",
+            Lujvo "nunsélkeĭ",
           },
         },
       ],

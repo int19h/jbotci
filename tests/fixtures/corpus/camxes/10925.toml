@@ -18,79 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi li pa so nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [14,19],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "so",
+  Gismu "nánca",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"nanca","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [6,8],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "so",
-            span: [11,13],
-          },
+          Cmavo "pa",
+          Cmavo "so",
         },
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "nanca",
-      span: [14,19],
-    },
+    Gismu "nánca",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[11,13],"phonemes":"so","kind":"cmavo"}}}]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"nanca","kind":"gismu"}}}}}}}}}}}]}]}'

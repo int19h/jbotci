@@ -18,71 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i pe'u ko gaŭ ránji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranji",
-    span: [15,20],
-  },
+  Cmavo "i",
+  Cmavo "pe'u",
+  Cmavo "ko",
+  Cmavo "gaŭ",
+  Gismu "ránji",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ranji","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pe'u",
-          span: [3,7],
-        },
+        Cmavo "pe'u",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [8,10],
-      },
+      argument: Cmavo "ko",
     },
   ],
   TenseModal {
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "gaŭ",
-        span: [11,14],
-      },
+      bai: Cmavo "gaŭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "ranji",
-      span: [15,20],
-    },
+    Gismu "ránji",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"pe'u","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}}}}}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[11,14],"phonemes":"gaŭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"ranji","kind":"gismu"}}}}}}}}}}}}}]}]}"""

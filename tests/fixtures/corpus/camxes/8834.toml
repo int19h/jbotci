@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.zmitav. ko dáncu)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "zmitav",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dancu",
-    span: [11,16],
-  },
+  Cmevla "zmitav",
+  Cmavo "ko",
+  Gismu "dáncu",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"zmitav","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dancu","kind":"gismu"}}]'
 
@@ -41,25 +29,13 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"zmitav","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "zmitav",
-      span: [0,6],
-    },
+    Cmevla "zmitav",
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [8,10],
-      },
+      Cmavo "ko",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "dancu",
-      span: [11,16],
-    },
+    Gismu "dáncu",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,6],"phonemes":"zmitav","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"dancu","kind":"gismu"}}}}}}}}}}}]}]}'

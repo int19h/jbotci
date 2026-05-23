@@ -19,76 +19,20 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ki'e saĭ doĭ re do zo'u xámgu fa le nu la jbovláste ca pilnykáknykaĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovlaste",
-    span: [39,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [49,51],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "pilnykaknykaĭ",
-    span: [52,65],
-  },
+  Cmavo "ki'e",
+  Cmavo "saĭ",
+  Cmavo "doĭ",
+  Cmavo "re",
+  Cmavo "do",
+  Cmavo "zo'u",
+  Gismu "xámgu",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "la",
+  Lujvo "jbovláste",
+  Cmavo "ca",
+  Lujvo "pilnykáknykaĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,48],"phonemes":"jbovlaste","kind":"lujvo"}},{"Bare":{"span":[49,51],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[52,65],"phonemes":"pilnykaknykaĭ","kind":"lujvo"}}]"""
 
@@ -99,94 +43,38 @@ Text {
     Vocative {
       vocative_markers: [
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ki'e",
-            span: [0,4],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "saĭ",
-            span: [4,7],
-          },
+          Cmavo "ki'e",
+          indicator: Cmavo "saĭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [8,11],
-        },
+        Cmavo "doĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [12,14],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [14,16],
-        },
+        quantifier: Cmavo "re",
+        Cmavo "do",
       },
     },
   ],
   Prenex {
-    zohu: Word {
-      kind: "cmavo",
-      phonemes: "zo'u",
-      span: [17,21],
-    },
+    zohu: Cmavo "zo'u",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [22,27],
-      },
+      Gismu "xámgu",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fa",
-            span: [28,30],
-          },
+          fa: Cmavo "fa",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [31,33],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [33,35],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [36,38],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "jbovlaste",
-                      span: [39,48],
-                    },
+                    descriptor: Cmavo "la",
+                    relation: Lujvo "jbovláste",
                   },
                 ],
                 TenseModal {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [49,51],
-                  },
-                  Word {
-                    kind: "lujvo",
-                    phonemes: "pilnykaknykaĭ",
-                    span: [52,65],
-                  },
+                  tense_modal: Cmavo "ca",
+                  Lujvo "pilnykáknykaĭ",
                 },
               },
             },

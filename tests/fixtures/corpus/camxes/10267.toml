@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu da cíksi nótci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "notci",
-    span: [12,17],
-  },
+  Cmavo "xu",
+  Cmavo "da",
+  Gismu "cíksi",
+  Gismu "nótci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"notci","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      Cmavo "da",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "ciksi",
-        span: [6,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "notci",
-        span: [12,17],
-      },
+      Gismu "cíksi",
+      Gismu "nótci",
     },
   },
 }"""

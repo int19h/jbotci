@@ -18,85 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zváti stíci jípno be le jaŭrbúmru kúmfa)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stici",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jipno",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jaŭrbumru",
-    span: [24,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [34,39],
-  },
+  Gismu "zváti",
+  Gismu "stíci",
+  Gismu "jípno",
+  Cmavo "be",
+  Cmavo "le",
+  Lujvo "jaŭrbúmru",
+  Gismu "kúmfa",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"stici","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"jipno","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,33],"phonemes":"jaŭrbumru","kind":"lujvo"}},{"Bare":{"span":[34,39],"phonemes":"kumfa","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stici",
-    span: [6,11],
-  },
+  Gismu "zváti",
+  Gismu "stíci",
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "jipno",
-      span: [12,17],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [18,20],
-    },
+    Gismu "jípno",
+    be: Cmavo "be",
     first_argument: Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [21,23],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "jaŭrbumru",
-          span: [24,33],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kumfa",
-          span: [34,39],
-        },
+        Lujvo "jaŭrbúmru",
+        Gismu "kúmfa",
       },
     },
   },

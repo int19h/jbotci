@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi clíva nítcu .i ja'e co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [23,27],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "clíva",
+  Gismu "nítcu",
+  Cmavo "i",
+  Cmavo "ja'e",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ja'e","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -60,56 +32,28 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [2,4],
-        },
+        Cmavo "mi",
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cliva",
-          span: [5,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nitcu",
-          span: [11,16],
-        },
+        Gismu "clíva",
+        Gismu "nítcu",
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [17,18],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ja'e",
-              span: [18,22],
-            },
+            bai: Cmavo "ja'e",
             free_modifiers: [
               Vocative {
                 vocative_markers: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "co'o",
-                    span: [23,27],
-                  },
+                  Cmavo "co'o",
                 ],
               },
             ],

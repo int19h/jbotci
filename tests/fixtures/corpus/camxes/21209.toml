@@ -18,70 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi pu zi djísku [zo cúmki] .e naĭ [zo lákne] to)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [8,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [11,17],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zi",
+  Lujvo "djísku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cumki",
-      span: [21,26],
-    },
+    zo: Cmavo "zo",
+    Gismu "cúmki",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [28,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [29,32],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [33,35],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lakne",
-      span: [36,41],
-    },
+    zo: Cmavo "zo",
+    Gismu "lákne",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [42,44],
-  },
+  Cmavo "to",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[11,17],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,26],"phonemes":"cumki","kind":"gismu"}}},{"Bare":{"span":[28,29],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[33,35],"phonemes":"zo","kind":"cmavo"},"word":{"span":[36,41],"phonemes":"lakne","kind":"gismu"}}},{"Bare":{"span":[42,44],"phonemes":"to","kind":"cmavo"}}]'
 
@@ -90,85 +42,37 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
             tense_modal: Composite {
-              Word {
-                kind: "cmavo",
-                phonemes: "pu",
-                span: [6,8],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "zi",
-                span: [8,10],
-              },
+              Cmavo "pu",
+              Cmavo "zi",
             },
-            Word {
-              kind: "lujvo",
-              phonemes: "djisku",
-              span: [11,17],
-            },
+            Lujvo "djísku",
           },
           terms: [
             Connected {
               leading_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cumki",
-                  span: [21,26],
-                },
+                zo: Cmavo "zo",
+                Gismu "cúmki",
               },
               connective: Afterthought {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "e",
-                  span: [28,29],
-                },
-                nai: Word {
-                  kind: "cmavo",
-                  phonemes: "naĭ",
-                  span: [29,32],
-                },
+                Cmavo "e",
+                nai: Cmavo "naĭ",
               },
               trailing_argument: Zo {
                 ZoQuote {
-                  zo: Word {
-                    kind: "cmavo",
-                    phonemes: "zo",
-                    span: [33,35],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "lakne",
-                    span: [36,41],
-                  },
+                  zo: Cmavo "zo",
+                  Gismu "lákne",
                 },
                 free_modifiers: [
                   To {
-                    to: Word {
-                      kind: "cmavo",
-                      phonemes: "to",
-                      span: [42,44],
-                    },
+                    to: Cmavo "to",
                     Text {},
                   },
                 ],

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zdíle mi ji'a .i bánzu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [17,22],
-  },
+  Gismu "zdíle",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Cmavo "i",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -50,37 +30,17 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"s
 tree = """
 Paragraph {
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zdile",
-      span: [0,5],
-    },
+    Gismu "zdíle",
     terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [6,8],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [9,13],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "banzu",
-      span: [17,22],
-    },
+    i: Cmavo "i",
+    Gismu "bánzu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"zdile","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}}},"indicator":{"span":[9,13],"phonemes":"ji'a","kind":"cmavo"}}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}]}"""

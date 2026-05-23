@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o xu spúda da le do sélmri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spuda",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selmri",
-    span: [23,29],
-  },
+  Cmavo "ni'o",
+  Cmavo "xu",
+  Gismu "spúda",
+  Cmavo "da",
+  Cmavo "le",
+  Cmavo "do",
+  Lujvo "sélmri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"spuda","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"selmri","kind":"lujvo"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Paragraph {
   niho: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ni'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [5,7],
-      },
+      Cmavo "ni'o",
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "spuda",
-      span: [8,13],
-    },
+    Gismu "spúda",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [14,16],
-      },
+      Cmavo "da",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [20,22],
-          },
+          Cmavo "do",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "selmri",
-          span: [23,29],
-        },
+        relation: Lujvo "sélmri",
       },
     ],
   },

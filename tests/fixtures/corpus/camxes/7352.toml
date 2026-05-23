@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na djúno le'e gugrxrátska nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "gugrxratska",
-    span: [17,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [29,34],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "djúno",
+  Cmavo "le'e",
+  Fuhivla "gugrxrátska",
+  Gismu "nínmu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"le'e","kind":"cmavo"}},{"Bare":{"span":[17,28],"phonemes":"gugrxratska","kind":"fu'ivla"}},{"Bare":{"span":[29,34],"phonemes":"ninmu","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "djúno",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le'e",
-          span: [12,16],
-        },
+        descriptor: Cmavo "le'e",
         relation: Compound {
-          Word {
-            kind: "fu'ivla",
-            phonemes: "gugrxratska",
-            span: [17,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ninmu",
-            span: [29,34],
-          },
+          Fuhivla "gugrxrátska",
+          Gismu "nínmu",
         },
       },
     ],

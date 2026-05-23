@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭu mi pósydji lo xánce skámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "posydji",
-    span: [6,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xance",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [23,28],
-  },
+  Cmavo "ŭu",
+  Cmavo "mi",
+  Lujvo "pósydji",
+  Cmavo "lo",
+  Gismu "xánce",
+  Gismu "skámi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,13],"phonemes":"posydji","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"skami","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭu",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "posydji",
-        span: [6,13],
-      },
+      Lujvo "pósydji",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [14,16],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "xance",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [23,28],
-            },
+            Gismu "xánce",
+            Gismu "skámi",
           },
         },
       ],

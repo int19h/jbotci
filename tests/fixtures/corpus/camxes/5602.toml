@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ zírpu da múpli le ka ce'u nálgli ju jícmu sídbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zirpu",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalgli",
-    span: [30,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jicmu",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidbo",
-    span: [46,51],
-  },
+  Cmavo "doĭ",
+  Gismu "zírpu",
+  Cmavo "da",
+  Gismu "múpli",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Lujvo "nálgli",
+  Cmavo "ju",
+  Gismu "jícmu",
+  Gismu "sídbo",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"zirpu","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mupli","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[30,36],"phonemes":"nalgli","kind":"lujvo"}},{"Bare":{"span":[37,39],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"jicmu","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"sidbo","kind":"gismu"}}]"""
 
@@ -82,79 +38,35 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zirpu",
-          span: [4,9],
-        },
+        relation: Gismu "zírpu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [10,12],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mupli",
-        span: [13,18],
-      },
+      Gismu "múpli",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [22,24],
-            },
+            nu: Cmavo "ka",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ce'u",
-                  span: [25,29],
-                },
+                Cmavo "ce'u",
               ],
               Compound {
                 Connected {
-                  leading_unit: Word {
-                    kind: "lujvo",
-                    phonemes: "nalgli",
-                    span: [30,36],
-                  },
-                  connective: Word {
-                    kind: "cmavo",
-                    phonemes: "ju",
-                    span: [37,39],
-                  },
-                  trailing_unit: Word {
-                    kind: "gismu",
-                    phonemes: "jicmu",
-                    span: [40,45],
-                  },
+                  leading_unit: Lujvo "nálgli",
+                  connective: Cmavo "ju",
+                  trailing_unit: Gismu "jícmu",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sidbo",
-                  span: [46,51],
-                },
+                Gismu "sídbo",
               },
             },
           },

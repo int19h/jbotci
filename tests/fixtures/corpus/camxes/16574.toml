@@ -18,81 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu sélcme be le mlátu zo'u plúja .i je na sélkeĭ ca le nalgúndeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selcme",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [41,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selkeĭ",
-    span: [44,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [54,56],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalgundeĭ",
-    span: [57,66],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "sélcme",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "mlátu",
+  Cmavo "zo'u",
+  Gismu "plúja",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "na",
+  Lujvo "sélkeĭ",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "nalgúndeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"selcme","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"pluja","kind":"gismu"}},{"Bare":{"span":[37,38],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[44,50],"phonemes":"selkeĭ","kind":"lujvo"}},{"Bare":{"span":[51,53],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[57,66],"phonemes":"nalgundeĭ","kind":"lujvo"}}]"""
 
@@ -101,96 +41,36 @@ tree = """
 Prenex {
   prenex_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "selcme",
-            span: [6,12],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [13,15],
-          },
+          Lujvo "sélcme",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [16,18],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "mlatu",
-              span: [19,24],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "mlátu",
           },
         },
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [25,29],
-  },
+  zohu: Cmavo "zo'u",
   Connected {
-    leading_statement: Word {
-      kind: "gismu",
-      phonemes: "pluja",
-      span: [30,35],
-    },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [37,38],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [38,40],
-    },
+    leading_statement: Gismu "plúja",
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [41,43],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selkeĭ",
-          span: [44,50],
-        },
+        na: Cmavo "na",
+        Lujvo "sélkeĭ",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [51,53],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [54,56],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "nalgundeĭ",
-              span: [57,66],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "nalgúndeĭ",
           },
         },
       ],

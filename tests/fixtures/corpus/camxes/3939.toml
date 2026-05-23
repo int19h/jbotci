@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ji'a cúsku fi le cníno lójbo prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [29,34],
-  },
+  Cmavo "ji'a",
+  Gismu "cúsku",
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "cníno",
+  Gismu "lójbo",
+  Gismu "prénu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"prenu","kind":"gismu"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ji'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [5,10],
-    },
+    Gismu "cúsku",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [11,13],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [23,28],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "prenu",
-              span: [29,34],
-            },
+            Gismu "cníno",
+            Gismu "lójbo",
+            Gismu "prénu",
           },
         },
       },

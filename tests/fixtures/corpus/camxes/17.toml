@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda .i je bróda .i ja)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [20,22],
-  },
+  Gismu "bróda",
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "bróda",
+  Cmavo "i",
+  Cmavo "ja",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ja","kind":"cmavo"}}]'
 
@@ -55,38 +31,14 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   Connected {
-    leading_statement: Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [0,5],
-    },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [9,11],
-    },
-    trailing_statement: Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [12,17],
-    },
+    leading_statement: Gismu "bróda",
+    i: Cmavo "i",
+    connective: Cmavo "je",
+    trailing_statement: Gismu "bróda",
   },
   Ijek {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [18,19],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [20,22],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "ja",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}}},{"statement":{"Fragment":{"Ijek":{"i":{"Bare":{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[20,22],"phonemes":"ja","kind":"cmavo"}}}]}}}}}}]}]}'

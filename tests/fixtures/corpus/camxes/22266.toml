@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le vo moĭ purlámdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "purlamdeĭ",
-    span: [9,18],
-  },
+  Cmavo "le",
+  Cmavo "vo",
+  Cmavo "moĭ",
+  Lujvo "purlámdeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[9,18],"phonemes":"purlamdeĭ","kind":"lujvo"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "vo",
-              span: [3,5],
-            },
+            Cmavo "vo",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "moĭ",
-            span: [5,8],
-          },
+          moi: Cmavo "moĭ",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "purlamdeĭ",
-          span: [9,18],
-        },
+        Lujvo "purlámdeĭ",
       },
     },
   ],

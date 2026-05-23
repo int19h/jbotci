@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ .kreĭg. noĭ dránykaĭ se cméne lu pínji jámna li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kreĭg",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dranykaĭ",
-    span: [16,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinji",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [49,53],
-  },
+  Cmavo "coĭ",
+  Cmevla "kreĭg",
+  Cmavo "noĭ",
+  Lujvo "dránykaĭ",
+  Cmavo "se",
+  Gismu "cméne",
+  Cmavo "lu",
+  Gismu "pínji",
+  Gismu "jámna",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"kreĭg","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[16,24],"phonemes":"dranykaĭ","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"pinji","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"jamna","kind":"gismu"}},{"Bare":{"span":[49,53],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -77,69 +37,29 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelativeClause {
-        base_argument: Word {
-          kind: "cmevla",
-          phonemes: "kreĭg",
-          span: [5,10],
-        },
+        base_argument: Cmevla "kreĭg",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [12,15],
-            },
+            noi: Cmavo "noĭ",
             Relation {
               Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "dranykaĭ",
-                  span: [16,24],
-                },
+                Lujvo "dránykaĭ",
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [25,27],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "cmene",
-                    span: [28,33],
-                  },
+                  se: Cmavo "se",
+                  Gismu "cméne",
                 },
               },
               terms: [
                 Lu {
-                  lu: Word {
-                    kind: "cmavo",
-                    phonemes: "lu",
-                    span: [34,36],
-                  },
+                  lu: Cmavo "lu",
                   Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "pinji",
-                      span: [37,42],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "jamna",
-                      span: [43,48],
-                    },
+                    Gismu "pínji",
+                    Gismu "jámna",
                   },
-                  lihu: Word {
-                    kind: "cmavo",
-                    phonemes: "li'u",
-                    span: [49,53],
-                  },
+                  lihu: Cmavo "li'u",
                 },
               ],
             },

@@ -18,101 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi tróci co mórji le se go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [26,30],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "tróci",
+  Cmavo "co",
+  Gismu "mórji",
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Co {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "troci",
-          span: [5,10],
-        },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [11,13],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "morji",
-          span: [14,19],
-        },
+        leading_relation: Gismu "tróci",
+        co: Cmavo "co",
+        trailing_relation: Gismu "mórji",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [23,25],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "go'i",
-              span: [26,30],
-            },
+            se: Cmavo "se",
+            Cmavo "go'i",
           },
         },
       ],

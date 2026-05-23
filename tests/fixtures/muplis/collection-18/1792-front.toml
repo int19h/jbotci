@@ -21,49 +21,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zoĭ gy Mary gy] cméne le mi tíxnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [7,9],
-    },
-    quoted_text: [10,14],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [15,17],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Mary",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tixnu",
-    span: [31,36],
-  },
+  Gismu "cméne",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "tíxnu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,9],"phonemes":"gy","kind":"cmavo"},"quoted_text":[10,14],"closing_delimiter":{"span":[15,17],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[19,24],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"tixnu","kind":"gismu"}}]'
 
@@ -71,57 +39,25 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi
 brackets = "(.i [{zoĭ gy Mary gy} {cméne (le mi tíxnu)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [3,6],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [7,9],
-        },
-        quoted_text: [10,14],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [15,17],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "Mary",
+        closing_delimiter: Cmavo "gy",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [19,24],
-      },
+      Gismu "cméne",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [25,27],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [28,30],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tixnu",
-            span: [31,36],
-          },
+          relation: Gismu "tíxnu",
         },
       ],
     },

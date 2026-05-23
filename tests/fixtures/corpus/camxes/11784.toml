@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cátlu le dráta dáfku)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dafku",
-    span: [15,20],
-  },
+  Gismu "cátlu",
+  Cmavo "le",
+  Gismu "dráta",
+  Gismu "dáfku",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"dafku","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [0,5],
-  },
+  Gismu "cátlu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "drata",
-          span: [9,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dafku",
-          span: [15,20],
-        },
+        Gismu "dráta",
+        Gismu "dáfku",
       },
     },
   ],

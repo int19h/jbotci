@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.aĭ ca me la .dydyrys. kélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dydyrys",
-    span: [13,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [22,27],
-  },
+  Cmavo "aĭ",
+  Cmavo "ca",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "dydyrys",
+  Gismu "kélci",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[13,20],"phonemes":"dydyrys","kind":"cmevla"}},{"Bare":{"span":[22,27],"phonemes":"kelci","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [4,6],
-    },
+    tense_modal: Cmavo "ca",
     Compound {
       Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [7,9],
-        },
+        me: Cmavo "me",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [10,12],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "dydyrys",
-              span: [13,20],
-            },
+            Cmevla "dydyrys",
           ],
         },
       },
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [22,27],
-      },
+      Gismu "kélci",
     },
   },
 }"""

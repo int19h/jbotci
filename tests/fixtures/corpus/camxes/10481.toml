@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mílxe go'i ki'u le nu na se sánso le súnga mátne)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanso",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sunga",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "matne",
-    span: [43,48],
-  },
+  Gismu "mílxe",
+  Cmavo "go'i",
+  Cmavo "ki'u",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "na",
+  Cmavo "se",
+  Gismu "sánso",
+  Cmavo "le",
+  Gismu "súnga",
+  Gismu "mátne",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"sanso","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"sunga","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"matne","kind":"gismu"}}]"""
 
@@ -80,76 +36,32 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"s
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "milxe",
-      span: [0,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [6,10],
-    },
+    Gismu "mílxe",
+    Cmavo "go'i",
   },
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ki'u",
-          span: [11,15],
-        },
+        bai: Cmavo "ki'u",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [16,18],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [19,21],
-          },
+          nu: Cmavo "nu",
           Relation {
             Na {
-              na: Word {
-                kind: "cmavo",
-                phonemes: "na",
-                span: [22,24],
-              },
+              na: Cmavo "na",
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [25,27],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sanso",
-                  span: [28,33],
-                },
+                se: Cmavo "se",
+                Gismu "sánso",
               },
             },
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [34,36],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "sunga",
-                    span: [37,42],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "matne",
-                    span: [43,48],
-                  },
+                  Gismu "súnga",
+                  Gismu "mátne",
                 },
               },
             ],

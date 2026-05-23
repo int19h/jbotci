@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ka mlójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mlojbo",
-    span: [3,9],
-  },
+  Cmavo "ka",
+  Lujvo "mlójbo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"mlojbo","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mlojbo",
-    span: [3,9],
-  },
+  nu: Cmavo "ka",
+  Lujvo "mlójbo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,9],"phonemes":"mlojbo","kind":"lujvo"}}}}}}}}}}}}}}}}}}}]}]}'

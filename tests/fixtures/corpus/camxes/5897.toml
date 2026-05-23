@@ -18,46 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lérfu taĭ ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
+  Gismu "lérfu",
+  Cmavo "taĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"lerfu","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "lerfu",
-    span: [0,5],
-  },
+  Gismu "lérfu",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [6,9],
-        },
+        bai: Cmavo "taĭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [10,12],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

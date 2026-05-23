@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u mámta cu lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [14,19],
-  },
+  Cmavo "so'u",
+  Gismu "mámta",
+  Cmavo "cu",
+  Gismu "lójbo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"lojbo","kind":"gismu"}}]"""
 
@@ -47,28 +31,12 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'u",
-          span: [0,4],
-        },
+        Cmavo "so'u",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "mamta",
-        span: [5,10],
-      },
+      relation: Gismu "mámta",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [14,19],
-  },
+  cu: Cmavo "cu",
+  Gismu "lójbo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"mamta","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"lojbo","kind":"gismu"}}}}}}}}}}}]}]}"""

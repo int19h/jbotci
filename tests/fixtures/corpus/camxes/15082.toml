@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cmálu dánsu gi'e cmálu sánga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dansu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [26,31],
-  },
+  Cmavo "mi",
+  Gismu "cmálu",
+  Gismu "dánsu",
+  Cmavo "gi'e",
+  Gismu "cmálu",
+  Gismu "sánga",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"dansu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"sanga","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "dansu",
-        span: [9,14],
-      },
+      Gismu "cmálu",
+      Gismu "dánsu",
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [15,19],
-        },
+        connective: Cmavo "gi'e",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmalu",
-            span: [20,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "sanga",
-            span: [26,31],
-          },
+          Gismu "cmálu",
+          Gismu "sánga",
         },
       },
     ],

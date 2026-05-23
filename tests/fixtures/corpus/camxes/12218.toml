@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi mílxe lénku .i .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [19,21],
-  },
+  Cmavo "vi",
+  Gismu "mílxe",
+  Gismu "lénku",
+  Cmavo "i",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [0,2],
-    },
+    tense_modal: Cmavo "vi",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "milxe",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lenku",
-        span: [9,14],
-      },
+      Gismu "mílxe",
+      Gismu "lénku",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [16,17],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [19,21],
-      },
+      Cmavo "i",
+      indicator: Cmavo "oĭ",
     },
   },
 }"""

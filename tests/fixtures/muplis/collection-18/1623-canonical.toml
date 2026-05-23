@@ -21,51 +21,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pu ku zo'u ra jo'u ke mi ke'e cádzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [30,35],
-  },
+  Cmavo "pu",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "ra",
+  Cmavo "jo'u",
+  Cmavo "ke",
+  Cmavo "mi",
+  Cmavo "ke'e",
+  Gismu "cádzu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"jo'u","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"cadzu","kind":"gismu"}}]"""
 
@@ -75,62 +39,26 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [3,5],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [6,10],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "ra",
-          span: [11,13],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "jo'u",
-          span: [14,18],
-        },
+        leading_argument: Cmavo "ra",
+        connective: Cmavo "jo'u",
         trailing_argument: Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [19,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [22,24],
-          },
-          kehe: Word {
-            kind: "cmavo",
-            phonemes: "ke'e",
-            span: [25,29],
-          },
+          ke: Cmavo "ke",
+          Cmavo "mi",
+          kehe: Cmavo "ke'e",
         },
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cadzu",
-      span: [30,35],
-    },
+    Gismu "cádzu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Koha":{"Bare":{"Bare":{"span":[11,13],"phonemes":"ra","kind":"cmavo"}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[14,18],"phonemes":"jo'u","kind":"cmavo"}}}]}},"trailing_argument":{"Ke":{"ke":{"Bare":{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}}}},"kehe":{"Bare":{"Bare":{"span":[25,29],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[30,35],"phonemes":"cadzu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

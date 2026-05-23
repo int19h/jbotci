@@ -18,33 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to djísku [zo cíkre] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [3,9],
-  },
+  Cmavo "to",
+  Lujvo "djísku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [13,18],
-    },
+    zo: Cmavo "zo",
+    Gismu "cíkre",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [19,22],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,18],"phonemes":"cikre","kind":"gismu"}}},{"Bare":{"span":[19,22],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -53,37 +33,17 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "djisku",
-          span: [3,9],
-        },
+        Lujvo "djísku",
         terms: [
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [10,12],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cikre",
-              span: [13,18],
-            },
+            zo: Cmavo "zo",
+            Gismu "cíkre",
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [19,22],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

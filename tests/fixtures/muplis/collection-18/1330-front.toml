@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ra djíca lo nu mi sídju ra tu'a le zdakemkulgú'a pe ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zdakemkulgu'a",
-    span: [35,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [52,54],
-  },
+  Cmavo "ra",
+  Gismu "djíca",
+  Cmavo "lo",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "sídju",
+  Cmavo "ra",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "zdakemkulgú'a",
+  Cmavo "pe",
+  Cmavo "ra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,48],"phonemes":"zdakemkulgu'a","kind":"lujvo"}},{"Bare":{"span":[49,51],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"ra","kind":"cmavo"}}]"""
 
@@ -89,80 +41,32 @@ brackets = "(ra [djíca {lo (nu [mi {sídju (ra [tu'a {le zdakemkulgú'a (pe ra)
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [3,8],
-    },
+    Gismu "djíca",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [9,11],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [12,14],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [15,17],
-              },
+              Cmavo "mi",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "sidju",
-                span: [18,23],
-              },
+              Gismu "sídju",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ra",
-                  span: [24,26],
-                },
+                Cmavo "ra",
                 Lahe {
-                  lahe: Word {
-                    kind: "cmavo",
-                    phonemes: "tu'a",
-                    span: [27,31],
-                  },
+                  lahe: Cmavo "tu'a",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [32,34],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "zdakemkulgu'a",
-                      span: [35,48],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Lujvo "zdakemkulgú'a",
                     relative_clauses: [
                       GoiRelativeClause {
-                        goi: Word {
-                          kind: "cmavo",
-                          phonemes: "pe",
-                          span: [49,51],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "ra",
-                          span: [52,54],
-                        },
+                        goi: Cmavo "pe",
+                        Cmavo "ra",
                       },
                     ],
                   },

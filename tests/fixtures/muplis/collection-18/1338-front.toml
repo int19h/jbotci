@@ -22,27 +22,11 @@ brackets = "([zo .karmen.] spáno cméne)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "karmen",
-      span: [4,10],
-    },
+    zo: Cmavo "zo",
+    Cmevla "karmen",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "spano",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [18,23],
-  },
+  Gismu "spáno",
+  Gismu "cméne",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[4,10],"phonemes":"karmen","kind":"cmevla"}}},{"Bare":{"span":[12,17],"phonemes":"spano","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"cmene","kind":"gismu"}}]'
 
@@ -52,29 +36,13 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmevla",
-        phonemes: "karmen",
-        span: [4,10],
-      },
+      zo: Cmavo "zo",
+      Cmevla "karmen",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "spano",
-      span: [12,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [18,23],
-    },
+    Gismu "spáno",
+    Gismu "cméne",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[4,10],"phonemes":"karmen","kind":"cmevla"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"spano","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"cmene","kind":"gismu"}}}}]}}}}}}}}]}]}'

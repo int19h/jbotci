@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o xu do rémna cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [17,22],
-  },
+  Cmavo "ni'o",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "rémna",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -51,37 +31,17 @@ tree = """
 Paragraph {
   niho: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ni'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [5,7],
-      },
+      Cmavo "ni'o",
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "remna",
-        span: [11,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [17,22],
-      },
+      Gismu "rémna",
+      Gismu "cítka",
     },
   },
 }"""

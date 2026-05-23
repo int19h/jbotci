@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca je ba naĭ .aŭ no'e xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [20,25],
-  },
+  Cmavo "ca",
+  Cmavo "je",
+  Cmavo "ba",
+  Cmavo "naĭ",
+  Cmavo "aŭ",
+  Cmavo "no'e",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xamgu","kind":"gismu"}}]"""
 
@@ -60,45 +32,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [6,8],
-    },
+    Cmavo "ca",
+    Cmavo "je",
+    Cmavo "ba",
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [8,11],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [12,14],
-      },
+      Cmavo "naĭ",
+      indicator: Cmavo "aŭ",
     },
   },
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "no'e",
-      span: [15,19],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [20,25],
-    },
+    nahe: Cmavo "no'e",
+    Gismu "xámgu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"je","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}},"indicator":{"span":[12,14],"phonemes":"aŭ","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[15,19],"phonemes":"no'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"xamgu","kind":"gismu"}}}}}}]}}}}}}}}}}]}]}"""

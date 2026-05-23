@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭe saĭ .i do zmáxaŭ cíksi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zmaxaŭ",
-    span: [13,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [20,25],
-  },
+  Cmavo "ĭe",
+  Cmavo "saĭ",
+  Cmavo "i",
+  Cmavo "do",
+  Lujvo "zmáxaŭ",
+  Gismu "cíksi",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,19],"phonemes":"zmaxaŭ","kind":"lujvo"}},{"Bare":{"span":[20,25],"phonemes":"ciksi","kind":"gismu"}}]'
 
@@ -57,44 +33,20 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ĭe",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "ĭe",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        Cmavo "do",
       ],
       Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "zmaxaŭ",
-          span: [13,19],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ciksi",
-          span: [20,25],
-        },
+        Lujvo "zmáxaŭ",
+        Gismu "cíksi",
       },
     },
   },

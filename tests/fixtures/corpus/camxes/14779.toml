@@ -18,33 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(córtu ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [6,8],
-  },
+  Gismu "córtu",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
+  Gismu "córtu",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [6,8],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cortu","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

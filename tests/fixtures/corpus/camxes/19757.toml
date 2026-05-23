@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma jaĭ gaŭ skína)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skina",
-    span: [11,16],
-  },
+  Cmavo "ma",
+  Cmavo "jaĭ",
+  Cmavo "gaŭ",
+  Gismu "skína",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"skina","kind":"gismu"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [3,6],
-    },
+    jai: Cmavo "jaĭ",
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "gaŭ",
-        span: [7,10],
-      },
+      bai: Cmavo "gaŭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "skina",
-      span: [11,16],
-    },
+    Gismu "skína",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}}},"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[7,10],"phonemes":"gaŭ","kind":"cmavo"}}}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"skina","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

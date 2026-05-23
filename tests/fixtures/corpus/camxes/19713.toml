@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le krúji bísli noĭ mi ka'e cítka ke'a cu na xráni mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kruji",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bisli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [22,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [50,52],
-  },
+  Cmavo "le",
+  Gismu "krúji",
+  Gismu "bísli",
+  Cmavo "noĭ",
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Gismu "cítka",
+  Cmavo "ke'a",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "xráni",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kruji","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bisli","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"xrani","kind":"gismu"}},{"Bare":{"span":[50,52],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -86,57 +38,25 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "kruji",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bisli",
-          span: [9,14],
-        },
+        Gismu "krúji",
+        Gismu "bísli",
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [15,18],
-          },
+          noi: Cmavo "noĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [19,21],
-              },
+              Cmavo "mi",
             ],
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ka'e",
-                  span: [22,26],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "citka",
-                  span: [27,32],
-                },
+                tense_modal: Cmavo "ka'e",
+                Gismu "cítka",
               },
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ke'a",
-                  span: [33,37],
-                },
+                Cmavo "ke'a",
               ],
             },
           },
@@ -144,30 +64,14 @@ Predicate {
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [38,40],
-  },
+  cu: Cmavo "cu",
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [41,43],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xrani",
-        span: [44,49],
-      },
+      na: Cmavo "na",
+      Gismu "xráni",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [50,52],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

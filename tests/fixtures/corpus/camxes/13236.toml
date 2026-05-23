@@ -18,51 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xa pi'e re xa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [10,12],
-  },
+  Cmavo "xa",
+  Cmavo "pi'e",
+  Cmavo "re",
+  Cmavo "xa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"xa","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [10,12],
-  },
+  Cmavo "xa",
+  Cmavo "pi'e",
+  Cmavo "re",
+  Cmavo "xa",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"xa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,7],"phonemes":"pi'e","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[10,12],"phonemes":"xa","kind":"cmavo"}}}]}}}}}}]}]}"""

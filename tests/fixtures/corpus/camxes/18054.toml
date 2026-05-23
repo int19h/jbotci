@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'e se smádi fi la .mumym. .i káncu [zo djíca] li ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mumym",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [28,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [30,35],
-  },
+  Cmavo "di'e",
+  Cmavo "se",
+  Gismu "smádi",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "mumym",
+  Cmavo "i",
+  Gismu "káncu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [36,38],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [39,44],
-    },
+    zo: Cmavo "zo",
+    Gismu "djíca",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [48,50],
-  },
+  Cmavo "li",
+  Cmavo "ci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"smadi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[28,29],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"kancu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[36,38],"phonemes":"zo","kind":"cmavo"},"word":{"span":[39,44],"phonemes":"djica","kind":"gismu"}}},{"Bare":{"span":[45,47],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"ci","kind":"cmavo"}}]"""
 
@@ -88,44 +40,20 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "di'e",
-        span: [0,4],
-      },
+      Cmavo "di'e",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "smadi",
-          span: [8,13],
-        },
+        se: Cmavo "se",
+        Gismu "smádi",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [14,16],
-          },
+          fa: Cmavo "fi",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [17,19],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "mumym",
-                span: [20,25],
-              },
+              Cmevla "mumym",
             ],
           },
         },
@@ -133,41 +61,17 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [28,29],
-    },
+    i: Cmavo "i",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kancu",
-        span: [30,35],
-      },
+      Gismu "káncu",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [36,38],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djica",
-            span: [39,44],
-          },
+          zo: Cmavo "zo",
+          Gismu "djíca",
         },
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [45,47],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [48,50],
-          },
+          li: Cmavo "li",
+          Cmavo "ci",
         },
       ],
     },

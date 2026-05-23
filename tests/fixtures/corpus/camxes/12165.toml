@@ -19,56 +19,16 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xa pi ze re da poĭ prénu cu víska mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [31,33],
-  },
+  Cmavo "xa",
+  Cmavo "pi",
+  Cmavo "ze",
+  Cmavo "re",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "víska",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,3],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -79,66 +39,26 @@ Predicate {
     RelativeClause {
       base_argument: Quantified {
         quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [0,1],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [1,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ze",
-            span: [2,3],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [6,8],
-          },
+          Cmavo "xa",
+          Cmavo "pi",
+          Cmavo "ze",
+          Cmavo "re",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [9,11],
-        },
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [12,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [16,21],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "prénu",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [25,30],
-    },
+    Gismu "víska",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [31,33],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

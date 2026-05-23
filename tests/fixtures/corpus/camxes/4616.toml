@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ckáfi bárna le mi xúnre cúkta)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barna",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [24,29],
-  },
+  Gismu "ckáfi",
+  Gismu "bárna",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "xúnre",
+  Gismu "cúkta",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ckafi","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"barna","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"cukta","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"ckafi","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ckafi",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "barna",
-      span: [6,11],
-    },
+    Gismu "ckáfi",
+    Gismu "bárna",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [12,14],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [15,17],
-        },
+        Cmavo "mi",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xunre",
-          span: [18,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [24,29],
-        },
+        Gismu "xúnre",
+        Gismu "cúkta",
       },
     },
   ],

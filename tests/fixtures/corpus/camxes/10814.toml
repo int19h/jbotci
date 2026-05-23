@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do tráji le ka te línse keĭ lo rúble ro te línsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "linse",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ruble",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "linsi",
-    span: [43,48],
-  },
+  Cmavo "do",
+  Gismu "tráji",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "te",
+  Gismu "línse",
+  Cmavo "keĭ",
+  Cmavo "lo",
+  Gismu "rúble",
+  Cmavo "ro",
+  Cmavo "te",
+  Gismu "línsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"linse","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"ruble","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"linsi","kind":"gismu"}}]'
 
@@ -85,81 +37,33 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "traji",
-      span: [3,8],
-    },
+    Gismu "tráji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [12,14],
-          },
+          nu: Cmavo "ka",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "te",
-              span: [15,17],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "linse",
-              span: [18,23],
-            },
+            se: Cmavo "te",
+            Gismu "línse",
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [24,27],
-          },
+          kei: Cmavo "keĭ",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [28,30],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ruble",
-          span: [31,36],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "rúble",
       },
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [37,39],
-          },
+          Cmavo "ro",
         ],
         relation: Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [40,42],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "linsi",
-            span: [43,48],
-          },
+          se: Cmavo "te",
+          Gismu "línsi",
         },
       },
     ],

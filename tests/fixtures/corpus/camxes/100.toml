@@ -20,27 +20,11 @@ tree = """
 [
   ZeiLujvo {
     left: ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "bu",
-        span: [3,5],
-      },
+      zo: Cmavo "zo",
+      Cmavo "bu",
     },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [6,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "de",
-      span: [10,12],
-    },
+    zei: Cmavo "zeĭ",
+    Cmavo "de",
   },
 ]"""
 json = '[{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,12],"phonemes":"de","kind":"cmavo"}}}]'
@@ -49,26 +33,10 @@ json = '[{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kin
 tree = """
 ZeiLujvo {
   left: ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "bu",
   },
-  zei: Word {
-    kind: "cmavo",
-    phonemes: "zeĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [10,12],
-  },
+  zei: Cmavo "zeĭ",
+  Cmavo "de",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,12],"phonemes":"de","kind":"cmavo"}}}}}}}}}}}}]}]}'

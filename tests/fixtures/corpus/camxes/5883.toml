@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le samsélpla pe le vínji dátni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vinji",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [25,30],
-  },
+  Cmavo "le",
+  Lujvo "samsélpla",
+  Cmavo "pe",
+  Cmavo "le",
+  Gismu "vínji",
+  Gismu "dátni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"vinji","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"datni","kind":"gismu"}}]'
 
@@ -56,40 +32,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "samselpla",
-        span: [3,12],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "samsélpla",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [13,15],
-          },
+          goi: Cmavo "pe",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [16,18],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "vinji",
-                span: [19,24],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "datni",
-                span: [25,30],
-              },
+              Gismu "vínji",
+              Gismu "dátni",
             },
           },
         },

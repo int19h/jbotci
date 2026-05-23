@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le térdi na bárda fo le'i plíni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terdi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'i",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plini",
-    span: [26,31],
-  },
+  Cmavo "le",
+  Gismu "térdi",
+  Cmavo "na",
+  Gismu "bárda",
+  Cmavo "fo",
+  Cmavo "le'i",
+  Gismu "plíni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"terdi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"le'i","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"plini","kind":"gismu"}}]"""
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "terdi",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "térdi",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "barda",
-        span: [12,17],
-      },
+      na: Cmavo "na",
+      Gismu "bárda",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [18,20],
-        },
+        fa: Cmavo "fo",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le'i",
-            span: [21,25],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "plini",
-            span: [26,31],
-          },
+          descriptor: Cmavo "le'i",
+          relation: Gismu "plíni",
         },
       },
     ],

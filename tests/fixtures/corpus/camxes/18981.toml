@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vlíle bébna .i jámna je naĭ cínmo .i vlíle je naĭ sávru)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [34,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [44,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "savru",
-    span: [48,53],
-  },
+  Gismu "vlíle",
+  Gismu "bébna",
+  Cmavo "i",
+  Gismu "jámna",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "cínmo",
+  Cmavo "i",
+  Gismu "vlíle",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "sávru",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jamna","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[34,35],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"savru","kind":"gismu"}}]'
 
@@ -85,77 +37,29 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "vlile",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bebna",
-      span: [6,11],
+    Gismu "vlíle",
+    Gismu "bébna",
+  },
+  ParagraphStatement {
+    i: Cmavo "i",
+    Connected {
+      leading_relation: Gismu "jámna",
+      connective: Relation {
+        Cmavo "je",
+        nai: Cmavo "naĭ",
+      },
+      trailing_relation: Gismu "cínmo",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "jamna",
-        span: [15,20],
-      },
+      leading_relation: Gismu "vlíle",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [21,23],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [23,26],
-        },
+        Cmavo "je",
+        nai: Cmavo "naĭ",
       },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "cinmo",
-        span: [27,32],
-      },
-    },
-  },
-  ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [34,35],
-    },
-    Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "vlile",
-        span: [36,41],
-      },
-      connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [42,44],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [44,47],
-        },
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "savru",
-        span: [48,53],
-      },
+      trailing_relation: Gismu "sávru",
     },
   },
 }"""

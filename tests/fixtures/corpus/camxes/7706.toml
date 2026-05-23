@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.slobin. na pu zváti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "slobin",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [13,18],
-  },
+  Cmevla "slobin",
+  Cmavo "na",
+  Cmavo "pu",
+  Gismu "zváti",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"slobin","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"zvati","kind":"gismu"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"slobin","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "slobin",
-      span: [0,6],
-    },
+    Cmevla "slobin",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [7,9],
-    },
+    na: Cmavo "na",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [10,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [13,18],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "zváti",
     },
   },
 }"""

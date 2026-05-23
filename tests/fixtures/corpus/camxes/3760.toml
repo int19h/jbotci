@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .i tcídu císka le líkcku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "likcku",
-    span: [22,28],
-  },
+  Cmavo "coĭ",
+  Cmavo "i",
+  Gismu "tcídu",
+  Gismu "císka",
+  Cmavo "le",
+  Lujvo "líkcku",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"likcku","kind":"lujvo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [5,6],
-    },
+    i: Cmavo "i",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "tcidu",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ciska",
-          span: [13,18],
-        },
+        Gismu "tcídu",
+        Gismu "císka",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "likcku",
-            span: [22,28],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "líkcku",
         },
       ],
     },

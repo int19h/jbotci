@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nunpíkci cu sárcu ci'e le norjúndi cévni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpikci",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "norjundi",
-    span: [29,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [38,43],
-  },
+  Cmavo "le",
+  Lujvo "nunpíkci",
+  Cmavo "cu",
+  Gismu "sárcu",
+  Cmavo "ci'e",
+  Cmavo "le",
+  Lujvo "norjúndi",
+  Gismu "cévni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"nunpikci","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"sarcu","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"ci'e","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,37],"phonemes":"norjundi","kind":"lujvo"}},{"Bare":{"span":[38,43],"phonemes":"cevni","kind":"gismu"}}]"""
 
@@ -66,55 +34,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "nunpikci",
-        span: [3,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "nunpíkci",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sarcu",
-      span: [15,20],
-    },
+    Gismu "sárcu",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ci'e",
-            span: [21,25],
-          },
+          bai: Cmavo "ci'e",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [26,28],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "norjundi",
-              span: [29,37],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cevni",
-              span: [38,43],
-            },
+            Lujvo "norjúndi",
+            Gismu "cévni",
           },
         },
       },

@@ -18,96 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba ro roĭ zváti se pi'o la .skrin. to poĭ se nélci mi toĭ pe la .ĭuniks.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "skrin",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [37,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [53,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [57,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [60,62],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ĭuniks",
-    span: [63,69],
-  },
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "ro",
+  Cmavo "roĭ",
+  Gismu "zváti",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "la",
+  Cmevla "skrin",
+  Cmavo "to",
+  Cmavo "poĭ",
+  Cmavo "se",
+  Gismu "nélci",
+  Cmavo "mi",
+  Cmavo "toĭ",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "ĭuniks",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"skrin","kind":"cmevla"}},{"Bare":{"span":[34,36],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[50,52],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[53,56],"phonemes":"toĭ","kind":"cmavo"}},{"Bare":{"span":[57,59],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[63,69],"phonemes":"ĭuniks","kind":"cmevla"}}]"""
 
@@ -115,127 +43,55 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [8,11],
-        },
+        Cmavo "ba",
+        Cmavo "ro",
+        Cmavo "roĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [12,17],
-      },
+      Gismu "zváti",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [18,20],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "pi'o",
-            span: [20,24],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "pi'o",
         },
         RelativeClause {
           base_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [25,27],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "skrin",
-                span: [28,33],
-              },
+              Cmevla "skrin",
             ],
             free_modifiers: [
               To {
-                to: Word {
-                  kind: "cmavo",
-                  phonemes: "to",
-                  span: [34,36],
-                },
+                to: Cmavo "to",
                 Poi {
-                  poi: Word {
-                    kind: "cmavo",
-                    phonemes: "poĭ",
-                    span: [37,40],
-                  },
+                  poi: Cmavo "poĭ",
                   Relation {
                     Se {
-                      se: Word {
-                        kind: "cmavo",
-                        phonemes: "se",
-                        span: [41,43],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "nelci",
-                        span: [44,49],
-                      },
+                      se: Cmavo "se",
+                      Gismu "nélci",
                     },
                     terms: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "mi",
-                        span: [50,52],
-                      },
+                      Cmavo "mi",
                     ],
                   },
                 },
-                toi: Word {
-                  kind: "cmavo",
-                  phonemes: "toĭ",
-                  span: [53,56],
-                },
+                toi: Cmavo "toĭ",
               },
             ],
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [57,59],
-              },
+              goi: Cmavo "pe",
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [60,62],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "ĭuniks",
-                    span: [63,69],
-                  },
+                  Cmevla "ĭuniks",
                 ],
               },
             },

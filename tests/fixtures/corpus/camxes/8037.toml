@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le za'i re do ckíre mi keĭ xámgu mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckire",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [32,34],
-  },
+  Cmavo "le",
+  Cmavo "za'i",
+  Cmavo "re",
+  Cmavo "do",
+  Gismu "ckíre",
+  Cmavo "mi",
+  Cmavo "keĭ",
+  Gismu "xámgu",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"ckire","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -71,66 +35,30 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "za'i",
-            span: [3,7],
-          },
+          nu: Cmavo "za'i",
           Predicate {
             leading_terms: [
               Quantified {
-                quantifier: Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [8,10],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [10,12],
-                },
+                quantifier: Cmavo "re",
+                Cmavo "do",
               },
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "ckire",
-                span: [13,18],
-              },
+              Gismu "ckíre",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [19,21],
-                },
+                Cmavo "mi",
               ],
             },
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [22,25],
-          },
+          kei: Cmavo "keĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [26,31],
-        },
+        Gismu "xámgu",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [32,34],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,7],"phonemes":"za'i","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"ckire","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}},"kei":{"Bare":{"Bare":{"span":[22,25],"phonemes":"keĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"xamgu","kind":"gismu"}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}]}]}"""

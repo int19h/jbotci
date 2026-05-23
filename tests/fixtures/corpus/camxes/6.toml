@@ -19,44 +19,20 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ka bródi do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodi",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [30,32],
-  },
+  Cmavo "ka",
+  Gismu "bródi",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"brodi","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
+  nu: Cmavo "ka",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "brodi",
-      span: [24,29],
-    },
+    Gismu "bródi",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [30,32],
-      },
+      Cmavo "do",
     ],
   },
 }"""

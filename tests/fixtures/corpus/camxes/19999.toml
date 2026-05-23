@@ -19,42 +19,14 @@ brackets = "([zo selcfípu] dúnli lu se cfípu li'u)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selcfipu",
-      span: [3,11],
-    },
+    zo: Cmavo "zo",
+    Lujvo "selcfípu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [30,34],
-  },
+  Gismu "dúnli",
+  Cmavo "lu",
+  Cmavo "se",
+  Gismu "cfípu",
+  Cmavo "li'u",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"selcfipu","kind":"lujvo"}}},{"Bare":{"span":[12,17],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -63,48 +35,20 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "selcfipu",
-        span: [3,11],
-      },
+      zo: Cmavo "zo",
+      Lujvo "selcfípu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "dunli",
-      span: [12,17],
-    },
+    Gismu "dúnli",
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [18,20],
-        },
+        lu: Cmavo "lu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [21,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cfipu",
-            span: [24,29],
-          },
+          se: Cmavo "se",
+          Gismu "cfípu",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [30,34],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

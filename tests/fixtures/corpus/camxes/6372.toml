@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ coĭ doĭ jbópre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [12,18],
-  },
+  Cmavo "coĭ",
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Lujvo "jbópre",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"jbopre","kind":"lujvo"}}]'
 
@@ -47,28 +31,12 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [4,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [8,11],
-        },
+        Cmavo "coĭ",
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "jbopre",
-          span: [12,18],
-        },
+        relation: Lujvo "jbópre",
       },
     },
   ],

@@ -18,159 +18,55 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i zúkte fi lo nu bínxo lo ka'e crádi cásnu va'o lo nándu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [26,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cradi",
-    span: [31,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [43,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [48,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [51,56],
-  },
+  Cmavo "i",
+  Gismu "zúkte",
+  Cmavo "fi",
+  Cmavo "lo",
+  Cmavo "nu",
+  Gismu "bínxo",
+  Cmavo "lo",
+  Cmavo "ka'e",
+  Gismu "crádi",
+  Gismu "cásnu",
+  Cmavo "va'o",
+  Cmavo "lo",
+  Gismu "nándu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"cradi","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[43,47],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"nandu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zukte",
-      span: [2,7],
-    },
+    Gismu "zúkte",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [8,10],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [11,13],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [14,16],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "binxo",
-                span: [17,22],
-              },
+              Gismu "bínxo",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "lo",
-                    span: [23,25],
-                  },
+                  descriptor: Cmavo "lo",
                   relation: TenseModal {
-                    tense_modal: Word {
-                      kind: "cmavo",
-                      phonemes: "ka'e",
-                      span: [26,30],
-                    },
+                    tense_modal: Cmavo "ka'e",
                     Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "cradi",
-                        span: [31,36],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "casnu",
-                        span: [37,42],
-                      },
+                      Gismu "crádi",
+                      Gismu "cásnu",
                     },
                   },
                 },
                 Tagged {
                   tense_modal: Simple {
-                    bai: Word {
-                      kind: "cmavo",
-                      phonemes: "va'o",
-                      span: [43,47],
-                    },
+                    bai: Cmavo "va'o",
                   },
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "lo",
-                      span: [48,50],
-                    },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "nandu",
-                      span: [51,56],
-                    },
+                    descriptor: Cmavo "lo",
+                    relation: Gismu "nándu",
                   },
                 },
               ],

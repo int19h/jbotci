@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'e .greg. .daĭk. .ŭa naĭ daĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "greg",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "daĭk",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "daĭ",
-    span: [20,23],
-  },
+  Cmavo "mi'e",
+  Cmevla "greg",
+  Cmevla "daĭk",
+  Cmavo "ŭa",
+  Cmavo "naĭ",
+  Cmavo "daĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"greg","kind":"cmevla"}},{"Bare":{"span":[10,14],"phonemes":"daĭk","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"daĭ","kind":"cmavo"}}]"""
 
@@ -57,41 +33,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi'e",
-          span: [0,4],
-        },
+        Cmavo "mi'e",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "greg",
-          span: [5,9],
-        },
+        Cmevla "greg",
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "daĭk",
-              span: [10,14],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ŭa",
-              span: [15,17],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [17,20],
-            },
+            Cmevla "daĭk",
+            indicator: Cmavo "ŭa",
+            nai: Cmavo "naĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "daĭ",
-            span: [20,23],
-          },
+          indicator: Cmavo "daĭ",
         },
       },
     },

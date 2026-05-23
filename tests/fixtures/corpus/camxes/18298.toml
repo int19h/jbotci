@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .ŭi saĭ zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [11,15],
-  },
+  Cmavo "je'e",
+  Cmavo "ŭi",
+  Cmavo "saĭ",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -50,28 +34,12 @@ Text {
         WithIndicator {
           WithIndicator {
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "je'e",
-                span: [0,4],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ŭi",
-                span: [5,7],
-              },
+              Cmavo "je'e",
+              indicator: Cmavo "ŭi",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "saĭ",
-              span: [7,10],
-            },
+            indicator: Cmavo "saĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [11,15],
-          },
+          indicator: Cmavo "zo'o",
         },
       ],
     },

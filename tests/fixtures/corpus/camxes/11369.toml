@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a mi na jímpe le du'u ma kaŭ préti fi do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [41,43],
-  },
+  Cmavo "za'a",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "ma",
+  Cmavo "kaŭ",
+  Gismu "préti",
+  Cmavo "fi",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[2,6],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[28,31],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -81,80 +37,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [2,6],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [10,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [13,18],
-        },
+        na: Cmavo "na",
+        Gismu "jímpe",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [19,21],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "du'u",
-              span: [21,25],
-            },
+            nu: Cmavo "du'u",
             Predicate {
               leading_terms: [
                 WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ma",
-                    span: [26,28],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "kaŭ",
-                    span: [28,31],
-                  },
+                  Cmavo "ma",
+                  indicator: Cmavo "kaŭ",
                 },
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "preti",
-                  span: [32,37],
-                },
+                Gismu "préti",
                 terms: [
                   Fa {
-                    fa: Word {
-                      kind: "cmavo",
-                      phonemes: "fi",
-                      span: [38,40],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "do",
-                      span: [41,43],
-                    },
+                    fa: Cmavo "fi",
+                    Cmavo "do",
                   },
                 ],
               },

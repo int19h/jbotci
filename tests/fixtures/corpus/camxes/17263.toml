@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .xod. .u'u mi so'a roĭ na mórji [zo da'i] ki'e .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [29,34],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "u'u",
+  Cmavo "mi",
+  Cmavo "so'a",
+  Cmavo "roĭ",
+  Cmavo "na",
+  Gismu "mórji",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [35,37],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "da'i",
-      span: [38,42],
-    },
+    zo: Cmavo "zo",
+    Cmavo "da'i",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [43,47],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [49,52],
-  },
+  Cmavo "ki'e",
+  Cmevla "xod",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[11,14],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"morji","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[35,37],"phonemes":"zo","kind":"cmavo"},"word":{"span":[38,42],"phonemes":"da'i","kind":"cmavo"}}},{"Bare":{"span":[43,47],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[49,52],"phonemes":"xod","kind":"cmevla"}}]"""
 
@@ -89,89 +41,41 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [5,8],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "u'u",
-          span: [11,14],
-        },
+        Cmevla "xod",
+        indicator: Cmavo "u'u",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [15,17],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "so'a",
-            span: [18,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [22,25],
-          },
+          Cmavo "so'a",
+          Cmavo "roĭ",
         },
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [26,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "morji",
-            span: [29,34],
-          },
+          na: Cmavo "na",
+          Gismu "mórji",
         },
       },
       terms: [
         Zo {
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [35,37],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da'i",
-              span: [38,42],
-            },
+            zo: Cmavo "zo",
+            Cmavo "da'i",
           },
           free_modifiers: [
             Vocative {
               vocative_markers: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ki'e",
-                  span: [43,47],
-                },
+                Cmavo "ki'e",
               ],
-              argument: Word {
-                kind: "cmevla",
-                phonemes: "xod",
-                span: [49,52],
-              },
+              argument: Cmevla "xod",
             },
           ],
         },

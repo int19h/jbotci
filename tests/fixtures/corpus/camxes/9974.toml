@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da poĭ jvínu zo'u de xrujvínu dúnli je dúkti da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jvinu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrujvinu",
-    span: [27,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukti",
-    span: [45,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [51,53],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "jvínu",
+  Cmavo "zo'u",
+  Cmavo "de",
+  Lujvo "xrujvínu",
+  Gismu "dúnli",
+  Cmavo "je",
+  Gismu "dúkti",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jvinu","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"xrujvinu","kind":"lujvo"}},{"Bare":{"span":[36,41],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"dukti","kind":"gismu"}},{"Bare":{"span":[51,53],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -82,77 +38,33 @@ Prenex {
   prenex_terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [6,8],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [9,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jvinu",
-            span: [13,18],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "jvínu",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [19,23],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [24,26],
-      },
+      Cmavo "de",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "xrujvinu",
-          span: [27,35],
-        },
+        Lujvo "xrujvínu",
         Connected {
-          leading_unit: Word {
-            kind: "gismu",
-            phonemes: "dunli",
-            span: [36,41],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [42,44],
-          },
-          trailing_unit: Word {
-            kind: "gismu",
-            phonemes: "dukti",
-            span: [45,50],
-          },
+          leading_unit: Gismu "dúnli",
+          connective: Cmavo "je",
+          trailing_unit: Gismu "dúkti",
         },
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [51,53],
-        },
+        Cmavo "da",
       ],
     },
   },

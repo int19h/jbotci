@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(de'u poĭ vásru [zo deĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "de'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [12,17],
-  },
+  Cmavo "de'u",
+  Cmavo "poĭ",
+  Gismu "vásru",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "deĭ",
-      span: [21,24],
-    },
+    zo: Cmavo "zo",
+    Cmavo "deĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"de'u","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vasru","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,24],"phonemes":"deĭ","kind":"cmavo"}}}]"""
@@ -53,36 +33,16 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "de'u",
-        span: [3,7],
-      },
+      base_argument: Cmavo "de'u",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [8,11],
-          },
+          poi: Cmavo "poĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "vasru",
-              span: [12,17],
-            },
+            Gismu "vásru",
             terms: [
               ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [18,20],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "deĭ",
-                  span: [21,24],
-                },
+                zo: Cmavo "zo",
+                Cmavo "deĭ",
               },
             ],
           },

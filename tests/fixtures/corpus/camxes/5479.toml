@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mlitátpi co benpénsi)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "mlitatpi",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "benpensi",
-    span: [12,20],
-  },
+  Lujvo "mlitátpi",
+  Cmavo "co",
+  Lujvo "benpénsi",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"mlitatpi","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"benpensi","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Co {
-  leading_relation: Word {
-    kind: "lujvo",
-    phonemes: "mlitatpi",
-    span: [0,8],
-  },
-  co: Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  trailing_relation: Word {
-    kind: "lujvo",
-    phonemes: "benpensi",
-    span: [12,20],
-  },
+  leading_relation: Lujvo "mlitátpi",
+  co: Cmavo "co",
+  trailing_relation: Lujvo "benpénsi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,8],"phonemes":"mlitatpi","kind":"lujvo"}}}},"co":{"Bare":{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,20],"phonemes":"benpensi","kind":"lujvo"}}}}}}}}}}}}}]}]}'

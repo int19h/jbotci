@@ -18,69 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma xe fánva [zoĭ gy prime gy] to na srána loĭ námcu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [6,11],
-  },
+  Cmavo "ma",
+  Cmavo "xe",
+  Gismu "fánva",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [12,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
-    quoted_text: [20,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [27,29],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "prime",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namcu",
-    span: [47,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [53,56],
-  },
+  Cmavo "to",
+  Cmavo "na",
+  Gismu "srána",
+  Cmavo "loĭ",
+  Gismu "námcu",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"fanva","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[20,25],"closing_delimiter":{"span":[27,29],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[31,33],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"namcu","kind":"gismu"}},{"Bare":{"span":[53,56],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -88,85 +40,37 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "xe",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [6,11],
-      },
+      se: Cmavo "xe",
+      Gismu "fánva",
     },
     terms: [
       Zoi {
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [12,15],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [16,18],
-          },
-          quoted_text: [20,25],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [27,29],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "prime",
+          closing_delimiter: Cmavo "gy",
         },
         free_modifiers: [
           To {
-            to: Word {
-              kind: "cmavo",
-              phonemes: "to",
-              span: [31,33],
-            },
+            to: Cmavo "to",
             Relation {
               Na {
-                na: Word {
-                  kind: "cmavo",
-                  phonemes: "na",
-                  span: [34,36],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "srana",
-                  span: [37,42],
-                },
+                na: Cmavo "na",
+                Gismu "srána",
               },
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "loĭ",
-                    span: [43,46],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "namcu",
-                    span: [47,52],
-                  },
+                  descriptor: Cmavo "loĭ",
+                  relation: Gismu "námcu",
                 },
               ],
             },
-            toi: Word {
-              kind: "cmavo",
-              phonemes: "toĭ",
-              span: [53,56],
-            },
+            toi: Cmavo "toĭ",
           },
         ],
       },

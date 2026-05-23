@@ -21,16 +21,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cábdeĭ peĭ)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [7,10],
-  },
+  Lujvo "cábdeĭ",
+  Cmavo "peĭ",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"cabdeĭ","kind":"lujvo"}},{"Bare":{"span":[7,10],"phonemes":"peĭ","kind":"cmavo"}}]'
 
@@ -38,15 +30,7 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"cabdeĭ","kind":"lujvo"}},{"Bare":{"s
 brackets = "(cábdeĭ peĭ)"
 tree = """
 WithIndicator {
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [0,6],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [7,10],
-  },
+  Lujvo "cábdeĭ",
+  indicator: Cmavo "peĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,6],"phonemes":"cabdeĭ","kind":"lujvo"}}},"indicator":{"span":[7,10],"phonemes":"peĭ","kind":"cmavo"}}}}}}}}}}}]}]}'

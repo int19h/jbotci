@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'u xi re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
+  Cmavo "di'u",
+  Cmavo "xi",
+  Cmavo "re",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}]"""
 
@@ -41,23 +29,11 @@ tree = """
 Term {
   terms: [
     Koha {
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [0,4],
-      },
+      Cmavo "di'u",
       free_modifiers: [
         Xi {
-          xi: Word {
-            kind: "cmavo",
-            phonemes: "xi",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [8,10],
-          },
+          xi: Cmavo "xi",
+          Cmavo "re",
         },
       ],
     },

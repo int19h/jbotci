@@ -24,26 +24,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se ka'a le bríju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "briju",
-    span: [10,15],
-  },
+  Cmavo "se",
+  Cmavo "ka'a",
+  Cmavo "le",
+  Gismu "bríju",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ka'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"briju","kind":"gismu"}}]"""
 
@@ -54,28 +38,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ka'a",
-          span: [2,6],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "ka'a",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "briju",
-          span: [10,15],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "bríju",
       },
     },
   ],

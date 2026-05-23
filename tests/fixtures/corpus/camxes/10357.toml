@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .slobin. ma nánca do ca ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "slobin",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [26,28],
-  },
+  Cmavo "doĭ",
+  Cmevla "slobin",
+  Cmavo "ma",
+  Gismu "nánca",
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "ku",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"slobin","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nanca","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ku","kind":"cmavo"}}]'
 
@@ -62,51 +34,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "slobin",
-        span: [4,10],
-      },
+      argument: Cmevla "slobin",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [12,14],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nanca",
-        span: [15,20],
-      },
+      Gismu "nánca",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [21,23],
-        },
+        Cmavo "do",
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [24,26],
-          },
+          tense_modal: Cmavo "ca",
           Zohe {
-            maybe_ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [26,28],
-            },
+            maybe_ku: Cmavo "ku",
           },
         },
       ],

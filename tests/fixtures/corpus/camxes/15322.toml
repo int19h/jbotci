@@ -19,28 +19,12 @@ brackets = "([la'o gy sodipodi gy] mo)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [9,17],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [18,20],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "sodipodi",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [22,24],
-  },
+  Cmavo "mo",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[22,24],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -49,28 +33,12 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [5,7],
-      },
-      quoted_text: [9,17],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [18,20],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "sodipodi",
+      closing_delimiter: Cmavo "gy",
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [22,24],
-  },
+  Cmavo "mo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,24],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}"""

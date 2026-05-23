@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ránti je na'e sílna ke jgéna nánba)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ranti",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "silna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgena",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [29,34],
-  },
+  Gismu "ránti",
+  Cmavo "je",
+  Cmavo "na'e",
+  Gismu "sílna",
+  Cmavo "ke",
+  Gismu "jgéna",
+  Gismu "nánba",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"ranti","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"silna","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"jgena","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"nanba","kind":"gismu"}}]"""
 
@@ -60,46 +32,18 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"ranti","kind":"gismu"}},{"Bare":{"s
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "ranti",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [6,8],
-    },
+    leading_unit: Gismu "ránti",
+    connective: Cmavo "je",
     trailing_unit: Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "silna",
-        span: [14,19],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "sílna",
     },
   },
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [20,22],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "jgena",
-        span: [23,28],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nanba",
-        span: [29,34],
-      },
+      Gismu "jgéna",
+      Gismu "nánba",
     },
   },
 }"""

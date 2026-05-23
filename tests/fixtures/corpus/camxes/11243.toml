@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(loĭ cidjrpítsa .e loĭ zaltápla .e loĭ cérni sánmi gúrni .e da poĭ símsa ku'o se nélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [4,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zaltapla",
-    span: [22,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [32,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [34,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [38,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanmi",
-    span: [44,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gurni",
-    span: [50,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [57,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [59,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [62,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [66,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [72,76],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [77,79],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [80,85],
-  },
+  Cmavo "loĭ",
+  Fuhivla "cidjrpítsa",
+  Cmavo "e",
+  Cmavo "loĭ",
+  Lujvo "zaltápla",
+  Cmavo "e",
+  Cmavo "loĭ",
+  Gismu "cérni",
+  Gismu "sánmi",
+  Gismu "gúrni",
+  Cmavo "e",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "símsa",
+  Cmavo "ku'o",
+  Cmavo "se",
+  Gismu "nélci",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[16,17],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[22,30],"phonemes":"zaltapla","kind":"lujvo"}},{"Bare":{"span":[32,33],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[44,49],"phonemes":"sanmi","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"gurni","kind":"gismu"}},{"Bare":{"span":[57,58],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[59,61],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[62,65],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[72,76],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[77,79],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[80,85],"phonemes":"nelci","kind":"gismu"}}]"""
 
@@ -114,109 +46,41 @@ Predicate {
       leading_argument: Connected {
         leading_argument: Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [0,3],
-            },
-            relation: Word {
-              kind: "fu'ivla",
-              phonemes: "cidjrpitsa",
-              span: [4,14],
-            },
+            descriptor: Cmavo "loĭ",
+            relation: Fuhivla "cidjrpítsa",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [16,17],
-          },
+          connective: Cmavo "e",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [18,21],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "zaltapla",
-              span: [22,30],
-            },
+            descriptor: Cmavo "loĭ",
+            relation: Lujvo "zaltápla",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [32,33],
-        },
+        connective: Cmavo "e",
         trailing_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [34,37],
-          },
+          descriptor: Cmavo "loĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cerni",
-              span: [38,43],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "sanmi",
-              span: [44,49],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gurni",
-              span: [50,55],
-            },
+            Gismu "cérni",
+            Gismu "sánmi",
+            Gismu "gúrni",
           },
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [57,58],
-      },
+      connective: Cmavo "e",
       trailing_argument: RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [59,61],
-        },
+        base_argument: Cmavo "da",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [62,65],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "simsa",
-              span: [66,71],
-            },
-            kuho: Word {
-              kind: "cmavo",
-              phonemes: "ku'o",
-              span: [72,76],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "símsa",
+            kuho: Cmavo "ku'o",
           },
         ],
       },
     },
   ],
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [77,79],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [80,85],
-    },
+    se: Cmavo "se",
+    Gismu "nélci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[4,14],"phonemes":"cidjrpitsa","kind":"fu'ivla"}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[16,17],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[18,21],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[22,30],"phonemes":"zaltapla","kind":"lujvo"}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[32,33],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[34,37],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[38,43],"phonemes":"cerni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[44,49],"phonemes":"sanmi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[50,55],"phonemes":"gurni","kind":"gismu"}}}}]}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[57,58],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[59,61],"phonemes":"da","kind":"cmavo"}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[62,65],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[66,71],"phonemes":"simsa","kind":"gismu"}}}}}}}}}},"kuho":{"Bare":{"Bare":{"span":[72,76],"phonemes":"ku'o","kind":"cmavo"}}}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[77,79],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[80,85],"phonemes":"nelci","kind":"gismu"}}}}}}}}}}}}}]}]}"""

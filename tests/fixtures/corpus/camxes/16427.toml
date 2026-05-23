@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a na'e bo do doĭ xy .i .a'o bánro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banro",
-    span: [30,35],
-  },
+  Cmavo "za'a",
+  Cmavo "na'e",
+  Cmavo "bo",
+  Cmavo "do",
+  Cmavo "doĭ",
+  Cmavo "xy",
+  Cmavo "i",
+  Cmavo "a'o",
+  Gismu "bánro",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"banro","kind":"gismu"}}]"""
 
@@ -71,49 +35,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Paragraph {
     Term {
       terms: [
         NaheBo {
-          nahe: Word {
-            kind: "cmavo",
-            phonemes: "na'e",
-            span: [5,9],
-          },
-          bo: Word {
-            kind: "cmavo",
-            phonemes: "bo",
-            span: [9,11],
-          },
+          nahe: Cmavo "na'e",
+          bo: Cmavo "bo",
           Koha {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [12,14],
-            },
+            Cmavo "do",
             free_modifiers: [
               Vocative {
                 vocative_markers: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "doĭ",
-                    span: [15,18],
-                  },
+                  Cmavo "doĭ",
                 ],
                 argument: Letter {
                   letter: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "xy",
-                      span: [19,21],
-                    },
+                    Cmavo "xy",
                   ],
                 },
               },
@@ -124,22 +64,10 @@ Text {
     },
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [23,24],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "a'o",
-          span: [26,29],
-        },
+        Cmavo "i",
+        indicator: Cmavo "a'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "banro",
-        span: [30,35],
-      },
+      Gismu "bánro",
     },
   },
 }"""

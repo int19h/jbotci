@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ mo do'u daĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "daĭ",
-    span: [11,14],
-  },
+  Cmavo "doĭ",
+  Cmavo "mo",
+  Cmavo "do'u",
+  Cmavo "daĭ",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"daĭ","kind":"cmavo"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "cmavo",
-          phonemes: "mo",
-          span: [4,6],
-        },
+        relation: Cmavo "mo",
       },
       dohu: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "do'u",
-          span: [7,11],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "daĭ",
-          span: [11,14],
-        },
+        Cmavo "do'u",
+        indicator: Cmavo "daĭ",
       },
     },
   ],

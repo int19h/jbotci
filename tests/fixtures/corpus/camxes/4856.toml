@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu le térveĭ pe le bavlamnánca ke jbógri nunpénmi ca gúbni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terveĭ",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bavlamnanca",
-    span: [19,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [31,33],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbogri",
-    span: [34,40],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpenmi",
-    span: [41,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [50,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gubni",
-    span: [53,58],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Lujvo "térveĭ",
+  Cmavo "pe",
+  Cmavo "le",
+  Lujvo "bavlamnánca",
+  Cmavo "ke",
+  Lujvo "jbógri",
+  Lujvo "nunpénmi",
+  Cmavo "ca",
+  Gismu "gúbni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"terveĭ","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,30],"phonemes":"bavlamnanca","kind":"lujvo"}},{"Bare":{"span":[31,33],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[34,40],"phonemes":"jbogri","kind":"lujvo"}},{"Bare":{"span":[41,49],"phonemes":"nunpenmi","kind":"lujvo"}},{"Bare":{"span":[50,52],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[53,58],"phonemes":"gubni","kind":"gismu"}}]'
 
@@ -81,62 +37,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "terveĭ",
-          span: [6,12],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "térveĭ",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [13,15],
-            },
+            goi: Cmavo "pe",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [16,18],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "bavlamnanca",
-                  span: [19,30],
-                },
+                Lujvo "bavlamnánca",
                 Ke {
-                  ke: Word {
-                    kind: "cmavo",
-                    phonemes: "ke",
-                    span: [31,33],
-                  },
+                  ke: Cmavo "ke",
                   Compound {
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "jbogri",
-                      span: [34,40],
-                    },
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "nunpenmi",
-                      span: [41,49],
-                    },
+                    Lujvo "jbógri",
+                    Lujvo "nunpénmi",
                   },
                 },
               },
@@ -146,16 +66,8 @@ Text {
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [50,52],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gubni",
-        span: [53,58],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "gúbni",
     },
   },
 }"""

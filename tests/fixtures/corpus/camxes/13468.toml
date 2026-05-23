@@ -18,55 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lákne le nu go'i)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [12,16],
-  },
+  Gismu "lákne",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"lakne","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [0,5],
-  },
+  Gismu "lákne",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [12,16],
-        },
+        nu: Cmavo "nu",
+        Cmavo "go'i",
       },
     },
   ],

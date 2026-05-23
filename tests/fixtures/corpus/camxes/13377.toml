@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pónse le bárda joĭ cmálu skámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [28,33],
-  },
+  Cmavo "mi",
+  Gismu "pónse",
+  Cmavo "le",
+  Gismu "bárda",
+  Cmavo "joĭ",
+  Gismu "cmálu",
+  Gismu "skámi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"skami","kind":"gismu"}}]'
 
@@ -60,48 +32,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ponse",
-      span: [3,8],
-    },
+    Gismu "pónse",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Connected {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "barda",
-              span: [12,17],
-            },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "joĭ",
-              span: [18,21],
-            },
-            trailing_unit: Word {
-              kind: "gismu",
-              phonemes: "cmalu",
-              span: [22,27],
-            },
+            leading_unit: Gismu "bárda",
+            connective: Cmavo "joĭ",
+            trailing_unit: Gismu "cmálu",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [28,33],
-          },
+          Gismu "skámi",
         },
       },
     ],

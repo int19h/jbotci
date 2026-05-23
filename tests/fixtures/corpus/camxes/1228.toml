@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi cmálu bo níxli ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [21,26],
-  },
+  Gismu "mélbi",
+  Gismu "cmálu",
+  Cmavo "bo",
+  Gismu "níxli",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
+  Gismu "mélbi",
   Bo {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [6,11],
-    },
-    bo: Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [12,14],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "nixli",
-      span: [15,20],
-    },
+    leading_unit: Gismu "cmálu",
+    bo: Cmavo "bo",
+    trailing_unit: Gismu "níxli",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [21,26],
-  },
+  Gismu "ckúle",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}}}},{"Bo":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,155 +18,59 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [.a bu] co'a co'e gi'e ba zi mo'u cítka le titnánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [3,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [4,6],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [27,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [38,40],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "titnanba",
-    span: [41,49],
-  },
+  Cmavo "co'a",
+  Cmavo "co'e",
+  Cmavo "gi'e",
+  Cmavo "ba",
+  Cmavo "zi",
+  Cmavo "mo'u",
+  Gismu "cítka",
+  Cmavo "le",
+  Lujvo "titnánba",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[4,6],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[7,11],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"co'e","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[41,49],"phonemes":"titnanba","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [3,4],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [4,6],
-            },
+            Cmavo "a",
+            bu: Cmavo "bu",
           },
         ],
       },
     ],
     PredicateTail1 {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "co'a",
-          span: [7,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "co'e",
-          span: [12,16],
-        },
+        tense_modal: Cmavo "co'a",
+        Cmavo "co'e",
       },
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [17,21],
-          },
+          connective: Cmavo "gi'e",
           Relation {
             TenseModal {
               tense_modal: Composite {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ba",
-                  span: [22,24],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "zi",
-                  span: [24,26],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mo'u",
-                  span: [27,31],
-                },
+                Cmavo "ba",
+                Cmavo "zi",
+                Cmavo "mo'u",
               },
-              Word {
-                kind: "gismu",
-                phonemes: "citka",
-                span: [32,37],
-              },
+              Gismu "cítka",
             },
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [38,40],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "titnanba",
-                  span: [41,49],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "titnánba",
               },
             ],
           },

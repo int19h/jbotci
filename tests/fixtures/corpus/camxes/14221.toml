@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mámta pu nélci tcídu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Gismu "mámta",
+  Cmavo "pu",
+  Gismu "nélci",
+  Gismu "tcídu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"tcidu","kind":"gismu"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "mamta",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "mámta",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [9,11],
-    },
+    tense_modal: Cmavo "pu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [12,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [18,23],
-      },
+      Gismu "nélci",
+      Gismu "tcídu",
     },
   },
 }"""

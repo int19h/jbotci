@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(di'u cu plúka mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
+  Cmavo "di'u",
+  Cmavo "cu",
+  Gismu "plúka",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -46,29 +30,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "di'u",
-      span: [0,4],
-    },
+    Cmavo "di'u",
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [10,15],
-    },
+    Gismu "plúka",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [16,18],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

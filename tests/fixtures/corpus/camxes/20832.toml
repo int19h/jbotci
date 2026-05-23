@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu ga naĭ da kámni gi da fúzme)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kamni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fuzme",
-    span: [24,29],
-  },
+  Cmavo "xu",
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "da",
+  Gismu "kámni",
+  Cmavo "gi",
+  Cmavo "da",
+  Gismu "fúzme",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"kamni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"fuzme","kind":"gismu"}}]'
 
@@ -66,58 +34,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Pair {
     gek: Forethought {
-      Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [3,5],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [5,8],
-      },
+      Cmavo "ga",
+      nai: Cmavo "naĭ",
     },
     first: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [9,11],
-        },
+        Cmavo "da",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "kamni",
-        span: [12,17],
-      },
+      Gismu "kámni",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [18,20],
-    },
+    gik: Cmavo "gi",
     second: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [21,23],
-        },
+        Cmavo "da",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "fuzme",
-        span: [24,29],
-      },
+      Gismu "fúzme",
     },
   },
 }"""

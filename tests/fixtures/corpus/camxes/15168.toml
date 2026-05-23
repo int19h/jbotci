@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le denmíkce ku vímcu le mi zúnle je dízlo ke ríxraĭ zaldé'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "denmikce",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vimcu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zunle",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dizlo",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [42,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rixraĭ",
-    span: [45,51],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zalde'i",
-    span: [52,59],
-  },
+  Cmavo "le",
+  Lujvo "denmíkce",
+  Cmavo "ku",
+  Gismu "vímcu",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "zúnle",
+  Cmavo "je",
+  Gismu "dízlo",
+  Cmavo "ke",
+  Lujvo "ríxraĭ",
+  Lujvo "zaldé'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"denmikce","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"vimcu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"zunle","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"dizlo","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[45,51],"phonemes":"rixraĭ","kind":"lujvo"}},{"Bare":{"span":[52,59],"phonemes":"zalde'i","kind":"lujvo"}}]"""
 
@@ -86,78 +38,30 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "denmikce",
-        span: [3,11],
-      },
-      ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [12,14],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "denmíkce",
+      ku: Cmavo "ku",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "vimcu",
-      span: [15,20],
-    },
+    Gismu "vímcu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [21,23],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [24,26],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
           Connected {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "zunle",
-              span: [27,32],
-            },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "je",
-              span: [33,35],
-            },
-            trailing_unit: Word {
-              kind: "gismu",
-              phonemes: "dizlo",
-              span: [36,41],
-            },
+            leading_unit: Gismu "zúnle",
+            connective: Cmavo "je",
+            trailing_unit: Gismu "dízlo",
           },
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [42,44],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "rixraĭ",
-                span: [45,51],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "zalde'i",
-                span: [52,59],
-              },
+              Lujvo "ríxraĭ",
+              Lujvo "zaldé'i",
             },
           },
         },

@@ -18,33 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e [zo nu] xi ci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [8,10],
-    },
+    zo: Cmavo "zo",
+    Cmavo "nu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [14,16],
-  },
+  Cmavo "xi",
+  Cmavo "ci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}}},{"Bare":{"span":[11,13],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ci","kind":"cmavo"}}]"""
 
@@ -53,36 +33,16 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
+      lahe: Cmavo "la'e",
       Zo {
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [5,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [8,10],
-          },
+          zo: Cmavo "zo",
+          Cmavo "nu",
         },
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [11,13],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [14,16],
-            },
+            xi: Cmavo "xi",
+            Cmavo "ci",
           },
         ],
       },

@@ -21,56 +21,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le cánko cu kálri le nénri le vífne vácri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canko",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kalri",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vifne",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vacri",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "cánko",
+  Cmavo "cu",
+  Gismu "kálri",
+  Cmavo "le",
+  Gismu "nénri",
+  Cmavo "le",
+  Gismu "vífne",
+  Gismu "vácri",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"canko","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"kalri","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"vifne","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"vacri","kind":"gismu"}}]'
 
@@ -78,67 +38,27 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{le cánko} cu {kálri ([le nénri] [le {vífne vácri}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "canko",
-          span: [5,10],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "cánko",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [11,13],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kalri",
-        span: [14,19],
-      },
+      Gismu "kálri",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "nenri",
-            span: [23,28],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "nénri",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [29,31],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "vifne",
-              span: [32,37],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "vacri",
-              span: [38,43],
-            },
+            Gismu "vífne",
+            Gismu "vácri",
           },
         },
       ],

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(me'o re su'i re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [13,15],
-  },
+  Cmavo "me'o",
+  Cmavo "re",
+  Cmavo "su'i",
+  Cmavo "re",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"me'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"re","kind":"cmavo"}}]"""
 
@@ -46,27 +30,11 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "me'o",
-        span: [0,4],
-      },
+      li: Cmavo "me'o",
       Binary {
-        left_expression: Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [5,7],
-        },
-        operator: Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [8,12],
-        },
-        right_expression: Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [13,15],
-        },
+        left_expression: Cmavo "re",
+        operator: Cmavo "su'i",
+        right_expression: Cmavo "re",
       },
     },
   ],

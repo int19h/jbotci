@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(coĭ .irc. múnje)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "irc",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "munje",
-    span: [9,14],
-  },
+  Cmavo "coĭ",
+  Cmevla "irc",
+  Gismu "múnje",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"irc","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"munje","kind":"gismu"}}]'
 
@@ -43,23 +31,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "irc",
-        span: [5,8],
-      },
+      argument: Cmevla "irc",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "munje",
-    span: [9,14],
-  },
+  Gismu "múnje",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[5,8],"phonemes":"irc","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"munje","kind":"gismu"}}}}}}}}}}}]}]}'

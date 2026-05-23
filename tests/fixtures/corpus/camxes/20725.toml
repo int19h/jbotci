@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le se prámi po le'e rímni sánga nánmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rimni",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [29,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [35,40],
-  },
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "prámi",
+  Cmavo "po",
+  Cmavo "le'e",
+  Gismu "rímni",
+  Gismu "sánga",
+  Gismu "nánmu",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"le'e","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"rimni","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"sanga","kind":"gismu"}},{"Bare":{"span":[35,40],"phonemes":"nanmu","kind":"gismu"}}]"""
 
@@ -67,52 +35,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prami",
-          span: [9,14],
-        },
+        se: Cmavo "se",
+        Gismu "prámi",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "po",
-            span: [15,17],
-          },
+          goi: Cmavo "po",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le'e",
-              span: [18,22],
-            },
+            descriptor: Cmavo "le'e",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "rimni",
-                span: [23,28],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "sanga",
-                span: [29,34],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "nanmu",
-                span: [35,40],
-              },
+              Gismu "rímni",
+              Gismu "sánga",
+              Gismu "nánmu",
             },
           },
         },

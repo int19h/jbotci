@@ -19,27 +19,11 @@ brackets = "([mi zeĭ co] mi)"
 tree = """
 [
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [15,17],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [18,21],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [22,24],
-    },
+    left: Cmavo "mi",
+    zei: Cmavo "zeĭ",
+    Cmavo "co",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
+  Cmavo "mi",
 ]"""
 json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},"zei":{"span":[18,21],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[22,24],"phonemes":"co","kind":"cmavo"}}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -47,28 +31,12 @@ json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cma
 tree = """
 Relation {
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [15,17],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [18,21],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [22,24],
-    },
+    left: Cmavo "mi",
+    zei: Cmavo "zeĭ",
+    Cmavo "co",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [25,27],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},"zei":{"span":[18,21],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[22,24],"phonemes":"co","kind":"cmavo"}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

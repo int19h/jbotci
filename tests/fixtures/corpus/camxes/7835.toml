@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le za'i na pu préti fi mi ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [26,28],
-  },
+  Cmavo "le",
+  Cmavo "za'i",
+  Cmavo "na",
+  Cmavo "pu",
+  Gismu "préti",
+  Cmavo "fi",
+  Cmavo "mi",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -66,55 +34,23 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "za'i",
-          span: [3,7],
-        },
+        nu: Cmavo "za'i",
         Relation {
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [8,10],
-            },
+            na: Cmavo "na",
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "pu",
-                span: [11,13],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "preti",
-                span: [14,19],
-              },
+              tense_modal: Cmavo "pu",
+              Gismu "préti",
             },
           },
           terms: [
             Fa {
-              fa: Word {
-                kind: "cmavo",
-                phonemes: "fi",
-                span: [20,22],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [23,25],
-              },
+              fa: Cmavo "fi",
+              Cmavo "mi",
             },
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [26,28],
-            },
+            Cmavo "ri",
           ],
         },
       },

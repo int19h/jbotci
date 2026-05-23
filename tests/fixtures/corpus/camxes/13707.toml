@@ -18,59 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na dúnku doĭ dy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunku",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [13,15],
-  },
+  Cmavo "na",
+  Gismu "dúnku",
+  Cmavo "doĭ",
+  Cmavo "dy",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"dunku","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"dy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  na: Cmavo "na",
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "dunku",
-      span: [3,8],
-    },
+    Gismu "dúnku",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [9,12],
-          },
+          Cmavo "doĭ",
         ],
         argument: Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "dy",
-              span: [13,15],
-            },
+            Cmavo "dy",
           ],
         },
       },

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .keptin. .pikard. tsaxárnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "keptin",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "pikard",
-    span: [10,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tsaxarnu",
-    span: [18,26],
-  },
+  Cmavo "la",
+  Cmevla "keptin",
+  Cmevla "pikard",
+  Lujvo "tsaxárnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"keptin","kind":"cmevla"}},{"Bare":{"span":[10,16],"phonemes":"pikard","kind":"cmevla"}},{"Bare":{"span":[18,26],"phonemes":"tsaxarnu","kind":"lujvo"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "keptin",
-          span: [3,9],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "pikard",
-          span: [10,16],
-        },
+        Cmevla "keptin",
+        Cmevla "pikard",
       ],
     },
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "tsaxarnu",
-    span: [18,26],
-  },
+  Lujvo "tsaxárnu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,9],"phonemes":"keptin","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[10,16],"phonemes":"pikard","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,26],"phonemes":"tsaxarnu","kind":"lujvo"}}}}}}}}}}}]}]}'

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ĭo .ĭo .ĭo le mi brúna mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭo",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bruna",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [24,26],
-  },
+  Cmavo "ĭo",
+  Cmavo "ĭo",
+  Cmavo "ĭo",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "brúna",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -63,51 +35,23 @@ Text {
     Indicator {
       indicator: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ĭo",
-            span: [1,3],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ĭo",
-            span: [5,7],
-          },
+          Cmavo "ĭo",
+          indicator: Cmavo "ĭo",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭo",
-          span: [9,11],
-        },
+        indicator: Cmavo "ĭo",
       },
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [15,17],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "bruna",
-            span: [18,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [24,26],
-          },
+          Gismu "brúna",
+          Cmavo "mo",
         },
       },
     ],

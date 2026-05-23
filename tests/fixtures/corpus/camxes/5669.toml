@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fríca távla néntri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nentri",
-    span: [12,18],
-  },
+  Gismu "fríca",
+  Gismu "távla",
+  Lujvo "néntri",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[12,18],"phonemes":"nentri","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nentri",
-    span: [12,18],
-  },
+  Gismu "fríca",
+  Gismu "távla",
+  Lujvo "néntri",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"frica","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,18],"phonemes":"nentri","kind":"lujvo"}}}}]}}}}}}}}]}]}'

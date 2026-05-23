@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ tátpi bínxo .i na xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [22,27],
-  },
+  Cmavo "oĭ",
+  Gismu "tátpi",
+  Gismu "bínxo",
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Paragraph {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [4,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [10,15],
-      },
+      Gismu "tátpi",
+      Gismu "bínxo",
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [17,18],
-      },
+      i: Cmavo "i",
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [19,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [22,27],
-        },
+        na: Cmavo "na",
+        Gismu "xámgu",
       },
     },
   },

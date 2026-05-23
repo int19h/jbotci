@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(by di)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di",
-    span: [18,20],
-  },
+  Cmavo "by",
+  Cmavo "di",
 ]"""
 json = '[{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}]'
 
@@ -37,18 +29,10 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "by",
-          span: [15,17],
-        },
+        Cmavo "by",
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "di",
-      span: [18,20],
-    },
+    Cmavo "di",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}}}}]}}}}]}]}'

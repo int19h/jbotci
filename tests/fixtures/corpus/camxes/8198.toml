@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi [zo poĭ] cu pe'a rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
+  Cmavo "ŭi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [4,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "poĭ",
-      span: [7,10],
-    },
+    zo: Cmavo "zo",
+    Cmavo "poĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [19,24],
-  },
+  Cmavo "cu",
+  Cmavo "pe'a",
+  Gismu "rókci",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[4,6],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"rokci","kind":"gismu"}}]"""
 
@@ -58,45 +34,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "poĭ",
-          span: [7,10],
-        },
+        zo: Cmavo "zo",
+        Cmavo "poĭ",
       },
     ],
     cu: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [11,13],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [14,18],
-      },
+      Cmavo "cu",
+      indicator: Cmavo "pe'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "rokci",
-      span: [19,24],
-    },
+    Gismu "rókci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[4,6],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}}}}}}}],"cu":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"indicator":{"span":[14,18],"phonemes":"pe'a","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"rokci","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}}}}]}"""

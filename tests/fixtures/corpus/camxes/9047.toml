@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i le lójbo le rúsko zmádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rusko",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [23,28],
-  },
+  Cmavo "u'i",
+  Cmavo "le",
+  Gismu "lójbo",
+  Cmavo "le",
+  Gismu "rúsko",
+  Gismu "zmádu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"rusko","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"zmadu","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "lójbo",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "rusko",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zmadu",
-            span: [23,28],
-          },
+          Gismu "rúsko",
+          Gismu "zmádu",
         },
       },
     ],

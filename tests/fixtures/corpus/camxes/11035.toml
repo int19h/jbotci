@@ -18,81 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i .i xu te bángu fi la .jungyban. .i ji'a xu do se bángu ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jungyban",
-    span: [26,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [50,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [53,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [59,61],
-  },
+  Cmavo "u'i",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "te",
+  Gismu "bángu",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "jungyban",
+  Cmavo "i",
+  Cmavo "ji'a",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "bángu",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[26,34],"phonemes":"jungyban","kind":"cmevla"}},{"Bare":{"span":[37,38],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[53,58],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[59,61],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -101,59 +41,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Paragraph {
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [6,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [8,10],
-        },
+        Cmavo "i",
+        indicator: Cmavo "xu",
       },
       Relation {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [11,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bangu",
-            span: [14,19],
-          },
+          se: Cmavo "te",
+          Gismu "bángu",
         },
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [20,22],
-            },
+            fa: Cmavo "fi",
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [23,25],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "jungyban",
-                  span: [26,34],
-                },
+                Cmevla "jungyban",
               ],
             },
           },
@@ -163,50 +71,22 @@ Text {
     ParagraphStatement {
       i: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [37,38],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [39,43],
-          },
+          Cmavo "i",
+          indicator: Cmavo "ji'a",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [44,46],
-        },
+        indicator: Cmavo "xu",
       },
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [47,49],
-          },
+          Cmavo "do",
         ],
         Relation {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [50,52],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "bangu",
-              span: [53,58],
-            },
+            se: Cmavo "se",
+            Gismu "bángu",
           },
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [59,61],
-            },
+            Cmavo "ri",
           ],
         },
       },

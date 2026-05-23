@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o le trícu cu se sétca fi le do gánxo doĭ malglétu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tricu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "setca",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganxo",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malgletu",
-    span: [45,53],
-  },
+  Cmavo "a'o",
+  Cmavo "le",
+  Gismu "trícu",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "sétca",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "gánxo",
+  Cmavo "doĭ",
+  Lujvo "malglétu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tricu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"setca","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"ganxo","kind":"gismu"}},{"Bare":{"span":[41,44],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[45,53],"phonemes":"malgletu","kind":"lujvo"}}]"""
 
@@ -86,87 +38,39 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tricu",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "trícu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
+    cu: Cmavo "cu",
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [17,19],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "setca",
-          span: [20,25],
-        },
+        se: Cmavo "se",
+        Gismu "sétca",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [26,28],
-          },
+          fa: Cmavo "fi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [29,31],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [32,34],
-              },
+              Cmavo "do",
             ],
             relation: Word {
-              Word {
-                kind: "gismu",
-                phonemes: "ganxo",
-                span: [35,40],
-              },
+              Gismu "gánxo",
               free_modifiers: [
                 Vocative {
                   vocative_markers: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "doĭ",
-                      span: [41,44],
-                    },
+                    Cmavo "doĭ",
                   ],
                   argument: RelationVocative {
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "malgletu",
-                      span: [45,53],
-                    },
+                    relation: Lujvo "malglétu",
                   },
                 },
               ],

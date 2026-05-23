@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'e mi jínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [8,13],
-  },
+  Cmavo "ba'e",
+  Cmavo "mi",
+  Gismu "jínga",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jinga","kind":"gismu"}}]"""
 
@@ -41,22 +29,10 @@ tree = """
 Predicate {
   leading_terms: [
     Emphasized {
-      bahe: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      bahe: Cmavo "ba'e",
+      Cmavo "mi",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [8,13],
-  },
+  Gismu "jínga",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Emphasized":{"bahe":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"jinga","kind":"gismu"}}}}}}}}}}}]}]}"""

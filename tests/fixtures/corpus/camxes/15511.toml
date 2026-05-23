@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu mi joĭ do baŭ cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [17,22],
-  },
+  Cmavo "xu",
+  Cmavo "mi",
+  Cmavo "joĭ",
+  Cmavo "do",
+  Cmavo "baŭ",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "joĭ",
-          span: [6,9],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        leading_argument: Cmavo "mi",
+        connective: Cmavo "joĭ",
+        trailing_argument: Cmavo "do",
       },
     ],
     TenseModal {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baŭ",
-          span: [13,16],
-        },
+        bai: Cmavo "baŭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "casnu",
-        span: [17,22],
-      },
+      Gismu "cásnu",
     },
   },
 }"""

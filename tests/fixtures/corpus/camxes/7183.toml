@@ -18,71 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le kúkte bo kúkte ke kúkte je kúkte cidjrpísa pu se cítka mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [30,35],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpisa",
-    span: [36,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [52,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [58,60],
-  },
+  Cmavo "le",
+  Gismu "kúkte",
+  Cmavo "bo",
+  Gismu "kúkte",
+  Cmavo "ke",
+  Gismu "kúkte",
+  Cmavo "je",
+  Gismu "kúkte",
+  Fuhivla "cidjrpísa",
+  Cmavo "pu",
+  Cmavo "se",
+  Gismu "cítka",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[36,45],"phonemes":"cidjrpisa","kind":"fu'ivla"}},{"Bare":{"span":[46,48],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[58,60],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -91,58 +39,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Bo {
-          leading_unit: Word {
-            kind: "gismu",
-            phonemes: "kukte",
-            span: [3,8],
-          },
-          bo: Word {
-            kind: "cmavo",
-            phonemes: "bo",
-            span: [9,11],
-          },
-          trailing_unit: Word {
-            kind: "gismu",
-            phonemes: "kukte",
-            span: [12,17],
-          },
+          leading_unit: Gismu "kúkte",
+          bo: Cmavo "bo",
+          trailing_unit: Gismu "kúkte",
         },
         Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [18,20],
-          },
+          ke: Cmavo "ke",
           Compound {
             Connected {
-              leading_unit: Word {
-                kind: "gismu",
-                phonemes: "kukte",
-                span: [21,26],
-              },
-              connective: Word {
-                kind: "cmavo",
-                phonemes: "je",
-                span: [27,29],
-              },
-              trailing_unit: Word {
-                kind: "gismu",
-                phonemes: "kukte",
-                span: [30,35],
-              },
+              leading_unit: Gismu "kúkte",
+              connective: Cmavo "je",
+              trailing_unit: Gismu "kúkte",
             },
-            Word {
-              kind: "fu'ivla",
-              phonemes: "cidjrpisa",
-              span: [36,45],
-            },
+            Fuhivla "cidjrpísa",
           },
         },
       },
@@ -150,30 +62,14 @@ Predicate {
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [46,48],
-      },
+      tense_modal: Cmavo "pu",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [49,51],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "citka",
-          span: [52,57],
-        },
+        se: Cmavo "se",
+        Gismu "cítka",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [58,60],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

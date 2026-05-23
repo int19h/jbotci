@@ -24,46 +24,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .apasonatas. ne la .betovn. se nélci mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "apasonatas",
-    span: [4,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "betovn",
-    span: [23,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [40,42],
-  },
+  Cmavo "la",
+  Cmevla "apasonatas",
+  Cmavo "ne",
+  Cmavo "la",
+  Cmevla "betovn",
+  Cmavo "se",
+  Gismu "nélci",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"apasonatas","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"ne","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"betovn","kind":"cmevla"}},{"Bare":{"span":[31,33],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -74,38 +42,18 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "apasonatas",
-            span: [4,14],
-          },
+          Cmevla "apasonatas",
         ],
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "ne",
-            span: [16,18],
-          },
+          goi: Cmavo "ne",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [19,21],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "betovn",
-                span: [23,29],
-              },
+              Cmevla "betovn",
             ],
           },
         },
@@ -114,23 +62,11 @@ Predicate {
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [31,33],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [34,39],
-      },
+      se: Cmavo "se",
+      Gismu "nélci",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [40,42],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

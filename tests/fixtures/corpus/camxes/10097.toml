@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ ro do coĭ .a ry)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [14,16],
-  },
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "coĭ",
+  Cmavo "a",
+  Cmavo "ry",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[13,14],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ry","kind":"cmavo"}}]'
 
@@ -57,50 +33,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Connected {
         leading_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [4,6],
-          },
+          quantifier: Cmavo "ro",
           Koha {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [6,8],
-            },
+            Cmavo "do",
             free_modifiers: [
               Vocative {
                 vocative_markers: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "coĭ",
-                    span: [9,12],
-                  },
+                  Cmavo "coĭ",
                 ],
               },
             ],
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "a",
-          span: [13,14],
-        },
+        connective: Cmavo "a",
         trailing_argument: Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ry",
-              span: [14,16],
-            },
+            Cmavo "ry",
           ],
         },
       },

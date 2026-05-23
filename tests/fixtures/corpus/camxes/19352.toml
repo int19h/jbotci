@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi to'e mútce le ka jímpe la .elvic. ku'i mi jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elvic",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [45,50],
-  },
+  Cmavo "mi",
+  Cmavo "to'e",
+  Gismu "mútce",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "jímpe",
+  Cmavo "la",
+  Cmevla "elvic",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"elvic","kind":"cmevla"}},{"Bare":{"span":[37,41],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -80,80 +36,36 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "to'e",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [8,13],
-      },
+      nahe: Cmavo "to'e",
+      Gismu "mútce",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [17,19],
-            },
+            nu: Cmavo "ka",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "jimpe",
-                span: [20,25],
-              },
+              Gismu "jímpe",
               terms: [
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [26,28],
-                  },
+                  la: Cmavo "la",
                   names: [
                     WithIndicator {
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "elvic",
-                        span: [30,35],
-                      },
-                      indicator: Word {
-                        kind: "cmavo",
-                        phonemes: "ku'i",
-                        span: [37,41],
-                      },
+                      Cmevla "elvic",
+                      indicator: Cmavo "ku'i",
                     },
                   ],
                 },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [42,44],
-                },
+                Cmavo "mi",
               ],
             },
           },
-          Word {
-            kind: "gismu",
-            phonemes: "jimpe",
-            span: [45,50],
-          },
+          Gismu "jímpe",
         },
       },
     ],

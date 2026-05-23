@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to ma po'u da nánmu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [20,23],
-  },
+  Cmavo "to",
+  Cmavo "ma",
+  Cmavo "po'u",
+  Cmavo "da",
+  Gismu "nánmu",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [3,5],
-            },
+            base_argument: Cmavo "ma",
             relative_clauses: [
               GoiRelativeClause {
-                goi: Word {
-                  kind: "cmavo",
-                  phonemes: "po'u",
-                  span: [6,10],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "da",
-                  span: [11,13],
-                },
+                goi: Cmavo "po'u",
+                Cmavo "da",
               },
             ],
           },
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [14,19],
-        },
+        Gismu "nánmu",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [20,23],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

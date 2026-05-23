@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .frank. bájra se ka'a je te ka'a le zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bajra",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'a",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [36,41],
-  },
+  Cmavo "la",
+  Cmevla "frank",
+  Gismu "bájra",
+  Cmavo "se",
+  Cmavo "ka'a",
+  Cmavo "je",
+  Cmavo "te",
+  Cmavo "ka'a",
+  Cmavo "le",
+  Gismu "zdáni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"bajra","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ka'a","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"ka'a","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"zdani","kind":"gismu"}}]"""
 
@@ -76,66 +36,26 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "frank",
-          span: [3,8],
-        },
+        Cmevla "frank",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bajra",
-      span: [10,15],
-    },
+    Gismu "bájra",
     terms: [
       Tagged {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [16,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ka'a",
-            span: [18,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [23,25],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [26,28],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ka'a",
-            span: [28,32],
-          },
+          Cmavo "se",
+          Cmavo "ka'a",
+          Cmavo "je",
+          Cmavo "te",
+          Cmavo "ka'a",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [33,35],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [36,41],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "zdáni",
         },
       },
     ],

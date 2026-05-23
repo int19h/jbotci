@@ -18,100 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ko térpa je naĭ se zdíle zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [27,31],
-  },
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "térpa",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Cmavo "se",
+  Gismu "zdíle",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [3,5],
-      },
+      Cmavo "ko",
     ],
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "terpa",
-        span: [6,11],
-      },
+      leading_relation: Gismu "térpa",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [12,14],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [14,17],
-        },
+        Cmavo "je",
+        nai: Cmavo "naĭ",
       },
       trailing_relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [18,20],
-        },
+        se: Cmavo "se",
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "zdile",
-            span: [21,26],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [27,31],
-          },
+          Gismu "zdíle",
+          indicator: Cmavo "zo'o",
         },
       },
     },

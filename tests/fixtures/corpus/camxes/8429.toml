@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le fráso bángu cu mútce símsa le glíco bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fraso",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [39,44],
-  },
+  Cmavo "le",
+  Gismu "fráso",
+  Gismu "bángu",
+  Cmavo "cu",
+  Gismu "mútce",
+  Gismu "símsa",
+  Cmavo "le",
+  Gismu "glíco",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fraso","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"bangu","kind":"gismu"}}]'
 
@@ -71,61 +35,25 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "fraso",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [9,14],
-        },
+        Gismu "fráso",
+        Gismu "bángu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [18,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "simsa",
-        span: [24,29],
-      },
+      Gismu "mútce",
+      Gismu "símsa",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [30,32],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "glico",
-            span: [33,38],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bangu",
-            span: [39,44],
-          },
+          Gismu "glíco",
+          Gismu "bángu",
         },
       },
     ],

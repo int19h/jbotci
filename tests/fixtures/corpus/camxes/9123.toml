@@ -18,63 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zerlé'a .i ba bo cítka)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "zerle'a",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
+  Lujvo "zerlé'a",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "bo",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"zerle'a","kind":"lujvo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "lujvo",
-    phonemes: "zerle'a",
-    span: [0,7],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
+  leading_statement: Lujvo "zerlé'a",
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [10,12],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [12,14],
-    },
+    Cmavo "ba",
+    Cmavo "bo",
   },
-  trailing_statement: Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
+  trailing_statement: Gismu "cítka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,7],"phonemes":"zerle'a","kind":"lujvo"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[10,12],"phonemes":"ba","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}}}}}}}}}}}}}]}]}"""

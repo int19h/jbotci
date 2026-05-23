@@ -21,68 +21,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [zo .tam.] cméne le bi'u naĭ nákni le pátfu be ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "tam",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "tam",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [25,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nakni",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "patfu",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [47,49],
-  },
+  Gismu "cméne",
+  Cmavo "le",
+  Cmavo "bi'u",
+  Cmavo "naĭ",
+  Gismu "nákni",
+  Cmavo "le",
+  Gismu "pátfu",
+  Cmavo "be",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"tam","kind":"cmevla"}}},{"Bare":{"span":[11,16],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"bi'u","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"nakni","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"patfu","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -90,79 +42,31 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo
 brackets = "(.i [{zo .tam.} {cméne ([{le bi'u naĭ} nákni] [le {pátfu be ri}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "tam",
-          span: [6,9],
-        },
+        zo: Cmavo "zo",
+        Cmevla "tam",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [11,16],
-      },
+      Gismu "cméne",
       terms: [
         Descriptor {
           descriptor: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [17,19],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "bi'u",
-              span: [20,24],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [25,28],
-            },
+            Cmavo "le",
+            indicator: Cmavo "bi'u",
+            nai: Cmavo "naĭ",
           },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "nakni",
-            span: [29,34],
-          },
+          relation: Gismu "nákni",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [35,37],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "patfu",
-              span: [38,43],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [44,46],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [47,49],
-            },
+            Gismu "pátfu",
+            be: Cmavo "be",
+            first_argument: Cmavo "ri",
           },
         },
       ],

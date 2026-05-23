@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le bróda be mi beĭ do beĭ le mabrnmustéla beĭ le mlátu be'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "mabrnmustela",
-    span: [29,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'o",
-    span: [55,59],
-  },
+  Cmavo "le",
+  Gismu "bróda",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "beĭ",
+  Cmavo "do",
+  Cmavo "beĭ",
+  Cmavo "le",
+  Fuhivla "mabrnmustéla",
+  Cmavo "beĭ",
+  Cmavo "le",
+  Gismu "mlátu",
+  Cmavo "be'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,41],"phonemes":"mabrnmustela","kind":"fu'ivla"}},{"Bare":{"span":[42,45],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[55,59],"phonemes":"be'o","kind":"cmavo"}}]"""
 
@@ -91,84 +39,32 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "broda",
-          span: [3,8],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [9,11],
-        },
-        first_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [12,14],
-        },
+        Gismu "bróda",
+        be: Cmavo "be",
+        first_argument: Cmavo "mi",
         bei_links: [
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [15,18],
-            },
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [19,21],
+            bei: Cmavo "beĭ",
+            argument: Cmavo "do",
+          },
+          BeiLink {
+            bei: Cmavo "beĭ",
+            argument: Descriptor {
+              descriptor: Cmavo "le",
+              relation: Fuhivla "mabrnmustéla",
             },
           },
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [22,25],
-            },
+            bei: Cmavo "beĭ",
             argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [26,28],
-              },
-              relation: Word {
-                kind: "fu'ivla",
-                phonemes: "mabrnmustela",
-                span: [29,41],
-              },
-            },
-          },
-          BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [42,45],
-            },
-            argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [46,48],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "mlatu",
-                span: [49,54],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "mlátu",
             },
           },
         ],
-        beho: Word {
-          kind: "cmavo",
-          phonemes: "be'o",
-          span: [55,59],
-        },
+        beho: Cmavo "be'o",
       },
     },
   ],

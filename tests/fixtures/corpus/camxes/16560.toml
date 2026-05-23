@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu di'u xámgu tádji le núnsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadji",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunsku",
-    span: [23,29],
-  },
+  Cmavo "xu",
+  Cmavo "di'u",
+  Gismu "xámgu",
+  Gismu "tádji",
+  Cmavo "le",
+  Lujvo "núnsku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"tadji","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"nunsku","kind":"lujvo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [3,7],
-      },
+      Cmavo "di'u",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tadji",
-          span: [14,19],
-        },
+        Gismu "xámgu",
+        Gismu "tádji",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "nunsku",
-            span: [23,29],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "núnsku",
         },
       ],
     },

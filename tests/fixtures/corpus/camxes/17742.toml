@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pi so'a térjda cu cínri mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terjda",
-    span: [7,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [23,25],
-  },
+  Cmavo "pi",
+  Cmavo "so'a",
+  Lujvo "térjda",
+  Cmavo "cu",
+  Gismu "cínri",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"terjda","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -58,42 +34,18 @@ Predicate {
     Descriptor {
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "so'a",
-            span: [2,6],
-          },
+          Cmavo "pi",
+          Cmavo "so'a",
         },
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "terjda",
-        span: [7,13],
-      },
+      relation: Lujvo "térjda",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [17,22],
-    },
+    Gismu "cínri",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [23,25],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

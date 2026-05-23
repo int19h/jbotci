@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ daĭ .ŭu pínca círko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "daĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinca",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cirko",
-    span: [17,22],
-  },
+  Cmavo "oĭ",
+  Cmavo "daĭ",
+  Cmavo "ŭu",
+  Gismu "pínca",
+  Gismu "círko",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"daĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"pinca","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"cirko","kind":"gismu"}}]'
 
@@ -53,36 +33,16 @@ Text {
     Indicator {
       indicator: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "oĭ",
-            span: [1,3],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "daĭ",
-            span: [3,6],
-          },
+          Cmavo "oĭ",
+          indicator: Cmavo "daĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭu",
-          span: [8,10],
-        },
+        indicator: Cmavo "ŭu",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "pinca",
-      span: [11,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cirko",
-      span: [17,22],
-    },
+    Gismu "pínca",
+    Gismu "círko",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"pinca","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"cirko","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"daĭ","kind":"cmavo"}}},"indicator":{"span":[8,10],"phonemes":"ŭu","kind":"cmavo"}}}}]}'

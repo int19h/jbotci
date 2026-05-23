@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le bánske .e le sambánske)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "banske",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sambanske",
-    span: [15,24],
-  },
+  Cmavo "le",
+  Lujvo "bánske",
+  Cmavo "e",
+  Cmavo "le",
+  Lujvo "sambánske",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"banske","kind":"lujvo"}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"sambanske","kind":"lujvo"}}]'
 
@@ -52,33 +32,13 @@ Term {
   terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "banske",
-          span: [3,9],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "bánske",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [10,11],
-      },
+      connective: Cmavo "e",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "sambanske",
-          span: [15,24],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "sambánske",
       },
     },
   ],

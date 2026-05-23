@@ -18,88 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i go'i fi le nu velmíkce dúnda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velmikce",
-    span: [16,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "go'i",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "velmíkce",
+  Gismu "dúnda",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[16,24],"phonemes":"velmikce","kind":"lujvo"}},{"Bare":{"span":[25,30],"phonemes":"dunda","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [2,6],
-    },
+    Cmavo "go'i",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [7,9],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [10,12],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [13,15],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "velmikce",
-                span: [16,24],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "dunda",
-                span: [25,30],
-              },
+              Lujvo "velmíkce",
+              Gismu "dúnda",
             },
           },
         },

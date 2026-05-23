@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma mi cínri la'e di'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [22,26],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "mi",
+  Gismu "cínri",
+  Cmavo "la'e",
+  Cmavo "di'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"di'u","kind":"cmavo"}}]"""
 
@@ -57,42 +33,18 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [8,10],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [11,16],
-    },
+    Gismu "cínri",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [17,21],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [22,26],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'u",
       },
     ],
   },

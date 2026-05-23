@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to .oĭ nándu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [13,16],
-  },
+  Cmavo "to",
+  Cmavo "oĭ",
+  Gismu "nándu",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[13,16],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -47,27 +31,11 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [4,6],
-        },
+        Cmavo "to",
+        indicator: Cmavo "oĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "nandu",
-        span: [7,12],
-      },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [13,16],
-      },
+      Gismu "nándu",
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

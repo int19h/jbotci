@@ -21,46 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ti voĭ kúmfa le xótli cu bárda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xotli",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [27,32],
-  },
+  Cmavo "i",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "kúmfa",
+  Cmavo "le",
+  Gismu "xótli",
+  Cmavo "cu",
+  Gismu "bárda",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"kumfa","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xotli","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"barda","kind":"gismu"}}]'
 
@@ -68,44 +36,20 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{ti (voĭ [kúmfa {le xótli}])} cu bárda])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [2,4],
-        },
+        base_argument: Cmavo "ti",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "voĭ",
-              span: [5,8],
-            },
+            noi: Cmavo "voĭ",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "kumfa",
-                span: [9,14],
-              },
+              Gismu "kúmfa",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [15,17],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "xotli",
-                    span: [18,23],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Gismu "xótli",
                 },
               ],
             },
@@ -113,16 +57,8 @@ ParagraphStatement {
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [24,26],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "barda",
-      span: [27,32],
-    },
+    cu: Cmavo "cu",
+    Gismu "bárda",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ti","kind":"cmavo"}}}},"relative_clauses":[{"Noi":{"noi":{"Bare":{"Bare":{"span":[5,8],"phonemes":"voĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"kumfa","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"xotli","kind":"gismu"}}}}}}}]}}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"barda","kind":"gismu"}}}}}}}}}}}]}]}'

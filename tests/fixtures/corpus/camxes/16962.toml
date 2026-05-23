@@ -18,44 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sigdámva to smóke)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "sigdamva",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smoke",
-    span: [12,17],
-  },
+  Lujvo "sigdámva",
+  Cmavo "to",
+  Gismu "smóke",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"sigdamva","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"smoke","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "lujvo",
-    phonemes: "sigdamva",
-    span: [0,8],
-  },
+  Lujvo "sigdámva",
   free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "smoke",
-        span: [12,17],
-      },
+      to: Cmavo "to",
+      Gismu "smóke",
     },
   ],
 }"""

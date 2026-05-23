@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no nízba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nizba",
-    span: [3,8],
-  },
+  Cmavo "no",
+  Gismu "nízba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nizba","kind":"gismu"}}]'
 
@@ -37,17 +29,9 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
+        Cmavo "no",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nizba",
-        span: [3,8],
-      },
+      relation: Gismu "nízba",
     },
   ],
 }"""

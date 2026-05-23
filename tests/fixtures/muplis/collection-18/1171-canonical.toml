@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'a ku zo'u jénca do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jenca",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [19,21],
-  },
+  Cmavo "ca'a",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Gismu "jénca",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jenca","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -55,37 +35,17 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'a",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "ca'a",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [5,7],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
+  zohu: Cmavo "zo'u",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jenca",
-      span: [13,18],
-    },
+    Gismu "jénca",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [19,21],
-      },
+      Cmavo "do",
     ],
   },
 }"""

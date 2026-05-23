@@ -20,32 +20,12 @@ brackets = "([zo rádni] cu válsi mo)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "radni",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "rádni",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [18,20],
-  },
+  Cmavo "cu",
+  Gismu "válsi",
+  Cmavo "mo",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"radni","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -54,34 +34,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "radni",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "rádni",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [12,17],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [18,20],
-    },
+    Gismu "válsi",
+    Cmavo "mo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"radni","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"valsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,20],"phonemes":"mo","kind":"cmavo"}}}}]}}}}}}}}]}]}'

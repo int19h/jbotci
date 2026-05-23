@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'e .i ku'i mútce púrci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "purci",
-    span: [18,23],
-  },
+  Cmavo "ki'e",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "mútce",
+  Gismu "púrci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"purci","kind":"gismu"}}]"""
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [0,4],
-        },
+        Cmavo "ki'e",
       ],
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [6,7],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [7,11],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [12,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "purci",
-        span: [18,23],
-      },
+      Gismu "mútce",
+      Gismu "púrci",
     },
   },
 }"""

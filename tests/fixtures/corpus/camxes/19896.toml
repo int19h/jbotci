@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o lo xámgu ko li'i cérni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [22,27],
-  },
+  Cmavo "a'o",
+  Cmavo "lo",
+  Gismu "xámgu",
+  Cmavo "ko",
+  Cmavo "li'i",
+  Gismu "cérni",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"li'i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cerni","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [8,13],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "xámgu",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [14,16],
-      },
+      Cmavo "ko",
     ],
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "li'i",
-        span: [17,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cerni",
-        span: [22,27],
-      },
+      nu: Cmavo "li'i",
+      Gismu "cérni",
     },
   },
 }"""

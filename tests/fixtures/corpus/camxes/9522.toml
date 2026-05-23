@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .nik. joĭ dy cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nik",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [16,21],
-  },
+  Cmavo "la",
+  Cmevla "nik",
+  Cmavo "joĭ",
+  Cmavo "dy",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"nik","kind":"cmevla"}},{"Bare":{"span":[8,11],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -52,39 +32,19 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "nik",
-            span: [3,6],
-          },
+          Cmevla "nik",
         ],
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "joĭ",
-        span: [8,11],
-      },
+      connective: Cmavo "joĭ",
       trailing_argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "dy",
-            span: [12,14],
-          },
+          Cmavo "dy",
         ],
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [16,21],
-  },
+  Gismu "cásnu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"nik","kind":"cmevla"}}}]}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[8,11],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"dy","kind":"cmavo"}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"casnu","kind":"gismu"}}}}}}}}}}}]}]}'

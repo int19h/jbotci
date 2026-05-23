@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma súmni [zo .mub.])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sumni",
-    span: [3,8],
-  },
+  Cmavo "ma",
+  Gismu "súmni",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "mub",
-      span: [12,15],
-    },
+    zo: Cmavo "zo",
+    Cmevla "mub",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"sumni","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,15],"phonemes":"mub","kind":"cmevla"}}}]'
@@ -47,30 +31,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sumni",
-      span: [3,8],
-    },
+    Gismu "súmni",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "mub",
-          span: [12,15],
-        },
+        zo: Cmavo "zo",
+        Cmevla "mub",
       },
     ],
   },

@@ -18,44 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zánru le selvíska)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zanru",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selviska",
-    span: [9,17],
-  },
+  Gismu "zánru",
+  Cmavo "le",
+  Lujvo "selvíska",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zanru","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"selviska","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "zanru",
-    span: [0,5],
-  },
+  Gismu "zánru",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "selviska",
-        span: [9,17],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "selvíska",
     },
   ],
 }"""

@@ -18,102 +18,38 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i je'i bo xu xo ma mo peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je'i",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [20,23],
-  },
+  Cmavo "i",
+  Cmavo "je'i",
+  Cmavo "bo",
+  Cmavo "xu",
+  Cmavo "xo",
+  Cmavo "ma",
+  Cmavo "mo",
+  Cmavo "peĭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"je'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "je'i",
-      span: [1,5],
-    },
+    Cmavo "je'i",
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [5,7],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [8,10],
-      },
+      Cmavo "bo",
+      indicator: Cmavo "xu",
     },
   },
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [14,16],
-        },
+        quantifier: Cmavo "xo",
+        Cmavo "ma",
       },
     ],
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [17,19],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [20,23],
-      },
+      Cmavo "mo",
+      indicator: Cmavo "peĭ",
     },
   },
 }"""

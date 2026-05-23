@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.and. ja va)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "and",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [6,8],
-  },
+  Cmevla "and",
+  Cmavo "ja",
+  Cmavo "va",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"va","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "and",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
-  leading_connective: Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [4,6],
-  },
+  leading_connective: Cmavo "ja",
   Term {
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "va",
-          span: [6,8],
-        },
+        tense_modal: Cmavo "va",
         Zohe {},
       },
     ],

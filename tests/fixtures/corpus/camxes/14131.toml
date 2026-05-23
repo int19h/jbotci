@@ -18,48 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi tcídu lo vríci pe [zoĭ gy Internet gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vrici",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [18,20],
-  },
+  Cmavo "mi",
+  Gismu "tcídu",
+  Cmavo "lo",
+  Gismu "vríci",
+  Cmavo "pe",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [21,24],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [25,27],
-    },
-    quoted_text: [27,36],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [37,39],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Internet",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vrici","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[21,24],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[25,27],"phonemes":"gy","kind":"cmavo"},"quoted_text":[27,36],"closing_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -68,54 +36,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tcidu",
-      span: [3,8],
-    },
+    Gismu "tcídu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "vrici",
-          span: [12,17],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "vríci",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [18,20],
-            },
+            goi: Cmavo "pe",
             ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "zoĭ",
-                span: [21,24],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [25,27],
-              },
-              quoted_text: [27,36],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [37,39],
-              },
+              zoi: Cmavo "zoĭ",
+              opening_delimiter: Cmavo "gy",
+              quoted_text: Verbatim "Internet",
+              closing_delimiter: Cmavo "gy",
             },
           },
         ],

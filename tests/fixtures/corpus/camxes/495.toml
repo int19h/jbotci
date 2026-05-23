@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(blánu na ja lénku skápi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skapi",
-    span: [17,22],
-  },
+  Gismu "blánu",
+  Cmavo "na",
+  Cmavo "ja",
+  Gismu "lénku",
+  Gismu "skápi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"skapi","kind":"gismu"}}]'
 
@@ -50,33 +30,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "blanu",
-      span: [0,5],
-    },
+    leading_unit: Gismu "blánu",
     connective: Relation {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ja",
-        span: [8,10],
-      },
+      na: Cmavo "na",
+      Cmavo "ja",
     },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "lenku",
-      span: [11,16],
-    },
+    trailing_unit: Gismu "lénku",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "skapi",
-    span: [17,22],
-  },
+  Gismu "skápi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"blanu","kind":"gismu"}}}},"connective":{"Relation":{"na":{"Bare":{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"lenku","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"skapi","kind":"gismu"}}}}]}}}}}}}}]}]}'

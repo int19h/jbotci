@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(by py fy ky mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [12,14],
-  },
+  Cmavo "by",
+  Cmavo "py",
+  Cmavo "fy",
+  Cmavo "ky",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -52,33 +32,13 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "by",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "py",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "fy",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [9,11],
-        },
+        Cmavo "by",
+        Cmavo "py",
+        Cmavo "fy",
+        Cmavo "ky",
       ],
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [12,14],
-  },
+  Cmavo "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"by","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,5],"phonemes":"py","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"fy","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[9,11],"phonemes":"ky","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,14],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

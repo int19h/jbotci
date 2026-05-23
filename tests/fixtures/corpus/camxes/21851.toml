@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'a naĭ loĭ rémna poĭ djíca le nu jímpe tu'a la .linuks.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "linuks",
-    span: [48,54],
-  },
+  Cmavo "ba'a",
+  Cmavo "naĭ",
+  Cmavo "loĭ",
+  Gismu "rémna",
+  Cmavo "poĭ",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "jímpe",
+  Cmavo "tu'a",
+  Cmavo "la",
+  Cmevla "linuks",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'a","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[40,44],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[48,54],"phonemes":"linuks","kind":"cmevla"}}]"""
 
@@ -86,82 +38,34 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ba'a",
-        span: [0,4],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [4,7],
-      },
+      indicator: Cmavo "ba'a",
+      nai: Cmavo "naĭ",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [8,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "remna",
-          span: [12,17],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "rémna",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [18,21],
-            },
+            poi: Cmavo "poĭ",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "djica",
-                span: [22,27],
-              },
+              Gismu "djíca",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [28,30],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Abstraction {
-                    nu: Word {
-                      kind: "cmavo",
-                      phonemes: "nu",
-                      span: [31,33],
-                    },
+                    nu: Cmavo "nu",
                     Relation {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "jimpe",
-                        span: [34,39],
-                      },
+                      Gismu "jímpe",
                       terms: [
                         Lahe {
-                          lahe: Word {
-                            kind: "cmavo",
-                            phonemes: "tu'a",
-                            span: [40,44],
-                          },
+                          lahe: Cmavo "tu'a",
                           Name {
-                            la: Word {
-                              kind: "cmavo",
-                              phonemes: "la",
-                              span: [45,47],
-                            },
+                            la: Cmavo "la",
                             names: [
-                              Word {
-                                kind: "cmevla",
-                                phonemes: "linuks",
-                                span: [48,54],
-                              },
+                              Cmevla "linuks",
                             ],
                           },
                         },

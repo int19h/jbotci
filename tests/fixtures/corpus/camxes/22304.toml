@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i va'i ba'e mo'a témci cu témci tu'a le sélkeĭ tu'a le sélkeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'i",
-    span: [1,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [36,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selkeĭ",
-    span: [39,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [46,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [51,53],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selkeĭ",
-    span: [54,60],
-  },
+  Cmavo "i",
+  Cmavo "va'i",
+  Cmavo "ba'e",
+  Cmavo "mo'a",
+  Gismu "témci",
+  Cmavo "cu",
+  Gismu "témci",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "sélkeĭ",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "sélkeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"va'i","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"mo'a","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"temci","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"temci","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,45],"phonemes":"selkeĭ","kind":"lujvo"}},{"Bare":{"span":[46,50],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[54,60],"phonemes":"selkeĭ","kind":"lujvo"}}]"""
 
@@ -90,89 +38,37 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "va'i",
-      span: [1,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "va'i",
   },
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
           Emphasized {
-            bahe: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [6,10],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mo'a",
-              span: [11,15],
-            },
+            bahe: Cmavo "ba'e",
+            Cmavo "mo'a",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "temci",
-          span: [16,21],
-        },
+        relation: Gismu "témci",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [22,24],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "temci",
-        span: [25,30],
-      },
+      Gismu "témci",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [31,35],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [36,38],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "selkeĭ",
-              span: [39,45],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "sélkeĭ",
           },
         },
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [46,50],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [51,53],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "selkeĭ",
-              span: [54,60],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "sélkeĭ",
           },
         },
       ],

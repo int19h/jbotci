@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu loĭ cénsa bákni cu térzba le zaltápla poĭ tráji kúkte li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "censa",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bakni",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terzba",
-    span: [22,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zaltapla",
-    span: [32,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [45,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [51,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [57,61],
-  },
+  Cmavo "lu",
+  Cmavo "loĭ",
+  Gismu "cénsa",
+  Gismu "bákni",
+  Cmavo "cu",
+  Lujvo "térzba",
+  Cmavo "le",
+  Lujvo "zaltápla",
+  Cmavo "poĭ",
+  Gismu "tráji",
+  Gismu "kúkte",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"censa","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"bakni","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"terzba","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,40],"phonemes":"zaltapla","kind":"lujvo"}},{"Bare":{"span":[41,44],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[51,56],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[57,61],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -86,74 +38,30 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [3,6],
-            },
+            descriptor: Cmavo "loĭ",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "censa",
-                span: [7,12],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "bakni",
-                span: [13,18],
-              },
+              Gismu "cénsa",
+              Gismu "bákni",
             },
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [19,21],
-        },
+        cu: Cmavo "cu",
         Relation {
-          Word {
-            kind: "lujvo",
-            phonemes: "terzba",
-            span: [22,28],
-          },
+          Lujvo "térzba",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [29,31],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "zaltapla",
-                span: [32,40],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "zaltápla",
               relative_clauses: [
                 Poi {
-                  poi: Word {
-                    kind: "cmavo",
-                    phonemes: "poĭ",
-                    span: [41,44],
-                  },
+                  poi: Cmavo "poĭ",
                   Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "traji",
-                      span: [45,50],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "kukte",
-                      span: [51,56],
-                    },
+                    Gismu "tráji",
+                    Gismu "kúkte",
                   },
                 },
               ],
@@ -161,11 +69,7 @@ Term {
           ],
         },
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [57,61],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

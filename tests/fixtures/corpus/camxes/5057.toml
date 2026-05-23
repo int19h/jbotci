@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(seĭ le mi skámi de'a co'u nírna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'a",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [25,30],
-  },
+  Cmavo "seĭ",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "skámi",
+  Cmavo "de'a",
+  Cmavo "co'u",
+  Gismu "nírna",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"de'a","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"nirna","kind":"gismu"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
+      sei: Cmavo "seĭ",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [4,6],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [7,9],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [10,15],
-          },
+          relation: Gismu "skámi",
         },
       ],
       relation: TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "de'a",
-            span: [16,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "co'u",
-            span: [20,24],
-          },
+          Cmavo "de'a",
+          Cmavo "co'u",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "nirna",
-          span: [25,30],
-        },
+        Gismu "nírna",
       },
     },
   ],

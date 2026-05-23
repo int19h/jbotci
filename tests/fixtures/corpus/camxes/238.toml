@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la bródo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [50,52],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodo",
-    span: [53,58],
-  },
+  Cmavo "la",
+  Gismu "bródo",
 ]"""
 json = '[{"Bare":{"span":[50,52],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[53,58],"phonemes":"brodo","kind":"gismu"}}]'
 
@@ -36,16 +28,8 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [50,52],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "brodo",
-        span: [53,58],
-      },
+      descriptor: Cmavo "la",
+      relation: Gismu "bródo",
     },
   ],
 }"""

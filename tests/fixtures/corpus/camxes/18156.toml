@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a ru'e ba za júkpa loĭ nanbrbiskíti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jukpa",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "nanbrbiskiti",
-    span: [24,36],
-  },
+  Cmavo "la'a",
+  Cmavo "ru'e",
+  Cmavo "ba",
+  Cmavo "za",
+  Gismu "júkpa",
+  Cmavo "loĭ",
+  Fuhivla "nanbrbiskíti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jukpa","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[24,36],"phonemes":"nanbrbiskiti","kind":"fu'ivla"}}]"""
 
@@ -62,51 +34,23 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "la'a",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [4,8],
-        },
+        Cmavo "la'a",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [11,13],
-        },
+        Cmavo "ba",
+        Cmavo "za",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "jukpa",
-        span: [14,19],
-      },
+      Gismu "júkpa",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [20,23],
-        },
-        relation: Word {
-          kind: "fu'ivla",
-          phonemes: "nanbrbiskiti",
-          span: [24,36],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Fuhivla "nanbrbiskíti",
       },
     ],
   },

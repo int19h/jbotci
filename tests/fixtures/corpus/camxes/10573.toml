@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to mi zmádu nélci [zo samymí'e] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [12,17],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Gismu "zmádu",
+  Gismu "nélci",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [18,20],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "samymi'e",
-      span: [21,29],
-    },
+    zo: Cmavo "zo",
+    Lujvo "samymí'e",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [30,33],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"nelci","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,29],"phonemes":"samymi'e","kind":"lujvo"}}},{"Bare":{"span":[30,33],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -63,53 +35,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "zmadu",
-              span: [6,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nelci",
-              span: [12,17],
-            },
+            Gismu "zmádu",
+            Gismu "nélci",
           },
           terms: [
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [18,20],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "samymi'e",
-                span: [21,29],
-              },
+              zo: Cmavo "zo",
+              Lujvo "samymí'e",
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [30,33],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

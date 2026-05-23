@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'o se pílno le skámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [17,22],
-  },
+  Cmavo "fi'o",
+  Cmavo "se",
+  Gismu "pílno",
+  Cmavo "le",
+  Gismu "skámi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"skami","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Term {
   terms: [
     Tagged {
       tense_modal: Fiho {
-        fiho: Word {
-          kind: "cmavo",
-          phonemes: "fi'o",
-          span: [0,4],
-        },
+        fiho: Cmavo "fi'o",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [5,7],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pilno",
-            span: [8,13],
-          },
+          se: Cmavo "se",
+          Gismu "pílno",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [17,22],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "skámi",
       },
     },
   ],

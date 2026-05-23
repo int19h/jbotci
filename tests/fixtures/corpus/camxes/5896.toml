@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do su'o roĭ jaĭ jbósla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbosla",
-    span: [18,24],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "su'o",
+  Cmavo "roĭ",
+  Cmavo "jaĭ",
+  Lujvo "jbósla",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"jbosla","kind":"lujvo"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [6,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [10,13],
-        },
+        Cmavo "su'o",
+        Cmavo "roĭ",
       },
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [14,17],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "jbosla",
-          span: [18,24],
-        },
+        jai: Cmavo "jaĭ",
+        Lujvo "jbósla",
       },
     },
   },

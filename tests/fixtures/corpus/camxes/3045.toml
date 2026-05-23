@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o le nu do djúno le ni mríste keĭ cu se rínka ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [23,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mriste",
-    span: [26,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [49,51],
-  },
+  Cmavo "ni'o",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "djúno",
+  Cmavo "le",
+  Cmavo "ni",
+  Lujvo "mríste",
+  Cmavo "keĭ",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "rínka",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[26,32],"phonemes":"mriste","kind":"lujvo"}},{"Bare":{"span":[33,36],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[49,51],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -90,63 +38,27 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [8,10],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [11,13],
-              },
+              Cmavo "do",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "djuno",
-                span: [14,19],
-              },
+              Gismu "djúno",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [20,22],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Abstraction {
-                    nu: Word {
-                      kind: "cmavo",
-                      phonemes: "ni",
-                      span: [23,25],
-                    },
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "mriste",
-                      span: [26,32],
-                    },
-                    kei: Word {
-                      kind: "cmavo",
-                      phonemes: "keĭ",
-                      span: [33,36],
-                    },
+                    nu: Cmavo "ni",
+                    Lujvo "mríste",
+                    kei: Cmavo "keĭ",
                   },
                 },
               ],
@@ -155,30 +67,14 @@ Paragraph {
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [37,39],
-    },
+    cu: Cmavo "cu",
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [40,42],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "rinka",
-          span: [43,48],
-        },
+        se: Cmavo "se",
+        Gismu "rínka",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [49,51],
-        },
+        Cmavo "ma",
       ],
     },
   },

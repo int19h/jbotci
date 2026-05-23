@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fe mi na ca xásne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xasne",
-    span: [12,17],
-  },
+  Cmavo "fe",
+  Cmavo "mi",
+  Cmavo "na",
+  Cmavo "ca",
+  Gismu "xásne",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xasne","kind":"gismu"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fe",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      fa: Cmavo "fe",
+      Cmavo "mi",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [6,8],
-    },
+    na: Cmavo "na",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xasne",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "xásne",
     },
   },
 }"""

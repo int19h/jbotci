@@ -18,89 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(káncu lo nu gásnu li pa no)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [23,25],
-  },
+  Gismu "káncu",
+  Cmavo "lo",
+  Cmavo "nu",
+  Gismu "gásnu",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "no",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kancu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"no","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "kancu",
-    span: [0,5],
-  },
+  Gismu "káncu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [6,8],
-      },
+      descriptor: Cmavo "lo",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [9,11],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "gasnu",
-            span: [12,17],
-          },
+          Gismu "gásnu",
           terms: [
             MathExpression {
-              li: Word {
-                kind: "cmavo",
-                phonemes: "li",
-                span: [18,20],
-              },
+              li: Cmavo "li",
               Number {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [21,23],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "no",
-                  span: [23,25],
-                },
+                Cmavo "pa",
+                Cmavo "no",
               },
             },
           ],

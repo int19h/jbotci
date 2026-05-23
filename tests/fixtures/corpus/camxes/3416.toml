@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i za'a loĭ jbosélbaŭ cu nalcínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jboselbaŭ",
-    span: [11,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcinri",
-    span: [24,32],
-  },
+  Cmavo "i",
+  Cmavo "za'a",
+  Cmavo "loĭ",
+  Lujvo "jbosélbaŭ",
+  Cmavo "cu",
+  Lujvo "nalcínri",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[11,20],"phonemes":"jboselbaŭ","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,32],"phonemes":"nalcinri","kind":"lujvo"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "za'a",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "za'a",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [7,10],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "jboselbaŭ",
-          span: [11,20],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Lujvo "jbosélbaŭ",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [21,23],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nalcinri",
-      span: [24,32],
-    },
+    cu: Cmavo "cu",
+    Lujvo "nalcínri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,6],"phonemes":"za'a","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[7,10],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[11,20],"phonemes":"jboselbaŭ","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[24,32],"phonemes":"nalcinri","kind":"lujvo"}}}}}}}}}}}]}]}"""

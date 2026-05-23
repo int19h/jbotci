@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'a naĭ ca se jíbri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [14,19],
-  },
+  Cmavo "ta'a",
+  Cmavo "naĭ",
+  Cmavo "ca",
+  Cmavo "se",
+  Gismu "jíbri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'a","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jibri","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ta'a",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "ta'a",
+        Cmavo "naĭ",
       ],
       argument: RelationVocative {
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [8,10],
-          },
+          tense_modal: Cmavo "ca",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [11,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jibri",
-              span: [14,19],
-            },
+            se: Cmavo "se",
+            Gismu "jíbri",
           },
         },
       },

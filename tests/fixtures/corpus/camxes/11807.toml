@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa moĭ pa xa meĭ lo dácti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dacti",
-    span: [17,22],
-  },
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "pa",
+  Cmavo "xa",
+  Cmavo "meĭ",
+  Cmavo "lo",
+  Gismu "dácti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"dacti","kind":"gismu"}}]'
 
@@ -62,50 +34,22 @@ Relation {
   Compound {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [2,5],
-      },
+      moi: Cmavo "moĭ",
     },
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "xa",
-          span: [8,10],
-        },
+        Cmavo "pa",
+        Cmavo "xa",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [10,13],
-      },
+      moi: Cmavo "meĭ",
     },
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [14,16],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "dacti",
-        span: [17,22],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "dácti",
     },
   ],
 }"""

@@ -18,135 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xy du li fa'i re [.a bu] fi'u ni'u by su'i ja vu'u fe'a veĭ by te'a re vu'u vo [.a bu] cy ve'o re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [15,17],
-  },
+  Cmavo "xy",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "fa'i",
+  Cmavo "re",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [18,19],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [19,21],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'u",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'u",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu'u",
-    span: [45,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'a",
-    span: [50,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "veĭ",
-    span: [55,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [59,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te'a",
-    span: [63,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [68,70],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu'u",
-    span: [71,75],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [76,78],
-  },
+  Cmavo "fi'u",
+  Cmavo "ni'u",
+  Cmavo "by",
+  Cmavo "su'i",
+  Cmavo "ja",
+  Cmavo "vu'u",
+  Cmavo "fe'a",
+  Cmavo "veĭ",
+  Cmavo "by",
+  Cmavo "te'a",
+  Cmavo "re",
+  Cmavo "vu'u",
+  Cmavo "vo",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [79,80],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [80,82],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [84,86],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve'o",
-    span: [88,92],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [93,95],
-  },
+  Cmavo "cy",
+  Cmavo "ve'o",
+  Cmavo "re",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"fa'i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"re","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[18,19],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[19,21],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[23,27],"phonemes":"fi'u","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"ni'u","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[45,49],"phonemes":"vu'u","kind":"cmavo"}},{"Bare":{"span":[50,54],"phonemes":"fe'a","kind":"cmavo"}},{"Bare":{"span":[55,58],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[59,61],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[63,67],"phonemes":"te'a","kind":"cmavo"}},{"Bare":{"span":[68,70],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[71,75],"phonemes":"vu'u","kind":"cmavo"}},{"Bare":{"span":[76,78],"phonemes":"vo","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[79,80],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[80,82],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[84,86],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[88,92],"phonemes":"ve'o","kind":"cmavo"}},{"Bare":{"span":[93,95],"phonemes":"re","kind":"cmavo"}}]"""
 
@@ -156,159 +56,59 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [0,2],
-        },
+        Cmavo "xy",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [4,6],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [7,9],
-        },
+        li: Cmavo "li",
         Forethought {
-          operator: Word {
-            kind: "cmavo",
-            phonemes: "fa'i",
-            span: [10,14],
-          },
+          operator: Cmavo "fa'i",
           operands: [
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [15,17],
-              },
+              Cmavo "re",
               Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "a",
-                  span: [18,19],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [19,21],
-                },
+                Cmavo "a",
+                bu: Cmavo "bu",
               },
-              Word {
-                kind: "cmavo",
-                phonemes: "fi'u",
-                span: [23,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "ni'u",
-                span: [28,32],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "by",
-                span: [33,35],
-              },
+              Cmavo "fi'u",
+              Cmavo "ni'u",
+              Cmavo "by",
             },
             Forethought {
               operator: Connected {
-                left_operator: Word {
-                  kind: "cmavo",
-                  phonemes: "su'i",
-                  span: [37,41],
-                },
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "ja",
-                  span: [42,44],
-                },
-                right_operator: Word {
-                  kind: "cmavo",
-                  phonemes: "vu'u",
-                  span: [45,49],
-                },
+                left_operator: Cmavo "su'i",
+                connective: Cmavo "ja",
+                right_operator: Cmavo "vu'u",
               },
               operands: [
                 Forethought {
-                  operator: Word {
-                    kind: "cmavo",
-                    phonemes: "fe'a",
-                    span: [50,54],
-                  },
+                  operator: Cmavo "fe'a",
                   operands: [
                     Vei {
-                      vei: Word {
-                        kind: "cmavo",
-                        phonemes: "veĭ",
-                        span: [55,58],
-                      },
+                      vei: Cmavo "veĭ",
                       Binary {
                         left_expression: Binary {
-                          left_expression: Word {
-                            kind: "cmavo",
-                            phonemes: "by",
-                            span: [59,61],
-                          },
-                          operator: Word {
-                            kind: "cmavo",
-                            phonemes: "te'a",
-                            span: [63,67],
-                          },
-                          right_expression: Word {
-                            kind: "cmavo",
-                            phonemes: "re",
-                            span: [68,70],
-                          },
+                          left_expression: Cmavo "by",
+                          operator: Cmavo "te'a",
+                          right_expression: Cmavo "re",
                         },
-                        operator: Word {
-                          kind: "cmavo",
-                          phonemes: "vu'u",
-                          span: [71,75],
-                        },
+                        operator: Cmavo "vu'u",
                         right_expression: Number {
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "vo",
-                            span: [76,78],
-                          },
+                          Cmavo "vo",
                           Letter {
-                            Word {
-                              kind: "cmavo",
-                              phonemes: "a",
-                              span: [79,80],
-                            },
-                            bu: Word {
-                              kind: "cmavo",
-                              phonemes: "bu",
-                              span: [80,82],
-                            },
+                            Cmavo "a",
+                            bu: Cmavo "bu",
                           },
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "cy",
-                            span: [84,86],
-                          },
+                          Cmavo "cy",
                         },
                       },
-                      veho: Word {
-                        kind: "cmavo",
-                        phonemes: "ve'o",
-                        span: [88,92],
-                      },
+                      veho: Cmavo "ve'o",
                     },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "re",
-                      span: [93,95],
-                    },
+                    Cmavo "re",
                   ],
                 },
               ],

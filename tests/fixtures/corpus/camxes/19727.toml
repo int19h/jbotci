@@ -18,34 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu'a [zoĭ gy http://www.zompist.com/sounds.htm gy] tolbánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [0,4],
-  },
+  Cmavo "tu'a",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [5,8],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [9,11],
-    },
-    quoted_text: [11,45],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [46,48],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "http://www.zompist.com/sounds.htm",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolbanzu",
-    span: [49,57],
-  },
+  Lujvo "tolbánzu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[5,8],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[9,11],"phonemes":"gy","kind":"cmavo"},"quoted_text":[11,45],"closing_delimiter":{"span":[46,48],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[49,57],"phonemes":"tolbanzu","kind":"lujvo"}}]"""
 
@@ -54,35 +34,15 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [0,4],
-      },
+      lahe: Cmavo "tu'a",
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [5,8],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [9,11],
-        },
-        quoted_text: [11,45],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [46,48],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "http://www.zompist.com/sounds.htm",
+        closing_delimiter: Cmavo "gy",
       },
     },
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "tolbanzu",
-    span: [49,57],
-  },
+  Lujvo "tolbánzu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[5,8],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[9,11],"phonemes":"gy","kind":"cmavo"},"quoted_text":[11,45],"closing_delimiter":{"span":[46,48],"phonemes":"gy","kind":"cmavo"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[49,57],"phonemes":"tolbanzu","kind":"lujvo"}}}}}}}}}}}]}]}"""

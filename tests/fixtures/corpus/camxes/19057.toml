@@ -18,54 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mo'u ckúle cípra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cipra",
-    span: [13,18],
-  },
+  Cmavo "i",
+  Cmavo "mo'u",
+  Gismu "ckúle",
+  Gismu "cípra",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"cipra","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "mo'u",
-      span: [2,6],
-    },
+    tense_modal: Cmavo "mo'u",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cipra",
-        span: [13,18],
-      },
+      Gismu "ckúle",
+      Gismu "cípra",
     },
   },
 }"""

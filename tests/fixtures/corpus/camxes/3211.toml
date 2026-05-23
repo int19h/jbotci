@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pílno pa laĭ .ĭuniks.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "laĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ĭuniks",
-    span: [13,19],
-  },
+  Gismu "pílno",
+  Cmavo "pa",
+  Cmavo "laĭ",
+  Cmevla "ĭuniks",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[13,19],"phonemes":"ĭuniks","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [0,5],
-  },
+  Gismu "pílno",
   terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "pa",
-        span: [6,8],
-      },
+      quantifier: Cmavo "pa",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "laĭ",
-          span: [9,12],
-        },
+        la: Cmavo "laĭ",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ĭuniks",
-            span: [13,19],
-          },
+          Cmevla "ĭuniks",
         ],
       },
     },

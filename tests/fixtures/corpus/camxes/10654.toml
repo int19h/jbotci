@@ -18,80 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le nu gúbgaŭ ka'e nábmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gubgaŭ",
-    span: [8,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "gúbgaŭ",
+  Cmavo "ka'e",
+  Gismu "nábmi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"gubgaŭ","kind":"lujvo"}},{"Bare":{"span":[15,19],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"nabmi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [5,7],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "gubgaŭ",
-            span: [8,14],
-          },
+          nu: Cmavo "nu",
+          Lujvo "gúbgaŭ",
         },
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [15,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nabmi",
-        span: [20,25],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "nábmi",
     },
   },
 }"""

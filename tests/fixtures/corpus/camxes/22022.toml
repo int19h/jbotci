@@ -19,63 +19,19 @@ brackets = "([la'o gy exam gy] pe lo ckúle cu smúni ma poĭ lójbo)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [9,13],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [15,17],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "exam",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [46,51],
-  },
+  Cmavo "pe",
+  Cmavo "lo",
+  Gismu "ckúle",
+  Cmavo "cu",
+  Gismu "smúni",
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Gismu "lójbo",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,13],"closing_delimiter":{"span":[15,17],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[42,45],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"lojbo","kind":"gismu"}}]"""
 
@@ -85,76 +41,32 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [0,4],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [5,7],
-        },
-        quoted_text: [9,13],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [15,17],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "exam",
+        closing_delimiter: Cmavo "gy",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [18,20],
-          },
+          goi: Cmavo "pe",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [21,23],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ckule",
-              span: [24,29],
-            },
+            descriptor: Cmavo "lo",
+            relation: Gismu "ckúle",
           },
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [30,32],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [33,38],
-    },
+    Gismu "smúni",
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [39,41],
-        },
+        base_argument: Cmavo "ma",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [42,45],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [46,51],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "lójbo",
           },
         ],
       },

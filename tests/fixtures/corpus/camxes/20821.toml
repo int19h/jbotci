@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo jávni cu pu ba'e zu se mrílu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "javni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [26,31],
-  },
+  Cmavo "lo",
+  Gismu "jávni",
+  Cmavo "cu",
+  Cmavo "pu",
+  Cmavo "ba'e",
+  Cmavo "zu",
+  Cmavo "se",
+  Gismu "mrílu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"javni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"mrilu","kind":"gismu"}}]"""
 
@@ -66,54 +34,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "javni",
-        span: [3,8],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "jávni",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [12,14],
-      },
+      Cmavo "pu",
       Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [15,19],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zu",
-          span: [20,22],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "zu",
       },
     },
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [23,25],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "mrilu",
-        span: [26,31],
-      },
+      se: Cmavo "se",
+      Gismu "mrílu",
     },
   },
 }"""

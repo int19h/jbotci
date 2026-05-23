@@ -18,81 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi saĭ .i mu'i le nu do djíca tu'a le sídju .a le tólfla pléji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [45,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [47,49],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolfla",
-    span: [50,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pleji",
-    span: [57,62],
-  },
+  Cmavo "ŭi",
+  Cmavo "saĭ",
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "sídju",
+  Cmavo "a",
+  Cmavo "le",
+  Lujvo "tólfla",
+  Gismu "pléji",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[45,46],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[50,56],"phonemes":"tolfla","kind":"lujvo"}},{"Bare":{"span":[57,62],"phonemes":"pleji","kind":"gismu"}}]"""
 
@@ -102,103 +42,43 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [8,9],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "mu'i",
-              span: [10,14],
-            },
+            bai: Cmavo "mu'i",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [15,17],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [18,20],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [21,23],
-                  },
+                  Cmavo "do",
                 ],
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "djica",
-                    span: [24,29],
-                  },
+                  Gismu "djíca",
                   terms: [
                     Lahe {
-                      lahe: Word {
-                        kind: "cmavo",
-                        phonemes: "tu'a",
-                        span: [30,34],
-                      },
+                      lahe: Cmavo "tu'a",
                       Connected {
                         leading_argument: Descriptor {
-                          descriptor: Word {
-                            kind: "cmavo",
-                            phonemes: "le",
-                            span: [35,37],
-                          },
-                          relation: Word {
-                            kind: "gismu",
-                            phonemes: "sidju",
-                            span: [38,43],
-                          },
+                          descriptor: Cmavo "le",
+                          relation: Gismu "sídju",
                         },
-                        connective: Word {
-                          kind: "cmavo",
-                          phonemes: "a",
-                          span: [45,46],
-                        },
+                        connective: Cmavo "a",
                         trailing_argument: Descriptor {
-                          descriptor: Word {
-                            kind: "cmavo",
-                            phonemes: "le",
-                            span: [47,49],
-                          },
+                          descriptor: Cmavo "le",
                           relation: Compound {
-                            Word {
-                              kind: "lujvo",
-                              phonemes: "tolfla",
-                              span: [50,56],
-                            },
-                            Word {
-                              kind: "gismu",
-                              phonemes: "pleji",
-                              span: [57,62],
-                            },
+                            Lujvo "tólfla",
+                            Gismu "pléji",
                           },
                         },
                       },

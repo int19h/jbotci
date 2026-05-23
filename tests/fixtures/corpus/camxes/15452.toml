@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca le ca nítce co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitce",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [15,19],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "ca",
+  Gismu "nítce",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nitce","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [6,8],
-          },
+          tense_modal: Cmavo "ca",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "nitce",
-              span: [9,14],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "co'e",
-              span: [15,19],
-            },
+            Gismu "nítce",
+            Cmavo "co'e",
           },
         },
       },

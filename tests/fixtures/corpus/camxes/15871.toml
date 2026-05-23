@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ le játna pe by fy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jatna",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [18,20],
-  },
+  Cmavo "doĭ",
+  Cmavo "le",
+  Gismu "játna",
+  Cmavo "pe",
+  Cmavo "by",
+  Cmavo "fy",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"jatna","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fy","kind":"cmavo"}}]'
 
@@ -57,42 +33,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "jatna",
-          span: [7,12],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "játna",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [13,15],
-            },
+            goi: Cmavo "pe",
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "by",
-                  span: [16,18],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "fy",
-                  span: [18,20],
-                },
+                Cmavo "by",
+                Cmavo "fy",
               ],
             },
           },

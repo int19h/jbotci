@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i .oĭ fágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [11,16],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "oĭ",
+  Gismu "fágri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"fagri","kind":"gismu"}}]"""
 
@@ -46,27 +30,11 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [2,6],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [8,10],
-    },
+    indicator: Cmavo "oĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [11,16],
-  },
+  Gismu "fágri",
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}}},"indicator":{"span":[8,10],"phonemes":"oĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"fagri","kind":"gismu"}}}}}}}}}}}]}]}"""

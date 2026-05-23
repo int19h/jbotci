@@ -19,51 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(loĭ jmíve cu se zbásu zo'e fi loĭ sélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmive",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [32,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "selci",
-    span: [36,41],
-  },
+  Cmavo "loĭ",
+  Gismu "jmíve",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "zbásu",
+  Cmavo "zo'e",
+  Cmavo "fi",
+  Cmavo "loĭ",
+  Gismu "sélci",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"jmive","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"selci","kind":"gismu"}}]"""
 
@@ -72,59 +36,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jmive",
-        span: [4,9],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "jmíve",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [13,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [16,21],
-      },
+      se: Cmavo "se",
+      Gismu "zbásu",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [23,27],
-      },
+      Cmavo "zo'e",
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [29,31],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [32,35],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "selci",
-            span: [36,41],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Gismu "sélci",
         },
       },
     ],

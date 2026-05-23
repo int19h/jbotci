@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'u ko dénpa .i mi dráta távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [20,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [26,31],
-  },
+  Cmavo "pe'u",
+  Cmavo "ko",
+  Gismu "dénpa",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "dráta",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -62,50 +34,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pe'u",
-          span: [0,4],
-        },
+        Cmavo "pe'u",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [5,7],
-      },
+      argument: Cmavo "ko",
     },
   ],
   Paragraph {
-    Word {
-      kind: "gismu",
-      phonemes: "denpa",
-      span: [8,13],
-    },
+    Gismu "dénpa",
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [15,16],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
+          Cmavo "mi",
         ],
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "drata",
-            span: [20,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [26,31],
-          },
+          Gismu "dráta",
+          Gismu "távla",
         },
       },
     },

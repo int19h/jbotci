@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lógji je na dráni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [11,16],
-  },
+  Gismu "lógji",
+  Cmavo "je",
+  Cmavo "na",
+  Gismu "dráni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"logji","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"drani","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 PredicateTail1 {
-  Word {
-    kind: "gismu",
-    phonemes: "logji",
-    span: [0,5],
-  },
+  Gismu "lógji",
   continuations: [
     PredicateTailContinuation {
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [6,8],
-      },
+      connective: Cmavo "je",
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "drani",
-          span: [11,16],
-        },
+        na: Cmavo "na",
+        Gismu "dráni",
       },
     },
   ],

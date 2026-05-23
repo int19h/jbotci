@@ -18,34 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(clóse to)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "close",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [6,8],
-  },
+  Gismu "clóse",
+  Cmavo "to",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"close","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"to","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "gismu",
-    phonemes: "close",
-    span: [0,5],
-  },
+  Gismu "clóse",
   free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [6,8],
-      },
+      to: Cmavo "to",
       Text {},
     },
   ],

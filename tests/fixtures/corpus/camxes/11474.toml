@@ -18,94 +18,38 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le re moĭ nánca ba cfári)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "moĭ",
+  Gismu "nánca",
+  Cmavo "ba",
+  Gismu "cfári",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"nanca","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cfari","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [5,7],
-              },
+              Cmavo "re",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "moĭ",
-              span: [7,10],
-            },
+            moi: Cmavo "moĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "nanca",
-            span: [11,16],
-          },
+          Gismu "nánca",
         },
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [17,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cfari",
-        span: [20,25],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "cfári",
     },
   },
 }"""

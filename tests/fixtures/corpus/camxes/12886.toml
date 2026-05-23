@@ -18,164 +18,60 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i doĭ .rlp. mi pu zi xrúkla fi le nu kélci la .dydyrys.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [20,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dydyrys",
-    span: [44,51],
-  },
+  Cmavo "i",
+  Cmavo "doĭ",
+  Cmevla "rlp",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zi",
+  Lujvo "xrúkla",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "kélci",
+  Cmavo "la",
+  Cmevla "dydyrys",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"xrukla","kind":"lujvo"}},{"Bare":{"span":[27,29],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[44,51],"phonemes":"dydyrys","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [3,6],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "rlp",
-        span: [7,10],
-      },
+      argument: Cmevla "rlp",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [17,19],
-          },
+          Cmavo "pu",
+          Cmavo "zi",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "xrukla",
-          span: [20,26],
-        },
+        Lujvo "xrúkla",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [27,29],
-          },
+          fa: Cmavo "fi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [30,32],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [32,34],
-              },
+              nu: Cmavo "nu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "kelci",
-                  span: [35,40],
-                },
+                Gismu "kélci",
                 terms: [
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [41,43],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "dydyrys",
-                        span: [44,51],
-                      },
+                      Cmevla "dydyrys",
                     ],
                   },
                 ],

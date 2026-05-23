@@ -18,82 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi nelcú'a ci no cácra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nelcu'a",
-    span: [6,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Lujvo "nelcú'a",
+  Cmavo "ci",
+  Cmavo "no",
+  Gismu "cácra",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,13],"phonemes":"nelcu'a","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cacra","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "nelcu'a",
-        span: [6,13],
-      },
+      Lujvo "nelcú'a",
       terms: [
         Descriptor {
           tail_elements: [
             Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "ci",
-                span: [14,16],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [16,18],
-              },
+              Cmavo "ci",
+              Cmavo "no",
             },
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cacra",
-            span: [19,24],
-          },
+          relation: Gismu "cácra",
         },
       ],
     },

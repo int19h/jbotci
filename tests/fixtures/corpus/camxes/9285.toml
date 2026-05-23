@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no da pe'a pápri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "papri",
-    span: [10,15],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "pe'a",
+  Gismu "pápri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"papri","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
+      quantifier: Cmavo "no",
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [2,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "pe'a",
-          span: [5,9],
-        },
+        Cmavo "da",
+        indicator: Cmavo "pe'a",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "papri",
-    span: [10,15],
-  },
+  Gismu "pápri",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"pe'a","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"papri","kind":"gismu"}}}}}}}}}}}]}]}"""

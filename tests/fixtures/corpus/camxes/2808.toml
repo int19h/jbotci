@@ -18,59 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo kámpu] dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kampu",
-      span: [5,10],
-    },
+    zo: Cmavo "zo",
+    Gismu "kámpu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [11,16],
-  },
+  Gismu "dráni",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,10],"phonemes":"kampu","kind":"gismu"}}},{"Bare":{"span":[11,16],"phonemes":"drani","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [2,4],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kampu",
-          span: [5,10],
-        },
+        zo: Cmavo "zo",
+        Gismu "kámpu",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "drani",
-      span: [11,16],
-    },
+    Gismu "dráni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,10],"phonemes":"kampu","kind":"gismu"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"drani","kind":"gismu"}}}}}}}}}}}]}]}'

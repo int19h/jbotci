@@ -18,33 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa [zo .a'i] mútce bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
+  Cmavo "ŭa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [4,6],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "a'i",
-      span: [8,11],
-    },
+    zo: Cmavo "zo",
+    Cmavo "a'i",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [18,23],
-  },
+  Gismu "mútce",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[4,6],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,11],"phonemes":"a'i","kind":"cmavo"}}},{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -53,39 +33,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "a'i",
-          span: [8,11],
-        },
+        zo: Cmavo "zo",
+        Cmavo "a'i",
       },
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [12,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "banzu",
-        span: [18,23],
-      },
+      Gismu "mútce",
+      Gismu "bánzu",
     },
   },
 }"""

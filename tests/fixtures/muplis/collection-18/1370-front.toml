@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le pa gérku pu mo'u cítka le pa cútci ku ne mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cutci",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [44,46],
-  },
+  Cmavo "le",
+  Cmavo "pa",
+  Gismu "gérku",
+  Cmavo "pu",
+  Cmavo "mo'u",
+  Gismu "cítka",
+  Cmavo "le",
+  Cmavo "pa",
+  Gismu "cútci",
+  Cmavo "ku",
+  Cmavo "ne",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"cutci","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ne","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -90,83 +42,35 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [3,5],
-        },
+        Cmavo "pa",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [6,11],
-      },
+      relation: Gismu "gérku",
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [12,14],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mo'u",
-          span: [15,19],
-        },
+        Cmavo "pu",
+        Cmavo "mo'u",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [20,25],
-      },
+      Gismu "cítka",
     },
     terms: [
       RelativeClause {
         base_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [26,28],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [29,31],
-            },
+            Cmavo "pa",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cutci",
-            span: [32,37],
-          },
-          ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [38,40],
-          },
+          relation: Gismu "cútci",
+          ku: Cmavo "ku",
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "ne",
-              span: [41,43],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [44,46],
-            },
+            goi: Cmavo "ne",
+            Cmavo "mi",
           },
         ],
       },

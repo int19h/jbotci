@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ xy ji'a selvásxu dánre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selvasxu",
-    span: [13,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danre",
-    span: [22,27],
-  },
+  Cmavo "doĭ",
+  Cmavo "xy",
+  Cmavo "ji'a",
+  Lujvo "selvásxu",
+  Gismu "dánre",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"selvasxu","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"danre","kind":"gismu"}}]"""
 
@@ -52,41 +32,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [4,6],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ji'a",
-              span: [8,12],
-            },
+            Cmavo "xy",
+            indicator: Cmavo "ji'a",
           },
         ],
       },
     },
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "selvasxu",
-      span: [13,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "danre",
-      span: [22,27],
-    },
+    Lujvo "selvásxu",
+    Gismu "dánre",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Letter":{"letter":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,6],"phonemes":"xy","kind":"cmavo"}}},"indicator":{"span":[8,12],"phonemes":"ji'a","kind":"cmavo"}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,21],"phonemes":"selvasxu","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"danre","kind":"gismu"}}}}]}}}}}}}}]}]}"""

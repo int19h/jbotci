@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma fa'u ma kláma ma fa'u ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [25,27],
-  },
+  Cmavo "ma",
+  Cmavo "fa'u",
+  Cmavo "ma",
+  Gismu "kláma",
+  Cmavo "ma",
+  Cmavo "fa'u",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"fa'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"fa'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -61,46 +33,18 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "fa'u",
-        span: [3,7],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [8,10],
-      },
+      leading_argument: Cmavo "ma",
+      connective: Cmavo "fa'u",
+      trailing_argument: Cmavo "ma",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [11,16],
-    },
+    Gismu "kláma",
     terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [17,19],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "fa'u",
-          span: [20,24],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [25,27],
-        },
+        leading_argument: Cmavo "ma",
+        connective: Cmavo "fa'u",
+        trailing_argument: Cmavo "ma",
       },
     ],
   },

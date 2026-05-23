@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le za'i na príje gi'e mérli ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prije",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merli",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [27,29],
-  },
+  Cmavo "le",
+  Cmavo "za'i",
+  Cmavo "na",
+  Gismu "príje",
+  Cmavo "gi'e",
+  Gismu "mérli",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prije","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"merli","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -61,49 +33,21 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "za'i",
-          span: [2,6],
-        },
+        nu: Cmavo "za'i",
         PredicateTail1 {
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [7,9],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "prije",
-              span: [10,15],
-            },
+            na: Cmavo "na",
+            Gismu "príje",
           },
           continuations: [
             PredicateTailContinuation {
-              connective: Word {
-                kind: "cmavo",
-                phonemes: "gi'e",
-                span: [16,20],
-              },
+              connective: Cmavo "gi'e",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "merli",
-                  span: [21,26],
-                },
+                Gismu "mérli",
                 terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ti",
-                    span: [27,29],
-                  },
+                  Cmavo "ti",
                 ],
               },
             },

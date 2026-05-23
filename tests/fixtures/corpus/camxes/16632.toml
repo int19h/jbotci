@@ -18,165 +18,61 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi zváti le mu moĭ joĭ xa moĭ joĭ ze moĭ lobyfésti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lobyfesti",
-    span: [40,49],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "zváti",
+  Cmavo "le",
+  Cmavo "mu",
+  Cmavo "moĭ",
+  Cmavo "joĭ",
+  Cmavo "xa",
+  Cmavo "moĭ",
+  Cmavo "joĭ",
+  Cmavo "ze",
+  Cmavo "moĭ",
+  Lujvo "lobyfésti",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[36,39],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[40,49],"phonemes":"lobyfesti","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [5,10],
-      },
+      Gismu "zváti",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Connected {
               leading_unit: Connected {
                 leading_unit: Moi {
                   number: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "mu",
-                      span: [14,16],
-                    },
+                    Cmavo "mu",
                   ],
-                  moi: Word {
-                    kind: "cmavo",
-                    phonemes: "moĭ",
-                    span: [16,19],
-                  },
+                  moi: Cmavo "moĭ",
                 },
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "joĭ",
-                  span: [20,23],
-                },
+                connective: Cmavo "joĭ",
                 trailing_unit: Moi {
                   number: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "xa",
-                      span: [24,26],
-                    },
+                    Cmavo "xa",
                   ],
-                  moi: Word {
-                    kind: "cmavo",
-                    phonemes: "moĭ",
-                    span: [26,29],
-                  },
+                  moi: Cmavo "moĭ",
                 },
               },
-              connective: Word {
-                kind: "cmavo",
-                phonemes: "joĭ",
-                span: [30,33],
-              },
+              connective: Cmavo "joĭ",
               trailing_unit: Moi {
                 number: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ze",
-                    span: [34,36],
-                  },
+                  Cmavo "ze",
                 ],
-                moi: Word {
-                  kind: "cmavo",
-                  phonemes: "moĭ",
-                  span: [36,39],
-                },
+                moi: Cmavo "moĭ",
               },
             },
-            Word {
-              kind: "lujvo",
-              phonemes: "lobyfesti",
-              span: [40,49],
-            },
+            Lujvo "lobyfésti",
           },
         },
       ],

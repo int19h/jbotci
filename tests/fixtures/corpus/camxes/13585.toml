@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu da cúntu ca'o le za'i mi pe'a nalzváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalzvati",
-    span: [32,40],
-  },
+  Cmavo "xu",
+  Cmavo "da",
+  Gismu "cúntu",
+  Cmavo "ca'o",
+  Cmavo "le",
+  Cmavo "za'i",
+  Cmavo "mi",
+  Cmavo "pe'a",
+  Lujvo "nalzváti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cuntu","kind":"gismu"}},{"Bare":{"span":[11,15],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[32,40],"phonemes":"nalzvati","kind":"lujvo"}}]"""
 
@@ -71,66 +35,30 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [2,4],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cuntu",
-        span: [5,10],
-      },
+      Gismu "cúntu",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca'o",
-            span: [11,15],
-          },
+          tense_modal: Cmavo "ca'o",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [16,18],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "za'i",
-                span: [19,23],
-              },
+              nu: Cmavo "za'i",
               Predicate {
                 leading_terms: [
                   WithIndicator {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "mi",
-                      span: [24,26],
-                    },
-                    indicator: Word {
-                      kind: "cmavo",
-                      phonemes: "pe'a",
-                      span: [27,31],
-                    },
+                    Cmavo "mi",
+                    indicator: Cmavo "pe'a",
                   },
                 ],
-                Word {
-                  kind: "lujvo",
-                  phonemes: "nalzvati",
-                  span: [32,40],
-                },
+                Lujvo "nalzváti",
               },
             },
           },

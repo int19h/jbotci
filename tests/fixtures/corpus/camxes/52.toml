@@ -19,112 +19,36 @@ brackets = "([zo zo] .e [zo zeĭ] .e [zo zoĭ] .e [zo bu] .e [zo lo'u] .e [zo si
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [7,8],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [12,15],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zeĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [17,18],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [19,21],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [22,25],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zoĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [27,28],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [29,31],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [32,34],
-    },
+    zo: Cmavo "zo",
+    Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [36,37],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [38,40],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [41,45],
-    },
+    zo: Cmavo "zo",
+    Cmavo "lo'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [47,48],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [80,82],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [83,85],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [86,88],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [89,94],
-  },
+  Cmavo "cu",
+  Gismu "válsi",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,15],"phonemes":"zeĭ","kind":"cmavo"}}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,25],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[27,28],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[29,31],"phonemes":"zo","kind":"cmavo"},"word":{"span":[32,34],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[36,37],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[38,40],"phonemes":"zo","kind":"cmavo"},"word":{"span":[41,45],"phonemes":"lo'u","kind":"cmavo"}}},{"Bare":{"span":[47,48],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[80,82],"phonemes":"zo","kind":"cmavo"},"word":{"span":[83,85],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[86,88],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[89,94],"phonemes":"valsi","kind":"gismu"}}]"""
 
@@ -138,117 +62,41 @@ Predicate {
           leading_argument: Connected {
             leading_argument: Connected {
               leading_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [0,2],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [3,5],
-                },
+                zo: Cmavo "zo",
+                Cmavo "zo",
               },
-              connective: Word {
-                kind: "cmavo",
-                phonemes: "e",
-                span: [7,8],
-              },
+              connective: Cmavo "e",
               trailing_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [9,11],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "zeĭ",
-                  span: [12,15],
-                },
+                zo: Cmavo "zo",
+                Cmavo "zeĭ",
               },
             },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "e",
-              span: [17,18],
-            },
+            connective: Cmavo "e",
             trailing_argument: ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [19,21],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "zoĭ",
-                span: [22,25],
-              },
+              zo: Cmavo "zo",
+              Cmavo "zoĭ",
             },
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [27,28],
-          },
+          connective: Cmavo "e",
           trailing_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [29,31],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [32,34],
-            },
+            zo: Cmavo "zo",
+            Cmavo "bu",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [36,37],
-        },
+        connective: Cmavo "e",
         trailing_argument: ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [38,40],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "lo'u",
-            span: [41,45],
-          },
+          zo: Cmavo "zo",
+          Cmavo "lo'u",
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [47,48],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [80,82],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "si",
-          span: [83,85],
-        },
+        zo: Cmavo "zo",
+        Cmavo "si",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [86,88],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [89,94],
-  },
+  cu: Cmavo "cu",
+  Gismu "válsi",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"zo","kind":"cmavo"}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,15],"phonemes":"zeĭ","kind":"cmavo"}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[19,21],"phonemes":"zo","kind":"cmavo"},"word":{"span":[22,25],"phonemes":"zoĭ","kind":"cmavo"}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[27,28],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[29,31],"phonemes":"zo","kind":"cmavo"},"word":{"span":[32,34],"phonemes":"bu","kind":"cmavo"}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[36,37],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[38,40],"phonemes":"zo","kind":"cmavo"},"word":{"span":[41,45],"phonemes":"lo'u","kind":"cmavo"}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[47,48],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[80,82],"phonemes":"zo","kind":"cmavo"},"word":{"span":[83,85],"phonemes":"si","kind":"cmavo"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[86,88],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[89,94],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}]}]}"""

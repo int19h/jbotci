@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le le gérku ku ni blánu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "le",
+  Gismu "gérku",
+  Cmavo "ku",
+  Cmavo "ni",
+  Gismu "blánu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"blanu","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [3,5],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "gerku",
-            span: [6,11],
-          },
-          ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "gérku",
+          ku: Cmavo "ku",
         },
       ],
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "blanu",
-          span: [18,23],
-        },
+        nu: Cmavo "ni",
+        Gismu "blánu",
       },
     },
   ],

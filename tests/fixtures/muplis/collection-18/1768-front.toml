@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi se fúnca su'o zábna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "funca",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zabna",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "se",
+  Gismu "fúnca",
+  Cmavo "su'o",
+  Gismu "zábna",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"funca","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"zabna","kind":"gismu"}}]"""
 
@@ -58,46 +34,22 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {(se fúnca) (su'o zábna)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "funca",
-          span: [9,14],
-        },
+        se: Cmavo "se",
+        Gismu "fúnca",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "su'o",
-              span: [15,19],
-            },
+            Cmavo "su'o",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "zabna",
-            span: [20,25],
-          },
+          relation: Gismu "zábna",
         },
       ],
     },

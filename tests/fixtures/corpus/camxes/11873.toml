@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ka'e nérkla da poĭ na múvdu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nerkla",
-    span: [5,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muvdu",
-    span: [22,27],
-  },
+  Cmavo "ka'e",
+  Lujvo "nérkla",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "na",
+  Gismu "múvdu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[5,11],"phonemes":"nerkla","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"muvdu","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ka'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nerkla",
-      span: [5,11],
-    },
+    tense_modal: Cmavo "ka'e",
+    Lujvo "nérkla",
   },
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [12,14],
-      },
+      base_argument: Cmavo "da",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [15,18],
-          },
+          poi: Cmavo "poĭ",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [19,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "muvdu",
-              span: [22,27],
-            },
+            na: Cmavo "na",
+            Gismu "múvdu",
           },
         },
       ],

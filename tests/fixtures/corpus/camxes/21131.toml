@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i múlno dáspo gi'e kátna le nírna skóri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "katna",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skori",
-    span: [39,44],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "múlno",
+  Gismu "dáspo",
+  Cmavo "gi'e",
+  Gismu "kátna",
+  Cmavo "le",
+  Gismu "nírna",
+  Gismu "skóri",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mulno","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"daspo","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"katna","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"skori","kind":"gismu"}}]"""
 
@@ -70,61 +34,25 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   PredicateTail1 {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mulno",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "daspo",
-        span: [13,18],
-      },
+      Gismu "múlno",
+      Gismu "dáspo",
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [19,23],
-        },
+        connective: Cmavo "gi'e",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "katna",
-            span: [24,29],
-          },
+          Gismu "kátna",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [30,32],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "nirna",
-                  span: [33,38],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "skori",
-                  span: [39,44],
-                },
+                Gismu "nírna",
+                Gismu "skóri",
               },
             },
           ],

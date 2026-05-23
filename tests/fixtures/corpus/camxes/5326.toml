@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(skámi mrílu júdri líste)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "mrílu",
+  Gismu "júdri",
+  Gismu "líste",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"judri","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"liste","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "mrílu",
+  Gismu "júdri",
+  Gismu "líste",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"mrilu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"judri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"liste","kind":"gismu"}}}}]}}}}}}}}]}]}'

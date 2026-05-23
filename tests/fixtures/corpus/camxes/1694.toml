@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ny maĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [3,6],
-  },
+  Cmavo "ny",
+  Cmavo "maĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"maĭ","kind":"cmavo"}}]'
 
@@ -37,17 +29,9 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ny",
-          span: [0,2],
-        },
+        Cmavo "ny",
       ],
-      mai: Word {
-        kind: "cmavo",
-        phonemes: "maĭ",
-        span: [3,6],
-      },
+      mai: Cmavo "maĭ",
     },
   ],
 }"""

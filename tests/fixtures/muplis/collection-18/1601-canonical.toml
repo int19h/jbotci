@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'a ku su'o da poĭ ke'a dráni ku'o zo'u mi jímpe da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [50,52],
-  },
+  Cmavo "co'a",
+  Cmavo "ku",
+  Cmavo "su'o",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Gismu "dráni",
+  Cmavo "ku'o",
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "jímpe",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[50,52],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -90,87 +42,39 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [0,4],
-      },
+      tense_modal: Cmavo "co'a",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [5,7],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [8,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [13,15],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [16,19],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [20,24],
-              },
+              Cmavo "ke'a",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "drani",
-              span: [25,30],
-            },
+            Gismu "dráni",
           },
-          kuho: Word {
-            kind: "cmavo",
-            phonemes: "ku'o",
-            span: [31,35],
-          },
+          kuho: Cmavo "ku'o",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [36,40],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [41,43],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [44,49],
-      },
+      Gismu "jímpe",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [50,52],
-        },
+        Cmavo "da",
       ],
     },
   },

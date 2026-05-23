@@ -18,65 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sálci na'e bo le kirsélsla)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kirselsla",
-    span: [16,25],
-  },
+  Gismu "sálci",
+  Cmavo "na'e",
+  Cmavo "bo",
+  Cmavo "le",
+  Lujvo "kirsélsla",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"salci","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,25],"phonemes":"kirselsla","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "salci",
-    span: [0,5],
-  },
+  Gismu "sálci",
   terms: [
     NaheBo {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [6,10],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [10,12],
-      },
+      nahe: Cmavo "na'e",
+      bo: Cmavo "bo",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [13,15],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "kirselsla",
-          span: [16,25],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "kirsélsla",
       },
     },
   ],

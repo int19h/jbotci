@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nu sónci keĭ djíca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sonci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [13,18],
-  },
+  Cmavo "nu",
+  Gismu "sónci",
+  Cmavo "keĭ",
+  Gismu "djíca",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"sonci","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"djica","kind":"gismu"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Compound {
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sonci",
-      span: [3,8],
-    },
-    kei: Word {
-      kind: "cmavo",
-      phonemes: "keĭ",
-      span: [9,12],
-    },
+    nu: Cmavo "nu",
+    Gismu "sónci",
+    kei: Cmavo "keĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [13,18],
-  },
+  Gismu "djíca",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"sonci","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[9,12],"phonemes":"keĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"djica","kind":"gismu"}}}}]}}}}}}}}]}]}'

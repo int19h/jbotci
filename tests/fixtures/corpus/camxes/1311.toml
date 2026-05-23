@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca sánli la .drezdn. ga'o bi'i ga'o la .frankfurt.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanli",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "drezdn",
-    span: [15,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'o",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'i",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'o",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frankfurt",
-    span: [42,51],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "sánli",
+  Cmavo "la",
+  Cmevla "drezdn",
+  Cmavo "ga'o",
+  Cmavo "bi'i",
+  Cmavo "ga'o",
+  Cmavo "la",
+  Cmevla "frankfurt",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"sanli","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,21],"phonemes":"drezdn","kind":"cmevla"}},{"Bare":{"span":[24,28],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"bi'i","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[42,51],"phonemes":"frankfurt","kind":"cmevla"}}]"""
 
@@ -75,70 +35,30 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sanli",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "sánli",
     },
     terms: [
       Connected {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "drezdn",
-              span: [15,21],
-            },
+            Cmevla "drezdn",
           ],
         },
         connective: Interval {
-          Word {
-            kind: "cmavo",
-            phonemes: "ga'o",
-            span: [24,28],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "bi'i",
-            span: [29,33],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ga'o",
-            span: [34,38],
-          },
+          Cmavo "ga'o",
+          Cmavo "bi'i",
+          Cmavo "ga'o",
         },
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [39,41],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "frankfurt",
-              span: [42,51],
-            },
+            Cmevla "frankfurt",
           ],
         },
       },

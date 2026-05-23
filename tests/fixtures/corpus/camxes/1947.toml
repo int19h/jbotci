@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu [zo .djan.] cméne do .i go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "djan",
-      span: [6,10],
-    },
+    zo: Cmavo "zo",
+    Cmevla "djan",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [22,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [24,28],
-  },
+  Gismu "cméne",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,10],"phonemes":"djan","kind":"cmevla"}}},{"Bare":{"span":[12,17],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -63,55 +35,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [6,10],
-          },
+          zo: Cmavo "zo",
+          Cmevla "djan",
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cmene",
-          span: [12,17],
-        },
+        Gismu "cméne",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [18,20],
-          },
+          Cmavo "do",
         ],
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [22,23],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [24,28],
-      },
+      i: Cmavo "i",
+      Cmavo "go'i",
     },
   },
 }"""

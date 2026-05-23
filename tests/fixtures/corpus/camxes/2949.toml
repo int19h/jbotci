@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i mi .aĭ caĭ ba jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [17,22],
-  },
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "aĭ",
+  Cmavo "caĭ",
+  Cmavo "ba",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "ku'i",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [5,7],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "aĭ",
-            span: [8,10],
-          },
+          Cmavo "mi",
+          indicator: Cmavo "aĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "caĭ",
-          span: [10,13],
-        },
+        indicator: Cmavo "caĭ",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [14,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [17,22],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "jímpe",
     },
   },
 }"""

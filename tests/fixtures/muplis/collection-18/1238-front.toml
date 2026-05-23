@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .eĭ mi'aĭ pénsi leĭ za'u péndo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'aĭ",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [28,33],
-  },
+  Cmavo "i",
+  Cmavo "eĭ",
+  Cmavo "mi'aĭ",
+  Gismu "pénsi",
+  Cmavo "leĭ",
+  Cmavo "za'u",
+  Gismu "péndo",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mi'aĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"pendo","kind":"gismu"}}]"""
 
@@ -64,50 +36,22 @@ brackets = "([.i .eĭ] [mi'aĭ {pénsi (leĭ za'u péndo)}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "eĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'aĭ",
-        span: [7,12],
-      },
+      Cmavo "mi'aĭ",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pensi",
-        span: [13,18],
-      },
+      Gismu "pénsi",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [19,22],
-          },
+          descriptor: Cmavo "leĭ",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [23,27],
-            },
+            Cmavo "za'u",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "pendo",
-            span: [28,33],
-          },
+          relation: Gismu "péndo",
         },
       ],
     },

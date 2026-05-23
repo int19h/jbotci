@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na nélci le'e jungymérko cídja)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jungymerko",
-    span: [17,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cidja",
-    span: [28,33],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "nélci",
+  Cmavo "le'e",
+  Lujvo "jungymérko",
+  Gismu "cídja",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"le'e","kind":"cmavo"}},{"Bare":{"span":[17,27],"phonemes":"jungymerko","kind":"lujvo"}},{"Bare":{"span":[28,33],"phonemes":"cidja","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "nélci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le'e",
-          span: [12,16],
-        },
+        descriptor: Cmavo "le'e",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "jungymerko",
-            span: [17,27],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cidja",
-            span: [28,33],
-          },
+          Lujvo "jungymérko",
+          Gismu "cídja",
         },
       },
     ],

@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ge'e jaĭ zu'e bébna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [14,19],
-  },
+  Cmavo "ge'e",
+  Cmavo "jaĭ",
+  Cmavo "zu'e",
+  Gismu "bébna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ge'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"bebna","kind":"gismu"}}]"""
 
@@ -50,31 +34,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ge'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "ge'e",
     },
   ],
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [5,8],
-    },
+    jai: Cmavo "jaĭ",
     tense_modal: Simple {
-      bai: Word {
-        kind: "cmavo",
-        phonemes: "zu'e",
-        span: [9,13],
-      },
+      bai: Cmavo "zu'e",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "bebna",
-      span: [14,19],
-    },
+    Gismu "bébna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[5,8],"phonemes":"jaĭ","kind":"cmavo"}}},"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[9,13],"phonemes":"zu'e","kind":"cmavo"}}}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"bebna","kind":"gismu"}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ge'e","kind":"cmavo"}}}}]}"""

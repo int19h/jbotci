@@ -18,90 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cúntu le nu sútra múlgaŭ le bángu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mulgaŭ",
-    span: [18,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [28,33],
-  },
+  Gismu "cúntu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "sútra",
+  Lujvo "múlgaŭ",
+  Cmavo "le",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cuntu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[18,24],"phonemes":"mulgaŭ","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"bangu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [0,5],
-  },
+  Gismu "cúntu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [9,11],
-        },
+        nu: Cmavo "nu",
         Relation {
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "sutra",
-              span: [12,17],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "mulgaŭ",
-              span: [18,24],
-            },
+            Gismu "sútra",
+            Lujvo "múlgaŭ",
           },
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [25,27],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "bangu",
-                span: [28,33],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "bángu",
             },
           ],
         },

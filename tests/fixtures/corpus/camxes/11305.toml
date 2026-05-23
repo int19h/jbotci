@@ -18,37 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ju sátci císka [zo ce'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satci",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [11,16],
-  },
+  Cmavo "i",
+  Cmavo "ju",
+  Gismu "sátci",
+  Gismu "císka",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [17,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ce'u",
-      span: [20,24],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ce'u",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"satci","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"ciska","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,24],"phonemes":"ce'u","kind":"cmavo"}}}]"""
@@ -56,41 +32,17 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [2,4],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "ju",
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "satci",
-        span: [5,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ciska",
-        span: [11,16],
-      },
+      Gismu "sátci",
+      Gismu "císka",
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [17,19],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ce'u",
-          span: [20,24],
-        },
+        zo: Cmavo "zo",
+        Cmavo "ce'u",
       },
     ],
   },

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .bancus. .ĭu naĭ glíce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glice",
-    span: [18,23],
-  },
+  Cmavo "la",
+  Cmevla "bancus",
+  Cmavo "ĭu",
+  Cmavo "naĭ",
+  Gismu "glíce",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"ĭu","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"glice","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "bancus",
-            span: [3,9],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ĭu",
-            span: [12,14],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [14,17],
-          },
+          Cmevla "bancus",
+          indicator: Cmavo "ĭu",
+          nai: Cmavo "naĭ",
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "glice",
-    span: [18,23],
-  },
+  Gismu "glíce",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,9],"phonemes":"bancus","kind":"cmevla"}}},"indicator":{"span":[12,14],"phonemes":"ĭu","kind":"cmavo"},"nai":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"glice","kind":"gismu"}}}}}}}}}}}]}]}'

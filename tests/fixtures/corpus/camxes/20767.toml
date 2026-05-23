@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bóngu xu júlne doĭ .norpan.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "bongu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "julne",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "norpan",
-    span: [19,25],
-  },
+  Gismu "bóngu",
+  Cmavo "xu",
+  Gismu "júlne",
+  Cmavo "doĭ",
+  Cmevla "norpan",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"bongu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"julne","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"norpan","kind":"cmevla"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"bongu","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "bongu",
-      span: [0,5],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [6,8],
-    },
+    Gismu "bóngu",
+    indicator: Cmavo "xu",
   },
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "julne",
-      span: [9,14],
-    },
+    Gismu "júlne",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [15,18],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "norpan",
-          span: [19,25],
-        },
+        argument: Cmevla "norpan",
       },
     ],
   },

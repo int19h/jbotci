@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i na xámgu .i na gúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [16,21],
-  },
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "xámgu",
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "gúnka",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"gunka","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
+    i: Cmavo "i",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [2,4],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [5,10],
-      },
+      na: Cmavo "na",
+      Gismu "xámgu",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [11,12],
-    },
+    i: Cmavo "i",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [13,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [16,21],
-      },
+      na: Cmavo "na",
+      Gismu "gúnka",
     },
   },
 }"""

@@ -18,105 +18,41 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le vrúsi be sy na jaĭ múkti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vrusi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "vrúsi",
+  Cmavo "be",
+  Cmavo "sy",
+  Cmavo "na",
+  Cmavo "jaĭ",
+  Gismu "múkti",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"vrusi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"mukti","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "vrusi",
-            span: [6,11],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [12,14],
-          },
+          Gismu "vrúsi",
+          be: Cmavo "be",
           first_argument: Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "sy",
-                span: [15,17],
-              },
+              Cmavo "sy",
             ],
           },
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [19,21],
-      },
+      na: Cmavo "na",
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [22,25],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mukti",
-          span: [26,31],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "múkti",
       },
     },
   },

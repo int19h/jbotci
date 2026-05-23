@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do .eĭ mi .i xu do císka samtrósku lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "éĭ",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [17,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samtrosku",
-    span: [23,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [33,38],
-  },
+  Cmavo "do",
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "císka",
+  Lujvo "samtrósku",
+  Gismu "lójbo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"éĭ","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[23,32],"phonemes":"samtrosku","kind":"lujvo"}},{"Bare":{"span":[33,38],"phonemes":"lojbo","kind":"gismu"}}]'
 
@@ -72,61 +36,25 @@ Paragraph {
   Term {
     terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "éĭ",
-          span: [3,5],
-        },
+        Cmavo "do",
+        indicator: Cmavo "eĭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [9,10],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [11,13],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [14,16],
-        },
+        Cmavo "do",
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "ciska",
-          span: [17,22],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "samtrosku",
-          span: [23,32],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [33,38],
-        },
+        Gismu "císka",
+        Lujvo "samtrósku",
+        Gismu "lójbo",
       },
     },
   },

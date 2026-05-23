@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to .i ku'i [zo ro] cu srána re lo prénu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [5,9],
-  },
+  Cmavo "to",
+  Cmavo "i",
+  Cmavo "ku'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ro",
-      span: [13,15],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ro",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [37,40],
-  },
+  Cmavo "cu",
+  Gismu "srána",
+  Cmavo "re",
+  Cmavo "lo",
+  Gismu "prénu",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ku'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,15],"phonemes":"ro","kind":"cmavo"}}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[37,40],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -83,77 +39,33 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       ParagraphStatement {
         i: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [4,5],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ku'i",
-            span: [5,9],
-          },
+          Cmavo "i",
+          indicator: Cmavo "ku'i",
         },
         Predicate {
           leading_terms: [
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [10,12],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "ro",
-                span: [13,15],
-              },
+              zo: Cmavo "zo",
+              Cmavo "ro",
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [16,18],
-          },
+          cu: Cmavo "cu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "srana",
-              span: [19,24],
-            },
+            Gismu "srána",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo",
-                  span: [28,30],
-                },
-                outer_quantifier: Word {
-                  kind: "cmavo",
-                  phonemes: "re",
-                  span: [25,27],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "prenu",
-                  span: [31,36],
-                },
+                descriptor: Cmavo "lo",
+                outer_quantifier: Cmavo "re",
+                relation: Gismu "prénu",
               },
             ],
           },
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [37,40],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

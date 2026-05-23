@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ le bénbaŭ fínti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "benbaŭ",
-    span: [7,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [14,19],
-  },
+  Cmavo "coĭ",
+  Cmavo "le",
+  Lujvo "bénbaŭ",
+  Gismu "fínti",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"benbaŭ","kind":"lujvo"}},{"Bare":{"span":[14,19],"phonemes":"finti","kind":"gismu"}}]'
 
@@ -47,29 +31,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "benbaŭ",
-            span: [7,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "finti",
-            span: [14,19],
-          },
+          Lujvo "bénbaŭ",
+          Gismu "fínti",
         },
       },
     },

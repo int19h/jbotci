@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu no da zbásu lo'e sélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "selci",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "zbásu",
+  Cmavo "lo'e",
+  Gismu "sélci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"selci","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [5,7],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zbasu",
-        span: [8,13],
-      },
+      Gismu "zbásu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo'e",
-            span: [14,18],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "selci",
-            span: [19,24],
-          },
+          descriptor: Cmavo "lo'e",
+          relation: Gismu "sélci",
         },
       ],
     },

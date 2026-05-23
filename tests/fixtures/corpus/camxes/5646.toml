@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u gaŭ ko clíva je na mórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morsi",
-    span: [23,28],
-  },
+  Cmavo "e'u",
+  Cmavo "gaŭ",
+  Cmavo "ko",
+  Gismu "clíva",
+  Cmavo "je",
+  Cmavo "na",
+  Gismu "mórsi",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"morsi","kind":"gismu"}}]"""
 
@@ -61,54 +33,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "gaŭ",
-            span: [5,8],
-          },
+          bai: Cmavo "gaŭ",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [9,11],
-        },
+        Cmavo "ko",
       },
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "cliva",
-        span: [12,17],
-      },
+      Gismu "clíva",
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [18,20],
-          },
+          connective: Cmavo "je",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [20,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "morsi",
-              span: [23,28],
-            },
+            na: Cmavo "na",
+            Gismu "mórsi",
           },
         },
       ],

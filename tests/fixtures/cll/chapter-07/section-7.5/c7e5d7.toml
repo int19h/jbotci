@@ -24,26 +24,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda ke bróde bródi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodi",
-    span: [15,20],
-  },
+  Gismu "bróda",
+  Cmavo "ke",
+  Gismu "bróde",
+  Gismu "bródi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"brodi","kind":"gismu"}}]'
 
@@ -51,28 +35,12 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"spa
 brackets = "(bróda [ke {bróde bródi}])"
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "brode",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "brodi",
-        span: [15,20],
-      },
+      Gismu "bróde",
+      Gismu "bródi",
     },
   },
 }"""

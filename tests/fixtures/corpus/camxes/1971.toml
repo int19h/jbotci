@@ -19,38 +19,14 @@ brackets = "([zo .bab.] cméne la'e [zo .bab.])"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "bab",
-      span: [4,7],
-    },
+    zo: Cmavo "zo",
+    Cmevla "bab",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [15,19],
-  },
+  Gismu "cméne",
+  Cmavo "la'e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [20,22],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "bab",
-      span: [24,27],
-    },
+    zo: Cmavo "zo",
+    Cmevla "bab",
   },
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[4,7],"phonemes":"bab","kind":"cmevla"}}},{"Bare":{"span":[9,14],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[20,22],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,27],"phonemes":"bab","kind":"cmevla"}}}]"""
@@ -60,42 +36,18 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmevla",
-        phonemes: "bab",
-        span: [4,7],
-      },
+      zo: Cmavo "zo",
+      Cmevla "bab",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [9,14],
-    },
+    Gismu "cméne",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [15,19],
-        },
+        lahe: Cmavo "la'e",
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [20,22],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "bab",
-            span: [24,27],
-          },
+          zo: Cmavo "zo",
+          Cmevla "bab",
         },
       },
     ],

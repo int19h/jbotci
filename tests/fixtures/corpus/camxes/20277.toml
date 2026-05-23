@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le vérba cílre zo'e la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "verba",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [23,29],
-  },
+  Cmavo "le",
+  Gismu "vérba",
+  Gismu "cílre",
+  Cmavo "zo'e",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"verba","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "verba",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cilre",
-          span: [9,14],
-        },
+        Gismu "vérba",
+        Gismu "cílre",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'e",
-      span: [15,19],
-    },
+    Cmavo "zo'e",
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [20,22],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [23,29],
-        },
+        Cmevla "lojban",
       ],
     },
   ],

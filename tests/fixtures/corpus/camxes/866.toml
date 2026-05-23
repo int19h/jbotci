@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .stiv. ca'o bácru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "stiv",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [14,19],
-  },
+  Cmavo "la",
+  Cmevla "stiv",
+  Cmavo "ca'o",
+  Gismu "bácru",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"stiv","kind":"cmevla"}},{"Bare":{"span":[9,13],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"bacru","kind":"gismu"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "stiv",
-          span: [3,7],
-        },
+        Cmevla "stiv",
       ],
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [9,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bacru",
-      span: [14,19],
-    },
+    tense_modal: Cmavo "ca'o",
+    Gismu "bácru",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"stiv","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[9,13],"phonemes":"ca'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"bacru","kind":"gismu"}}}}}}}}}}}}}]}]}"""

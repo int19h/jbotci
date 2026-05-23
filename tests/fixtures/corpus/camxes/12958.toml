@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i le cúnso pe ky na vájni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cunso",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [24,29],
-  },
+  Cmavo "ku'i",
+  Cmavo "le",
+  Gismu "cúnso",
+  Cmavo "pe",
+  Cmavo "ky",
+  Cmavo "na",
+  Gismu "vájni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cunso","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"vajni","kind":"gismu"}}]"""
 
@@ -61,40 +33,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "ku'i",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cunso",
-          span: [8,13],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "cúnso",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [14,16],
-            },
+            goi: Cmavo "pe",
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ky",
-                  span: [17,19],
-                },
+                Cmavo "ky",
               ],
             },
           },
@@ -102,16 +54,8 @@ Text {
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [21,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vajni",
-        span: [24,29],
-      },
+      na: Cmavo "na",
+      Gismu "vájni",
     },
   },
 }"""

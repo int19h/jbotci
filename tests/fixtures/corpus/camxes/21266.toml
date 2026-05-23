@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .elrond. pe'u do jaĭ dánfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elrond",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danfu",
-    span: [23,28],
-  },
+  Cmavo "doĭ",
+  Cmevla "elrond",
+  Cmavo "pe'u",
+  Cmavo "do",
+  Cmavo "jaĭ",
+  Gismu "dánfu",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"elrond","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"danfu","kind":"gismu"}}]"""
 
@@ -57,48 +33,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "elrond",
-          span: [4,10],
-        },
+        Cmevla "elrond",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pe'u",
-                span: [11,15],
-              },
+              Cmavo "pe'u",
             ],
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [16,18],
-            },
+            argument: Cmavo "do",
           },
         ],
       },
     },
   ],
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [19,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "danfu",
-      span: [23,28],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "dánfu",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[[{"Bare":{"Bare":{"span":[4,10],"phonemes":"elrond","kind":"cmevla"}}}],{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[11,15],"phonemes":"pe'u","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}}}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[19,22],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"danfu","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

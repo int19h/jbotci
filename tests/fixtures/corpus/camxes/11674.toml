@@ -18,94 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi naĭ le cúsku be fi la .kurocin. le cúsku be fi [la'o gy slashdot gy] mílxe zmádu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kurocin",
-    span: [24,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [43,45],
-  },
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Cmavo "le",
+  Gismu "cúsku",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "kurocin",
+  Cmavo "le",
+  Gismu "cúsku",
+  Cmavo "be",
+  Cmavo "fi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [46,50],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [51,53],
-    },
-    quoted_text: [55,63],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [65,67],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "slashdot",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [68,73],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [74,79],
-  },
+  Gismu "mílxe",
+  Gismu "zmádu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,31],"phonemes":"kurocin","kind":"cmevla"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"fi","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[46,50],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[51,53],"phonemes":"gy","kind":"cmavo"},"quoted_text":[55,63],"closing_delimiter":{"span":[65,67],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[68,73],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[74,79],"phonemes":"zmadu","kind":"gismu"}}]"""
 
@@ -114,110 +46,42 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [3,6],
-      },
+      indicator: Cmavo "ŭi",
+      nai: Cmavo "naĭ",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "cusku",
-            span: [10,15],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [16,18],
-          },
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [18,20],
-          },
+          Gismu "cúsku",
+          be: Cmavo "be",
+          fa: Cmavo "fi",
           first_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [21,23],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "kurocin",
-                span: [24,31],
-              },
+              Cmevla "kurocin",
             ],
           },
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [32,34],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Be {
-            Word {
-              kind: "gismu",
-              phonemes: "cusku",
-              span: [35,40],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [41,43],
-            },
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [43,45],
-            },
+            Gismu "cúsku",
+            be: Cmavo "be",
+            fa: Cmavo "fi",
             first_argument: ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "la'o",
-                span: [46,50],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [51,53],
-              },
-              quoted_text: [55,63],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [65,67],
-              },
+              zoi: Cmavo "la'o",
+              opening_delimiter: Cmavo "gy",
+              quoted_text: Verbatim "slashdot",
+              closing_delimiter: Cmavo "gy",
             },
           },
-          Word {
-            kind: "gismu",
-            phonemes: "milxe",
-            span: [68,73],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zmadu",
-            span: [74,79],
-          },
+          Gismu "mílxe",
+          Gismu "zmádu",
         },
       },
     ],

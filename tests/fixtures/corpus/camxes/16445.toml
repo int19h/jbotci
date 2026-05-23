@@ -18,143 +18,55 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i my na dársi le nu págbu le re moĭ nuncúxna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "darsi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [31,34],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncuxna",
-    span: [35,43],
-  },
+  Cmavo "i",
+  Cmavo "my",
+  Cmavo "na",
+  Gismu "dársi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "págbu",
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "moĭ",
+  Lujvo "nuncúxna",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"darsi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[35,43],"phonemes":"nuncuxna","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "my",
-            span: [2,4],
-          },
+          Cmavo "my",
         ],
       },
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [5,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "darsi",
-          span: [8,13],
-        },
+        na: Cmavo "na",
+        Gismu "dársi",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [17,19],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "pagbu",
-                span: [20,25],
-              },
+              Gismu "págbu",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [26,28],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Compound {
                     Moi {
                       number: [
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "re",
-                          span: [29,31],
-                        },
+                        Cmavo "re",
                       ],
-                      moi: Word {
-                        kind: "cmavo",
-                        phonemes: "moĭ",
-                        span: [31,34],
-                      },
+                      moi: Cmavo "moĭ",
                     },
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "nuncuxna",
-                      span: [35,43],
-                    },
+                    Lujvo "nuncúxna",
                   },
                 },
               ],

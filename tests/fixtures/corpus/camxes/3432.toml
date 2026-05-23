@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mábla samnírna bo kágni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samnirna",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [18,23],
-  },
+  Gismu "mábla",
+  Lujvo "samnírna",
+  Cmavo "bo",
+  Gismu "kágni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"samnirna","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"kagni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [0,5],
-  },
+  Gismu "mábla",
   Bo {
-    leading_unit: Word {
-      kind: "lujvo",
-      phonemes: "samnirna",
-      span: [6,14],
-    },
-    bo: Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [15,17],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "kagni",
-      span: [18,23],
-    },
+    leading_unit: Lujvo "samnírna",
+    bo: Cmavo "bo",
+    trailing_unit: Gismu "kágni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"mabla","kind":"gismu"}}}},{"Bo":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,14],"phonemes":"samnirna","kind":"lujvo"}}}},"bo":{"Bare":{"Bare":{"span":[15,17],"phonemes":"bo","kind":"cmavo"}}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"kagni","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

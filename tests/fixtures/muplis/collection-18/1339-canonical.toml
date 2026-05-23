@@ -22,58 +22,18 @@ brackets = "([zoĭ zoĭ steve zoĭ] ke ke mérko glíco ke'e cméne ke'e)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [4,7],
-    },
-    quoted_text: [7,13],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [14,17],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "steve",
+    closing_delimiter: Cmavo "zoĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [36,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [41,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [47,51],
-  },
+  Cmavo "ke",
+  Cmavo "ke",
+  Gismu "mérko",
+  Gismu "glíco",
+  Cmavo "ke'e",
+  Gismu "cméne",
+  Cmavo "ke'e",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[7,13],"closing_delimiter":{"span":[14,17],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[47,51],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -83,66 +43,26 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [4,7],
-      },
-      quoted_text: [7,13],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [14,17],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "steve",
+      closing_delimiter: Cmavo "zoĭ",
     },
   ],
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [18,20],
-    },
+    ke: Cmavo "ke",
     Compound {
       Ke {
-        ke: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [21,23],
-        },
+        ke: Cmavo "ke",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "merko",
-            span: [24,29],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "glico",
-            span: [30,35],
-          },
+          Gismu "mérko",
+          Gismu "glíco",
         },
-        kehe: Word {
-          kind: "cmavo",
-          phonemes: "ke'e",
-          span: [36,40],
-        },
+        kehe: Cmavo "ke'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [41,46],
-      },
+      Gismu "cméne",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [47,51],
-    },
+    kehe: Cmavo "ke'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[7,13],"closing_delimiter":{"span":[14,17],"phonemes":"zoĭ","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Ke":{"ke":{"Bare":{"Bare":{"span":[18,20],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Ke":{"ke":{"Bare":{"Bare":{"span":[21,23],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"merko","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[30,35],"phonemes":"glico","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[36,40],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[41,46],"phonemes":"cmene","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[47,51],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}}}]}]}"""

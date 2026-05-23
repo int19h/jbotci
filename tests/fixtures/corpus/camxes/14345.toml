@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to malglíco toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malglico",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [12,15],
-  },
+  Cmavo "to",
+  Lujvo "malglíco",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"malglico","kind":"lujvo"}},{"Bare":{"span":[12,15],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -41,21 +29,9 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "malglico",
-        span: [3,11],
-      },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [12,15],
-      },
+      to: Cmavo "to",
+      Lujvo "malglíco",
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

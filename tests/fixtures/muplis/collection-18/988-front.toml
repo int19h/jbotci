@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.eĭ mi ca di'a gúnka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [15,20],
-  },
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "di'a",
+  Gismu "gúnka",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"gunka","kind":"gismu"}}]"""
 
@@ -55,39 +35,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [7,9],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'a",
-          span: [10,14],
-        },
+        Cmavo "ca",
+        Cmavo "di'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [15,20],
-      },
+      Gismu "gúnka",
     },
   },
 }"""

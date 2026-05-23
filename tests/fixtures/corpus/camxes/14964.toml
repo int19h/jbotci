@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi vabyxá'u gugrsféri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vabyxa'u",
-    span: [3,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "gugrsferi",
-    span: [12,21],
-  },
+  Cmavo "mi",
+  Lujvo "vabyxá'u",
+  Fuhivla "gugrsféri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"vabyxa'u","kind":"lujvo"}},{"Bare":{"span":[12,21],"phonemes":"gugrsferi","kind":"fu'ivla"}}]"""
 
@@ -40,23 +28,11 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "vabyxa'u",
-      span: [3,11],
-    },
-    Word {
-      kind: "fu'ivla",
-      phonemes: "gugrsferi",
-      span: [12,21],
-    },
+    Lujvo "vabyxá'u",
+    Fuhivla "gugrsféri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"vabyxa'u","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,21],"phonemes":"gugrsferi","kind":"fu'ivla"}}}}]}}}}}}}}]}]}"""

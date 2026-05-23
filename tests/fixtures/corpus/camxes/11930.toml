@@ -18,92 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i lo bótpi noĭ kúnti vi zváti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "botpi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "lo",
+  Gismu "bótpi",
+  Cmavo "noĭ",
+  Gismu "kúnti",
+  Cmavo "vi",
+  Gismu "zváti",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"botpi","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"kunti","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"zvati","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "botpi",
-          span: [6,11],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "bótpi",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [12,15],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kunti",
-              span: [16,21],
-            },
+            noi: Cmavo "noĭ",
+            Gismu "kúnti",
           },
         ],
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [22,24],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [25,30],
-      },
+      tense_modal: Cmavo "vi",
+      Gismu "zváti",
     },
   },
 }"""

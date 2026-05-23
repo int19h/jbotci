@@ -18,37 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do pílno cy gy [.i bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [12,14],
-  },
+  Cmavo "do",
+  Gismu "pílno",
+  Cmavo "cy",
+  Cmavo "gy",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [16,18],
-    },
+    Cmavo "i",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"gy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[16,18],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -57,42 +33,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [3,8],
-    },
+    Gismu "pílno",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [12,14],
-          },
+          Cmavo "cy",
+          Cmavo "gy",
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "i",
-              span: [15,16],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [16,18],
-            },
+            Cmavo "i",
+            bu: Cmavo "bu",
           },
         ],
       },

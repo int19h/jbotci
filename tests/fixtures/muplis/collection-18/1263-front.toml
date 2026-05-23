@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .eĭ mi'aĭ cíkre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'aĭ",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [13,18],
-  },
+  Cmavo "i",
+  Cmavo "eĭ",
+  Cmavo "mi'aĭ",
+  Gismu "cíkre",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mi'aĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cikre","kind":"gismu"}}]"""
 
@@ -49,30 +33,14 @@ brackets = "([.i .eĭ] [mi'aĭ cíkre])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [4,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "eĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'aĭ",
-        span: [7,12],
-      },
+      Cmavo "mi'aĭ",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [13,18],
-    },
+    Gismu "cíkre",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[7,12],"phonemes":"mi'aĭ","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"cikre","kind":"gismu"}}}}}}}}}}}]}]}"""

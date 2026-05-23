@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi djúno le jaĭ se ma'e gejbírje)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gejbirje",
-    span: [23,31],
-  },
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "le",
+  Cmavo "jaĭ",
+  Cmavo "se",
+  Cmavo "ma'e",
+  Lujvo "gejbírje",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ma'e","kind":"cmavo"}},{"Bare":{"span":[23,31],"phonemes":"gejbirje","kind":"lujvo"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [3,8],
-    },
+    Gismu "djúno",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [12,15],
-          },
+          jai: Cmavo "jaĭ",
           tense_modal: Simple {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [16,18],
-            },
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ma'e",
-              span: [18,22],
-            },
+            se: Cmavo "se",
+            bai: Cmavo "ma'e",
           },
-          Word {
-            kind: "lujvo",
-            phonemes: "gejbirje",
-            span: [23,31],
-          },
+          Lujvo "gejbírje",
         },
       },
     ],

@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la .judis. ta'e xéndo ro prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "judis",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xendo",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "judis",
+  Cmavo "ta'e",
+  Gismu "xéndo",
+  Cmavo "ro",
+  Gismu "prénu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"judis","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"xendo","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"prenu","kind":"gismu"}}]"""
 
@@ -63,55 +35,27 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{la .judis.} {(ta'e xéndo) (ro prénu)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [2,4],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "judis",
-            span: [5,10],
-          },
+          Cmevla "judis",
         ],
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ta'e",
-          span: [11,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xendo",
-          span: [16,21],
-        },
+        tense_modal: Cmavo "ta'e",
+        Gismu "xéndo",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ro",
-              span: [22,24],
-            },
+            Cmavo "ro",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [25,30],
-          },
+          relation: Gismu "prénu",
         },
       ],
     },

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'e mi ba'e cu kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [16,21],
-  },
+  Cmavo "ba'e",
+  Cmavo "mi",
+  Cmavo "ba'e",
+  Cmavo "cu",
+  Gismu "kláma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"klama","kind":"gismu"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Emphasized {
-      bahe: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      bahe: Cmavo "ba'e",
+      Cmavo "mi",
     },
   ],
   cu: Emphasized {
-    bahe: Word {
-      kind: "cmavo",
-      phonemes: "ba'e",
-      span: [8,12],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
+    bahe: Cmavo "ba'e",
+    Cmavo "cu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [16,21],
-  },
+  Gismu "kláma",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Emphasized":{"bahe":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}}],"cu":{"Emphasized":{"bahe":{"span":[8,12],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,105 +18,41 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i sy srána loĭ vínji ke vréji dátni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vinji",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [32,37],
-  },
+  Cmavo "i",
+  Cmavo "sy",
+  Gismu "srána",
+  Cmavo "loĭ",
+  Gismu "vínji",
+  Cmavo "ke",
+  Gismu "vréji",
+  Gismu "dátni",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[13,16],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"vinji","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"vreji","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"datni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "sy",
-            span: [3,5],
-          },
+          Cmavo "sy",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "srana",
-        span: [7,12],
-      },
+      Gismu "srána",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [13,16],
-          },
+          descriptor: Cmavo "loĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "vinji",
-              span: [17,22],
-            },
+            Gismu "vínji",
             Ke {
-              ke: Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [23,25],
-              },
+              ke: Cmavo "ke",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "vreji",
-                  span: [26,31],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "datni",
-                  span: [32,37],
-                },
+                Gismu "vréji",
+                Gismu "dátni",
               },
             },
           },

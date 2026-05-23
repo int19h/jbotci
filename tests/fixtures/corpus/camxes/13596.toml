@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'e co'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [5,9],
-  },
+  Cmavo "zo'e",
+  Cmavo "co'e",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"co'e","kind":"cmavo"}}]"""
 
@@ -35,16 +27,8 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'e",
-      span: [0,4],
-    },
+    Cmavo "zo'e",
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "co'e",
-    span: [5,9],
-  },
+  Cmavo "co'e",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"zo'e","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,9],"phonemes":"co'e","kind":"cmavo"}}}}}}}}}}}]}]}"""

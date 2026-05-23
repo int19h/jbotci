@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.jexom. kánla slílu)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "jexóm",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanla",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [13,18],
-  },
+  Cmevla "jexom",
+  Gismu "kánla",
+  Gismu "slílu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"jexóm","kind":"cmevla"}},{"Bare":{"span":[7,12],"phonemes":"kanla","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"slilu","kind":"gismu"}}]'
 
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"jexóm","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "jexóm",
-      span: [0,5],
-    },
+    Cmevla "jexom",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "kanla",
-      span: [7,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "slilu",
-      span: [13,18],
-    },
+    Gismu "kánla",
+    Gismu "slílu",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,5],"phonemes":"jexóm","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"kanla","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"slilu","kind":"gismu"}}}}]}}}}}}}}]}]}'

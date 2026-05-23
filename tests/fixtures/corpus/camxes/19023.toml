@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi xánce be do jgári djíca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xance",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgari",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "xánce",
+  Cmavo "be",
+  Cmavo "do",
+  Gismu "jgári",
+  Gismu "djíca",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"jgari","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"djica","kind":"gismu"}}]'
 
@@ -55,40 +31,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Compound {
     Be {
-      Word {
-        kind: "gismu",
-        phonemes: "xance",
-        span: [3,8],
-      },
-      be: Word {
-        kind: "cmavo",
-        phonemes: "be",
-        span: [9,11],
-      },
-      first_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Gismu "xánce",
+      be: Cmavo "be",
+      first_argument: Cmavo "do",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "jgari",
-      span: [15,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [21,26],
-    },
+    Gismu "jgári",
+    Gismu "djíca",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xance","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"jgari","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"djica","kind":"gismu"}}}}]}}}}}}}}]}]}'

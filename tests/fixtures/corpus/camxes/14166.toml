@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu lénku ji gláre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [12,17],
-  },
+  Cmavo "xu",
+  Gismu "lénku",
+  Cmavo "ji",
+  Gismu "gláre",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"glare","kind":"gismu"}}]'
 
@@ -46,29 +30,13 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "lenku",
-      span: [3,8],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ji",
-      span: [9,11],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "glare",
-      span: [12,17],
-    },
+    leading_relation: Gismu "lénku",
+    connective: Cmavo "ji",
+    trailing_relation: Gismu "gláre",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"lenku","kind":"gismu"}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"ji","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"glare","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

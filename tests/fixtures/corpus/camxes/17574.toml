@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi no'e nélci lo'e lójbo je xe fánva ke pémci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [40,45],
-  },
+  Cmavo "mi",
+  Cmavo "no'e",
+  Gismu "nélci",
+  Cmavo "lo'e",
+  Gismu "lójbo",
+  Cmavo "je",
+  Cmavo "xe",
+  Gismu "fánva",
+  Cmavo "ke",
+  Gismu "pémci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"pemci","kind":"gismu"}}]"""
 
@@ -75,68 +35,28 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "no'e",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [8,13],
-      },
+      nahe: Cmavo "no'e",
+      Gismu "nélci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [14,18],
-        },
+        descriptor: Cmavo "lo'e",
         relation: Compound {
           Connected {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [19,24],
-            },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "je",
-              span: [25,27],
-            },
+            leading_unit: Gismu "lójbo",
+            connective: Cmavo "je",
             trailing_unit: Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "xe",
-                span: [28,30],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "fanva",
-                span: [31,36],
-              },
+              se: Cmavo "xe",
+              Gismu "fánva",
             },
           },
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [37,39],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pemci",
-              span: [40,45],
-            },
+            ke: Cmavo "ke",
+            Gismu "pémci",
           },
         },
       },

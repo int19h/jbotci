@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma núzba doĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [14,19],
-  },
+  Cmavo "ma",
+  Gismu "núzba",
+  Cmavo "doĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"robin","kind":"cmevla"}}]'
 
@@ -45,32 +29,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "nuzba",
-      span: [3,8],
-    },
+    Gismu "núzba",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [9,12],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "robin",
-          span: [14,19],
-        },
+        argument: Cmevla "robin",
       },
     ],
   },

@@ -18,103 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gírzu se mífra bénji gérna dátni gírzu skámi císte)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mifra",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [45,50],
-  },
+  Gismu "gírzu",
+  Cmavo "se",
+  Gismu "mífra",
+  Gismu "bénji",
+  Gismu "gérna",
+  Gismu "dátni",
+  Gismu "gírzu",
+  Gismu "skámi",
+  Gismu "císte",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"ciste","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
+  Gismu "gírzu",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mifra",
-      span: [9,14],
-    },
+    se: Cmavo "se",
+    Gismu "mífra",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [45,50],
-  },
+  Gismu "bénji",
+  Gismu "gérna",
+  Gismu "dátni",
+  Gismu "gírzu",
+  Gismu "skámi",
+  Gismu "císte",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"gerna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[27,32],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[33,38],"phonemes":"girzu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[39,44],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[45,50],"phonemes":"ciste","kind":"gismu"}}}}]}}}}}}}}]}]}'

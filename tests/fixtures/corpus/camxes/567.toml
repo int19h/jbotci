@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.djan. .meris. .djeĭn. .alis.)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭn",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alis",
-    span: [21,25],
-  },
+  Cmevla "djan",
+  Cmevla "meris",
+  Cmevla "djeĭn",
+  Cmevla "alis",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"meris","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"djeĭn","kind":"cmevla"}},{"Bare":{"span":[21,25],"phonemes":"alis","kind":"cmevla"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "djan",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "meris",
-      span: [6,11],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "djeĭn",
-      span: [13,18],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "alis",
-      span: [21,25],
-    },
+    Cmevla "djan",
+    Cmevla "meris",
+    Cmevla "djeĭn",
+    Cmevla "alis",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"djan","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[6,11],"phonemes":"meris","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[13,18],"phonemes":"djeĭn","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[21,25],"phonemes":"alis","kind":"cmevla"}}}]}'

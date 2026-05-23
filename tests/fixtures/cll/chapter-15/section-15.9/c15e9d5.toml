@@ -24,16 +24,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ja'a go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [5,9],
-  },
+  Cmavo "ja'a",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -41,15 +33,7 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"sp
 brackets = "(ja'a go'i)"
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [5,9],
-  },
+  na: Cmavo "ja'a",
+  Cmavo "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ja'a","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[5,9],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

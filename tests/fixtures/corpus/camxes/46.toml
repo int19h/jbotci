@@ -18,75 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi so'a roĭ na mórji le cméne be me'o [{zoĭ zoĭ That letter that you use between a user id and a host name in an e-mail address zoĭ} bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'o",
-    span: [33,37],
-  },
+  Cmavo "mi",
+  Cmavo "so'a",
+  Cmavo "roĭ",
+  Cmavo "na",
+  Gismu "mórji",
+  Cmavo "le",
+  Gismu "cméne",
+  Cmavo "be",
+  Cmavo "me'o",
   Letter {
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [38,41],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [42,45],
-      },
-      quoted_text: [45,125],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [126,129],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
+      closing_delimiter: Cmavo "zoĭ",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [130,132],
-    },
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[38,41],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[42,45],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[45,125],"closing_delimiter":{"span":[126,129],"phonemes":"zoĭ","kind":"cmavo"}}},"bu":{"span":[130,132],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -95,87 +43,35 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "so'a",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [8,11],
-        },
+        Cmavo "so'a",
+        Cmavo "roĭ",
       },
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "morji",
-          span: [15,20],
-        },
+        na: Cmavo "na",
+        Gismu "mórji",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [21,23],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "cmene",
-            span: [24,29],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [30,32],
-          },
+          Gismu "cméne",
+          be: Cmavo "be",
           first_argument: MathExpression {
-            li: Word {
-              kind: "cmavo",
-              phonemes: "me'o",
-              span: [33,37],
-            },
+            li: Cmavo "me'o",
             Letter {
               ZoiQuote {
-                zoi: Word {
-                  kind: "cmavo",
-                  phonemes: "zoĭ",
-                  span: [38,41],
-                },
-                opening_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "zoĭ",
-                  span: [42,45],
-                },
-                quoted_text: [45,125],
-                closing_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "zoĭ",
-                  span: [126,129],
-                },
+                zoi: Cmavo "zoĭ",
+                opening_delimiter: Cmavo "zoĭ",
+                quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
+                closing_delimiter: Cmavo "zoĭ",
               },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [130,132],
-              },
+              bu: Cmavo "bu",
             },
           },
         },

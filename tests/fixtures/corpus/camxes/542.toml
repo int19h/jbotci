@@ -18,34 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cy [.i bu] [.a bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [0,2],
+  Cmavo "cy",
+  Letter {
+    Cmavo "i",
+    bu: Cmavo "bu",
   },
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [3,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [4,6],
-    },
-  },
-  Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [7,8],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [8,10],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[4,6],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[7,8],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[8,10],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -56,34 +36,14 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [0,2],
+        Cmavo "cy",
+        Letter {
+          Cmavo "i",
+          bu: Cmavo "bu",
         },
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [3,4],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [4,6],
-          },
-        },
-        Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [7,8],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [8,10],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },

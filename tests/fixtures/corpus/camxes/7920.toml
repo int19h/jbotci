@@ -18,64 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do na nítcu le nu pílno [zo vi] .e [zo zváti])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [17,22],
-  },
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "nítcu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [23,25],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [26,28],
-    },
+    zo: Cmavo "zo",
+    Cmavo "vi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [30,31],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [32,34],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "zvati",
-      span: [35,40],
-    },
+    zo: Cmavo "zo",
+    Gismu "zváti",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[23,25],"phonemes":"zo","kind":"cmavo"},"word":{"span":[26,28],"phonemes":"vi","kind":"cmavo"}}},{"Bare":{"span":[30,31],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[32,34],"phonemes":"zo","kind":"cmavo"},"word":{"span":[35,40],"phonemes":"zvati","kind":"gismu"}}}]'
@@ -84,74 +40,30 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "nítcu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [14,16],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [17,22],
-            },
+            Gismu "pílno",
             terms: [
               Connected {
                 leading_argument: ZoQuote {
-                  zo: Word {
-                    kind: "cmavo",
-                    phonemes: "zo",
-                    span: [23,25],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "vi",
-                    span: [26,28],
-                  },
+                  zo: Cmavo "zo",
+                  Cmavo "vi",
                 },
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "e",
-                  span: [30,31],
-                },
+                connective: Cmavo "e",
                 trailing_argument: ZoQuote {
-                  zo: Word {
-                    kind: "cmavo",
-                    phonemes: "zo",
-                    span: [32,34],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "zvati",
-                    span: [35,40],
-                  },
+                  zo: Cmavo "zo",
+                  Gismu "zváti",
                 },
               },
             ],

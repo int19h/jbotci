@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(doĭ .eĭ mi ma .eĭ bénji ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "éĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [23,25],
-  },
+  Cmavo "doĭ",
+  Cmavo "eĭ",
+  Cmavo "mi",
+  Cmavo "ma",
+  Cmavo "eĭ",
+  Gismu "bénji",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"éĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -64,52 +36,24 @@ Text {
     Vocative {
       vocative_markers: [
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [0,3],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "éĭ",
-            span: [4,6],
-          },
+          Cmavo "doĭ",
+          indicator: Cmavo "eĭ",
         },
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [6,8],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [10,12],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [14,16],
-        },
+        Cmavo "ma",
+        indicator: Cmavo "eĭ",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "benji",
-        span: [17,22],
-      },
+      Gismu "bénji",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [23,25],
-        },
+        Cmavo "ma",
       ],
     },
   },

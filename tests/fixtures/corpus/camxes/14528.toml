@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'a cpácu le se nítcu samsélpla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [17,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [23,32],
-  },
+  Cmavo "co'a",
+  Gismu "cpácu",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "nítcu",
+  Lujvo "samsélpla",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[23,32],"phonemes":"samselpla","kind":"lujvo"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "co'a",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cpacu",
-      span: [5,10],
-    },
+    tense_modal: Cmavo "co'a",
+    Gismu "cpácu",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [11,13],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nitcu",
-            span: [17,22],
-          },
+          se: Cmavo "se",
+          Gismu "nítcu",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "samselpla",
-          span: [23,32],
-        },
+        Lujvo "samsélpla",
       },
     },
   ],

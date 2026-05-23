@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare
 brackets = "(.not. peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "not",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [4,7],
-  },
+  Cmevla "not",
+  Cmavo "peĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"span":[4,7],"phonemes":"peĭ","kind":"cmavo"}}]'
 
@@ -36,16 +28,8 @@ tree = """
 Text {
   leading_cmevla: [
     WithIndicator {
-      Word {
-        kind: "cmevla",
-        phonemes: "not",
-        span: [0,3],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [4,7],
-      },
+      Cmevla "not",
+      indicator: Cmavo "peĭ",
     },
   ],
 }"""

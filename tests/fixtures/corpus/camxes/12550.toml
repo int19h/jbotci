@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la me ry [.e bu] my)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [6,8],
-  },
+  Cmavo "la",
+  Cmavo "me",
+  Cmavo "ry",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [9,10],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [10,12],
-    },
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [13,15],
-  },
+  Cmavo "my",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ry","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[9,10],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[10,12],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[13,15],"phonemes":"my","kind":"cmavo"}}]'
 
@@ -58,41 +34,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [3,5],
-        },
+        me: Cmavo "me",
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ry",
-              span: [6,8],
-            },
+            Cmavo "ry",
             Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "e",
-                span: [9,10],
-              },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [10,12],
-              },
+              Cmavo "e",
+              bu: Cmavo "bu",
             },
-            Word {
-              kind: "cmavo",
-              phonemes: "my",
-              span: [13,15],
-            },
+            Cmavo "my",
           ],
         },
       },

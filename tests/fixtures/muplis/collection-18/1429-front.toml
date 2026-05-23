@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi pu zi mo'u kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zi",
+  Cmavo "mo'u",
+  Gismu "kláma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"klama","kind":"gismu"}}]"""
 
@@ -58,42 +34,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {(pu zi mo'u) kláma}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mo'u",
-          span: [12,16],
-        },
+        Cmavo "pu",
+        Cmavo "zi",
+        Cmavo "mo'u",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [17,22],
-      },
+      Gismu "kláma",
     },
   },
 }"""

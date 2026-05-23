@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma go'a doĭ .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [17,20],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "go'a",
+  Cmavo "doĭ",
+  Cmevla "xod",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"go'a","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"xod","kind":"cmevla"}}]"""
 
@@ -52,39 +32,19 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
     },
   ],
   Goha {
-    goha: Word {
-      kind: "cmavo",
-      phonemes: "go'a",
-      span: [8,12],
-    },
+    goha: Cmavo "go'a",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [13,16],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "xod",
-          span: [17,20],
-        },
+        argument: Cmevla "xod",
       },
     ],
   },

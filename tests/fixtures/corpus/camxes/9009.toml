@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ .i .a'e naĭ ro'o ro'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'e",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro'i",
-    span: [17,21],
-  },
+  Cmavo "coĭ",
+  Cmavo "i",
+  Cmavo "a'e",
+  Cmavo "naĭ",
+  Cmavo "ro'o",
+  Cmavo "ro'i",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"a'e","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ro'o","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ro'i","kind":"cmavo"}}]"""
 
@@ -57,11 +33,7 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
     },
   ],
@@ -69,33 +41,13 @@ Text {
     i: WithIndicator {
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [5,6],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "a'e",
-            span: [7,10],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [10,13],
-          },
+          Cmavo "i",
+          indicator: Cmavo "a'e",
+          nai: Cmavo "naĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ro'o",
-          span: [13,17],
-        },
+        indicator: Cmavo "ro'o",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ro'i",
-        span: [17,21],
-      },
+      indicator: Cmavo "ro'i",
     },
   },
 }"""

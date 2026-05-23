@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ro do .i .a'o xámgu nícte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [24,29],
-  },
+  Cmavo "co'o",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "i",
+  Cmavo "a'o",
+  Gismu "xámgu",
+  Gismu "nícte",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"nicte","kind":"gismu"}}]"""
 
@@ -62,50 +34,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [7,9],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "do",
       },
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [11,12],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [14,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "a'o",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [18,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nicte",
-        span: [24,29],
-      },
+      Gismu "xámgu",
+      Gismu "nícte",
     },
   },
 }"""

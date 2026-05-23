@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ry xi re)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [10,12],
-  },
+  Cmavo "ry",
+  Cmavo "xi",
+  Cmavo "re",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"re","kind":"cmavo"}}]'
 
@@ -43,24 +31,12 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ry",
-          span: [3,5],
-        },
+        Cmavo "ry",
       ],
       free_modifiers: [
         Xi {
-          xi: Word {
-            kind: "cmavo",
-            phonemes: "xi",
-            span: [7,9],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [10,12],
-          },
+          xi: Cmavo "xi",
+          Cmavo "re",
         },
       ],
     },

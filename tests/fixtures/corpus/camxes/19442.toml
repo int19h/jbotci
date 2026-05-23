@@ -18,75 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cácra li pa bi pi mu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [16,18],
-  },
+  Gismu "cácra",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "bi",
+  Cmavo "pi",
+  Cmavo "mu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cacra","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"bi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [0,5],
-  },
+  Gismu "cácra",
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [6,8],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bi",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pi",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mu",
-          span: [16,18],
-        },
+        Cmavo "pa",
+        Cmavo "bi",
+        Cmavo "pi",
+        Cmavo "mu",
       },
     },
   ],

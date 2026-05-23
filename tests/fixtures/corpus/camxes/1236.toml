@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi cmálu níxli je ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [21,26],
-  },
+  Gismu "mélbi",
+  Gismu "cmálu",
+  Gismu "níxli",
+  Cmavo "je",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
+  Gismu "mélbi",
+  Gismu "cmálu",
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "nixli",
-      span: [12,17],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [18,20],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "ckule",
-      span: [21,26],
-    },
+    leading_unit: Gismu "níxli",
+    connective: Cmavo "je",
+    trailing_unit: Gismu "ckúle",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"nixli","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

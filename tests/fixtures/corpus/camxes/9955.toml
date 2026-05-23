@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le pa meĭ dúnli le re meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [20,23],
-  },
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "meĭ",
+  Gismu "dúnli",
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "meĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"meĭ","kind":"cmavo"}}]'
 
@@ -61,52 +33,24 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [3,5],
-            },
+            Cmavo "pa",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "meĭ",
-            span: [5,8],
-          },
+          moi: Cmavo "meĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "dunli",
-          span: [9,14],
-        },
+        Gismu "dúnli",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [15,17],
-      },
+      descriptor: Cmavo "le",
       relation: Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [18,20],
-          },
+          Cmavo "re",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "meĭ",
-          span: [20,23],
-        },
+        moi: Cmavo "meĭ",
       },
     },
   ],

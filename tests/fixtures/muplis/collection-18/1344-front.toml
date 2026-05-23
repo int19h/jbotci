@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la bárda brúna ru'i zgána do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bruna",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgana",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [28,30],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Gismu "bárda",
+  Gismu "brúna",
+  Cmavo "ru'i",
+  Gismu "zgána",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"ru'i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"zgana","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -63,52 +35,24 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{la (bárda brúna)} {(ru'i zgána) do}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [2,4],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "barda",
-            span: [5,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bruna",
-            span: [11,16],
-          },
+          Gismu "bárda",
+          Gismu "brúna",
         },
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ru'i",
-          span: [17,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zgana",
-          span: [22,27],
-        },
+        tense_modal: Cmavo "ru'i",
+        Gismu "zgána",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [28,30],
-        },
+        Cmavo "do",
       ],
     },
   },

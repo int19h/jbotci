@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na ku mi prámi ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [15,17],
-  },
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "prámi",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -55,35 +35,15 @@ tree = """
 Predicate {
   leading_terms: [
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [3,5],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [6,8],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [9,14],
-    },
+    Gismu "prámi",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [15,17],
-      },
+      Cmavo "ra",
     ],
   },
 }"""

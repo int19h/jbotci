@@ -18,96 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ga naĭ da'i mi pu gálfi cúsku fi do'a le si'o malglíco gi mi .eĭ cúsku le terfríca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'a",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [40,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malglico",
-    span: [45,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [54,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [57,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [61,63],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [64,69],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [70,72],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terfrica",
-    span: [73,81],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "da'i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "gálfi",
+  Gismu "cúsku",
+  Cmavo "fi",
+  Cmavo "do'a",
+  Cmavo "le",
+  Cmavo "si'o",
+  Lujvo "malglíco",
+  Cmavo "gi",
+  Cmavo "mi",
+  Cmavo "eĭ",
+  Gismu "cúsku",
+  Cmavo "le",
+  Lujvo "terfríca",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"do'a","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[45,53],"phonemes":"malglico","kind":"lujvo"}},{"Bare":{"span":[54,56],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[57,59],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[64,69],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[70,72],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[73,81],"phonemes":"terfrica","kind":"lujvo"}}]"""
 
@@ -115,127 +43,55 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
+    Cmavo "ga",
     nai: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [2,5],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "da'i",
-        span: [6,10],
-      },
+      Cmavo "naĭ",
+      indicator: Cmavo "da'i",
     },
   },
   first: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [11,13],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [14,16],
-        },
+        tense_modal: Cmavo "pu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "galfi",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cusku",
-            span: [23,28],
-          },
+          Gismu "gálfi",
+          Gismu "cúsku",
         },
       },
       terms: [
         Fa {
           fa: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [29,31],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "do'a",
-              span: [32,36],
-            },
+            Cmavo "fi",
+            indicator: Cmavo "do'a",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [37,39],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "si'o",
-                span: [40,44],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "malglico",
-                span: [45,53],
-              },
+              nu: Cmavo "si'o",
+              Lujvo "malglíco",
             },
           },
         },
       ],
     },
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [54,56],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [57,59],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [61,63],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "eĭ",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [64,69],
-      },
+      Gismu "cúsku",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [70,72],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "terfrica",
-            span: [73,81],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "terfríca",
         },
       ],
     },

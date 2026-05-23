@@ -18,56 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .elron. xu ba cátni me la .irk. nu cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elron",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catni",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "irk",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [35,40],
-  },
+  Cmavo "doĭ",
+  Cmevla "elron",
+  Cmavo "xu",
+  Cmavo "ba",
+  Gismu "cátni",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "irk",
+  Cmavo "nu",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"elron","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"catni","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,31],"phonemes":"irk","kind":"cmevla"}},{"Bare":{"span":[32,34],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -77,70 +37,30 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "elron",
-          span: [4,9],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [10,12],
-        },
+        Cmevla "elron",
+        indicator: Cmavo "xu",
       },
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ba",
-      span: [13,15],
-    },
+    tense_modal: Cmavo "ba",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "catni",
-        span: [16,21],
-      },
+      Gismu "cátni",
       Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [22,24],
-        },
+        me: Cmavo "me",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [25,27],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "irk",
-              span: [28,31],
-            },
+            Cmevla "irk",
           ],
         },
       },
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [32,34],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "casnu",
-          span: [35,40],
-        },
+        nu: Cmavo "nu",
+        Gismu "cásnu",
       },
     },
   },

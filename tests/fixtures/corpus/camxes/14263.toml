@@ -19,32 +19,12 @@ brackets = "([zo bolcydárxykeĭ] zo'u mi srúma)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "bolcydarxykeĭ",
-      span: [3,16],
-    },
+    zo: Cmavo "zo",
+    Lujvo "bolcydárxykeĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sruma",
-    span: [25,30],
-  },
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "srúma",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,16],"phonemes":"bolcydarxykeĭ","kind":"lujvo"}}},{"Bare":{"span":[17,21],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"sruma","kind":"gismu"}}]"""
 
@@ -53,36 +33,16 @@ tree = """
 Prenex {
   prenex_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "bolcydarxykeĭ",
-        span: [3,16],
-      },
+      zo: Cmavo "zo",
+      Lujvo "bolcydárxykeĭ",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [17,21],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [22,24],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sruma",
-      span: [25,30],
-    },
+    Gismu "srúma",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,16],"phonemes":"bolcydarxykeĭ","kind":"lujvo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[17,21],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[25,30],"phonemes":"sruma","kind":"gismu"}}}}}}}}}}}}}]}]}"""

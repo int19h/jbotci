@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sa'e mi ca co'a cítka le sóvda .i je co'a pínxe le sódva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sovda",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [35,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [49,54],
-  },
+  Cmavo "sa'e",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "co'a",
+  Gismu "cítka",
+  Cmavo "le",
+  Gismu "sóvda",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "co'a",
+  Gismu "pínxe",
+  Cmavo "le",
+  Gismu "sódva",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"sovda","kind":"gismu"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"sodva","kind":"gismu"}}]"""
 
@@ -91,93 +39,41 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "sa'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "sa'e",
     },
   ],
   Connected {
     leading_statement: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [5,7],
-        },
+        Cmavo "mi",
       ],
       Relation {
         TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [8,10],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "co'a",
-              span: [10,14],
-            },
+            Cmavo "ca",
+            Cmavo "co'a",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "citka",
-            span: [15,20],
-          },
+          Gismu "cítka",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [21,23],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "sovda",
-              span: [24,29],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "sóvda",
           },
         ],
       },
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [31,32],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [32,34],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "co'a",
-          span: [35,39],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pinxe",
-          span: [40,45],
-        },
+        tense_modal: Cmavo "co'a",
+        Gismu "pínxe",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [46,48],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "sodva",
-            span: [49,54],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "sódva",
         },
       ],
     },

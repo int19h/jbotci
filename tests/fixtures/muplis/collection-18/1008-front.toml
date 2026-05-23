@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le cmálu lekmí'i na jínsa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [6,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lekmi'i",
-    span: [12,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinsa",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "cmálu",
+  Lujvo "lekmí'i",
+  Cmavo "na",
+  Gismu "jínsa",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[12,19],"phonemes":"lekmi'i","kind":"lujvo"}},{"Bare":{"span":[20,22],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"jinsa","kind":"gismu"}}]"""
 
@@ -58,44 +34,20 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{le (cmálu lekmí'i)} {na jínsa}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmalu",
-            span: [6,11],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "lekmi'i",
-            span: [12,19],
-          },
+          Gismu "cmálu",
+          Lujvo "lekmí'i",
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [20,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jinsa",
-        span: [23,28],
-      },
+      na: Cmavo "na",
+      Gismu "jínsa",
     },
   },
 }"""

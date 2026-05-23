@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi bírti le du'u le gejbírje goĭ ko'a cu márji le génja)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birti",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gejbirje",
-    span: [19,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marji",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "genja",
-    span: [49,54],
-  },
+  Cmavo "mi",
+  Gismu "bírti",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "le",
+  Lujvo "gejbírje",
+  Cmavo "goĭ",
+  Cmavo "ko'a",
+  Cmavo "cu",
+  Gismu "márji",
+  Cmavo "le",
+  Gismu "génja",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"birti","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,27],"phonemes":"gejbirje","kind":"lujvo"}},{"Bare":{"span":[28,31],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"marji","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"genja","kind":"gismu"}}]"""
 
@@ -85,83 +37,35 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "birti",
-      span: [3,8],
-    },
+    Gismu "bírti",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [11,15],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [16,18],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "gejbirje",
-                  span: [19,27],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "gejbírje",
                 relative_clauses: [
                   GoiRelativeClause {
-                    goi: Word {
-                      kind: "cmavo",
-                      phonemes: "goĭ",
-                      span: [28,31],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ko'a",
-                      span: [32,36],
-                    },
+                    goi: Cmavo "goĭ",
+                    Cmavo "ko'a",
                   },
                 ],
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [37,39],
-            },
+            cu: Cmavo "cu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "marji",
-                span: [40,45],
-              },
+              Gismu "márji",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [46,48],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "genja",
-                    span: [49,54],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Gismu "génja",
                 },
               ],
             },

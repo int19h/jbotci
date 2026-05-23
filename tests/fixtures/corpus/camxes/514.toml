@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ci gérku cu bátci re nánmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "batci",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [21,26],
-  },
+  Cmavo "ci",
+  Gismu "gérku",
+  Cmavo "cu",
+  Gismu "bátci",
+  Cmavo "re",
+  Gismu "nánmu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"batci","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"nanmu","kind":"gismu"}}]'
 
@@ -57,44 +33,20 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [0,2],
-        },
+        Cmavo "ci",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [3,8],
-      },
+      relation: Gismu "gérku",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "batci",
-      span: [12,17],
-    },
+    Gismu "bátci",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [18,20],
-          },
+          Cmavo "re",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [21,26],
-        },
+        relation: Gismu "nánmu",
       },
     ],
   },

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ zirbólci la .logyfest. peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zirbolci",
-    span: [4,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "logyfest",
-    span: [16,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [25,28],
-  },
+  Cmavo "coĭ",
+  Lujvo "zirbólci",
+  Cmavo "la",
+  Cmevla "logyfest",
+  Cmavo "peĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"zirbolci","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,24],"phonemes":"logyfest","kind":"cmevla"}},{"Bare":{"span":[25,28],"phonemes":"peĭ","kind":"cmavo"}}]'
 
@@ -52,41 +32,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "zirbolci",
-          span: [4,12],
-        },
+        relation: Lujvo "zirbólci",
       },
     },
   ],
   Term {
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [13,15],
-        },
+        la: Cmavo "la",
         names: [
           WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "logyfest",
-              span: [16,24],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "peĭ",
-              span: [25,28],
-            },
+            Cmevla "logyfest",
+            indicator: Cmavo "peĭ",
           },
         ],
       },

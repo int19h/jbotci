@@ -23,56 +23,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cy no ckáfi .i na ku mi nélci cy no)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [33,35],
-  },
+  Cmavo "cy",
+  Cmavo "no",
+  Gismu "ckáfi",
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "cy",
+  Cmavo "no",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ckafi","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"no","kind":"cmavo"}}]'
 
@@ -84,70 +44,30 @@ Paragraph {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [3,5],
-          },
+          Cmavo "cy",
+          Cmavo "no",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "ckafi",
-      span: [6,11],
-    },
+    Gismu "ckáfi",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         NaKu {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [15,17],
-          },
-          na_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [18,20],
-          },
+          na: Cmavo "na",
+          na_ku: Cmavo "ku",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [21,23],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "nelci",
-          span: [24,29],
-        },
+        Gismu "nélci",
         terms: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "cy",
-                span: [30,32],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [33,35],
-              },
+              Cmavo "cy",
+              Cmavo "no",
             ],
           },
         ],

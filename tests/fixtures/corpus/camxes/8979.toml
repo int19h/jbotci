@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'o ru'e na vájni be do tráji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [24,29],
-  },
+  Cmavo "ju'o",
+  Cmavo "ru'e",
+  Cmavo "na",
+  Gismu "vájni",
+  Cmavo "be",
+  Cmavo "do",
+  Gismu "tráji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vajni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"traji","kind":"gismu"}}]"""
 
@@ -62,48 +34,20 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [4,8],
-        },
+        Cmavo "ju'o",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [9,11],
-    },
+    na: Cmavo "na",
     Compound {
       Be {
-        Word {
-          kind: "gismu",
-          phonemes: "vajni",
-          span: [12,17],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [18,20],
-        },
-        first_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [21,23],
-        },
+        Gismu "vájni",
+        be: Cmavo "be",
+        first_argument: Cmavo "do",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "traji",
-        span: [24,29],
-      },
+      Gismu "tráji",
     },
   },
 }"""

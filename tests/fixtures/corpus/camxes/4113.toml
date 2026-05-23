@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.but. kínda)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "but",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kinda",
-    span: [4,9],
-  },
+  Cmevla "but",
+  Gismu "kínda",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"but","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"kinda","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"but","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "but",
-      span: [0,3],
-    },
+    Cmevla "but",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "kinda",
-    span: [4,9],
-  },
+  Gismu "kínda",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"but","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"kinda","kind":"gismu"}}}}}}}}}}}]}]}'

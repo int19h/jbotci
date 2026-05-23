@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na ve xráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [6,11],
-  },
+  Cmavo "na",
+  Cmavo "ve",
+  Gismu "xráni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xrani","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  na: Cmavo "na",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "ve",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xrani",
-      span: [6,11],
-    },
+    se: Cmavo "ve",
+    Gismu "xráni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ve","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"xrani","kind":"gismu"}}}}}}}}}}}}}}}]}]}'

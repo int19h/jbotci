@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu du'e da ca ze'a cúntu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [17,22],
-  },
+  Cmavo "xu",
+  Cmavo "du'e",
+  Cmavo "da",
+  Cmavo "ca",
+  Cmavo "ze'a",
+  Gismu "cúntu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cuntu","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "du'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [7,9],
-        },
+        quantifier: Cmavo "du'e",
+        Cmavo "da",
       },
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [10,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze'a",
-          span: [12,16],
-        },
+        Cmavo "ca",
+        Cmavo "ze'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cuntu",
-        span: [17,22],
-      },
+      Gismu "cúntu",
     },
   },
 }"""

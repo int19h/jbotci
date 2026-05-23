@@ -19,56 +19,16 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la .djan. cu ckáji le ka se rísna zo'e keĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckaji",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "risna",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [41,44],
-  },
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "cu",
+  Gismu "ckáji",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "se",
+  Gismu "rísna",
+  Cmavo "zo'e",
+  Cmavo "keĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ckaji","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"risna","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
@@ -77,70 +37,30 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [3,7],
-        },
+        Cmevla "djan",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ckaji",
-      span: [12,17],
-    },
+    Gismu "ckáji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [21,23],
-          },
+          nu: Cmavo "ka",
           Relation {
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [24,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "risna",
-                span: [27,32],
-              },
+              se: Cmavo "se",
+              Gismu "rísna",
             },
             terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "zo'e",
-                span: [34,38],
-              },
+              Cmavo "zo'e",
             ],
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [41,44],
-          },
+          kei: Cmavo "keĭ",
         },
       },
     ],

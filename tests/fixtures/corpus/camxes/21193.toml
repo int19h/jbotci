@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'a nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [5,10],
-  },
+  Cmavo "pe'a",
+  Gismu "nínmu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"ninmu","kind":"gismu"}}]"""
 
@@ -36,17 +28,9 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'a",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [5,10],
-  },
+  Gismu "nínmu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"ninmu","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pe'a","kind":"cmavo"}}}}]}"""

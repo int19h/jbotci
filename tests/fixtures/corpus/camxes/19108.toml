@@ -18,65 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mi pu djísku [zo malgérku] .e naĭ [zo .malgerk.] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [9,15],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Lujvo "djísku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [16,18],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "malgerku",
-      span: [19,27],
-    },
+    zo: Cmavo "zo",
+    Lujvo "malgérku",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [29,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [30,33],
-  },
+  Cmavo "e",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [34,36],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "malgerk",
-      span: [37,44],
-    },
+    zo: Cmavo "zo",
+    Cmevla "malgerk",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [45,48],
-  },
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[19,27],"phonemes":"malgerku","kind":"lujvo"}}},{"Bare":{"span":[29,30],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[34,36],"phonemes":"zo","kind":"cmavo"},"word":{"span":[37,44],"phonemes":"malgerk","kind":"cmevla"}}},{"Bare":{"span":[45,48],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -85,79 +41,35 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [6,8],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "djisku",
-              span: [9,15],
-            },
+            tense_modal: Cmavo "pu",
+            Lujvo "djísku",
           },
           terms: [
             Connected {
               leading_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [16,18],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "malgerku",
-                  span: [19,27],
-                },
+                zo: Cmavo "zo",
+                Lujvo "malgérku",
               },
               connective: Afterthought {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "e",
-                  span: [29,30],
-                },
-                nai: Word {
-                  kind: "cmavo",
-                  phonemes: "naĭ",
-                  span: [30,33],
-                },
+                Cmavo "e",
+                nai: Cmavo "naĭ",
               },
               trailing_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [34,36],
-                },
-                Word {
-                  kind: "cmevla",
-                  phonemes: "malgerk",
-                  span: [37,44],
-                },
+                zo: Cmavo "zo",
+                Cmevla "malgerk",
               },
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [45,48],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

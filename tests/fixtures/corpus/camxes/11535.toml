@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le xárju réctu poĭ dénpa ne'i le sánso)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xarju",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rectu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanso",
-    span: [33,38],
-  },
+  Cmavo "le",
+  Gismu "xárju",
+  Gismu "réctu",
+  Cmavo "poĭ",
+  Gismu "dénpa",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Gismu "sánso",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xarju","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"rectu","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"sanso","kind":"gismu"}}]"""
 
@@ -66,54 +34,22 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xarju",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "rectu",
-          span: [9,14],
-        },
+        Gismu "xárju",
+        Gismu "réctu",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [15,18],
-          },
+          poi: Cmavo "poĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "denpa",
-              span: [19,24],
-            },
+            Gismu "dénpa",
             terms: [
               Tagged {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ne'i",
-                  span: [25,29],
-                },
+                tense_modal: Cmavo "ne'i",
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [30,32],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "sanso",
-                    span: [33,38],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Gismu "sánso",
                 },
               },
             ],

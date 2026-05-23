@@ -18,96 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i du'o mi lo sodnynánba do [la'o gy soda bread gy] .i za'a du'o do du [la'o gy , salt-rising bread gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sodnynanba",
-    span: [14,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
+  Cmavo "i",
+  Cmavo "du'o",
+  Cmavo "mi",
+  Cmavo "lo",
+  Lujvo "sodnynánba",
+  Cmavo "do",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [28,32],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [33,35],
-    },
-    quoted_text: [37,47],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [49,51],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "soda bread",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [53,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [55,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [60,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [65,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [68,70],
-  },
+  Cmavo "i",
+  Cmavo "za'a",
+  Cmavo "du'o",
+  Cmavo "do",
+  Cmavo "du",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [71,75],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [76,78],
-    },
-    quoted_text: [78,97],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [98,100],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim ", salt-rising bread",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,24],"phonemes":"sodnynanba","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[28,32],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[33,35],"phonemes":"gy","kind":"cmavo"},"quoted_text":[37,47],"closing_delimiter":{"span":[49,51],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[53,54],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[55,59],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[60,64],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[65,67],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[68,70],"phonemes":"du","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[71,75],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[76,78],"phonemes":"gy","kind":"cmavo"},"quoted_text":[78,97],"closing_delimiter":{"span":[98,100],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -116,119 +48,51 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "du'o",
-              span: [3,7],
-            },
+            bai: Cmavo "du'o",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [8,10],
-          },
+          Cmavo "mi",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [11,13],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "sodnynanba",
-            span: [14,24],
-          },
+          descriptor: Cmavo "lo",
+          relation: Lujvo "sodnynánba",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [25,27],
-        },
+        Cmavo "do",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "la'o",
-            span: [28,32],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [33,35],
-          },
-          quoted_text: [37,47],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [49,51],
-          },
+          zoi: Cmavo "la'o",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "soda bread",
+          closing_delimiter: Cmavo "gy",
         },
       ],
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [53,54],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [55,59],
-      },
+      Cmavo "i",
+      indicator: Cmavo "za'a",
     },
     Predicate {
       leading_terms: [
         Tagged {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "du'o",
-              span: [60,64],
-            },
+            bai: Cmavo "du'o",
           },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [65,67],
-          },
+          Cmavo "do",
         },
       ],
       Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "du",
-          span: [68,70],
-        },
+        Cmavo "du",
         terms: [
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [71,75],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [76,78],
-            },
-            quoted_text: [78,97],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [98,100],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim ", salt-rising bread",
+            closing_delimiter: Cmavo "gy",
           },
         ],
       },

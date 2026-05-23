@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ .jilks. .i xu do ca'o djíca le nu cátra la .eksfris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jilks",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catra",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "eksfris",
-    span: [48,55],
-  },
+  Cmavo "coĭ",
+  Cmevla "jilks",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ca'o",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cátra",
+  Cmavo "la",
+  Cmevla "eksfris",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"catra","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[48,55],"phonemes":"eksfris","kind":"cmevla"}}]"""
 
@@ -87,85 +39,37 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "jilks",
-        span: [5,10],
-      },
+      argument: Cmevla "jilks",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [13,14],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [15,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [18,20],
-        },
+        Cmavo "do",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca'o",
-            span: [21,25],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "djica",
-            span: [26,31],
-          },
+          tense_modal: Cmavo "ca'o",
+          Gismu "djíca",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [32,34],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [35,37],
-              },
+              nu: Cmavo "nu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "catra",
-                  span: [38,43],
-                },
+                Gismu "cátra",
                 terms: [
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [44,46],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "eksfris",
-                        span: [48,55],
-                      },
+                      Cmevla "eksfris",
                     ],
                   },
                 ],

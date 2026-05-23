@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi zmádu cílre ro le djédi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Gismu "zmádu",
+  Gismu "cílre",
+  Cmavo "ro",
+  Cmavo "le",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"djedi","kind":"gismu"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zmadu",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [9,14],
-      },
+      Gismu "zmádu",
+      Gismu "cílre",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [15,17],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "djedi",
-          span: [21,26],
-        },
+        descriptor: Cmavo "le",
+        outer_quantifier: Cmavo "ro",
+        relation: Gismu "djédi",
       },
     ],
   },

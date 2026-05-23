@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(paŭ do cláxu xu lo jíbri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "claxu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [19,24],
-  },
+  Cmavo "paŭ",
+  Cmavo "do",
+  Gismu "cláxu",
+  Cmavo "xu",
+  Cmavo "lo",
+  Gismu "jíbri",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"claxu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"jibri","kind":"gismu"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "paŭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "paŭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
     Relation {
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "claxu",
-          span: [7,12],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [13,15],
-        },
+        Gismu "cláxu",
+        indicator: Cmavo "xu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [16,18],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "jibri",
-            span: [19,24],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "jíbri",
         },
       ],
     },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le do jíbri be ma klési)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klesi",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "jíbri",
+  Cmavo "be",
+  Cmavo "ma",
+  Gismu "klési",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"klesi","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
       relation: Compound {
         Be {
-          Word {
-            kind: "gismu",
-            phonemes: "jibri",
-            span: [6,11],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [12,14],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [15,17],
-          },
+          Gismu "jíbri",
+          be: Cmavo "be",
+          first_argument: Cmavo "ma",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "klesi",
-          span: [18,23],
-        },
+        Gismu "klési",
       },
     },
   ],

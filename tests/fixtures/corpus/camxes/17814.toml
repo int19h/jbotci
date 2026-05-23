@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i'e túbnu ju ke tánko na jo márna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i'e",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tubnu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tanko",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marna",
-    span: [28,33],
-  },
+  Cmavo "i'e",
+  Gismu "túbnu",
+  Cmavo "ju",
+  Cmavo "ke",
+  Gismu "tánko",
+  Cmavo "na",
+  Cmavo "jo",
+  Gismu "márna",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"i'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tubnu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"tanko","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"marna","kind":"gismu"}}]"""
 
@@ -66,53 +34,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "i'e",
-        span: [1,4],
-      },
+      indicator: Cmavo "i'e",
     },
   ],
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "tubnu",
-      span: [5,10],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ju",
-      span: [11,13],
-    },
+    leading_relation: Gismu "túbnu",
+    connective: Cmavo "ju",
     trailing_relation: Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [14,16],
-      },
+      ke: Cmavo "ke",
       Connected {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "tanko",
-          span: [17,22],
-        },
+        leading_relation: Gismu "tánko",
         connective: Relation {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [23,25],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "jo",
-            span: [25,27],
-          },
+          na: Cmavo "na",
+          Cmavo "jo",
         },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "marna",
-          span: [28,33],
-        },
+        trailing_relation: Gismu "márna",
       },
     },
   },

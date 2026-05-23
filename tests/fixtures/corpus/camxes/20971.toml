@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le prénu cu cíblu ckáji bínxo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciblu",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckaji",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [24,29],
-  },
+  Cmavo "le",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "cíblu",
+  Gismu "ckáji",
+  Gismu "bínxo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ciblu","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"ckaji","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"binxo","kind":"gismu"}}]'
 
@@ -56,39 +32,15 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ciblu",
-      span: [12,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ckaji",
-      span: [18,23],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "binxo",
-      span: [24,29],
-    },
+    Gismu "cíblu",
+    Gismu "ckáji",
+    Gismu "bínxo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"ciblu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"ckaji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"binxo","kind":"gismu"}}}}]}}}}}}}}]}]}'

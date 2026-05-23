@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(za le purlamjéftu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "purlamjeftu",
-    span: [6,17],
-  },
+  Cmavo "za",
+  Cmavo "le",
+  Lujvo "purlamjéftu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,17],"phonemes":"purlamjeftu","kind":"lujvo"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "za",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "za",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "purlamjeftu",
-          span: [6,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "purlamjéftu",
       },
     },
   ],

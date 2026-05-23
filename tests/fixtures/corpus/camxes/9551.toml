@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ménli be do cu mútce na'e vlípa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "menli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [29,34],
-  },
+  Cmavo "le",
+  Gismu "ménli",
+  Cmavo "be",
+  Cmavo "do",
+  Cmavo "cu",
+  Gismu "mútce",
+  Cmavo "na'e",
+  Gismu "vlípa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"menli","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"vlipa","kind":"gismu"}}]"""
 
@@ -66,52 +34,20 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "menli",
-          span: [3,8],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [9,11],
-        },
-        first_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [12,14],
-        },
+        Gismu "ménli",
+        be: Cmavo "be",
+        first_argument: Cmavo "do",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [18,23],
-    },
+    Gismu "mútce",
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [24,28],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vlipa",
-        span: [29,34],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "vlípa",
     },
   },
 }"""

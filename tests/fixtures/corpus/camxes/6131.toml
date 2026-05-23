@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le xánri múnje .i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xanri",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "munje",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
+  Cmavo "le",
+  Gismu "xánri",
+  Gismu "múnje",
+  Cmavo "i",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xanri","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"munje","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}}]'
 
@@ -47,32 +31,16 @@ Paragraph {
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xanri",
-            span: [3,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "munje",
-            span: [9,14],
-          },
+          Gismu "xánri",
+          Gismu "múnje",
         },
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xanri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"munje","kind":"gismu"}}}}]}}}}]}}}},{"i":{"Bare":{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}}}}]}]}'

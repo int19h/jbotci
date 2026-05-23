@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ fractúre ma jíbri do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fracture",
-    span: [4,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [22,24],
-  },
+  Cmavo "doĭ",
+  Lujvo "fractúre",
+  Cmavo "ma",
+  Gismu "jíbri",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"fracture","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -52,41 +32,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "fracture",
-          span: [4,12],
-        },
+        relation: Lujvo "fractúre",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [13,15],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jibri",
-        span: [16,21],
-      },
+      Gismu "jíbri",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [22,24],
-        },
+        Cmavo "do",
       ],
     },
   },

@@ -19,69 +19,29 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ka mi prámi zo'e keĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [20,23],
-  },
+  Cmavo "ka",
+  Cmavo "mi",
+  Gismu "prámi",
+  Cmavo "zo'e",
+  Cmavo "keĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
+  nu: Cmavo "ka",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "prami",
-        span: [6,11],
-      },
+      Gismu "prámi",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "zo'e",
-          span: [13,17],
-        },
+        Cmavo "zo'e",
       ],
     },
   },
-  kei: Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [20,23],
-  },
+  kei: Cmavo "keĭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"prami","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[13,17],"phonemes":"zo'e","kind":"cmavo"}}}}}]}}}}}}},"kei":{"Bare":{"Bare":{"span":[20,23],"phonemes":"keĭ","kind":"cmavo"}}}}}}}}}}}}]}]}"""

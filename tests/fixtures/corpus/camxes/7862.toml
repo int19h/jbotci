@@ -18,46 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'e baŭ ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
+  Cmavo "go'e",
+  Cmavo "baŭ",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'e",
-    span: [0,4],
-  },
+  Cmavo "go'e",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "baŭ",
-          span: [5,8],
-        },
+        bai: Cmavo "baŭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [9,11],
-      },
+      Cmavo "ma",
     },
   ],
 }"""

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na nándu mi vaŭ .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [16,19],
-  },
+  Cmavo "na",
+  Gismu "nándu",
+  Cmavo "mi",
+  Cmavo "vaŭ",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -50,35 +30,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nandu",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "nándu",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [9,11],
-    },
+    Cmavo "mi",
   ],
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [12,15],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "u'i",
-      span: [16,19],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "u'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Na":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"nandu","kind":"gismu"}}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}}}}}],"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[16,19],"phonemes":"u'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

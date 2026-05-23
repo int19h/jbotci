@@ -18,52 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi na mórji le se brívla be [zo vécnu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "brivla",
-    span: [18,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [25,27],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "mórji",
+  Cmavo "le",
+  Cmavo "se",
+  Lujvo "brívla",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [28,30],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [31,36],
-    },
+    zo: Cmavo "zo",
+    Gismu "vécnu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"brivla","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[28,30],"phonemes":"zo","kind":"cmavo"},"word":{"span":[31,36],"phonemes":"vecnu","kind":"gismu"}}}]'
@@ -72,61 +36,25 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "morji",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "mórji",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [15,17],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "brivla",
-              span: [18,24],
-            },
+            se: Cmavo "se",
+            Lujvo "brívla",
           },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [25,27],
-          },
+          be: Cmavo "be",
           first_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [28,30],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "vecnu",
-              span: [31,36],
-            },
+            zo: Cmavo "zo",
+            Gismu "vécnu",
           },
         },
       },

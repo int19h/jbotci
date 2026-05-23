@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.on. ca me ra)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ón",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [7,9],
-  },
+  Cmevla "on",
+  Cmavo "ca",
+  Cmavo "me",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ón","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ón","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ón",
-      span: [0,2],
-    },
+    Cmevla "on",
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [3,5],
-    },
+    tense_modal: Cmavo "ca",
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [7,9],
-      },
+      me: Cmavo "me",
+      Cmavo "ra",
     },
   },
 }"""

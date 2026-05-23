@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da na tcídu .i da fénki .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [25,28],
-  },
+  Cmavo "da",
+  Cmavo "na",
+  Gismu "tcídu",
+  Cmavo "i",
+  Cmavo "da",
+  Gismu "fénki",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[25,28],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [0,2],
-      },
+      Cmavo "da",
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      na: Cmavo "na",
+      Gismu "tcídu",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [15,17],
-        },
+        Cmavo "da",
       ],
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "fenki",
-          span: [18,23],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "u'i",
-          span: [25,28],
-        },
+        Gismu "fénki",
+        indicator: Cmavo "u'i",
       },
     },
   },

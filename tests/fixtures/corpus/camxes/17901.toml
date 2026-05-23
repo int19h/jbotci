@@ -18,48 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i prénu poĭ ba zváti [la'o gy llg meeting gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [18,23],
-  },
+  Cmavo "ju'i",
+  Gismu "prénu",
+  Cmavo "poĭ",
+  Cmavo "ba",
+  Gismu "zváti",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [24,28],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
-    quoted_text: [31,43],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [44,46],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "llg meeting",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[11,14],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zvati","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[24,28],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"},"quoted_text":[31,43],"closing_delimiter":{"span":[44,46],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -70,56 +38,24 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
+        Cmavo "ju'i",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [5,10],
-        },
+        relation: Gismu "prénu",
         trailing_relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [11,14],
-            },
+            poi: Cmavo "poĭ",
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "ba",
-                  span: [15,17],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "zvati",
-                  span: [18,23],
-                },
+                tense_modal: Cmavo "ba",
+                Gismu "zváti",
               },
               terms: [
                 ZoiQuote {
-                  zoi: Word {
-                    kind: "cmavo",
-                    phonemes: "la'o",
-                    span: [24,28],
-                  },
-                  opening_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [29,31],
-                  },
-                  quoted_text: [31,43],
-                  closing_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [44,46],
-                  },
+                  zoi: Cmavo "la'o",
+                  opening_delimiter: Cmavo "gy",
+                  quoted_text: Verbatim "llg meeting",
+                  closing_delimiter: Cmavo "gy",
                 },
               ],
             },

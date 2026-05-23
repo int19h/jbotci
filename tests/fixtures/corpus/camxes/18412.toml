@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sa'e ca'e lo cánlu be no rátni cu márji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canlu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ratni",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marji",
-    span: [34,39],
-  },
+  Cmavo "sa'e",
+  Cmavo "ca'e",
+  Cmavo "lo",
+  Gismu "cánlu",
+  Cmavo "be",
+  Cmavo "no",
+  Gismu "rátni",
+  Cmavo "cu",
+  Gismu "márji",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ca'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"canlu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"ratni","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"marji","kind":"gismu"}}]"""
 
@@ -72,65 +36,29 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "sa'e",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ca'e",
-          span: [5,9],
-        },
+        Cmavo "sa'e",
+        indicator: Cmavo "ca'e",
       },
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [10,12],
-        },
+        descriptor: Cmavo "lo",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "canlu",
-            span: [13,18],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [19,21],
-          },
+          Gismu "cánlu",
+          be: Cmavo "be",
           first_argument: Descriptor {
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "no",
-                span: [22,24],
-              },
+              Cmavo "no",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ratni",
-              span: [25,30],
-            },
+            relation: Gismu "rátni",
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [31,33],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "marji",
-      span: [34,39],
-    },
+    cu: Cmavo "cu",
+    Gismu "márji",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[10,12],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"canlu","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[19,21],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[22,24],"phonemes":"no","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[25,30],"phonemes":"ratni","kind":"gismu"}}}}}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[34,39],"phonemes":"marji","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"ca'e","kind":"cmavo"}}}}]}"""

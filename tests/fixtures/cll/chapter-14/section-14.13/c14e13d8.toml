@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .faĭdon. gérku gi'i mlátu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "faĭdon",
-    span: [3,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "faĭdon",
+  Gismu "gérku",
+  Cmavo "gi'i",
+  Gismu "mlátu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"faĭdon","kind":"cmevla"}},{"Bare":{"span":[11,16],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"gi'i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"mlatu","kind":"gismu"}}]"""
 
@@ -58,38 +38,18 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "faĭdon",
-          span: [3,9],
-        },
+        Cmevla "faĭdon",
       ],
     },
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "gerku",
-      span: [11,16],
-    },
+    Gismu "gérku",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'i",
-          span: [17,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mlatu",
-          span: [22,27],
-        },
+        connective: Cmavo "gi'i",
+        Gismu "mlátu",
       },
     ],
   },

@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ĭe do mi zmádu le ka ce'u júndi le deĭ vélsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [22,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velsku",
-    span: [40,46],
-  },
+  Cmavo "ĭe",
+  Cmavo "do",
+  Cmavo "mi",
+  Gismu "zmádu",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "júndi",
+  Cmavo "le",
+  Cmavo "deĭ",
+  Lujvo "vélsku",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"jundi","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,39],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[40,46],"phonemes":"velsku","kind":"lujvo"}}]"""
 
@@ -81,78 +37,34 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭe",
-        span: [1,3],
-      },
+      indicator: Cmavo "ĭe",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "do",
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zmadu",
-        span: [10,15],
-      },
+      Gismu "zmádu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [19,21],
-            },
+            nu: Cmavo "ka",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ce'u",
-                  span: [22,26],
-                },
+                Cmavo "ce'u",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "jundi",
-                  span: [27,32],
-                },
+                Gismu "júndi",
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [33,35],
-                    },
+                    descriptor: Cmavo "le",
                     tail_elements: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "deĭ",
-                        span: [36,39],
-                      },
+                      Cmavo "deĭ",
                     ],
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "velsku",
-                      span: [40,46],
-                    },
+                    relation: Lujvo "vélsku",
                   },
                 ],
               },

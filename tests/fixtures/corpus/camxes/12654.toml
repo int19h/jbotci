@@ -18,96 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .inigos. .montoĭas. cméne mi .i do pu cátra le mi pátfu .i ko brédi le nu selcátra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "inigos",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "montoĭas",
-    span: [11,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [32,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catra",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "patfu",
-    span: [52,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [59,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [61,63],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bredi",
-    span: [64,69],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [70,72],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [73,75],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selcatra",
-    span: [76,84],
-  },
+  Cmavo "la",
+  Cmevla "inigos",
+  Cmevla "montoĭas",
+  Gismu "cméne",
+  Cmavo "mi",
+  Cmavo "i",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "cátra",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "pátfu",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "brédi",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "selcátra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"inigos","kind":"cmevla"}},{"Bare":{"span":[11,20],"phonemes":"montoĭas","kind":"cmevla"}},{"Bare":{"span":[22,27],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[32,33],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"catra","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"patfu","kind":"gismu"}},{"Bare":{"span":[59,60],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[64,69],"phonemes":"bredi","kind":"gismu"}},{"Bare":{"span":[70,72],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[73,75],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[76,84],"phonemes":"selcatra","kind":"lujvo"}}]'
 
@@ -117,129 +45,57 @@ Paragraph {
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "inigos",
-            span: [4,10],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "montoĭas",
-            span: [11,20],
-          },
+          Cmevla "inigos",
+          Cmevla "montoĭas",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [22,27],
-      },
+      Gismu "cméne",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [28,30],
-        },
+        Cmavo "mi",
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [32,33],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [34,36],
-        },
+        Cmavo "do",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [37,39],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "catra",
-            span: [40,45],
-          },
+          tense_modal: Cmavo "pu",
+          Gismu "cátra",
         },
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [46,48],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [49,51],
-              },
+              Cmavo "mi",
             ],
-            relation: Word {
-              kind: "gismu",
-              phonemes: "patfu",
-              span: [52,57],
-            },
+            relation: Gismu "pátfu",
           },
         ],
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [59,60],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [61,63],
-        },
+        Cmavo "ko",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "bredi",
-          span: [64,69],
-        },
+        Gismu "brédi",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [70,72],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [73,75],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "selcatra",
-                span: [76,84],
-              },
+              nu: Cmavo "nu",
+              Lujvo "selcátra",
             },
           },
         ],

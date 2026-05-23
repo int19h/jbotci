@@ -19,47 +19,15 @@ brackets = "([zo tírno] cu gísmu válsi je naĭ gísmu)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tirno",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "tírno",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [30,35],
-  },
+  Cmavo "cu",
+  Gismu "gísmu",
+  Gismu "válsi",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "gísmu",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"tirno","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"gismu","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"gismu","kind":"gismu"}}]'
 
@@ -68,52 +36,20 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tirno",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "tírno",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "gismu",
-      span: [12,17],
-    },
+    Gismu "gísmu",
     Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [18,23],
-      },
+      leading_unit: Gismu "válsi",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [24,26],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [26,29],
-        },
+        Cmavo "je",
+        nai: Cmavo "naĭ",
       },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "gismu",
-        span: [30,35],
-      },
+      trailing_unit: Gismu "gísmu",
     },
   },
 }"""

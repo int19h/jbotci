@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.or. kelrcaturánga)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "or",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "kelrcaturanga",
-    span: [3,16],
-  },
+  Cmevla "or",
+  Fuhivla "kelrcaturánga",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,16],"phonemes":"kelrcaturanga","kind":"fu'ivla"}}]"""
 
@@ -35,16 +27,8 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "or",
-      span: [0,2],
-    },
+    Cmevla "or",
   ],
-  Word {
-    kind: "fu'ivla",
-    phonemes: "kelrcaturanga",
-    span: [3,16],
-  },
+  Fuhivla "kelrcaturánga",
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,16],"phonemes":"kelrcaturanga","kind":"fu'ivla"}}}}}}}}}}}]}]}"""

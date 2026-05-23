@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le djácu ke skápi vásru kúnti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djacu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skapi",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [24,29],
-  },
+  Cmavo "le",
+  Gismu "djácu",
+  Cmavo "ke",
+  Gismu "skápi",
+  Gismu "vásru",
+  Gismu "kúnti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djacu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"skapi","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"kunti","kind":"gismu"}}]'
 
@@ -56,39 +32,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "djacu",
-          span: [3,8],
-        },
+        Gismu "djácu",
         Ke {
-          ke: Word {
-            kind: "cmavo",
-            phonemes: "ke",
-            span: [9,11],
-          },
+          ke: Cmavo "ke",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skapi",
-              span: [12,17],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "vasru",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "kunti",
-              span: [24,29],
-            },
+            Gismu "skápi",
+            Gismu "vásru",
+            Gismu "kúnti",
           },
         },
       },

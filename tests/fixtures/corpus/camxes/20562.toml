@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.used. to be)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "used",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [8,10],
-  },
+  Cmevla "used",
+  Cmavo "to",
+  Cmavo "be",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"used","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"be","kind":"cmavo"}}]'
 
@@ -40,25 +28,13 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"used","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "used",
-      span: [0,4],
-    },
+    Cmevla "used",
   ],
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [5,7],
-      },
+      to: Cmavo "to",
       BeLink {
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [8,10],
-        },
+        be: Cmavo "be",
       },
     },
   ],

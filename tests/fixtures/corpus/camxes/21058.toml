@@ -18,76 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to níbli fi tu'a le prúci fetpá'i be mi ke'o .e naĭ mi toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nibli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pruci",
-    span: [20,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fetpa'i",
-    span: [26,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'o",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [46,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [47,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [54,57],
-  },
+  Cmavo "to",
+  Gismu "níbli",
+  Cmavo "fi",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "prúci",
+  Lujvo "fetpá'i",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "ke'o",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nibli","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pruci","kind":"gismu"}},{"Bare":{"span":[26,33],"phonemes":"fetpa'i","kind":"lujvo"}},{"Bare":{"span":[34,36],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"ke'o","kind":"cmavo"}},{"Bare":{"span":[46,47],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[47,50],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[54,57],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -96,89 +40,37 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "nibli",
-          span: [3,8],
-        },
+        Gismu "níbli",
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [9,11],
-            },
+            fa: Cmavo "fi",
             Lahe {
-              lahe: Word {
-                kind: "cmavo",
-                phonemes: "tu'a",
-                span: [12,16],
-              },
+              lahe: Cmavo "tu'a",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [17,19],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "pruci",
-                    span: [20,25],
-                  },
+                  Gismu "prúci",
                   Be {
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "fetpa'i",
-                      span: [26,33],
-                    },
-                    be: Word {
-                      kind: "cmavo",
-                      phonemes: "be",
-                      span: [34,36],
-                    },
+                    Lujvo "fetpá'i",
+                    be: Cmavo "be",
                     first_argument: Connected {
                       leading_argument: Koha {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "mi",
-                          span: [37,39],
-                        },
+                        Cmavo "mi",
                         free_modifiers: [
                           Vocative {
                             vocative_markers: [
-                              Word {
-                                kind: "cmavo",
-                                phonemes: "ke'o",
-                                span: [40,44],
-                              },
+                              Cmavo "ke'o",
                             ],
                           },
                         ],
                       },
                       connective: Afterthought {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "e",
-                          span: [46,47],
-                        },
-                        nai: Word {
-                          kind: "cmavo",
-                          phonemes: "naĭ",
-                          span: [47,50],
-                        },
+                        Cmavo "e",
+                        nai: Cmavo "naĭ",
                       },
-                      trailing_argument: Word {
-                        kind: "cmavo",
-                        phonemes: "mi",
-                        span: [51,53],
-                      },
+                      trailing_argument: Cmavo "mi",
                     },
                   },
                 },
@@ -187,11 +79,7 @@ Text {
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [54,57],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

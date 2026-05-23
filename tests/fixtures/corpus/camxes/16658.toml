@@ -18,80 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i zásti fa [zo gánra] ji'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [8,10],
-  },
+  Cmavo "i",
+  Gismu "zásti",
+  Cmavo "fa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ganra",
-      span: [14,19],
-    },
+    zo: Cmavo "zo",
+    Gismu "gánra",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [20,24],
-  },
+  Cmavo "ji'a",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"fa","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[11,13],"phonemes":"zo","kind":"cmavo"},"word":{"span":[14,19],"phonemes":"ganra","kind":"gismu"}}},{"Bare":{"span":[20,24],"phonemes":"ji'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zasti",
-      span: [2,7],
-    },
+    Gismu "zásti",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [8,10],
-        },
+        fa: Cmavo "fa",
         WithIndicator {
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [11,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ganra",
-              span: [14,19],
-            },
+            zo: Cmavo "zo",
+            Gismu "gánra",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [20,24],
-          },
+          indicator: Cmavo "ji'a",
         },
       },
     ],

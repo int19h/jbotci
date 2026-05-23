@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu pu fánva la .nomic. fu da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "nomic",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [24,26],
-  },
+  Cmavo "xu",
+  Cmavo "pu",
+  Gismu "fánva",
+  Cmavo "la",
+  Cmevla "nomic",
+  Cmavo "fu",
+  Cmavo "da",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nomic","kind":"cmevla"}},{"Bare":{"span":[21,23],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"da","kind":"cmavo"}}]'
 
@@ -61,52 +33,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "fánva",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "nomic",
-            span: [15,20],
-          },
+          Cmevla "nomic",
         ],
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fu",
-          span: [21,23],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [24,26],
-        },
+        fa: Cmavo "fu",
+        Cmavo "da",
       },
     ],
   },

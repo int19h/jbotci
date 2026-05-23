@@ -19,76 +19,20 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la .frank. sánli zu'a nu'i la .djordj. lu'a lo mítre be li mu nu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanli",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'a",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'i",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [29,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'a",
-    span: [38,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mitre",
-    span: [46,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [52,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [58,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'u",
-    span: [62,66],
-  },
+  Cmavo "la",
+  Cmevla "frank",
+  Gismu "sánli",
+  Cmavo "zu'a",
+  Cmavo "nu'i",
+  Cmavo "la",
+  Cmevla "djordj",
+  Cmavo "lu'a",
+  Cmavo "lo",
+  Gismu "mítre",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "mu",
+  Cmavo "nu'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"sanli","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"zu'a","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"nu'i","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,35],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[38,42],"phonemes":"lu'a","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"mitre","kind":"gismu"}},{"Bare":{"span":[52,54],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[55,57],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[58,60],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[62,66],"phonemes":"nu'u","kind":"cmavo"}}]"""
 
@@ -97,100 +41,44 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "frank",
-          span: [3,8],
-        },
+        Cmevla "frank",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sanli",
-      span: [10,15],
-    },
+    Gismu "sánli",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "zu'a",
-          span: [16,20],
-        },
+        tense_modal: Cmavo "zu'a",
         Zohe {},
       },
       NuhiTermset {
-        nuhi: Word {
-          kind: "cmavo",
-          phonemes: "nu'i",
-          span: [21,25],
-        },
+        nuhi: Cmavo "nu'i",
         termset: [
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [26,28],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "djordj",
-                span: [29,35],
-              },
+              Cmevla "djordj",
             ],
           },
           Lahe {
-            lahe: Word {
-              kind: "cmavo",
-              phonemes: "lu'a",
-              span: [38,42],
-            },
+            lahe: Cmavo "lu'a",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo",
-                span: [43,45],
-              },
+              descriptor: Cmavo "lo",
               relation: Be {
-                Word {
-                  kind: "gismu",
-                  phonemes: "mitre",
-                  span: [46,51],
-                },
-                be: Word {
-                  kind: "cmavo",
-                  phonemes: "be",
-                  span: [52,54],
-                },
+                Gismu "mítre",
+                be: Cmavo "be",
                 first_argument: MathExpression {
-                  li: Word {
-                    kind: "cmavo",
-                    phonemes: "li",
-                    span: [55,57],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mu",
-                    span: [58,60],
-                  },
+                  li: Cmavo "li",
+                  Cmavo "mu",
                 },
               },
             },
           },
         ],
-        nuhu: Word {
-          kind: "cmavo",
-          phonemes: "nu'u",
-          span: [62,66],
-        },
+        nuhu: Cmavo "nu'u",
       },
     ],
   },

@@ -18,37 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sa'e no da smúni [zo cúmki])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [10,15],
-  },
+  Cmavo "sa'e",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "smúni",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [16,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cumki",
-      span: [19,24],
-    },
+    zo: Cmavo "zo",
+    Gismu "cúmki",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"smuni","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[19,24],"phonemes":"cumki","kind":"gismu"}}}]"""
@@ -58,46 +34,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "sa'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "sa'e",
     },
   ],
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [7,9],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "smuni",
-        span: [10,15],
-      },
+      Gismu "smúni",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cumki",
-            span: [19,24],
-          },
+          zo: Cmavo "zo",
+          Gismu "cúmki",
         },
       ],
     },

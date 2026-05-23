@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no da de poĭ cúkta zo'u de jímpe da .i na'e kákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [38,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [43,48],
-  },
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "de",
+  Cmavo "poĭ",
+  Gismu "cúkta",
+  Cmavo "zo'u",
+  Cmavo "de",
+  Gismu "jímpe",
+  Cmavo "da",
+  Cmavo "i",
+  Cmavo "na'e",
+  Gismu "kákne",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"kakne","kind":"gismu"}}]"""
 
@@ -87,85 +39,37 @@ Paragraph {
   Prenex {
     prenex_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [2,4],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [5,7],
-        },
+        base_argument: Cmavo "de",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [8,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cukta",
-              span: [12,17],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "cúkta",
           },
         ],
       },
     ],
-    zohu: Word {
-      kind: "cmavo",
-      phonemes: "zo'u",
-      span: [18,22],
-    },
+    zohu: Cmavo "zo'u",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [23,25],
-        },
+        Cmavo "de",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [26,31],
-        },
+        Gismu "jímpe",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [32,34],
-          },
+          Cmavo "da",
         ],
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [36,37],
-    },
+    i: Cmavo "i",
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [38,42],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [43,48],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "kákne",
     },
   },
 }"""

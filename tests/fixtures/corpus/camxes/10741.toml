@@ -19,43 +19,15 @@ brackets = "([zo bébna] .a [zo mábla] bánzu y'u)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "bebna",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "bébna",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [10,11],
-  },
+  Cmavo "a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [12,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mabla",
-      span: [15,20],
-    },
+    zo: Cmavo "zo",
+    Gismu "mábla",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "y'u",
-    span: [28,31],
-  },
+  Gismu "bánzu",
+  Cmavo "y'u",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"bebna","kind":"gismu"}}},{"Bare":{"span":[10,11],"phonemes":"a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[12,14],"phonemes":"zo","kind":"cmavo"},"word":{"span":[15,20],"phonemes":"mabla","kind":"gismu"}}},{"Bare":{"span":[21,26],"phonemes":"banzu","kind":"gismu"}},{"Bare":{"span":[28,31],"phonemes":"y'u","kind":"cmavo"}}]"""

@@ -18,73 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do cúsku [zo sa] se ri'a le mu'e mi tolmórji le gálfi júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [3,8],
-  },
+  Cmavo "do",
+  Gismu "cúsku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "sa",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "sa",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'e",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [30,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolmorji",
-    span: [33,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [45,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [51,56],
-  },
+  Cmavo "se",
+  Cmavo "ri'a",
+  Cmavo "le",
+  Cmavo "mu'e",
+  Cmavo "mi",
+  Lujvo "tolmórji",
+  Cmavo "le",
+  Gismu "gálfi",
+  Gismu "júfra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"sa","kind":"cmavo"}}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"mu'e","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[33,41],"phonemes":"tolmorji","kind":"lujvo"}},{"Bare":{"span":[42,44],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[51,56],"phonemes":"jufra","kind":"gismu"}}]"""
 
@@ -92,88 +40,36 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [3,8],
-    },
+    Gismu "cúsku",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "sa",
-          span: [12,14],
-        },
+        zo: Cmavo "zo",
+        Cmavo "sa",
       },
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [15,17],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ri'a",
-            span: [17,21],
-          },
+          se: Cmavo "se",
+          bai: Cmavo "ri'a",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "mu'e",
-              span: [25,29],
-            },
+            nu: Cmavo "mu'e",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [30,32],
-                },
+                Cmavo "mi",
               ],
               Relation {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "tolmorji",
-                  span: [33,41],
-                },
+                Lujvo "tolmórji",
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [42,44],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "galfi",
-                        span: [45,50],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "jufra",
-                        span: [51,56],
-                      },
+                      Gismu "gálfi",
+                      Gismu "júfra",
                     },
                   },
                 ],

@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ckúle co níxli co cmálu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [18,23],
-  },
+  Gismu "ckúle",
+  Cmavo "co",
+  Gismu "níxli",
+  Cmavo "co",
+  Gismu "cmálu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cmalu","kind":"gismu"}}]'
 
@@ -56,32 +36,12 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"spa
 brackets = "(ckúle co [níxli co cmálu])"
 tree = """
 Co {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [0,5],
-  },
-  co: Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [6,8],
-  },
+  leading_relation: Gismu "ckúle",
+  co: Cmavo "co",
   trailing_relation: Co {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "nixli",
-      span: [9,14],
-    },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [15,17],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [18,23],
-    },
+    leading_relation: Gismu "níxli",
+    co: Cmavo "co",
+    trailing_relation: Gismu "cmálu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"ckule","kind":"gismu"}}}},"co":{"Bare":{"Bare":{"span":[6,8],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"nixli","kind":"gismu"}}}},"co":{"Bare":{"Bare":{"span":[15,17],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"cmalu","kind":"gismu"}}}}}}}}}}}}}}}]}]}'

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ca'o jaĭ gaŭ cénba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cenba",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca'o",
+  Cmavo "jaĭ",
+  Cmavo "gaŭ",
+  Gismu "cénba",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cenba","kind":"gismu"}}]"""
 
@@ -58,43 +34,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {ca'o (jaĭ gaŭ cénba)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca'o",
-        span: [6,10],
-      },
+      tense_modal: Cmavo "ca'o",
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [11,14],
-        },
+        jai: Cmavo "jaĭ",
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "gaŭ",
-            span: [15,18],
-          },
+          bai: Cmavo "gaŭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cenba",
-          span: [19,24],
-        },
+        Gismu "cénba",
       },
     },
   },

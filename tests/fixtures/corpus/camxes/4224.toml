@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mlátu je mlátu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [17,22],
-  },
+  Gismu "mlátu",
+  Cmavo "je",
+  Gismu "mlátu",
 ]"""
 json = '[{"Bare":{"span":[8,13],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"mlatu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [8,13],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  trailing_relation: Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [17,22],
-  },
+  leading_relation: Gismu "mlátu",
+  connective: Cmavo "je",
+  trailing_relation: Gismu "mlátu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"mlatu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"mlatu","kind":"gismu"}}}}}}}}}}}}}]}]}'

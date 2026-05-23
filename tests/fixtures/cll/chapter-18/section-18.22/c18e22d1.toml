@@ -24,21 +24,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(li bi ze)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [5,7],
-  },
+  Cmavo "li",
+  Cmavo "bi",
+  Cmavo "ze",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"bi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ze","kind":"cmavo"}}]'
 
@@ -48,22 +36,10 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "bi",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze",
-          span: [5,7],
-        },
+        Cmavo "bi",
+        Cmavo "ze",
       },
     },
   ],

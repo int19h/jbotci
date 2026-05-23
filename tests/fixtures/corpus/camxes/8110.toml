@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi clíva se ka'a le zdáni be mi .i mi ba xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [32,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [40,45],
-  },
+  Cmavo "mi",
+  Gismu "clíva",
+  Cmavo "se",
+  Cmavo "ka'a",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "xrúti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ka'a","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[32,33],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"xruti","kind":"gismu"}}]"""
 
@@ -86,54 +38,22 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cliva",
-        span: [3,8],
-      },
+      Gismu "clíva",
       terms: [
         Tagged {
           tense_modal: Simple {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [9,11],
-            },
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "ka'a",
-              span: [11,15],
-            },
+            se: Cmavo "se",
+            bai: Cmavo "ka'a",
           },
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [16,18],
-            },
+            descriptor: Cmavo "le",
             relation: Be {
-              Word {
-                kind: "gismu",
-                phonemes: "zdani",
-                span: [19,24],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [25,27],
-              },
-              first_argument: Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [28,30],
-              },
+              Gismu "zdáni",
+              be: Cmavo "be",
+              first_argument: Cmavo "mi",
             },
           },
         },
@@ -141,30 +61,14 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [32,33],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [34,36],
-        },
+        Cmavo "mi",
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [37,39],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xruti",
-          span: [40,45],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "xrúti",
       },
     },
   },

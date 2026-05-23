@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.even. djúno)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "even",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [5,10],
-  },
+  Cmevla "even",
+  Gismu "djúno",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"even","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"djuno","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"even","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "even",
-      span: [0,4],
-    },
+    Cmevla "even",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [5,10],
-  },
+  Gismu "djúno",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"even","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"djuno","kind":"gismu"}}}}}}}}}}}]}]}'

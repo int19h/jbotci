@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le tútci be sigdánva le márna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tutci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sigdanva",
-    span: [12,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "marna",
-    span: [24,29],
-  },
+  Cmavo "le",
+  Gismu "tútci",
+  Cmavo "be",
+  Lujvo "sigdánva",
+  Cmavo "le",
+  Gismu "márna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tutci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"sigdanva","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"marna","kind":"gismu"}}]'
 
@@ -57,42 +33,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Be {
-          Word {
-            kind: "gismu",
-            phonemes: "tutci",
-            span: [3,8],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [9,11],
-          },
+          Gismu "tútci",
+          be: Cmavo "be",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "sigdanva",
-          span: [12,20],
-        },
+        Lujvo "sigdánva",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [21,23],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "marna",
-        span: [24,29],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "márna",
     },
   ],
 }"""

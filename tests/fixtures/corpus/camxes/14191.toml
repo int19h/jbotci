@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa mu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [2,4],
-  },
+  Cmavo "pa",
+  Cmavo "mu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [2,4],
-  },
+  Cmavo "pa",
+  Cmavo "mu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"mu","kind":"cmavo"}}}]}}}}}}]}]}'

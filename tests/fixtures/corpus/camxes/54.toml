@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu [kláma zeĭ zo] li'u lújvo da poĭ no da djúno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [0,2],
-  },
+  Cmavo "lu",
   ZeiLujvo {
-    left: Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [9,12],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [13,15],
-    },
+    left: Gismu "kláma",
+    zei: Cmavo "zeĭ",
+    Cmavo "zo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lujvo",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [40,45],
-  },
+  Cmavo "li'u",
+  Gismu "lújvo",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "djúno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},"zei":{"span":[9,12],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[13,15],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[16,20],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"lujvo","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"djuno","kind":"gismu"}}]"""
 
@@ -83,75 +39,31 @@ tree = """
 Predicate {
   leading_terms: [
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [0,2],
-      },
+      lu: Cmavo "lu",
       ZeiLujvo {
-        left: Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [3,8],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [9,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [13,15],
-        },
+        left: Gismu "kláma",
+        zei: Cmavo "zeĭ",
+        Cmavo "zo",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [16,20],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "lujvo",
-      span: [21,26],
-    },
+    Gismu "lújvo",
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [27,29],
-        },
+        base_argument: Cmavo "da",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [30,33],
-            },
+            poi: Cmavo "poĭ",
             Predicate {
               leading_terms: [
                 Quantified {
-                  quantifier: Word {
-                    kind: "cmavo",
-                    phonemes: "no",
-                    span: [34,36],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "da",
-                    span: [37,39],
-                  },
+                  quantifier: Cmavo "no",
+                  Cmavo "da",
                 },
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "djuno",
-                span: [40,45],
-              },
+              Gismu "djúno",
             },
           },
         ],

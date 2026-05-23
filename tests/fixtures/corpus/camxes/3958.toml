@@ -18,92 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .xod. mu'i ma tu'a le naltolvrúde cu krínu le nu do .oĭ naĭ [caĭ zeĭ cínmo])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naltolvrude",
-    span: [25,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krinu",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [52,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [56,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [58,61],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "naltolvrúde",
+  Cmavo "cu",
+  Gismu "krínu",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Cmavo "oĭ",
+  Cmavo "naĭ",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "caĭ",
-      span: [61,64],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [65,68],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmo",
-      span: [69,74],
-    },
+    left: Cmavo "caĭ",
+    zei: Cmavo "zeĭ",
+    Gismu "cínmo",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[9,13],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,36],"phonemes":"naltolvrude","kind":"lujvo"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"krinu","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[56,58],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[58,61],"phonemes":"naĭ","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[61,64],"phonemes":"caĭ","kind":"cmavo"}},"zei":{"span":[65,68],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[69,74],"phonemes":"cinmo","kind":"gismu"}}}]"""
@@ -114,115 +46,47 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xod",
-        span: [4,7],
-      },
+      argument: Cmevla "xod",
     },
   ],
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "mu'i",
-            span: [9,13],
-          },
+          bai: Cmavo "mu'i",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [14,16],
-        },
+        Cmavo "ma",
       },
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [17,21],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "naltolvrude",
-            span: [25,36],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "naltolvrúde",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [37,39],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "krinu",
-        span: [40,45],
-      },
+      Gismu "krínu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [46,48],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [49,51],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
                 WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [52,54],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "oĭ",
-                    span: [56,58],
-                  },
-                  nai: Word {
-                    kind: "cmavo",
-                    phonemes: "naĭ",
-                    span: [58,61],
-                  },
+                  Cmavo "do",
+                  indicator: Cmavo "oĭ",
+                  nai: Cmavo "naĭ",
                 },
               ],
               ZeiLujvo {
-                left: Word {
-                  kind: "cmavo",
-                  phonemes: "caĭ",
-                  span: [61,64],
-                },
-                zei: Word {
-                  kind: "cmavo",
-                  phonemes: "zeĭ",
-                  span: [65,68],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cinmo",
-                  span: [69,74],
-                },
+                left: Cmavo "caĭ",
+                zei: Cmavo "zeĭ",
+                Gismu "cínmo",
               },
             },
           },

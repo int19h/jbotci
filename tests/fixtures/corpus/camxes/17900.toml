@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ka'e fríli cúsku le bárda námcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frili",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namcu",
-    span: [29,34],
-  },
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Gismu "fríli",
+  Gismu "cúsku",
+  Cmavo "le",
+  Gismu "bárda",
+  Gismu "námcu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"frili","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"namcu","kind":"gismu"}}]"""
 
@@ -60,50 +32,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [3,7],
-      },
+      tense_modal: Cmavo "ka'e",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "frili",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [14,19],
-        },
+        Gismu "fríli",
+        Gismu "cúsku",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "barda",
-            span: [23,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "namcu",
-            span: [29,34],
-          },
+          Gismu "bárda",
+          Gismu "námcu",
         },
       },
     ],

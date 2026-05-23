@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .eĭ co'u fásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fasnu",
-    span: [11,16],
-  },
+  Cmavo "i",
+  Cmavo "eĭ",
+  Cmavo "co'u",
+  Gismu "fásnu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"fasnu","kind":"gismu"}}]"""
 
@@ -49,28 +33,12 @@ brackets = "([.i .eĭ] [co'u fásnu])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "eĭ",
   },
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "co'u",
-      span: [6,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "fasnu",
-      span: [11,16],
-    },
+    tense_modal: Cmavo "co'u",
+    Gismu "fásnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,5],"phonemes":"eĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[6,10],"phonemes":"co'u","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"fasnu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

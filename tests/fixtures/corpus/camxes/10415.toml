@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu fínti le re tánru pémci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tanru",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "fínti",
+  Cmavo "le",
+  Cmavo "re",
+  Gismu "tánru",
+  Gismu "pémci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tanru","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"pemci","kind":"gismu"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "fínti",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [15,17],
-          },
+          Cmavo "re",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "tanru",
-            span: [18,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pemci",
-            span: [24,29],
-          },
+          Gismu "tánru",
+          Gismu "pémci",
         },
       },
     ],

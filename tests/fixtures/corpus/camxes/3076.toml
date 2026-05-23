@@ -18,51 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi mi ca zváti lo skámi xálbo bo nunpénmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalbo",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [30,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpenmi",
-    span: [33,41],
-  },
+  Cmavo "ŭi",
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "zváti",
+  Cmavo "lo",
+  Gismu "skámi",
+  Gismu "xálbo",
+  Cmavo "bo",
+  Lujvo "nunpénmi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"xalbo","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[33,41],"phonemes":"nunpenmi","kind":"lujvo"}}]'
 
@@ -71,63 +35,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [0,2],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "zváti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [15,17],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "skami",
-              span: [18,23],
-            },
+            Gismu "skámi",
             Bo {
-              leading_unit: Word {
-                kind: "gismu",
-                phonemes: "xalbo",
-                span: [24,29],
-              },
-              bo: Word {
-                kind: "cmavo",
-                phonemes: "bo",
-                span: [30,32],
-              },
-              trailing_unit: Word {
-                kind: "lujvo",
-                phonemes: "nunpenmi",
-                span: [33,41],
-              },
+              leading_unit: Gismu "xálbo",
+              bo: Cmavo "bo",
+              trailing_unit: Lujvo "nunpénmi",
             },
           },
         },

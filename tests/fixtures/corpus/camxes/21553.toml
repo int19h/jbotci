@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i saĭ .jilks.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jilks",
-    span: [8,13],
-  },
+  Cmavo "ju'i",
+  Cmavo "saĭ",
+  Cmevla "jilks",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jilks","kind":"cmevla"}}]"""
 
@@ -43,23 +31,11 @@ Text {
     Vocative {
       vocative_markers: [
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ju'i",
-            span: [0,4],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "saĭ",
-            span: [4,7],
-          },
+          Cmavo "ju'i",
+          indicator: Cmavo "saĭ",
         },
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "jilks",
-        span: [8,13],
-      },
+      argument: Cmevla "jilks",
     },
   ],
 }"""

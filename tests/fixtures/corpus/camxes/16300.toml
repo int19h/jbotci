@@ -18,138 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la'e di'u rínka la za'i mi vítci co távla do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vitci",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [44,46],
-  },
+  Cmavo "i",
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Gismu "rínka",
+  Cmavo "la",
+  Cmavo "za'i",
+  Cmavo "mi",
+  Gismu "vítci",
+  Cmavo "co",
+  Gismu "távla",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"vitci","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"do","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [2,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [7,11],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'u",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "rinka",
-        span: [12,17],
-      },
+      Gismu "rínka",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          descriptor: Cmavo "la",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "za'i",
-              span: [21,25],
-            },
+            nu: Cmavo "za'i",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [26,28],
-                },
+                Cmavo "mi",
               ],
               Relation {
                 Co {
-                  leading_relation: Word {
-                    kind: "gismu",
-                    phonemes: "vitci",
-                    span: [29,34],
-                  },
-                  co: Word {
-                    kind: "cmavo",
-                    phonemes: "co",
-                    span: [35,37],
-                  },
-                  trailing_relation: Word {
-                    kind: "gismu",
-                    phonemes: "tavla",
-                    span: [38,43],
-                  },
+                  leading_relation: Gismu "vítci",
+                  co: Cmavo "co",
+                  trailing_relation: Gismu "távla",
                 },
                 terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [44,46],
-                  },
+                  Cmavo "do",
                 ],
               },
             },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi krási le mi zgíke nírna mutmí'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krasi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [21,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mutmi'i",
-    span: [27,34],
-  },
+  Cmavo "mi",
+  Gismu "krási",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "zgíke",
+  Gismu "nírna",
+  Lujvo "mutmí'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"krasi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[27,34],"phonemes":"mutmi'i","kind":"lujvo"}}]"""
 
@@ -60,48 +32,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "krasi",
-      span: [3,8],
-    },
+    Gismu "krási",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [12,14],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "zgike",
-            span: [15,20],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nirna",
-            span: [21,26],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "mutmi'i",
-            span: [27,34],
-          },
+          Gismu "zgíke",
+          Gismu "nírna",
+          Lujvo "mutmí'i",
         },
       },
     ],

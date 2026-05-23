@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.aĭ cítka .i ba zi xrúkla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [18,24],
-  },
+  Cmavo "aĭ",
+  Gismu "cítka",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "zi",
+  Lujvo "xrúkla",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"xrukla","kind":"lujvo"}}]'
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   Paragraph {
-    Word {
-      kind: "gismu",
-      phonemes: "citka",
-      span: [4,9],
-    },
+    Gismu "cítka",
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [11,12],
-      },
+      i: Cmavo "i",
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [13,15],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [15,17],
-          },
+          Cmavo "ba",
+          Cmavo "zi",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "xrukla",
-          span: [18,24],
-        },
+        Lujvo "xrúkla",
       },
     },
   },

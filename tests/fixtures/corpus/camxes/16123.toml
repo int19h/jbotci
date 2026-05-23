@@ -18,69 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ki'e do ca'a júndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [16,21],
-  },
+  Cmavo "i",
+  Cmavo "ki'e",
+  Cmavo "do",
+  Cmavo "ca'a",
+  Gismu "júndi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jundi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [3,7],
-        },
+        Cmavo "ki'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [8,10],
-      },
+      argument: Cmavo "do",
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'a",
-      span: [11,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jundi",
-      span: [16,21],
-    },
+    tense_modal: Cmavo "ca'a",
+    Gismu "júndi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"ki'e","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}}}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[11,15],"phonemes":"ca'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"jundi","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a pu zu cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [10,15],
-  },
+  Cmavo "mi'a",
+  Cmavo "pu",
+  Cmavo "zu",
+  Gismu "cásnu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"casnu","kind":"gismu"}}]"""
 
@@ -45,30 +29,14 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi'a",
-      span: [0,4],
-    },
+    Cmavo "mi'a",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zu",
-        span: [7,9],
-      },
+      Cmavo "pu",
+      Cmavo "zu",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "casnu",
-      span: [10,15],
-    },
+    Gismu "cásnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,9],"phonemes":"zu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"casnu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

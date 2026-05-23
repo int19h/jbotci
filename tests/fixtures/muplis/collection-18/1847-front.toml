@@ -21,66 +21,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .aĭ mi te vécnu ti voĭ plíse .e tu voĭ pérli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plise",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [37,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "perli",
-    span: [41,46],
-  },
+  Cmavo "i",
+  Cmavo "aĭ",
+  Cmavo "mi",
+  Cmavo "te",
+  Gismu "vécnu",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "plíse",
+  Cmavo "e",
+  Cmavo "tu",
+  Cmavo "voĭ",
+  Gismu "pérli",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"plise","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"perli","kind":"gismu"}}]'
 
@@ -89,84 +41,36 @@ brackets = "([.i .aĭ] [mi {(te vécnu) ([ti {voĭ plíse}] .e [tu {voĭ pérli}
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "aĭ",
-      span: [2,4],
-    },
+    Cmavo "i",
+    indicator: Cmavo "aĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vecnu",
-          span: [11,16],
-        },
+        se: Cmavo "te",
+        Gismu "vécnu",
       },
       terms: [
         Connected {
           leading_argument: RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "ti",
-              span: [17,19],
-            },
+            base_argument: Cmavo "ti",
             relative_clauses: [
               Noi {
-                noi: Word {
-                  kind: "cmavo",
-                  phonemes: "voĭ",
-                  span: [20,23],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "plise",
-                  span: [24,29],
-                },
+                noi: Cmavo "voĭ",
+                Gismu "plíse",
               },
             ],
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [30,31],
-          },
+          connective: Cmavo "e",
           trailing_argument: RelativeClause {
-            base_argument: Word {
-              kind: "cmavo",
-              phonemes: "tu",
-              span: [34,36],
-            },
+            base_argument: Cmavo "tu",
             relative_clauses: [
               Noi {
-                noi: Word {
-                  kind: "cmavo",
-                  phonemes: "voĭ",
-                  span: [37,40],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "perli",
-                  span: [41,46],
-                },
+                noi: Cmavo "voĭ",
+                Gismu "pérli",
               },
             ],
           },

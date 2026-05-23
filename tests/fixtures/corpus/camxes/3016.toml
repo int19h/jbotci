@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi na caĭ djúno la .idos.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "idos",
-    span: [18,22],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Cmavo "caĭ",
+  Gismu "djúno",
+  Cmavo "la",
+  Cmevla "idos",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"idos","kind":"cmevla"}}]'
 
@@ -55,45 +31,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Na {
       na: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "caĭ",
-          span: [5,8],
-        },
+        Cmavo "na",
+        indicator: Cmavo "caĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [9,14],
-      },
+      Gismu "djúno",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "idos",
-            span: [18,22],
-          },
+          Cmevla "idos",
         ],
       },
     ],

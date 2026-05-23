@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi .eĭ co'a sípna .i ku'i le ni mi tátpi na bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [19,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [43,48],
-  },
+  Cmavo "mi",
+  Cmavo "eĭ",
+  Cmavo "co'a",
+  Gismu "sípna",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "le",
+  Cmavo "ni",
+  Cmavo "mi",
+  Gismu "tátpi",
+  Cmavo "na",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[19,20],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -87,86 +39,38 @@ Paragraph {
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [4,6],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "eĭ",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [7,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sipna",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "co'a",
+      Gismu "sípna",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [19,20],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [20,24],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [25,27],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ni",
-              span: [28,30],
-            },
+            nu: Cmavo "ni",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [31,33],
-                },
+                Cmavo "mi",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "tatpi",
-                span: [34,39],
-              },
+              Gismu "tátpi",
             },
           },
         },
       ],
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [40,42],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "banzu",
-          span: [43,48],
-        },
+        na: Cmavo "na",
+        Gismu "bánzu",
       },
     },
   },

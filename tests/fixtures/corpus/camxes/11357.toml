@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(by cízra sánce mútce .i mi nélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [28,33],
-  },
+  Cmavo "by",
+  Gismu "cízra",
+  Gismu "sánce",
+  Gismu "mútce",
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "nélci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"nelci","kind":"gismu"}}]'
 
@@ -63,51 +35,23 @@ Paragraph {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [0,2],
-          },
+          Cmavo "by",
         ],
       },
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cizra",
-        span: [4,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sance",
-        span: [10,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [16,21],
-      },
+      Gismu "cízra",
+      Gismu "sánce",
+      Gismu "mútce",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [25,27],
-        },
+        Cmavo "mi",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [28,33],
-      },
+      Gismu "nélci",
     },
   },
 }"""

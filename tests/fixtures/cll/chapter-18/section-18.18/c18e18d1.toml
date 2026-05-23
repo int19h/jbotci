@@ -24,61 +24,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li na'u tánjo te'u veĭ paĭ fe'i re du li ci'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tanjo",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "veĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paĭ",
-    span: [23,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'i",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci'i",
-    span: [41,45],
-  },
+  Cmavo "li",
+  Cmavo "na'u",
+  Gismu "tánjo",
+  Cmavo "te'u",
+  Cmavo "veĭ",
+  Cmavo "paĭ",
+  Cmavo "fe'i",
+  Cmavo "re",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "ci'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'u","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tanjo","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"te'u","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"paĭ","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"fe'i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"ci'i","kind":"cmavo"}}]"""
 
@@ -88,52 +44,20 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Forethought {
         operator: Nahu {
-          nahu: Word {
-            kind: "cmavo",
-            phonemes: "na'u",
-            span: [3,7],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tanjo",
-            span: [8,13],
-          },
-          tehu: Word {
-            kind: "cmavo",
-            phonemes: "te'u",
-            span: [14,18],
-          },
+          nahu: Cmavo "na'u",
+          Gismu "tánjo",
+          tehu: Cmavo "te'u",
         },
         operands: [
           Vei {
-            vei: Word {
-              kind: "cmavo",
-              phonemes: "veĭ",
-              span: [19,22],
-            },
+            vei: Cmavo "veĭ",
             Binary {
-              left_expression: Word {
-                kind: "cmavo",
-                phonemes: "paĭ",
-                span: [23,26],
-              },
-              operator: Word {
-                kind: "cmavo",
-                phonemes: "fe'i",
-                span: [27,31],
-              },
-              right_expression: Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [32,34],
-              },
+              left_expression: Cmavo "paĭ",
+              operator: Cmavo "fe'i",
+              right_expression: Cmavo "re",
             },
           },
         ],
@@ -141,23 +65,11 @@ Predicate {
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [35,37],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [38,40],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ci'i",
-          span: [41,45],
-        },
+        li: Cmavo "li",
+        Cmavo "ci'i",
       },
     ],
   },

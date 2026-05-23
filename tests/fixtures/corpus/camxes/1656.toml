@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na go'i .i je na'e go'i .i je na'i go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'i",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [33,37],
-  },
+  Cmavo "na",
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "na'e",
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "na'i",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"na'i","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -76,63 +36,23 @@ tree = """
 Connected {
   leading_statement: Connected {
     leading_statement: Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [3,7],
-      },
+      na: Cmavo "na",
+      Cmavo "go'i",
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [10,12],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "je",
     trailing_statement: Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [13,17],
-      },
+      nahe: Cmavo "na'e",
       Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [18,22],
-        },
+        goha: Cmavo "go'i",
       },
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
+  i: Cmavo "i",
   connective: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [25,27],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "na'i",
-      span: [28,32],
-    },
+    Cmavo "je",
+    indicator: Cmavo "na'i",
   },
-  trailing_statement: Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [33,37],
-  },
+  trailing_statement: Cmavo "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,7],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[10,12],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[13,17],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Goha":{"goha":{"Bare":{"Bare":{"span":[18,22],"phonemes":"go'i","kind":"cmavo"}}}}}}}]}}}}}}}}},"i":{"Bare":{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[25,27],"phonemes":"je","kind":"cmavo"}}},"indicator":{"span":[28,32],"phonemes":"na'i","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[33,37],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

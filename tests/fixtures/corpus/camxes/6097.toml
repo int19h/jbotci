@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i mi pu za bénji le cníno lójbo ke mrílu líste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [45,50],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "bénji",
+  Cmavo "le",
+  Gismu "cníno",
+  Gismu "lójbo",
+  Cmavo "ke",
+  Gismu "mrílu",
+  Gismu "líste",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"liste","kind":"gismu"}}]"""
 
@@ -85,80 +37,32 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [10,12],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "za",
-            span: [12,14],
-          },
+          Cmavo "pu",
+          Cmavo "za",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "benji",
-          span: [15,20],
-        },
+        Gismu "bénji",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cnino",
-              span: [24,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [30,35],
-            },
+            Gismu "cníno",
+            Gismu "lójbo",
             Ke {
-              ke: Word {
-                kind: "cmavo",
-                phonemes: "ke",
-                span: [36,38],
-              },
+              ke: Cmavo "ke",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "mrilu",
-                  span: [39,44],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "liste",
-                  span: [45,50],
-                },
+                Gismu "mrílu",
+                Gismu "líste",
               },
             },
           },

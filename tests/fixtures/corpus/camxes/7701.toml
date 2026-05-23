@@ -19,37 +19,13 @@ brackets = "([.a bu] natmrxazáxa nínmu gi'e jbósla)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [0,1],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [1,3],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "natmrxazaxa",
-    span: [5,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbosla",
-    span: [28,34],
-  },
+  Fuhivla "natmrxazáxa",
+  Gismu "nínmu",
+  Cmavo "gi'e",
+  Lujvo "jbósla",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,16],"phonemes":"natmrxazaxa","kind":"fu'ivla"}},{"Bare":{"span":[17,22],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"jbosla","kind":"lujvo"}}]"""
 
@@ -60,45 +36,21 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [0,1],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [1,3],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   PredicateTail1 {
     Compound {
-      Word {
-        kind: "fu'ivla",
-        phonemes: "natmrxazaxa",
-        span: [5,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ninmu",
-        span: [17,22],
-      },
+      Fuhivla "natmrxazáxa",
+      Gismu "nínmu",
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [23,27],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "jbosla",
-          span: [28,34],
-        },
+        connective: Cmavo "gi'e",
+        Lujvo "jbósla",
       },
     ],
   },

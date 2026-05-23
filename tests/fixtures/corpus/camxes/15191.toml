@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li'a do jaĭ sárcu faĭ le nu cílre co bácru baŭ la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [50,56],
-  },
+  Cmavo "li'a",
+  Cmavo "do",
+  Cmavo "jaĭ",
+  Gismu "sárcu",
+  Cmavo "faĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cílre",
+  Cmavo "co",
+  Gismu "bácru",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"li'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sarcu","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[50,56],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -91,92 +39,40 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "li'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "li'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [8,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sarcu",
-          span: [12,17],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "sárcu",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "faĭ",
-            span: [18,21],
-          },
+          fa: Cmavo "faĭ",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [22,24],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [25,27],
-              },
+              nu: Cmavo "nu",
               Relation {
                 Co {
-                  leading_relation: Word {
-                    kind: "gismu",
-                    phonemes: "cilre",
-                    span: [28,33],
-                  },
-                  co: Word {
-                    kind: "cmavo",
-                    phonemes: "co",
-                    span: [34,36],
-                  },
-                  trailing_relation: Word {
-                    kind: "gismu",
-                    phonemes: "bacru",
-                    span: [37,42],
-                  },
+                  leading_relation: Gismu "cílre",
+                  co: Cmavo "co",
+                  trailing_relation: Gismu "bácru",
                 },
                 terms: [
                   Tagged {
                     tense_modal: Simple {
-                      bai: Word {
-                        kind: "cmavo",
-                        phonemes: "baŭ",
-                        span: [43,46],
-                      },
+                      bai: Cmavo "baŭ",
                     },
                     Name {
-                      la: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [47,49],
-                      },
+                      la: Cmavo "la",
                       names: [
-                        Word {
-                          kind: "cmevla",
-                          phonemes: "lojban",
-                          span: [50,56],
-                        },
+                        Cmevla "lojban",
                       ],
                     },
                   },

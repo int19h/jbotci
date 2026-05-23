@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le ka ce'u dúnda le xírma zo'e keĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xirma",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [34,37],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "dúnda",
+  Cmavo "le",
+  Gismu "xírma",
+  Cmavo "zo'e",
+  Cmavo "keĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xirma","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[34,37],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
@@ -67,57 +35,25 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [3,5],
-        },
+        nu: Cmavo "ka",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ce'u",
-              span: [6,10],
-            },
+            Cmavo "ce'u",
           ],
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "dunda",
-              span: [11,16],
-            },
+            Gismu "dúnda",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [17,19],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "xirma",
-                  span: [20,25],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "xírma",
               },
-              Word {
-                kind: "cmavo",
-                phonemes: "zo'e",
-                span: [27,31],
-              },
+              Cmavo "zo'e",
             ],
           },
         },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [34,37],
-        },
+        kei: Cmavo "keĭ",
       },
     },
   ],

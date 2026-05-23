@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sa'e cílre zo'e ty)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ty",
-    span: [16,18],
-  },
+  Cmavo "sa'e",
+  Gismu "cílre",
+  Cmavo "zo'e",
+  Cmavo "ty",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[11,15],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ty","kind":"cmavo"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "sa'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "sa'e",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cilre",
-      span: [5,10],
-    },
+    Gismu "cílre",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [11,15],
-      },
+      Cmavo "zo'e",
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ty",
-            span: [16,18],
-          },
+          Cmavo "ty",
         ],
       },
     ],

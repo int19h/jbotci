@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ka prámi [zo to])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [3,8],
-  },
+  Cmavo "ka",
+  Gismu "prámi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "to",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "to",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prami","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"to","kind":"cmavo"}}}]'
@@ -46,29 +30,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
+  nu: Cmavo "ka",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [3,8],
-    },
+    Gismu "prámi",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [12,14],
-        },
+        zo: Cmavo "zo",
+        Cmavo "to",
       },
     ],
   },

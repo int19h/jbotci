@@ -19,32 +19,12 @@ brackets = "([mi bu] du li pa)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [3,5],
-    },
+    Cmavo "mi",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [12,14],
-  },
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "pa",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[6,8],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"pa","kind":"cmavo"}}]'
 
@@ -55,38 +35,18 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [0,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [3,5],
-          },
+          Cmavo "mi",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [6,8],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [12,14],
-        },
+        li: Cmavo "li",
+        Cmavo "pa",
       },
     ],
   },

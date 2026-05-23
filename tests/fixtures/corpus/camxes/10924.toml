@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na nélci le zu'o mi cínmo .i cúnso je naĭ jítro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'o",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cunso",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jitro",
-    span: [45,50],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "nélci",
+  Cmavo "le",
+  Cmavo "zu'o",
+  Cmavo "mi",
+  Gismu "cínmo",
+  Cmavo "i",
+  Gismu "cúnso",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "jítro",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"zu'o","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"cunso","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"jitro","kind":"gismu"}}]"""
 
@@ -86,51 +38,23 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nelci",
-          span: [6,11],
-        },
+        na: Cmavo "na",
+        Gismu "nélci",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "zu'o",
-              span: [15,19],
-            },
+            nu: Cmavo "zu'o",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [20,22],
-                },
+                Cmavo "mi",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "cinmo",
-                span: [23,28],
-              },
+              Gismu "cínmo",
             },
           },
         },
@@ -138,34 +62,14 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [30,31],
-    },
+    i: Cmavo "i",
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "cunso",
-        span: [32,37],
-      },
+      leading_relation: Gismu "cúnso",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [38,40],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [41,44],
-        },
+        Cmavo "je",
+        nai: Cmavo "naĭ",
       },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "jitro",
-        span: [45,50],
-      },
+      trailing_relation: Gismu "jítro",
     },
   },
 }"""

@@ -18,146 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ni'i le nu cméne keĭ le nalcméne smúni .eĭ naĭ vájni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalcmene",
-    span: [27,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [45,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [49,54],
-  },
+  Cmavo "i",
+  Cmavo "ni'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cméne",
+  Cmavo "keĭ",
+  Cmavo "le",
+  Lujvo "nalcméne",
+  Gismu "smúni",
+  Cmavo "eĭ",
+  Cmavo "naĭ",
+  Gismu "vájni",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[20,23],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"nalcmene","kind":"lujvo"}},{"Bare":{"span":[36,41],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[45,48],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"vajni","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ni'i",
-            span: [3,7],
-          },
+          bai: Cmavo "ni'i",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [8,10],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [11,13],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cmene",
-              span: [14,19],
-            },
-            kei: Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [20,23],
-            },
+            nu: Cmavo "nu",
+            Gismu "cméne",
+            kei: Cmavo "keĭ",
           },
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [24,26],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "nalcmene",
-            span: [27,35],
-          },
+          Lujvo "nalcméne",
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "smuni",
-              span: [36,41],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "eĭ",
-              span: [43,45],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [45,48],
-            },
+            Gismu "smúni",
+            indicator: Cmavo "eĭ",
+            nai: Cmavo "naĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "vajni",
-            span: [49,54],
-          },
+          Gismu "vájni",
         },
       },
     ],

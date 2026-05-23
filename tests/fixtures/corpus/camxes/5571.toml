@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(nu mi cílre keĭ ce'o nu mi mórji keĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'o",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [33,36],
-  },
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "cílre",
+  Cmavo "keĭ",
+  Cmavo "ce'o",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "mórji",
+  Cmavo "keĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ce'o","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"morji","kind":"gismu"}},{"Bare":{"span":[33,36],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
@@ -70,61 +34,25 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Connected {
   leading_relation: Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [0,2],
-    },
+    nu: Cmavo "nu",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "cilre",
-        span: [6,11],
-      },
+      Gismu "cílre",
     },
-    kei: Word {
-      kind: "cmavo",
-      phonemes: "keĭ",
-      span: [12,15],
-    },
+    kei: Cmavo "keĭ",
   },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ce'o",
-    span: [16,20],
-  },
+  connective: Cmavo "ce'o",
   trailing_relation: Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [21,23],
-    },
+    nu: Cmavo "nu",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [24,26],
-        },
+        Cmavo "mi",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "morji",
-        span: [27,32],
-      },
+      Gismu "mórji",
     },
-    kei: Word {
-      kind: "cmavo",
-      phonemes: "keĭ",
-      span: [33,36],
-    },
+    kei: Cmavo "keĭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cilre","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[12,15],"phonemes":"keĭ","kind":"cmavo"}}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[16,20],"phonemes":"ce'o","kind":"cmavo"}}}]}},"trailing_relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"morji","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[33,36],"phonemes":"keĭ","kind":"cmavo"}}}}}}}}}}}}}}]}]}"""

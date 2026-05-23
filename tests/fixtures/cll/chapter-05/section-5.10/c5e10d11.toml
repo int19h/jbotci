@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le me le ci nolráĭtru me'u nunsálci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nolraĭtru",
-    span: [12,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'u",
-    span: [22,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunsalci",
-    span: [27,35],
-  },
+  Cmavo "le",
+  Cmavo "me",
+  Cmavo "le",
+  Cmavo "ci",
+  Lujvo "nolráĭtru",
+  Cmavo "me'u",
+  Lujvo "nunsálci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[12,21],"phonemes":"nolraĭtru","kind":"lujvo"}},{"Bare":{"span":[22,26],"phonemes":"me'u","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"nunsalci","kind":"lujvo"}}]"""
 
@@ -68,48 +40,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [3,5],
-          },
+          me: Cmavo "me",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [6,8],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ci",
-                span: [9,11],
-              },
+              Cmavo "ci",
             ],
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "nolraĭtru",
-              span: [12,21],
-            },
+            relation: Lujvo "nolráĭtru",
           },
-          mehu: Word {
-            kind: "cmavo",
-            phonemes: "me'u",
-            span: [22,26],
-          },
+          mehu: Cmavo "me'u",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "nunsalci",
-          span: [27,35],
-        },
+        Lujvo "nunsálci",
       },
     },
   ],

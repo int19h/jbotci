@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do'e loĭ nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [9,14],
-  },
+  Cmavo "do'e",
+  Cmavo "loĭ",
+  Gismu "nánba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"do'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nanba","kind":"gismu"}}]"""
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "do'e",
-          span: [0,4],
-        },
+        bai: Cmavo "do'e",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [5,8],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanba",
-          span: [9,14],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "nánba",
       },
     },
   ],

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta di ro da fa za'u de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [19,21],
-  },
+  Cmavo "ta",
+  Cmavo "di",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "fa",
+  Cmavo "za'u",
+  Cmavo "de",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"di","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"de","kind":"cmavo"}}]"""
 
@@ -60,45 +32,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "di",
-      span: [2,4],
-    },
+    Cmavo "ta",
+    Cmavo "di",
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [8,10],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [11,13],
-      },
+      fa: Cmavo "fa",
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "za'u",
-          span: [14,18],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [19,21],
-        },
+        quantifier: Cmavo "za'u",
+        Cmavo "de",
       },
     },
   ],

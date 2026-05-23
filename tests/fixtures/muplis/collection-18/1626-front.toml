@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ra pu láfti pa xúnre rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lafti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [24,29],
-  },
+  Cmavo "i",
+  Cmavo "ra",
+  Cmavo "pu",
+  Gismu "láfti",
+  Cmavo "pa",
+  Gismu "xúnre",
+  Gismu "rókci",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lafti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"rokci","kind":"gismu"}}]'
 
@@ -63,52 +35,24 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [ra {(pu láfti) (pa [xúnre rókci])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [3,5],
-      },
+      Cmavo "ra",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "lafti",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "láfti",
       },
       terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [15,17],
-            },
+            Cmavo "pa",
           ],
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "xunre",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "rokci",
-              span: [24,29],
-            },
+            Gismu "xúnre",
+            Gismu "rókci",
           },
         },
       ],

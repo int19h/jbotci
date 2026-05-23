@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gaŭ do .e'o gánlo fa le vórme ca lo nu do clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganlo",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [42,47],
-  },
+  Cmavo "gaŭ",
+  Cmavo "do",
+  Cmavo "e'o",
+  Gismu "gánlo",
+  Cmavo "fa",
+  Cmavo "le",
+  Gismu "vórme",
+  Cmavo "ca",
+  Cmavo "lo",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "clíva",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ganlo","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"vorme","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"cliva","kind":"gismu"}}]"""
 
@@ -91,83 +43,35 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [4,6],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "e'o",
-          span: [8,11],
-        },
+        Cmavo "do",
+        indicator: Cmavo "e'o",
       },
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ganlo",
-      span: [12,17],
-    },
+    Gismu "gánlo",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [18,20],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "vorme",
-            span: [24,29],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "vórme",
         },
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [30,32],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [33,35],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [36,38],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [39,41],
-                },
+                Cmavo "do",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "cliva",
-                span: [42,47],
-              },
+              Gismu "clíva",
             },
           },
         },

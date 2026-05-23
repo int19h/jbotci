@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi tráji tátpi ki'u le nu mi bílma lo sípna nunynalvá'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [38,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunynalva'u",
-    span: [44,55],
-  },
+  Cmavo "mi",
+  Gismu "tráji",
+  Gismu "tátpi",
+  Cmavo "ki'u",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "bílma",
+  Cmavo "lo",
+  Gismu "sípna",
+  Lujvo "nunynalvá'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"bilma","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[44,55],"phonemes":"nunynalva'u","kind":"lujvo"}}]"""
 
@@ -80,78 +36,34 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "traji",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [9,14],
-      },
+      Gismu "tráji",
+      Gismu "tátpi",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ki'u",
-            span: [15,19],
-          },
+          bai: Cmavo "ki'u",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [23,25],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [26,28],
-                },
+                Cmavo "mi",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "bilma",
-                  span: [29,34],
-                },
+                Gismu "bílma",
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "lo",
-                      span: [35,37],
-                    },
+                    descriptor: Cmavo "lo",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "sipna",
-                        span: [38,43],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "nunynalva'u",
-                        span: [44,55],
-                      },
+                      Gismu "sípna",
+                      Lujvo "nunynalvá'u",
                     },
                   },
                 ],

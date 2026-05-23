@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma goĭ ko'a zo'u ko'a ke se pónse be do cúkta ke'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [46,50],
-  },
+  Cmavo "ma",
+  Cmavo "goĭ",
+  Cmavo "ko'a",
+  Cmavo "zo'u",
+  Cmavo "ko'a",
+  Cmavo "ke",
+  Cmavo "se",
+  Gismu "pónse",
+  Cmavo "be",
+  Cmavo "do",
+  Gismu "cúkta",
+  Cmavo "ke'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[46,50],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -90,82 +42,34 @@ tree = """
 Prenex {
   prenex_terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
+      base_argument: Cmavo "ma",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [3,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'a",
-            span: [7,11],
-          },
+          goi: Cmavo "goĭ",
+          Cmavo "ko'a",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [12,16],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko'a",
-        span: [17,21],
-      },
+      Cmavo "ko'a",
     ],
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [22,24],
-      },
+      ke: Cmavo "ke",
       Compound {
         Be {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [25,27],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ponse",
-              span: [28,33],
-            },
+            se: Cmavo "se",
+            Gismu "pónse",
           },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [34,36],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [37,39],
-          },
+          be: Cmavo "be",
+          first_argument: Cmavo "do",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [40,45],
-        },
+        Gismu "cúkta",
       },
-      kehe: Word {
-        kind: "cmavo",
-        phonemes: "ke'e",
-        span: [46,50],
-      },
+      kehe: Cmavo "ke'e",
     },
   },
 }"""

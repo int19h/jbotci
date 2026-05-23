@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.s. le gérku pe ti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "s",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [14,16],
-  },
+  Cmevla "s",
+  Cmavo "le",
+  Gismu "gérku",
+  Cmavo "pe",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "s",
-      span: [0,1],
-    },
+    Cmevla "s",
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "gerku",
-          span: [5,10],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "gérku",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [11,13],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ti",
-              span: [14,16],
-            },
+            goi: Cmavo "pe",
+            Cmavo "ti",
           },
         ],
       },

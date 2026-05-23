@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'i kélci keĭ ze'u ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Cmavo "za'i",
+  Gismu "kélci",
+  Cmavo "keĭ",
+  Cmavo "ze'u",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[11,14],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -50,34 +30,14 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "za'i",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "kelci",
-      span: [5,10],
-    },
-    kei: Word {
-      kind: "cmavo",
-      phonemes: "keĭ",
-      span: [11,14],
-    },
+    nu: Cmavo "za'i",
+    Gismu "kélci",
+    kei: Cmavo "keĭ",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ze'u",
-        span: [15,19],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [20,22],
-      },
+      tense_modal: Cmavo "ze'u",
+      Cmavo "ma",
     },
   ],
 }"""

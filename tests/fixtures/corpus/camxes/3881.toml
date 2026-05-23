@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.x. mábla)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "x",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [2,7],
-  },
+  Cmevla "x",
+  Gismu "mábla",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"x","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"mabla","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"x","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "x",
-      span: [0,1],
-    },
+    Cmevla "x",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [2,7],
-  },
+  Gismu "mábla",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"x","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"mabla","kind":"gismu"}}}}}}}}}}}]}]}'

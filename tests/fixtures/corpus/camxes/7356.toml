@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cy cítno dúkse)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citno",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [13,18],
-  },
+  Cmavo "cy",
+  Gismu "cítno",
+  Gismu "dúkse",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"citno","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"dukse","kind":"gismu"}}]'
 
@@ -43,25 +31,13 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [3,5],
-        },
+        Cmavo "cy",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "citno",
-      span: [7,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "dukse",
-      span: [13,18],
-    },
+    Gismu "cítno",
+    Gismu "dúkse",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"cy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"citno","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"dukse","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .ros. xu do távla fo ly)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ros",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [24,26],
-  },
+  Cmavo "doĭ",
+  Cmevla "ros",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "távla",
+  Cmavo "fo",
+  Cmavo "ly",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"ros","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ly","kind":"cmavo"}}]'
 
@@ -62,54 +34,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "ros",
-          span: [4,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [9,11],
-        },
+        Cmevla "ros",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [15,20],
-      },
+      Gismu "távla",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fo",
-            span: [21,23],
-          },
+          fa: Cmavo "fo",
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ly",
-                span: [24,26],
-              },
+              Cmavo "ly",
             ],
           },
         },

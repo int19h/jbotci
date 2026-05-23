@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zu'e ku zo'u bébna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [13,18],
-  },
+  Cmavo "zu'e",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Gismu "bébna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"bebna","kind":"gismu"}}]"""
 
@@ -51,30 +35,14 @@ Prenex {
   prenex_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "zu'e",
-          span: [0,4],
-        },
+        bai: Cmavo "zu'e",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [5,7],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [13,18],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "bébna",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"zu'e","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[8,12],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"bebna","kind":"gismu"}}}}}}}}}}}}}]}]}"""

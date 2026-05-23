@@ -18,64 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to sa'e mi so'a va'e se sárji [la'o zo rope zo] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarji",
-    span: [23,28],
-  },
+  Cmavo "to",
+  Cmavo "sa'e",
+  Cmavo "mi",
+  Cmavo "so'a",
+  Cmavo "va'e",
+  Cmavo "se",
+  Gismu "sárji",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [29,33],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [34,36],
-    },
-    quoted_text: [38,42],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [44,46],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "zo",
+    quoted_text: Verbatim "rope",
+    closing_delimiter: Cmavo "zo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [47,50],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"va'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"sarji","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[29,33],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[34,36],"phonemes":"zo","kind":"cmavo"},"quoted_text":[38,42],"closing_delimiter":{"span":[44,46],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[47,50],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -85,81 +41,37 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "sa'e",
-          span: [3,7],
-        },
+        Cmavo "to",
+        indicator: Cmavo "sa'e",
       },
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [8,10],
-          },
+          Cmavo "mi",
         ],
         Relation {
           Compound {
             Moi {
               number: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "so'a",
-                  span: [11,15],
-                },
+                Cmavo "so'a",
               ],
-              moi: Word {
-                kind: "cmavo",
-                phonemes: "va'e",
-                span: [15,19],
-              },
+              moi: Cmavo "va'e",
             },
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [20,22],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "sarji",
-                span: [23,28],
-              },
+              se: Cmavo "se",
+              Gismu "sárji",
             },
           },
           terms: [
             ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "la'o",
-                span: [29,33],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [34,36],
-              },
-              quoted_text: [38,42],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [44,46],
-              },
+              zoi: Cmavo "la'o",
+              opening_delimiter: Cmavo "zo",
+              quoted_text: Verbatim "rope",
+              closing_delimiter: Cmavo "zo",
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [47,50],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

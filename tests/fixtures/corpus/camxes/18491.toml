@@ -18,98 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kúbli be li vo beĭ li pa xa)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kubli",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [24,26],
-  },
+  Gismu "kúbli",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "vo",
+  Cmavo "beĭ",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "xa",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kubli","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xa","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Be {
-  Word {
-    kind: "gismu",
-    phonemes: "kubli",
-    span: [0,5],
-  },
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
+  Gismu "kúbli",
+  be: Cmavo "be",
   first_argument: MathExpression {
-    li: Word {
-      kind: "cmavo",
-      phonemes: "li",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vo",
-      span: [12,14],
-    },
+    li: Cmavo "li",
+    Cmavo "vo",
   },
   bei_links: [
     BeiLink {
-      bei: Word {
-        kind: "cmavo",
-        phonemes: "beĭ",
-        span: [15,18],
-      },
+      bei: Cmavo "beĭ",
       argument: MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [19,21],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [22,24],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [24,26],
-          },
+          Cmavo "pa",
+          Cmavo "xa",
         },
       },
     },

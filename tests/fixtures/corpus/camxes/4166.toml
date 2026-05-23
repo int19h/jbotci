@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pu va cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [5,10],
-  },
+  Cmavo "pu",
+  Cmavo "va",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"va","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -40,21 +28,9 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "va",
-      span: [2,4],
-    },
+    Cmavo "pu",
+    Cmavo "va",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [5,10],
-  },
+  Gismu "cúsku",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[2,4],"phonemes":"va","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cusku","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu'o mo ceĭ bróda zo'u bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ceĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [23,28],
-  },
+  Cmavo "tu'o",
+  Cmavo "mo",
+  Cmavo "ceĭ",
+  Gismu "bróda",
+  Cmavo "zo'u",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"ceĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -61,46 +37,22 @@ Prenex {
   prenex_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "tu'o",
-          span: [0,4],
-        },
+        Cmavo "tu'o",
       ],
       relation: Cei {
         Goha {
-          goha: Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [5,7],
-          },
+          goha: Cmavo "mo",
         },
         assignments: [
           CeiAssignment {
-            cei: Word {
-              kind: "cmavo",
-              phonemes: "ceĭ",
-              span: [8,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "broda",
-              span: [12,17],
-            },
+            cei: Cmavo "ceĭ",
+            Gismu "bróda",
           },
         ],
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [23,28],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "bróda",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"tu'o","kind":"cmavo"}}}]}}}],"relation":{"Compound":[{"Cei":{"base":{"Goha":{"goha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mo","kind":"cmavo"}}}}},"assignments":[{"cei":{"Bare":{"Bare":{"span":[8,11],"phonemes":"ceĭ","kind":"cmavo"}}},"relation_unit":{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"broda","kind":"gismu"}}}}}]}}]}}}}],"zohu":{"Bare":{"Bare":{"span":[18,22],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}}}]}]}"""

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi mútce pácna .i ku'i fríca fi ma to do kríci toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pacna",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [46,49],
-  },
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "pácna",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "fríca",
+  Cmavo "fi",
+  Cmavo "ma",
+  Cmavo "to",
+  Cmavo "do",
+  Gismu "kríci",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"pacna","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[46,49],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -86,83 +38,35 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pacna",
-        span: [9,14],
-      },
+      Gismu "mútce",
+      Gismu "pácna",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [16,17],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [17,21],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "frica",
-        span: [22,27],
-      },
+      Gismu "fríca",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [28,30],
-          },
+          fa: Cmavo "fi",
           Koha {
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [31,33],
-            },
+            Cmavo "ma",
             free_modifiers: [
               To {
-                to: Word {
-                  kind: "cmavo",
-                  phonemes: "to",
-                  span: [34,36],
-                },
+                to: Cmavo "to",
                 Predicate {
                   leading_terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "do",
-                      span: [37,39],
-                    },
+                    Cmavo "do",
                   ],
-                  Word {
-                    kind: "gismu",
-                    phonemes: "krici",
-                    span: [40,45],
-                  },
+                  Gismu "kríci",
                 },
-                toi: Word {
-                  kind: "cmavo",
-                  phonemes: "toĭ",
-                  span: [46,49],
-                },
+                toi: Cmavo "toĭ",
               },
             ],
           },

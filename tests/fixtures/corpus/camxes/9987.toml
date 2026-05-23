@@ -18,71 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi mámta ro da .i ro da bílga le nu dásni le kósta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dasni",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kosta",
-    span: [46,51],
-  },
+  Cmavo "mi",
+  Gismu "mámta",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "i",
+  Cmavo "ro",
+  Cmavo "da",
+  Gismu "bílga",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "dásni",
+  Cmavo "le",
+  Gismu "kósta",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"dasni","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"kosta","kind":"gismu"}}]'
 
@@ -91,92 +39,40 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "mamta",
-        span: [6,11],
-      },
+      Gismu "mámta",
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [14,16],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "da",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [18,19],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [20,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [22,24],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "da",
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "bilga",
-          span: [25,30],
-        },
+        Gismu "bílga",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [31,33],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [34,36],
-              },
+              nu: Cmavo "nu",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "dasni",
-                  span: [37,42],
-                },
+                Gismu "dásni",
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [43,45],
-                    },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "kosta",
-                      span: [46,51],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Gismu "kósta",
                   },
                 ],
               },

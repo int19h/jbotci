@@ -18,52 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi xe se se xe to'e prámi [zo se])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [20,25],
-  },
+  Cmavo "mi",
+  Cmavo "xe",
+  Cmavo "se",
+  Cmavo "se",
+  Cmavo "xe",
+  Cmavo "to'e",
+  Gismu "prámi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [26,28],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [29,31],
-    },
+    zo: Cmavo "zo",
+    Cmavo "se",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"prami","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[26,28],"phonemes":"zo","kind":"cmavo"},"word":{"span":[29,31],"phonemes":"se","kind":"cmavo"}}}]"""
@@ -72,48 +36,20 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "xe",
-        span: [3,5],
-      },
+      se: Cmavo "xe",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
+        se: Cmavo "se",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [9,11],
-          },
+          se: Cmavo "se",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "xe",
-              span: [12,14],
-            },
+            se: Cmavo "xe",
             Nahe {
-              nahe: Word {
-                kind: "cmavo",
-                phonemes: "to'e",
-                span: [15,19],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "prami",
-                span: [20,25],
-              },
+              nahe: Cmavo "to'e",
+              Gismu "prámi",
             },
           },
         },
@@ -121,16 +57,8 @@ Predicate {
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [26,28],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [29,31],
-        },
+        zo: Cmavo "zo",
+        Cmavo "se",
       },
     ],
   },

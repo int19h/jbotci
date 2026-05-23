@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba ku mi ba pílno le fanvycá'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fanvyca'a",
-    span: [20,29],
-  },
+  Cmavo "ba",
+  Cmavo "ku",
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "pílno",
+  Cmavo "le",
+  Lujvo "fanvycá'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,29],"phonemes":"fanvyca'a","kind":"lujvo"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ba",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [2,4],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [8,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [11,16],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "pílno",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "fanvyca'a",
-          span: [20,29],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "fanvycá'a",
       },
     ],
   },

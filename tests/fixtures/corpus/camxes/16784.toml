@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i do ca djúno .i mi ka'e távla fo le glíco zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [46,50],
-  },
+  Cmavo "pe'i",
+  Cmavo "do",
+  Cmavo "ca",
+  Gismu "djúno",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Gismu "távla",
+  Cmavo "fo",
+  Cmavo "le",
+  Gismu "glíco",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[46,50],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -86,86 +38,38 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [5,7],
-        },
+        Cmavo "do",
       ],
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djuno",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "ca",
+        Gismu "djúno",
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [18,19],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [20,22],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ka'e",
-              span: [23,27],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tavla",
-              span: [28,33],
-            },
+            tense_modal: Cmavo "ka'e",
+            Gismu "távla",
           },
           terms: [
             Fa {
-              fa: Word {
-                kind: "cmavo",
-                phonemes: "fo",
-                span: [34,36],
-              },
+              fa: Cmavo "fo",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [37,39],
-                },
+                descriptor: Cmavo "le",
                 relation: WithIndicator {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "glico",
-                    span: [40,45],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "zo'o",
-                    span: [46,50],
-                  },
+                  Gismu "glíco",
+                  indicator: Cmavo "zo'o",
                 },
               },
             },

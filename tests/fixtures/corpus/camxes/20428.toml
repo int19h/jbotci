@@ -18,137 +18,49 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(níbli le du'u no prénu cu sánji le du'u dráta bróda)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nibli",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [35,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [46,51],
-  },
+  Gismu "níbli",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "no",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "sánji",
+  Cmavo "le",
+  Cmavo "du'u",
+  Gismu "dráta",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"nibli","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sanji","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"broda","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "nibli",
-    span: [0,5],
-  },
+  Gismu "níbli",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "du'u",
-          span: [9,13],
-        },
+        nu: Cmavo "du'u",
         Predicate {
           leading_terms: [
             Descriptor {
               tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "no",
-                  span: [14,16],
-                },
+                Cmavo "no",
               ],
-              relation: Word {
-                kind: "gismu",
-                phonemes: "prenu",
-                span: [17,22],
-              },
+              relation: Gismu "prénu",
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [23,25],
-          },
+          cu: Cmavo "cu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "sanji",
-              span: [26,31],
-            },
+            Gismu "sánji",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [32,34],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "du'u",
-                    span: [35,39],
-                  },
+                  nu: Cmavo "du'u",
                   Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "drata",
-                      span: [40,45],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "broda",
-                      span: [46,51],
-                    },
+                    Gismu "dráta",
+                    Gismu "bróda",
                   },
                 },
               },

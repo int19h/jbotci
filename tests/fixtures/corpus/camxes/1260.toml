@@ -19,75 +19,27 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mélbi ke cmálu níxli ckúle ke'e)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [28,32],
-  },
+  Gismu "mélbi",
+  Cmavo "ke",
+  Gismu "cmálu",
+  Gismu "níxli",
+  Gismu "ckúle",
+  Cmavo "ke'e",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
+  Gismu "mélbi",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cmalu",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [15,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [21,26],
-      },
+      Gismu "cmálu",
+      Gismu "níxli",
+      Gismu "ckúle",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [28,32],
-    },
+    kehe: Cmavo "ke'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[28,32],"phonemes":"ke'e","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

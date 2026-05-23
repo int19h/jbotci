@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(li xo jeĭ do cúrve)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curve",
-    span: [13,18],
-  },
+  Cmavo "li",
+  Cmavo "xo",
+  Cmavo "jeĭ",
+  Cmavo "do",
+  Gismu "cúrve",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"curve","kind":"gismu"}}]'
 
@@ -51,37 +31,17 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "xo",
-        span: [3,5],
-      },
+      li: Cmavo "li",
+      Cmavo "xo",
     },
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "jeĭ",
-      span: [6,9],
-    },
+    nu: Cmavo "jeĭ",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [10,12],
-        },
+        Cmavo "do",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "curve",
-        span: [13,18],
-      },
+      Gismu "cúrve",
     },
   },
 }"""

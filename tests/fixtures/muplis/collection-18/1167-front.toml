@@ -21,41 +21,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ca ca'o cátlu tu voĭ trícu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tricu",
-    span: [24,29],
-  },
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "ca'o",
+  Gismu "cátlu",
+  Cmavo "tu",
+  Cmavo "voĭ",
+  Gismu "trícu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"tricu","kind":"gismu"}}]"""
 
@@ -64,51 +36,23 @@ brackets = "(do [{(ca ca'o) cátlu} {tu (voĭ trícu)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [6,10],
-        },
+        Cmavo "ca",
+        Cmavo "ca'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "catlu",
-        span: [11,16],
-      },
+      Gismu "cátlu",
     },
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "tu",
-          span: [17,19],
-        },
+        base_argument: Cmavo "tu",
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "voĭ",
-              span: [20,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tricu",
-              span: [24,29],
-            },
+            noi: Cmavo "voĭ",
+            Gismu "trícu",
           },
         ],
       },

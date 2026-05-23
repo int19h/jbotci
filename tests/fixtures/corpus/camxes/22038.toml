@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .rlp. .ĭa naĭ ru'e by na go'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [25,29],
-  },
+  Cmavo "doĭ",
+  Cmevla "rlp",
+  Cmavo "ĭa",
+  Cmavo "naĭ",
+  Cmavo "ru'e",
+  Cmavo "by",
+  Cmavo "na",
+  Cmavo "go'a",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"ĭa","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"go'a","kind":"cmavo"}}]"""
 
@@ -67,35 +35,15 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "rlp",
-            span: [4,7],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ĭa",
-            span: [9,11],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [11,14],
-          },
+          Cmevla "rlp",
+          indicator: Cmavo "ĭa",
+          nai: Cmavo "naĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [14,18],
-        },
+        indicator: Cmavo "ru'e",
       },
     },
   ],
@@ -103,25 +51,13 @@ Text {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [19,21],
-          },
+          Cmavo "by",
         ],
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [22,24],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [25,29],
-      },
+      na: Cmavo "na",
+      Cmavo "go'a",
     },
   },
 }"""

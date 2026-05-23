@@ -18,69 +18,21 @@ error = { position = 8, allowed-next = [] }
 brackets = "(to [zo naĭ] ji [zo caĭ] jaĭ bílga li pa moĭ toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmavo "naĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [10,12],
-  },
+  Cmavo "ji",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [13,15],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "caĭ",
-      span: [16,19],
-    },
+    zo: Cmavo "zo",
+    Cmavo "caĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [39,42],
-  },
+  Cmavo "jaĭ",
+  Gismu "bílga",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}},{"Bare":{"span":[10,12],"phonemes":"ji","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[13,15],"phonemes":"zo","kind":"cmavo"},"word":{"span":[16,19],"phonemes":"caĭ","kind":"cmavo"}}},{"Bare":{"span":[20,23],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"toĭ","kind":"cmavo"}}]'

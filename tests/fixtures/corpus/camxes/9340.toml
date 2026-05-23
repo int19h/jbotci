@@ -18,87 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gláre .i ju ba'e nícte .oĭ saĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [25,28],
-  },
+  Gismu "gláre",
+  Cmavo "i",
+  Cmavo "ju",
+  Cmavo "ba'e",
+  Gismu "nícte",
+  Cmavo "oĭ",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[25,28],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [0,5],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
+  leading_statement: Gismu "gláre",
+  i: Cmavo "i",
+  connective: Cmavo "ju",
   trailing_statement: WithIndicator {
     WithIndicator {
       Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [11,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nicte",
-          span: [16,21],
-        },
+        bahe: Cmavo "ba'e",
+        Gismu "nícte",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [23,25],
-      },
+      indicator: Cmavo "oĭ",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [25,28],
-    },
+    indicator: Cmavo "saĭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"glare","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ju","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Emphasized":{"bahe":{"span":[11,15],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[16,21],"phonemes":"nicte","kind":"gismu"}}}},"indicator":{"span":[23,25],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[25,28],"phonemes":"saĭ","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

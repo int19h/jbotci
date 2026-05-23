@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .i ja cpána le bótpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpana",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "botpi",
-    span: [19,24],
-  },
+  Cmavo "je'e",
+  Cmavo "i",
+  Cmavo "ja",
+  Gismu "cpána",
+  Cmavo "le",
+  Gismu "bótpi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cpana","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"botpi","kind":"gismu"}}]"""
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [7,9],
-    },
+    i: Cmavo "i",
+    connective: Cmavo "ja",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cpana",
-        span: [10,15],
-      },
+      Gismu "cpána",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "botpi",
-            span: [19,24],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "bótpi",
         },
       ],
     },

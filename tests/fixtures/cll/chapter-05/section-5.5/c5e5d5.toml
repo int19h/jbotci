@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta mélbi cmálu ke níxli ckúle ke'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [30,34],
-  },
+  Cmavo "ta",
+  Gismu "mélbi",
+  Gismu "cmálu",
+  Cmavo "ke",
+  Gismu "níxli",
+  Gismu "ckúle",
+  Cmavo "ke'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -67,46 +39,18 @@ brackets = "(ta [mélbi cmálu {ke (níxli ckúle) ke'e}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "melbi",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [9,14],
-    },
+    Gismu "mélbi",
+    Gismu "cmálu",
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [15,17],
-      },
+      ke: Cmavo "ke",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nixli",
-          span: [18,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ckule",
-          span: [24,29],
-        },
+        Gismu "níxli",
+        Gismu "ckúle",
       },
-      kehe: Word {
-        kind: "cmavo",
-        phonemes: "ke'e",
-        span: [30,34],
-      },
+      kehe: Cmavo "ke'e",
     },
   },
 }"""

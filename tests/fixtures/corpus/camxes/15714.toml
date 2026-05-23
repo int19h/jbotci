@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(símlu ka cízra vaŭ mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "simlu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
+  Gismu "símlu",
+  Cmavo "ka",
+  Gismu "cízra",
+  Cmavo "vaŭ",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"simlu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"simlu","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "simlu",
-      span: [0,5],
-    },
+    Gismu "símlu",
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "ka",
-        span: [6,8],
-      },
+      nu: Cmavo "ka",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cizra",
-          span: [9,14],
-        },
-        vau: Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [15,18],
-        },
+        Gismu "cízra",
+        vau: Cmavo "vaŭ",
       },
     },
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [19,21],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"simlu","kind":"gismu"}}}},{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cizra","kind":"gismu"}}}},"vau":{"Bare":{"Bare":{"span":[15,18],"phonemes":"vaŭ","kind":"cmavo"}}}}}}}}}}}}]},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

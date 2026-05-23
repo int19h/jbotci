@@ -18,64 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko víska [la'o gy COPYING gy] te zu'e le nu zmádu cílre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
+  Cmavo "ko",
+  Gismu "víska",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [9,13],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [14,16],
-    },
-    quoted_text: [18,25],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [27,29],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "COPYING",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [42,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [48,53],
-  },
+  Cmavo "te",
+  Cmavo "zu'e",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "zmádu",
+  Gismu "cílre",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[9,13],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[14,16],"phonemes":"gy","kind":"cmavo"},"quoted_text":[18,25],"closing_delimiter":{"span":[27,29],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[30,32],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[48,53],"phonemes":"cilre","kind":"gismu"}}]"""
 
@@ -83,73 +39,29 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "la'o",
-          span: [9,13],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [14,16],
-        },
-        quoted_text: [18,25],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [27,29],
-        },
+        zoi: Cmavo "la'o",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "COPYING",
+        closing_delimiter: Cmavo "gy",
       },
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [30,32],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "zu'e",
-            span: [32,36],
-          },
+          se: Cmavo "te",
+          bai: Cmavo "zu'e",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [37,39],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [39,41],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "zmadu",
-                span: [42,47],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cilre",
-                span: [48,53],
-              },
+              Gismu "zmádu",
+              Gismu "cílre",
             },
           },
         },

@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le bróda be mi beĭ do beĭ ko'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [26,30],
-  },
+  Cmavo "le",
+  Gismu "bróda",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "beĭ",
+  Cmavo "do",
+  Cmavo "beĭ",
+  Cmavo "ko'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
@@ -66,51 +34,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "broda",
-          span: [3,8],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [9,11],
-        },
-        first_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [12,14],
-        },
+        Gismu "bróda",
+        be: Cmavo "be",
+        first_argument: Cmavo "mi",
         bei_links: [
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [15,18],
-            },
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [19,21],
-            },
+            bei: Cmavo "beĭ",
+            argument: Cmavo "do",
           },
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [22,25],
-            },
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "ko'a",
-              span: [26,30],
-            },
+            bei: Cmavo "beĭ",
+            argument: Cmavo "ko'a",
           },
         ],
       },

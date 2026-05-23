@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fe'e ca'o cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [9,14],
-  },
+  Cmavo "fe'e",
+  Cmavo "ca'o",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fe'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -40,21 +28,9 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"fe'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "fe'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [4,8],
-    },
+    Cmavo "fe'e",
+    Cmavo "ca'o",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [9,14],
-  },
+  Gismu "cínri",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"fe'e","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[4,8],"phonemes":"ca'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cinri","kind":"gismu"}}}}}}}}}}}}}]}]}"""

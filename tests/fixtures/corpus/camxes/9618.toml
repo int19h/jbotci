@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dámba fi [zo rálcku])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "damba",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [6,8],
-  },
+  Gismu "dámba",
+  Cmavo "fi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "ralcku",
-      span: [12,18],
-    },
+    zo: Cmavo "zo",
+    Lujvo "rálcku",
   },
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"damba","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,18],"phonemes":"ralcku","kind":"lujvo"}}}]'
@@ -46,29 +30,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"damba","kind":"gismu"}},{"Bare":{"spa
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "damba",
-    span: [0,5],
-  },
+  Gismu "dámba",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [6,8],
-      },
+      fa: Cmavo "fi",
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "ralcku",
-          span: [12,18],
-        },
+        zo: Cmavo "zo",
+        Lujvo "rálcku",
       },
     },
   ],

@@ -18,44 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zgána vu ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zgana",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
+  Gismu "zgána",
+  Cmavo "vu",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zgana","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "zgana",
-    span: [0,5],
-  },
+  Gismu "zgána",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vu",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [9,11],
-      },
+      tense_modal: Cmavo "vu",
+      Cmavo "ma",
     },
   ],
 }"""

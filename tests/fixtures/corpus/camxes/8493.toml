@@ -18,11 +18,7 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = ".not."
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "not",
-    span: [0,3],
-  },
+  Cmevla "not",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}}]'
 
@@ -30,11 +26,7 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}}]'
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "not",
-      span: [0,3],
-    },
+    Cmevla "not",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}}}]}'

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu la tsáli cu dícra fónxa prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dicra",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [27,32],
-  },
+  Cmavo "xu",
+  Cmavo "la",
+  Gismu "tsáli",
+  Cmavo "cu",
+  Gismu "dícra",
+  Gismu "fónxa",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"dicra","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"prenu","kind":"gismu"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tsali",
-          span: [6,11],
-        },
+        descriptor: Cmavo "la",
+        relation: Gismu "tsáli",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [12,14],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "dicra",
-        span: [15,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fonxa",
-        span: [21,26],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [27,32],
-      },
+      Gismu "dícra",
+      Gismu "fónxa",
+      Gismu "prénu",
     },
   },
 }"""

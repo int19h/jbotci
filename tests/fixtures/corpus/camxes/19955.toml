@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le'e ckáfi mi xámgu le ka cíkygaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cikygaŭ",
-    span: [25,32],
-  },
+  Cmavo "le'e",
+  Gismu "ckáfi",
+  Cmavo "mi",
+  Gismu "xámgu",
+  Cmavo "le",
+  Cmavo "ka",
+  Lujvo "cíkygaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"le'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"ckafi","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[25,32],"phonemes":"cikygaŭ","kind":"lujvo"}}]"""
 
@@ -61,47 +33,19 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le'e",
-        span: [0,4],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ckafi",
-        span: [5,10],
-      },
+      descriptor: Cmavo "le'e",
+      relation: Gismu "ckáfi",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [11,13],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [14,19],
-    },
+    Gismu "xámgu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [22,24],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "cikygaŭ",
-            span: [25,32],
-          },
+          nu: Cmavo "ka",
+          Lujvo "cíkygaŭ",
         },
       },
     ],

@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(vi jacké'o li re xa .i mélbi .i mlibrífe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jacke'o",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [20,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [29,30],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mlibrife",
-    span: [31,39],
-  },
+  Cmavo "vi",
+  Lujvo "jacké'o",
+  Cmavo "li",
+  Cmavo "re",
+  Cmavo "xa",
+  Cmavo "i",
+  Gismu "mélbi",
+  Cmavo "i",
+  Lujvo "mlibrífe",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"jacke'o","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[29,30],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[31,39],"phonemes":"mlibrife","kind":"lujvo"}}]"""
 
@@ -71,62 +35,26 @@ tree = """
 Paragraph {
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "jacke'o",
-        span: [3,10],
-      },
+      tense_modal: Cmavo "vi",
+      Lujvo "jacké'o",
     },
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [11,13],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [16,18],
-          },
+          Cmavo "re",
+          Cmavo "xa",
         },
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [20,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "melbi",
-      span: [22,27],
-    },
+    i: Cmavo "i",
+    Gismu "mélbi",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [29,30],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "mlibrife",
-      span: [31,39],
-    },
+    i: Cmavo "i",
+    Lujvo "mlibrífe",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,10],"phonemes":"jacke'o","kind":"lujvo"}}}}}},"terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[11,13],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[16,18],"phonemes":"xa","kind":"cmavo"}}}]}}}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"melbi","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[29,30],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[31,39],"phonemes":"mlibrife","kind":"lujvo"}}}}}}}}}}}]}]}"""

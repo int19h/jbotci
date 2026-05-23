@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma'i lo skámi cúnso jo spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cunso",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [23,28],
-  },
+  Cmavo "ma'i",
+  Cmavo "lo",
+  Gismu "skámi",
+  Gismu "cúnso",
+  Cmavo "jo",
+  Gismu "spófu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ma'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cunso","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"spofu","kind":"gismu"}}]"""
 
@@ -57,40 +33,16 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ma'i",
-          span: [0,4],
-        },
+        bai: Cmavo "ma'i",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [5,7],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [8,13],
-          },
+          Gismu "skámi",
           Connected {
-            leading_unit: Word {
-              kind: "gismu",
-              phonemes: "cunso",
-              span: [14,19],
-            },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "jo",
-              span: [20,22],
-            },
-            trailing_unit: Word {
-              kind: "gismu",
-              phonemes: "spofu",
-              span: [23,28],
-            },
+            leading_unit: Gismu "cúnso",
+            connective: Cmavo "jo",
+            trailing_unit: Gismu "spófu",
           },
         },
       },

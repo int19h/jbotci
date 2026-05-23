@@ -19,32 +19,12 @@ brackets = "([zo pavyseljírna] cu cláni válsi)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "pavyseljirna",
-      span: [7,19],
-    },
+    zo: Cmavo "zo",
+    Lujvo "pavyseljírna",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clani",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [29,34],
-  },
+  Cmavo "cu",
+  Gismu "cláni",
+  Gismu "válsi",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,19],"phonemes":"pavyseljirna","kind":"lujvo"}}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"clani","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"valsi","kind":"gismu"}}]'
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "pavyseljirna",
-        span: [7,19],
-      },
+      zo: Cmavo "zo",
+      Lujvo "pavyseljírna",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "clani",
-      span: [23,28],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [29,34],
-    },
+    Gismu "cláni",
+    Gismu "válsi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,19],"phonemes":"pavyseljirna","kind":"lujvo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"clani","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[29,34],"phonemes":"valsi","kind":"gismu"}}}}]}}}}}}}}]}]}'

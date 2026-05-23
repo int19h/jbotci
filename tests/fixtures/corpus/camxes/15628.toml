@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo ci moĭ zo'u sófta je mérko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "softa",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [23,28],
-  },
+  Cmavo "lo",
+  Cmavo "ci",
+  Cmavo "moĭ",
+  Cmavo "zo'u",
+  Gismu "sófta",
+  Cmavo "je",
+  Gismu "mérko",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"softa","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"merko","kind":"gismu"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Prenex {
   prenex_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [3,5],
-          },
+          Cmavo "ci",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "moĭ",
-          span: [5,8],
-        },
+        moi: Cmavo "moĭ",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
+  zohu: Cmavo "zo'u",
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "softa",
-      span: [14,19],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [20,22],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "merko",
-      span: [23,28],
-    },
+    leading_relation: Gismu "sófta",
+    connective: Cmavo "je",
+    trailing_relation: Gismu "mérko",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ci","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}}}}}]}}}}],"zohu":{"Bare":{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"softa","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[20,22],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"merko","kind":"gismu"}}}}}}}}}}}}}}}]}]}"""

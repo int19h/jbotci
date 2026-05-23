@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'i fu ma fánva [zoĭ ly entropy ly])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [10,15],
-  },
+  Cmavo "a'i",
+  Cmavo "fu",
+  Cmavo "ma",
+  Gismu "fánva",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [16,19],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [20,22],
-    },
-    quoted_text: [22,30],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [31,33],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "entropy",
+    closing_delimiter: Cmavo "ly",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"fanva","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[16,19],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[20,22],"phonemes":"ly","kind":"cmavo"},"quoted_text":[22,30],"closing_delimiter":{"span":[31,33],"phonemes":"ly","kind":"cmavo"}}}]"""
@@ -64,52 +36,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'i",
-        span: [0,3],
-      },
+      indicator: Cmavo "a'i",
     },
   ],
   Predicate {
     leading_terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fu",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [7,9],
-        },
+        fa: Cmavo "fu",
+        Cmavo "ma",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [10,15],
-      },
+      Gismu "fánva",
       terms: [
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [16,19],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "ly",
-            span: [20,22],
-          },
-          quoted_text: [22,30],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "ly",
-            span: [31,33],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "ly",
+          quoted_text: Verbatim "entropy",
+          closing_delimiter: Cmavo "ly",
         },
       ],
     },

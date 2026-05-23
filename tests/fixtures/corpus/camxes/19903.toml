@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do xámgu sídju .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [16,18],
-  },
+  Cmavo "do",
+  Gismu "xámgu",
+  Gismu "sídju",
+  Cmavo "ŭi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ŭi","kind":"cmavo"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [3,8],
-    },
+    Gismu "xámgu",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [9,14],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [16,18],
-      },
+      Gismu "sídju",
+      indicator: Cmavo "ŭi",
     },
   },
 }"""

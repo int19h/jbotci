@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la'e di'u jaĭ vájni te fríca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Cmavo "jaĭ",
+  Gismu "vájni",
+  Cmavo "te",
+  Gismu "fríca",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"vajni","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"frica","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [2,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "di'u",
-          span: [7,11],
-        },
+        lahe: Cmavo "la'e",
+        Cmavo "di'u",
       },
     ],
     Compound {
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [12,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vajni",
-          span: [16,21],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "vájni",
       },
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [22,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "frica",
-          span: [25,30],
-        },
+        se: Cmavo "te",
+        Gismu "fríca",
       },
     },
   },

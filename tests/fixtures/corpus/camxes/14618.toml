@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(poĭ cábdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [4,10],
-  },
+  Cmavo "poĭ",
+  Lujvo "cábdeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [4,10],
-  },
+  poi: Cmavo "poĭ",
+  Lujvo "cábdeĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}}}}}}}}}}}}]}}}]}]}'

@@ -21,71 +21,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi ma fa do .áĭdji lo ka zúkte lo símsa be la'e do'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "aĭdji",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zukte",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [42,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [47,51],
-  },
+  Cmavo "fi",
+  Cmavo "ma",
+  Cmavo "fa",
+  Cmavo "do",
+  Fuhivla "áĭdji",
+  Cmavo "lo",
+  Cmavo "ka",
+  Gismu "zúkte",
+  Cmavo "lo",
+  Gismu "símsa",
+  Cmavo "be",
+  Cmavo "la'e",
+  Cmavo "do'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"aĭdji","kind":"fu'ivla"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[47,51],"phonemes":"do'i","kind":"cmavo"}}]"""
 
@@ -95,84 +43,32 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [3,5],
-      },
+      fa: Cmavo "fi",
+      Cmavo "ma",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [9,11],
-      },
+      fa: Cmavo "fa",
+      Cmavo "do",
     },
   ],
   Relation {
-    Word {
-      kind: "fu'ivla",
-      phonemes: "aĭdji",
-      span: [12,17],
-    },
+    Fuhivla "áĭdji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [18,20],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [21,23],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "zukte",
-              span: [24,29],
-            },
+            Gismu "zúkte",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "lo",
-                  span: [30,32],
-                },
+                descriptor: Cmavo "lo",
                 relation: Be {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "simsa",
-                    span: [33,38],
-                  },
-                  be: Word {
-                    kind: "cmavo",
-                    phonemes: "be",
-                    span: [39,41],
-                  },
+                  Gismu "símsa",
+                  be: Cmavo "be",
                   first_argument: Lahe {
-                    lahe: Word {
-                      kind: "cmavo",
-                      phonemes: "la'e",
-                      span: [42,46],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "do'i",
-                      span: [47,51],
-                    },
+                    lahe: Cmavo "la'e",
+                    Cmavo "do'i",
                   },
                 },
               },

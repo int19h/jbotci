@@ -19,55 +19,23 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(fácki le stúzi be)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "facki",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stuzi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
+  Gismu "fácki",
+  Cmavo "le",
+  Gismu "stúzi",
+  Cmavo "be",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"facki","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"stuzi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "facki",
-    span: [0,5],
-  },
+  Gismu "fácki",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "stuzi",
-          span: [9,14],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [15,17],
-        },
+        Gismu "stúzi",
+        be: Cmavo "be",
       },
     },
   ],

@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lídja na'e .ŭi mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lidja",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [14,16],
-  },
+  Gismu "lídja",
+  Cmavo "na'e",
+  Cmavo "ŭi",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"lidja","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "lidja",
-    span: [0,5],
-  },
+  Gismu "lídja",
   terms: [
     Nahe {
       nahe: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [6,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [11,13],
-        },
+        Cmavo "na'e",
+        indicator: Cmavo "ŭi",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [14,16],
-      },
+      Cmavo "mi",
     },
   ],
 }"""

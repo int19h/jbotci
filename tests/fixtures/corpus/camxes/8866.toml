@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ri ránji doĭ péndo be mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [22,24],
-  },
+  Cmavo "ri",
+  Gismu "ránji",
+  Cmavo "doĭ",
+  Gismu "péndo",
+  Cmavo "be",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ranji","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ri",
-      span: [0,2],
-    },
+    Cmavo "ri",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "ranji",
-      span: [3,8],
-    },
+    Gismu "ránji",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [9,12],
-          },
+          Cmavo "doĭ",
         ],
         argument: RelationVocative {
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "pendo",
-              span: [13,18],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [19,21],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [22,24],
-            },
+            Gismu "péndo",
+            be: Cmavo "be",
+            first_argument: Cmavo "mi",
           },
         },
       },

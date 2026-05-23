@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ críno gérku mi cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crino",
-    span: [4,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [19,24],
-  },
+  Cmavo "loĭ",
+  Gismu "críno",
+  Gismu "gérku",
+  Cmavo "mi",
+  Gismu "cízra",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"crino","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cizra","kind":"gismu"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
+      descriptor: Cmavo "loĭ",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "crino",
-          span: [4,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gerku",
-          span: [10,15],
-        },
+        Gismu "críno",
+        Gismu "gérku",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [16,18],
-    },
+    Cmavo "mi",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [19,24],
-  },
+  Gismu "cízra",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"crino","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"gerku","kind":"gismu"}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"cizra","kind":"gismu"}}}}}}}}}}}]}]}'

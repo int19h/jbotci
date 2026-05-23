@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i .oĭ vy na mivyvánbi da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vy",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mivyvanbi",
-    span: [16,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [26,28],
-  },
+  Cmavo "ku'i",
+  Cmavo "oĭ",
+  Cmavo "vy",
+  Cmavo "na",
+  Lujvo "mivyvánbi",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"vy","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,25],"phonemes":"mivyvanbi","kind":"lujvo"}},{"Bare":{"span":[26,28],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -57,16 +33,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [6,8],
-        },
+        Cmavo "ku'i",
+        indicator: Cmavo "oĭ",
       },
     },
   ],
@@ -74,33 +42,17 @@ Text {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "vy",
-            span: [9,11],
-          },
+          Cmavo "vy",
         ],
       },
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [13,15],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "mivyvanbi",
-          span: [16,25],
-        },
+        na: Cmavo "na",
+        Lujvo "mivyvánbi",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [26,28],
-        },
+        Cmavo "da",
       ],
     },
   },

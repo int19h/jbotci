@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma glíco selfánva júfra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selfanva",
-    span: [9,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [18,23],
-  },
+  Cmavo "ma",
+  Gismu "glíco",
+  Lujvo "selfánva",
+  Gismu "júfra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[9,17],"phonemes":"selfanva","kind":"lujvo"}},{"Bare":{"span":[18,23],"phonemes":"jufra","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "glico",
-      span: [3,8],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selfanva",
-      span: [9,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jufra",
-      span: [18,23],
-    },
+    Gismu "glíco",
+    Lujvo "selfánva",
+    Gismu "júfra",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"glico","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,17],"phonemes":"selfanva","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"jufra","kind":"gismu"}}}}]}}}}}}}}]}]}'

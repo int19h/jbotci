@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .supermemos. la'a ka'e jaĭ sídju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "supermemos",
-    span: [3,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [28,33],
-  },
+  Cmavo "la",
+  Cmevla "supermemos",
+  Cmavo "la'a",
+  Cmavo "ka'e",
+  Cmavo "jaĭ",
+  Gismu "sídju",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,13],"phonemes":"supermemos","kind":"cmevla"}},{"Bare":{"span":[14,18],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"sidju","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "supermemos",
-            span: [3,13],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "la'a",
-            span: [14,18],
-          },
+          Cmevla "supermemos",
+          indicator: Cmavo "la'a",
         },
       ],
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ka'e",
-      span: [19,23],
-    },
+    tense_modal: Cmavo "ka'e",
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [24,27],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [28,33],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "sídju",
     },
   },
 }"""

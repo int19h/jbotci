@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le naljdíce cévni na ckápe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljdice",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckape",
-    span: [21,26],
-  },
+  Cmavo "le",
+  Lujvo "naljdíce",
+  Gismu "cévni",
+  Cmavo "na",
+  Gismu "ckápe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"naljdice","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"ckape","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "naljdice",
-          span: [3,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cevni",
-          span: [12,17],
-        },
+        Lujvo "naljdíce",
+        Gismu "cévni",
       },
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [18,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ckape",
-      span: [21,26],
-    },
+    na: Cmavo "na",
+    Gismu "ckápe",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"naljdice","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"cevni","kind":"gismu"}}}}]}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ckape","kind":"gismu"}}}}}}}}}}}}}]}]}'

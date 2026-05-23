@@ -18,58 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u do pílno lo nalxánri me [zo .irc.] zo'o .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalxanri",
-    span: [17,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [26,28],
-  },
+  Cmavo "e'u",
+  Cmavo "do",
+  Gismu "pílno",
+  Cmavo "lo",
+  Lujvo "nalxánri",
+  Cmavo "me",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [29,31],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "irc",
-      span: [32,35],
-    },
+    zo: Cmavo "zo",
+    Cmevla "irc",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [37,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [42,45],
-  },
+  Cmavo "zo'o",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,25],"phonemes":"nalxanri","kind":"lujvo"}},{"Bare":{"span":[26,28],"phonemes":"me","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[29,31],"phonemes":"zo","kind":"cmavo"},"word":{"span":[32,35],"phonemes":"irc","kind":"cmevla"}}},{"Bare":{"span":[37,41],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[42,45],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -78,71 +38,31 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "e'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [8,13],
-      },
+      Gismu "pílno",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [14,16],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "nalxanri",
-              span: [17,25],
-            },
+            Lujvo "nalxánri",
             Me {
-              me: Word {
-                kind: "cmavo",
-                phonemes: "me",
-                span: [26,28],
-              },
+              me: Cmavo "me",
               WithIndicator {
                 WithIndicator {
                   ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [29,31],
-                    },
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "irc",
-                      span: [32,35],
-                    },
+                    zo: Cmavo "zo",
+                    Cmevla "irc",
                   },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "zo'o",
-                    span: [37,41],
-                  },
+                  indicator: Cmavo "zo'o",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "u'i",
-                  span: [42,45],
-                },
+                indicator: Cmavo "u'i",
               },
             },
           },

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mútce cáfne jétnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [15,20],
-  },
+  Cmavo "le",
+  Gismu "mútce",
+  Gismu "cáfne",
+  Gismu "jétnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"jetnu","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cafne",
-          span: [9,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jetnu",
-          span: [15,20],
-        },
+        Gismu "mútce",
+        Gismu "cáfne",
+        Gismu "jétnu",
       },
     },
   ],

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'e prénu cu go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [14,18],
-  },
+  Cmavo "so'e",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"go'i","kind":"cmavo"}}]"""
 
@@ -47,28 +31,12 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'e",
-          span: [0,4],
-        },
+        Cmavo "so'e",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [5,10],
-      },
+      relation: Gismu "prénu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [14,18],
-  },
+  cu: Cmavo "cu",
+  Cmavo "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'e","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"prenu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,18],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

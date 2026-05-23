@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'e seĭ ko cátlu le pa cípni cu nénri tu voĭ trícu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'e",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catlu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cipni",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tricu",
-    span: [46,51],
-  },
+  Cmavo "u'e",
+  Cmavo "seĭ",
+  Cmavo "ko",
+  Gismu "cátlu",
+  Cmavo "le",
+  Cmavo "pa",
+  Gismu "cípni",
+  Cmavo "cu",
+  Gismu "nénri",
+  Cmavo "tu",
+  Cmavo "voĭ",
+  Gismu "trícu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cipni","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[42,45],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"tricu","kind":"gismu"}}]"""
 
@@ -90,86 +42,38 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'e",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'e",
     },
   ],
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [5,8],
-      },
+      sei: Cmavo "seĭ",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [9,11],
-        },
+        Cmavo "ko",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "catlu",
-        span: [12,17],
-      },
+      relation: Gismu "cátlu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [21,23],
-          },
+          Cmavo "pa",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cipni",
-          span: [24,29],
-        },
+        relation: Gismu "cípni",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [30,32],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nenri",
-        span: [33,38],
-      },
+      Gismu "nénri",
       terms: [
         RelativeClause {
-          base_argument: Word {
-            kind: "cmavo",
-            phonemes: "tu",
-            span: [39,41],
-          },
+          base_argument: Cmavo "tu",
           relative_clauses: [
             Noi {
-              noi: Word {
-                kind: "cmavo",
-                phonemes: "voĭ",
-                span: [42,45],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "tricu",
-                span: [46,51],
-              },
+              noi: Cmavo "voĭ",
+              Gismu "trícu",
             },
           ],
         },

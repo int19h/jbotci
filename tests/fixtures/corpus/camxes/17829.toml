@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e de'u plúja te préti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [19,24],
-  },
+  Cmavo "la'e",
+  Cmavo "de'u",
+  Gismu "plúja",
+  Cmavo "te",
+  Gismu "préti",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"de'u","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"pluja","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"preti","kind":"gismu"}}]"""
 
@@ -51,35 +31,15 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "de'u",
-        span: [5,9],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "de'u",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "pluja",
-      span: [10,15],
-    },
+    Gismu "plúja",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "te",
-        span: [16,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [19,24],
-      },
+      se: Cmavo "te",
+      Gismu "préti",
     },
   },
 }"""

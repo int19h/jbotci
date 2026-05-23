@@ -18,83 +18,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i py skícu le jíkca gálfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skicu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jikca",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [22,27],
-  },
+  Cmavo "i",
+  Cmavo "py",
+  Gismu "skícu",
+  Cmavo "le",
+  Gismu "jíkca",
+  Gismu "gálfi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jikca","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"galfi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [3,5],
-          },
+          Cmavo "py",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "skicu",
-        span: [7,12],
-      },
+      Gismu "skícu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "jikca",
-              span: [16,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "galfi",
-              span: [22,27],
-            },
+            Gismu "jíkca",
+            Gismu "gálfi",
           },
         },
       ],

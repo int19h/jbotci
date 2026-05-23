@@ -18,33 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'e go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [5,9],
-  },
+  Cmavo "na'e",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Nahe {
-  nahe: Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
+  nahe: Cmavo "na'e",
   Goha {
-    goha: Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [5,9],
-    },
+    goha: Cmavo "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Goha":{"goha":{"Bare":{"Bare":{"span":[5,9],"phonemes":"go'i","kind":"cmavo"}}}}}}}]}}}}}}}}]}]}"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .konsept. coĭ pa do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kónsept",
-    span: [4,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
+  Cmavo "doĭ",
+  Cmevla "konsept",
+  Cmavo "coĭ",
+  Cmavo "pa",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"kónsept","kind":"cmevla"}},{"Bare":{"span":[12,15],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -52,38 +32,18 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "kónsept",
-          span: [4,11],
-        },
+        Cmevla "konsept",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "coĭ",
-                span: [12,15],
-              },
+              Cmavo "coĭ",
             ],
             argument: Quantified {
-              quantifier: Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [16,18],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [18,20],
-              },
+              quantifier: Cmavo "pa",
+              Cmavo "do",
             },
           },
         ],

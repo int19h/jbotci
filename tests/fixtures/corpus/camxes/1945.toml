@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu la .faĭdon. gérku gi'o naĭ mlátu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "faĭdon",
-    span: [6,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [28,33],
-  },
+  Cmavo "xu",
+  Cmavo "la",
+  Cmevla "faĭdon",
+  Gismu "gérku",
+  Cmavo "gi'o",
+  Cmavo "naĭ",
+  Gismu "mlátu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"faĭdon","kind":"cmevla"}},{"Bare":{"span":[14,19],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"gi'o","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"mlatu","kind":"gismu"}}]"""
 
@@ -61,55 +33,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "faĭdon",
-            span: [6,12],
-          },
+          Cmevla "faĭdon",
         ],
       },
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [14,19],
-      },
+      Gismu "gérku",
       continuations: [
         PredicateTailContinuation {
           connective: PredicateTail {
-            Word {
-              kind: "cmavo",
-              phonemes: "gi'o",
-              span: [20,24],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [24,27],
-            },
+            Cmavo "gi'o",
+            nai: Cmavo "naĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "mlatu",
-            span: [28,33],
-          },
+          Gismu "mlátu",
         },
       ],
     },

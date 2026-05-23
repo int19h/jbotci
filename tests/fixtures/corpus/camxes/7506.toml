@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.aŭ la cévni ze'e jmíve)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aŭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmive",
-    span: [18,23],
-  },
+  Cmavo "aŭ",
+  Cmavo "la",
+  Gismu "cévni",
+  Cmavo "ze'e",
+  Gismu "jmíve",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"ze'e","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"jmive","kind":"gismu"}}]"""
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aŭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aŭ",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [4,6],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cevni",
-          span: [7,12],
-        },
+        descriptor: Cmavo "la",
+        relation: Gismu "cévni",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ze'e",
-        span: [13,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jmive",
-        span: [18,23],
-      },
+      tense_modal: Cmavo "ze'e",
+      Gismu "jmíve",
     },
   },
 }"""

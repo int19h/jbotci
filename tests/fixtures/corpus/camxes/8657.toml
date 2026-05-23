@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ doĭ fukfínpe .i ma fúkpi fo tu'a do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fukfinpe",
-    span: [8,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fukpi",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [37,39],
-  },
+  Cmavo "coĭ",
+  Cmavo "doĭ",
+  Lujvo "fukfínpe",
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "fúkpi",
+  Cmavo "fo",
+  Cmavo "tu'a",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"fukfinpe","kind":"lujvo"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"fukpi","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -72,64 +36,28 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [4,7],
-        },
+        Cmavo "coĭ",
+        Cmavo "doĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "fukfinpe",
-          span: [8,16],
-        },
+        relation: Lujvo "fukfínpe",
       },
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [18,19],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [20,22],
-        },
+        Cmavo "ma",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "fukpi",
-          span: [23,28],
-        },
+        Gismu "fúkpi",
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fo",
-              span: [29,31],
-            },
+            fa: Cmavo "fo",
             Lahe {
-              lahe: Word {
-                kind: "cmavo",
-                phonemes: "tu'a",
-                span: [32,36],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [37,39],
-              },
+              lahe: Cmavo "tu'a",
+              Cmavo "do",
             },
           },
         ],

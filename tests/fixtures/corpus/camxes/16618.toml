@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi xébni ro xláli ju'o li'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'a",
-    span: [23,27],
-  },
+  Cmavo "mi",
+  Gismu "xébni",
+  Cmavo "ro",
+  Gismu "xláli",
+  Cmavo "ju'o",
+  Cmavo "li'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xlali","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"li'a","kind":"cmavo"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xebni",
-      span: [3,8],
-    },
+    Gismu "xébni",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [9,11],
-          },
+          Cmavo "ro",
         ],
         relation: WithIndicator {
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "xlali",
-              span: [12,17],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ju'o",
-              span: [18,22],
-            },
+            Gismu "xláli",
+            indicator: Cmavo "ju'o",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "li'a",
-            span: [23,27],
-          },
+          indicator: Cmavo "li'a",
         },
       },
     ],

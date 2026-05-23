@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ze'u na távla .i ma núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [20,25],
-  },
+  Cmavo "ze'u",
+  Cmavo "na",
+  Gismu "távla",
+  Cmavo "i",
+  Cmavo "ma",
+  Gismu "núzba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"nuzba","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ze'u",
-      span: [0,4],
-    },
+    tense_modal: Cmavo "ze'u",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [8,13],
-      },
+      na: Cmavo "na",
+      Gismu "távla",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [17,19],
-        },
+        Cmavo "ma",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "nuzba",
-        span: [20,25],
-      },
+      Gismu "núzba",
     },
   },
 }"""

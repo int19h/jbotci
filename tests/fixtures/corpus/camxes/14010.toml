@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .robin. do jínvi ma le pu zi núzba be la jbógri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinvi",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [39,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbogri",
-    span: [42,48],
-  },
+  Cmavo "doĭ",
+  Cmevla "robin",
+  Cmavo "do",
+  Gismu "jínvi",
+  Cmavo "ma",
+  Cmavo "le",
+  Cmavo "pu",
+  Cmavo "zi",
+  Gismu "núzba",
+  Cmavo "be",
+  Cmavo "la",
+  Lujvo "jbógri",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[42,48],"phonemes":"jbogri","kind":"lujvo"}}]'
 
@@ -87,80 +39,32 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "robin",
-        span: [4,9],
-      },
+      argument: Cmevla "robin",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jinvi",
-        span: [13,18],
-      },
+      Gismu "jínvi",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [19,21],
-        },
+        Cmavo "ma",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
+          descriptor: Cmavo "le",
           relation: TenseModal {
             tense_modal: Composite {
-              Word {
-                kind: "cmavo",
-                phonemes: "pu",
-                span: [25,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "zi",
-                span: [27,29],
-              },
+              Cmavo "pu",
+              Cmavo "zi",
             },
             Be {
-              Word {
-                kind: "gismu",
-                phonemes: "nuzba",
-                span: [30,35],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [36,38],
-              },
+              Gismu "núzba",
+              be: Cmavo "be",
               first_argument: Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [39,41],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "jbogri",
-                  span: [42,48],
-                },
+                descriptor: Cmavo "la",
+                relation: Lujvo "jbógri",
               },
             },
           },

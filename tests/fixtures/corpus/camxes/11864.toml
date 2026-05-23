@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kínda malglíco .i mo)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kinda",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malglico",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [17,19],
-  },
+  Gismu "kínda",
+  Lujvo "malglíco",
+  Cmavo "i",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kinda","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"malglico","kind":"lujvo"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"kinda","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "kinda",
-      span: [0,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "malglico",
-      span: [6,14],
-    },
+    Gismu "kínda",
+    Lujvo "malglíco",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [17,19],
-    },
+    i: Cmavo "i",
+    Cmavo "mo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"kinda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,14],"phonemes":"malglico","kind":"lujvo"}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[17,19],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}]}]}'

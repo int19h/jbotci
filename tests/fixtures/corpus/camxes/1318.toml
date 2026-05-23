@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca ze'i ca cúsku deĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [19,22],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "ze'i",
+  Cmavo "ca",
+  Gismu "cúsku",
+  Cmavo "deĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ze'i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"deĭ","kind":"cmavo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze'i",
-          span: [6,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [10,12],
-        },
+        Cmavo "ca",
+        Cmavo "ze'i",
+        Cmavo "ca",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [13,18],
-      },
+      Gismu "cúsku",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "deĭ",
-        span: [19,22],
-      },
+      Cmavo "deĭ",
     ],
   },
 }"""

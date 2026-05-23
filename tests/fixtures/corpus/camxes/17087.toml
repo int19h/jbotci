@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.bancus. mi djíca tu'a le nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [1,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [26,31],
-  },
+  Cmevla "bancus",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "nínmu",
 ]"""
 json = """[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"ninmu","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ json = """[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "bancus",
-      span: [1,7],
-    },
+    Cmevla "bancus",
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [9,11],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [12,17],
-      },
+      Gismu "djíca",
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [18,22],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [23,25],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ninmu",
-              span: [26,31],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "nínmu",
           },
         },
       ],

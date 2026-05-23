@@ -19,16 +19,8 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(lo bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [21,26],
-  },
+  Cmavo "lo",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -37,16 +29,8 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [18,20],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "broda",
-        span: [21,26],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "bróda",
     },
   ],
 }"""

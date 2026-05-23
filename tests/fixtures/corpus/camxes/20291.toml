@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fu'i lu .aĭ ckáfi li'u bánzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [23,28],
-  },
+  Cmavo "fu'i",
+  Cmavo "lu",
+  Cmavo "aĭ",
+  Gismu "ckáfi",
+  Cmavo "li'u",
+  Gismu "bánzu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ckafi","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"banzu","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "fu'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "fu'i",
     },
   ],
   Predicate {
     leading_terms: [
       Lu {
         lu: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [5,7],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "aĭ",
-            span: [9,11],
-          },
+          Cmavo "lu",
+          indicator: Cmavo "aĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "ckafi",
-          span: [12,17],
-        },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [18,22],
-        },
+        Gismu "ckáfi",
+        lihu: Cmavo "li'u",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "banzu",
-      span: [23,28],
-    },
+    Gismu "bánzu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lu":{"lu":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,7],"phonemes":"lu","kind":"cmavo"}}},"indicator":{"span":[9,11],"phonemes":"aĭ","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"ckafi","kind":"gismu"}}}}}}}}}}}]}]},"lihu":{"Bare":{"Bare":{"span":[18,22],"phonemes":"li'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"banzu","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"fu'i","kind":"cmavo"}}}}]}"""

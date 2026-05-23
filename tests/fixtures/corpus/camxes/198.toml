@@ -19,61 +19,21 @@ brackets = "([zoĭ gy broda gy] .e [zoĭ ly ly] ly ly ly)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [4,6],
-    },
-    quoted_text: [6,12],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [13,15],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "broda",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [17,18],
-  },
+  Cmavo "e",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [19,22],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [22,24],
-    },
-    quoted_text: [24,24],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [25,27],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "",
+    closing_delimiter: Cmavo "ly",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [32,34],
-  },
+  Cmavo "ly",
+  Cmavo "ly",
+  Cmavo "ly",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[6,12],"closing_delimiter":{"span":[13,15],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[19,22],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[22,24],"phonemes":"ly","kind":"cmavo"},"quoted_text":[24,24],"closing_delimiter":{"span":[25,27],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"ly","kind":"cmavo"}}]'
 
@@ -83,64 +43,24 @@ Term {
   terms: [
     Connected {
       leading_argument: ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [0,3],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [4,6],
-        },
-        quoted_text: [6,12],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [13,15],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "broda",
+        closing_delimiter: Cmavo "gy",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [17,18],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [19,22],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [22,24],
-        },
-        quoted_text: [24,24],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [25,27],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "ly",
+        quoted_text: Verbatim "",
+        closing_delimiter: Cmavo "ly",
       },
     },
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [27,29],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [29,31],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [32,34],
-        },
+        Cmavo "ly",
+        Cmavo "ly",
+        Cmavo "ly",
       ],
     },
   ],

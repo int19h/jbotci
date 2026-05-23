@@ -18,195 +18,67 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi pu plátu le nu co'a sísku tu'a [zo mo'i] ca le ca jéftu fánmo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "platu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisku",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [31,35],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "plátu",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "co'a",
+  Gismu "sísku",
+  Cmavo "tu'a",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [36,38],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mo'i",
-      span: [39,43],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mo'i",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jeftu",
-    span: [52,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanmo",
-    span: [58,63],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "ca",
+  Gismu "jéftu",
+  Gismu "fánmo",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"platu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"sisku","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"tu'a","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[36,38],"phonemes":"zo","kind":"cmavo"},"word":{"span":[39,43],"phonemes":"mo'i","kind":"cmavo"}}},{"Bare":{"span":[44,46],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"jeftu","kind":"gismu"}},{"Bare":{"span":[58,63],"phonemes":"fanmo","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "platu",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "plátu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [17,19],
-            },
+            nu: Cmavo "nu",
             Relation {
               TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "co'a",
-                  span: [20,24],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sisku",
-                  span: [25,30],
-                },
+                tense_modal: Cmavo "co'a",
+                Gismu "sísku",
               },
               terms: [
                 Lahe {
-                  lahe: Word {
-                    kind: "cmavo",
-                    phonemes: "tu'a",
-                    span: [31,35],
-                  },
+                  lahe: Cmavo "tu'a",
                   ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [36,38],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "mo'i",
-                      span: [39,43],
-                    },
+                    zo: Cmavo "zo",
+                    Cmavo "mo'i",
                   },
                 },
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [44,46],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [47,49],
-                    },
+                    descriptor: Cmavo "le",
                     relation: TenseModal {
-                      tense_modal: Word {
-                        kind: "cmavo",
-                        phonemes: "ca",
-                        span: [49,51],
-                      },
+                      tense_modal: Cmavo "ca",
                       Compound {
-                        Word {
-                          kind: "gismu",
-                          phonemes: "jeftu",
-                          span: [52,57],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "fanmo",
-                          span: [58,63],
-                        },
+                        Gismu "jéftu",
+                        Gismu "fánmo",
                       },
                     },
                   },

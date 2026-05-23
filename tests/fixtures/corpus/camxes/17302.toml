@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.and. to'e ka'e)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ánd",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [8,12],
-  },
+  Cmevla "and",
+  Cmavo "to'e",
+  Cmavo "ka'e",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"Bare":{"span":[4,8],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ka'e","kind":"cmavo"}}]"""
 
@@ -40,26 +28,14 @@ json = """[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ánd",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "to'e",
-            span: [4,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ka'e",
-            span: [8,12],
-          },
+          Cmavo "to'e",
+          Cmavo "ka'e",
         },
         Zohe {},
       },

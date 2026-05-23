@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi cítka bílga .i ba xrúkla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [21,27],
-  },
+  Cmavo "mi",
+  Gismu "cítka",
+  Gismu "bílga",
+  Cmavo "i",
+  Cmavo "ba",
+  Lujvo "xrúkla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"xrukla","kind":"lujvo"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "bilga",
-        span: [9,14],
-      },
+      Gismu "cítka",
+      Gismu "bílga",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [18,20],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "xrukla",
-        span: [21,27],
-      },
+      tense_modal: Cmavo "ba",
+      Lujvo "xrúkla",
     },
   },
 }"""

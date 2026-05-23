@@ -18,42 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cúsku [lo'u bo bo bo le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [3,8],
-  },
+  Cmavo "mi",
+  Gismu "cúsku",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [31,35],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [36,38],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [39,41],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [42,44],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [45,49],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "bo",
+    Cmavo "bo",
+    Cmavo "bo",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"LohuQuote":{"lohu":{"span":[31,35],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[36,38],"phonemes":"bo","kind":"cmavo"},{"span":[39,41],"phonemes":"bo","kind":"cmavo"},{"span":[42,44],"phonemes":"bo","kind":"cmavo"}],"lehu":{"span":[45,49],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -62,45 +34,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [3,8],
-    },
+    Gismu "cúsku",
     terms: [
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [31,35],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [36,38],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [39,41],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [42,44],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [45,49],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "bo",
+        Cmavo "bo",
+        Cmavo "bo",
+        lehu: Cmavo "le'u",
       },
     ],
   },

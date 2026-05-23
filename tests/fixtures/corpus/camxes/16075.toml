@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .djan. .ŭi naĭ mi na kákne tu'a lo la .skim. skamrmákro)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "skim",
-    span: [39,43],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "skamrmakro",
-    span: [45,55],
-  },
+  Cmavo "doĭ",
+  Cmevla "djan",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "kákne",
+  Cmavo "tu'a",
+  Cmavo "lo",
+  Cmavo "la",
+  Cmevla "skim",
+  Fuhivla "skamrmákro",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"skim","kind":"cmevla"}},{"Bare":{"span":[45,55],"phonemes":"skamrmakro","kind":"fu'ivla"}}]"""
 
@@ -87,86 +39,38 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [4,8],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [10,12],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [12,15],
-        },
+        Cmevla "djan",
+        indicator: Cmavo "ŭi",
+        nai: Cmavo "naĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [16,18],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [19,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kakne",
-          span: [22,27],
-        },
+        na: Cmavo "na",
+        Gismu "kákne",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [28,32],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [33,35],
-            },
+            descriptor: Cmavo "lo",
             tail_elements: [
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [36,38],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "skim",
-                    span: [39,43],
-                  },
+                  Cmevla "skim",
                 ],
               },
             ],
-            relation: Word {
-              kind: "fu'ivla",
-              phonemes: "skamrmakro",
-              span: [45,55],
-            },
+            relation: Fuhivla "skamrmákro",
           },
         },
       ],

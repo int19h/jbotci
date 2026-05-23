@@ -18,52 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu naĭ je ca naĭ jímpe [zo mu'eĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [18,23],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "naĭ",
+  Cmavo "je",
+  Cmavo "ca",
+  Cmavo "naĭ",
+  Gismu "jímpe",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [24,26],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'eĭ",
-      span: [27,32],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mu'eĭ",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"jimpe","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[24,26],"phonemes":"zo","kind":"cmavo"},"word":{"span":[27,32],"phonemes":"mu'eĭ","kind":"cmavo"}}}]"""
@@ -72,59 +36,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [5,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [12,14],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [14,17],
-        },
+        Cmavo "pu",
+        Cmavo "naĭ",
+        Cmavo "je",
+        Cmavo "ca",
+        Cmavo "naĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "jimpe",
-        span: [18,23],
-      },
+      Gismu "jímpe",
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [24,26],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mu'eĭ",
-          span: [27,32],
-        },
+        zo: Cmavo "zo",
+        Cmavo "mu'eĭ",
       },
     ],
   },

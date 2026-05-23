@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko cúsku [zo coĭ] py ba'i mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [3,8],
-  },
+  Cmavo "ko",
+  Gismu "cúsku",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "coĭ",
-      span: [12,15],
-    },
+    zo: Cmavo "zo",
+    Cmavo "coĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'i",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
+  Cmavo "py",
+  Cmavo "ba'i",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,15],"phonemes":"coĭ","kind":"cmavo"}}},{"Bare":{"span":[16,18],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ba'i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -62,53 +34,25 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [3,8],
-    },
+    Gismu "cúsku",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [12,15],
-        },
+        zo: Cmavo "zo",
+        Cmavo "coĭ",
       },
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [16,18],
-          },
+          Cmavo "py",
         ],
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ba'i",
-            span: [20,24],
-          },
+          bai: Cmavo "ba'i",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [25,27],
-        },
+        Cmavo "mi",
       },
     ],
   },

@@ -18,42 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ saĭ do mútce [.o'o zeĭ cínmo])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [10,15],
-  },
+  Cmavo "oĭ",
+  Cmavo "saĭ",
+  Cmavo "do",
+  Gismu "mútce",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "o'o",
-      span: [17,20],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [21,24],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmo",
-      span: [25,30],
-    },
+    left: Cmavo "o'o",
+    zei: Cmavo "zeĭ",
+    Gismu "cínmo",
   },
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"mutce","kind":"gismu"}},{"ZeiLujvo":{"left":{"Bare":{"span":[17,20],"phonemes":"o'o","kind":"cmavo"}},"zei":{"span":[21,24],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[25,30],"phonemes":"cinmo","kind":"gismu"}}}]"""
@@ -64,49 +36,21 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [10,15],
-      },
+      Gismu "mútce",
       ZeiLujvo {
-        left: Word {
-          kind: "cmavo",
-          phonemes: "o'o",
-          span: [17,20],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [21,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cinmo",
-          span: [25,30],
-        },
+        left: Cmavo "o'o",
+        zei: Cmavo "zeĭ",
+        Gismu "cínmo",
       },
     },
   },

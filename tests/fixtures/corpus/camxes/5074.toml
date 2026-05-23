@@ -19,42 +19,14 @@ brackets = "([zo nénri] cu na dráni válsi .u'i)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nenri",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "nénri",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [27,30],
-  },
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "dráni",
+  Gismu "válsi",
+  Cmavo "u'i",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"nenri","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -63,46 +35,18 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nenri",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "nénri",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [12,14],
-    },
+    na: Cmavo "na",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "drani",
-        span: [15,20],
-      },
+      Gismu "dráni",
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "valsi",
-          span: [21,26],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "u'i",
-          span: [27,30],
-        },
+        Gismu "válsi",
+        indicator: Cmavo "u'i",
       },
     },
   },

@@ -18,56 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ro da poĭ prénu cu prámi pa de poĭ fínpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [31,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finpe",
-    span: [35,40],
-  },
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "prámi",
+  Cmavo "pa",
+  Cmavo "de",
+  Cmavo "poĭ",
+  Gismu "fínpe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"finpe","kind":"gismu"}}]'
 
@@ -77,70 +37,30 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [3,5],
-        },
+        quantifier: Cmavo "ro",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [6,9],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [10,15],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "prénu",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [19,24],
-    },
+    Gismu "prámi",
     terms: [
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [25,27],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de",
-            span: [28,30],
-          },
+          quantifier: Cmavo "pa",
+          Cmavo "de",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [31,34],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "finpe",
-              span: [35,40],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "fínpe",
           },
         ],
       },

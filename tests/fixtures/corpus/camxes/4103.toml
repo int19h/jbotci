@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi gléki co tinjú'i be le zgíke ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tinju'i",
-    span: [12,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [32,34],
-  },
+  Cmavo "mi",
+  Gismu "gléki",
+  Cmavo "co",
+  Lujvo "tinjú'i",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "zgíke",
+  Cmavo "ku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,19],"phonemes":"tinju'i","kind":"lujvo"}},{"Bare":{"span":[20,22],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"ku","kind":"cmavo"}}]"""
 
@@ -65,50 +33,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Co {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "gleki",
-      span: [3,8],
-    },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [9,11],
-    },
+    leading_relation: Gismu "gléki",
+    co: Cmavo "co",
     trailing_relation: Be {
-      Word {
-        kind: "lujvo",
-        phonemes: "tinju'i",
-        span: [12,19],
-      },
-      be: Word {
-        kind: "cmavo",
-        phonemes: "be",
-        span: [20,22],
-      },
+      Lujvo "tinjú'i",
+      be: Cmavo "be",
       first_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [23,25],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "zgike",
-          span: [26,31],
-        },
-        ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [32,34],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "zgíke",
+        ku: Cmavo "ku",
       },
     },
   },

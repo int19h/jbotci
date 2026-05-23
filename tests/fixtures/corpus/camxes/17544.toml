@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi mi plúka tátpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [13,18],
-  },
+  Cmavo "ŭi",
+  Cmavo "mi",
+  Gismu "plúka",
+  Gismu "tátpi",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"tatpi","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "pluka",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [13,18],
-      },
+      Gismu "plúka",
+      Gismu "tátpi",
     },
   },
 }"""

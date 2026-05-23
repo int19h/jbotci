@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da'i trína lo nalglíco selbángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "trina",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalglico",
-    span: [14,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selbangu",
-    span: [23,31],
-  },
+  Cmavo "da'i",
+  Gismu "trína",
+  Cmavo "lo",
+  Lujvo "nalglíco",
+  Lujvo "selbángu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"trina","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,22],"phonemes":"nalglico","kind":"lujvo"}},{"Bare":{"span":[23,31],"phonemes":"selbangu","kind":"lujvo"}}]"""
 
@@ -51,37 +31,17 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "da'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "da'i",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "trina",
-      span: [5,10],
-    },
+    Gismu "trína",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [11,13],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "nalglico",
-            span: [14,22],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "selbangu",
-            span: [23,31],
-          },
+          Lujvo "nalglíco",
+          Lujvo "selbángu",
         },
       },
     ],

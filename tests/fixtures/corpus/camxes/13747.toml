@@ -18,43 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu gérna naldráni fa [zoĭ ly na selbangu na'e le remei ly])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [3,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naldrani",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [18,20],
-  },
+  Cmavo "xu",
+  Gismu "gérna",
+  Lujvo "naldráni",
+  Cmavo "fa",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [21,24],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [25,27],
-    },
-    quoted_text: [27,53],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [54,56],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "na selbangu na'e le remei",
+    closing_delimiter: Cmavo "ly",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[9,17],"phonemes":"naldrani","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"fa","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[21,24],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[25,27],"phonemes":"ly","kind":"cmavo"},"quoted_text":[27,53],"closing_delimiter":{"span":[54,56],"phonemes":"ly","kind":"cmavo"}}}]'
@@ -64,50 +36,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "gerna",
-        span: [3,8],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "naldrani",
-        span: [9,17],
-      },
+      Gismu "gérna",
+      Lujvo "naldráni",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [18,20],
-        },
+        fa: Cmavo "fa",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [21,24],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "ly",
-            span: [25,27],
-          },
-          quoted_text: [27,53],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "ly",
-            span: [54,56],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "ly",
+          quoted_text: Verbatim "na selbangu na'e le remei",
+          closing_delimiter: Cmavo "ly",
         },
       },
     ],

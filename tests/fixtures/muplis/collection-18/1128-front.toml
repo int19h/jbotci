@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ ro do ga'i cu'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'i",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [15,19],
-  },
+  Cmavo "coĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "ga'i",
+  Cmavo "cu'i",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ga'i","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"cu'i","kind":"cmavo"}}]"""
 
@@ -56,36 +36,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [4,6],
-        },
+        quantifier: Cmavo "ro",
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [7,9],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ga'i",
-              span: [10,14],
-            },
+            Cmavo "do",
+            indicator: Cmavo "ga'i",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "cu'i",
-            span: [15,19],
-          },
+          indicator: Cmavo "cu'i",
         },
       },
     },

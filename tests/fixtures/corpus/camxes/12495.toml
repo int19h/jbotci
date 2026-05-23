@@ -18,28 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zoĭ cy led-editor.sourceforge.net cy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "cy",
-      span: [8,10],
-    },
-    quoted_text: [12,38],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "cy",
-      span: [40,42],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "cy",
+    quoted_text: Verbatim "led-editor.sourceforge.net",
+    closing_delimiter: Cmavo "cy",
   },
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"cy","kind":"cmavo"},"quoted_text":[12,38],"closing_delimiter":{"span":[40,42],"phonemes":"cy","kind":"cmavo"}}}]'
@@ -47,30 +31,14 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [3,6],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [8,10],
-        },
-        quoted_text: [12,38],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "cy",
-          span: [40,42],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "cy",
+        quoted_text: Verbatim "led-editor.sourceforge.net",
+        closing_delimiter: Cmavo "cy",
       },
     ],
   },

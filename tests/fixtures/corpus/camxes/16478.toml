@@ -18,92 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i .i ji'a so'i prénu cu maltolpénsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [23,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "maltolpensi",
-    span: [26,37],
-  },
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "ji'a",
+  Cmavo "so'i",
+  Gismu "prénu",
+  Cmavo "cu",
+  Lujvo "maltolpénsi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,37],"phonemes":"maltolpensi","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [6,7],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [7,11],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ji'a",
     },
     Predicate {
       leading_terms: [
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "so'i",
-              span: [12,16],
-            },
+            Cmavo "so'i",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [17,22],
-          },
+          relation: Gismu "prénu",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [23,25],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "maltolpensi",
-        span: [26,37],
-      },
+      cu: Cmavo "cu",
+      Lujvo "maltolpénsi",
     },
   },
 }"""

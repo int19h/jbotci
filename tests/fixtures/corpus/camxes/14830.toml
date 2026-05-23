@@ -18,98 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .oĭ mi tátpi .i mi ca zi clíva .i ba bo mi dásnu vi [la'o gy SunnyVale GolfLand gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [34,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dasnu",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [49,51],
-  },
+  Cmavo "i",
+  Cmavo "oĭ",
+  Cmavo "mi",
+  Gismu "tátpi",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "zi",
+  Gismu "clíva",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "bo",
+  Cmavo "mi",
+  Gismu "dásnu",
+  Cmavo "vi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [52,56],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [57,59],
-    },
-    quoted_text: [61,79],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [80,82],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "SunnyVale GolfLand",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[34,35],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"dasnu","kind":"gismu"}},{"Bare":{"span":[49,51],"phonemes":"vi","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[52,56],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[57,59],"phonemes":"gy","kind":"cmavo"},"quoted_text":[61,79],"closing_delimiter":{"span":[80,82],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -119,122 +47,50 @@ tree = """
 Paragraph {
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [1,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [4,6],
-      },
+      Cmavo "i",
+      indicator: Cmavo "oĭ",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [7,9],
-        },
+        Cmavo "mi",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [10,15],
-      },
+      Gismu "tátpi",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [17,18],
-    },
+    i: Cmavo "i",
     Connected {
       leading_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [19,21],
-          },
+          Cmavo "mi",
         ],
         TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [22,24],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "zi",
-              span: [24,26],
-            },
+            Cmavo "ca",
+            Cmavo "zi",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "cliva",
-            span: [27,32],
-          },
+          Gismu "clíva",
         },
       },
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [34,35],
-      },
+      i: Cmavo "i",
       connective: Relation {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [35,37],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [37,39],
-        },
+        Cmavo "ba",
+        Cmavo "bo",
       },
       trailing_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [40,42],
-          },
+          Cmavo "mi",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "dasnu",
-            span: [43,48],
-          },
+          Gismu "dásnu",
           terms: [
             Tagged {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "vi",
-                span: [49,51],
-              },
+              tense_modal: Cmavo "vi",
               ZoiQuote {
-                zoi: Word {
-                  kind: "cmavo",
-                  phonemes: "la'o",
-                  span: [52,56],
-                },
-                opening_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [57,59],
-                },
-                quoted_text: [61,79],
-                closing_delimiter: Word {
-                  kind: "cmavo",
-                  phonemes: "gy",
-                  span: [80,82],
-                },
+                zoi: Cmavo "la'o",
+                opening_delimiter: Cmavo "gy",
+                quoted_text: Verbatim "SunnyVale GolfLand",
+                closing_delimiter: Cmavo "gy",
               },
             },
           ],

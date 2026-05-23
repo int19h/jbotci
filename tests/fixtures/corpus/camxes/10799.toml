@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i paŭ do pénmi djíca vi ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paŭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [25,27],
-  },
+  Cmavo "i",
+  Cmavo "paŭ",
+  Cmavo "do",
+  Gismu "pénmi",
+  Gismu "djíca",
+  Cmavo "vi",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"penmi","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "paŭ",
-      span: [3,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "paŭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "penmi",
-          span: [10,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [16,21],
-        },
+        Gismu "pénmi",
+        Gismu "djíca",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [22,24],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [25,27],
-          },
+          tense_modal: Cmavo "vi",
+          Cmavo "ma",
         },
       ],
     },

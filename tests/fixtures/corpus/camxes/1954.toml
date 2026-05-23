@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xy boĭ xi by boĭ xi vo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [20,22],
-  },
+  Cmavo "xy",
+  Cmavo "boĭ",
+  Cmavo "xi",
+  Cmavo "by",
+  Cmavo "boĭ",
+  Cmavo "xi",
+  Cmavo "vo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"vo","kind":"cmavo"}}]'
 
@@ -62,47 +34,19 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [0,2],
-        },
+        Cmavo "xy",
       ],
-      boi: Word {
-        kind: "cmavo",
-        phonemes: "boĭ",
-        span: [3,6],
-      },
+      boi: Cmavo "boĭ",
       free_modifiers: [
         Xi {
-          xi: Word {
-            kind: "cmavo",
-            phonemes: "xi",
-            span: [7,9],
-          },
+          xi: Cmavo "xi",
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "by",
-              span: [10,12],
-            },
-            boi: Word {
-              kind: "cmavo",
-              phonemes: "boĭ",
-              span: [13,16],
-            },
+            Cmavo "by",
+            boi: Cmavo "boĭ",
             free_modifiers: [
               Xi {
-                xi: Word {
-                  kind: "cmavo",
-                  phonemes: "xi",
-                  span: [17,19],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "vo",
-                  span: [20,22],
-                },
+                xi: Cmavo "xi",
+                Cmavo "vo",
               },
             ],
           },

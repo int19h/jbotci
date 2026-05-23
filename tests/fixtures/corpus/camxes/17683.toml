@@ -19,22 +19,10 @@ brackets = "(la'o gy netsplit gy)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [9,17],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [18,20],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "netsplit",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[9,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -44,22 +32,10 @@ tree = """
 Term {
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [5,7],
-      },
-      quoted_text: [9,17],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [18,20],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "netsplit",
+      closing_delimiter: Cmavo "gy",
     },
   ],
 }"""

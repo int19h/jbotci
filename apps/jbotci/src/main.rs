@@ -983,10 +983,9 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
 
             assert!(output.starts_with("Predicate {\n"));
-            assert!(output.contains("\n  leading_terms: [\n    Word {"));
+            assert!(output.contains("\n  leading_terms: [\n    Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("phonemes: \"mi\""));
-            assert!(output.contains("phonemes: \"klama\""));
+            assert!(output.contains("Gismu \"kláma\""));
             assert!(!output.contains("Text {"));
         });
     }
@@ -1053,7 +1052,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"Predicate{leading_terms:[Word{kind:"cmavo",phonemes:"mi",span:[0,2]}],Word{kind:"gismu",phonemes:"klama",span:[3,8]}}"#
+                r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
             );
         });
     }
@@ -1216,8 +1215,8 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
             assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
+            assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
-            assert!(output.contains(&colorize_json("[0,2]", true)));
         });
     }
 

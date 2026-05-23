@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.djin. cu plúka)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "djin",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [9,14],
-  },
+  Cmevla "djin",
+  Cmavo "cu",
+  Gismu "plúka",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"djin","kind":"cmevla"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pluka","kind":"gismu"}}]'
 
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"djin","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "djin",
-      span: [0,4],
-    },
+    Cmevla "djin",
   ],
   Predicate {
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pluka",
-      span: [9,14],
-    },
+    cu: Cmavo "cu",
+    Gismu "plúka",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"djin","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"pluka","kind":"gismu"}}}}}}}}}}}]}]}'

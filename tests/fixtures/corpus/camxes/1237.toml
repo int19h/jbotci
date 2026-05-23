@@ -18,84 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mélbi je cmálu bo níxli bo ckúle)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [27,32],
-  },
+  Gismu "mélbi",
+  Cmavo "je",
+  Gismu "cmálu",
+  Cmavo "bo",
+  Gismu "níxli",
+  Cmavo "bo",
+  Gismu "ckúle",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"ckule","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [0,5],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
+  leading_relation: Gismu "mélbi",
+  connective: Cmavo "je",
   trailing_relation: Bo {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [9,14],
-    },
-    bo: Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [15,17],
-    },
+    leading_relation: Gismu "cmálu",
+    bo: Cmavo "bo",
     trailing_relation: Bo {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [18,23],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [24,26],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [27,32],
-      },
+      leading_relation: Gismu "níxli",
+      bo: Cmavo "bo",
+      trailing_relation: Gismu "ckúle",
     },
   },
 }"""

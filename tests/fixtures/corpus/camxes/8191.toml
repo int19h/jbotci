@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i mi djúno ry poĭ mo kaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [26,29],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "ry",
+  Cmavo "poĭ",
+  Cmavo "mo",
+  Cmavo "kaŭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"kaŭ","kind":"cmavo"}}]"""
 
@@ -65,60 +33,28 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [10,15],
-      },
+      Gismu "djúno",
       terms: [
         RelativeClause {
           base_argument: Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ry",
-                span: [16,18],
-              },
+              Cmavo "ry",
             ],
           },
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [20,23],
-              },
+              poi: Cmavo "poĭ",
               WithIndicator {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mo",
-                  span: [24,26],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "kaŭ",
-                  span: [26,29],
-                },
+                Cmavo "mo",
+                indicator: Cmavo "kaŭ",
               },
             },
           ],

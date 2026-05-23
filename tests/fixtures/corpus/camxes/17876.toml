@@ -19,101 +19,37 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.i lo nu go'a ku no da jétnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [3,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "lo",
+  Cmavo "nu",
+  Cmavo "go'a",
+  Cmavo "ku",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "jétnu",
 ]"""
 json = """[{"Bare":{"span":[3,4],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"go'a","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"jetnu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [3,4],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [5,7],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [7,9],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'a",
-            span: [10,14],
-          },
+          nu: Cmavo "nu",
+          Cmavo "go'a",
         },
-        ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [15,17],
-        },
+        ku: Cmavo "ku",
       },
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [18,20],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [20,22],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "jetnu",
-      span: [23,28],
-    },
+    Gismu "jétnu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[3,4],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[5,7],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[7,9],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,14],"phonemes":"go'a","kind":"cmavo"}}}}}}}}}}}},"ku":{"Bare":{"Bare":{"span":[15,17],"phonemes":"ku","kind":"cmavo"}}}}}},{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"no","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[20,22],"phonemes":"da","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"jetnu","kind":"gismu"}}}}}}}}}}}]}]}"""

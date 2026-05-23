@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li'a na ka'e cpáre vi loĭ fágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [26,31],
-  },
+  Cmavo "li'a",
+  Cmavo "na",
+  Cmavo "ka'e",
+  Gismu "cpáre",
+  Cmavo "vi",
+  Cmavo "loĭ",
+  Gismu "fágri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"li'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"fagri","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "li'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "li'a",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
+      na: Cmavo "na",
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [8,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cpare",
-          span: [13,18],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "cpáre",
       },
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [19,21],
-        },
+        tense_modal: Cmavo "vi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [22,25],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "fagri",
-            span: [26,31],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Gismu "fágri",
         },
       },
     ],

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mutmí'i gálfi le mi skámi)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "mutmi'i",
-    span: [0,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [20,25],
-  },
+  Lujvo "mutmí'i",
+  Gismu "gálfi",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "skámi",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"mutmi'i","kind":"lujvo"}},{"Bare":{"span":[8,13],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"skami","kind":"gismu"}}]"""
 
@@ -50,36 +30,16 @@ json = """[{"Bare":{"span":[0,7],"phonemes":"mutmi'i","kind":"lujvo"}},{"Bare":{
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "mutmi'i",
-      span: [0,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "galfi",
-      span: [8,13],
-    },
+    Lujvo "mutmí'i",
+    Gismu "gálfi",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [14,16],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [17,19],
-        },
+        Cmavo "mi",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "skami",
-        span: [20,25],
-      },
+      relation: Gismu "skámi",
     },
   ],
 }"""

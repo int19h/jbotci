@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'a jaĭ glétu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [9,14],
-  },
+  Cmavo "di'a",
+  Cmavo "jaĭ",
+  Gismu "glétu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"gletu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "di'a",
-    span: [0,4],
-  },
+  tense_modal: Cmavo "di'a",
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [5,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gletu",
-      span: [9,14],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "glétu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"di'a","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[5,8],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"gletu","kind":"gismu"}}}}}}]}}}}}}}}}}]}]}"""

@@ -21,96 +21,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa da poĭ ke'a krokodílo ku'o pu ku pa de poĭ ke'a gérku ku'o zo'u da cítka de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "krokodilo",
-    span: [15,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [46,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [51,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [57,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [62,66],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [67,69],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [70,75],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [76,78],
-  },
+  Cmavo "pa",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Fuhivla "krokodílo",
+  Cmavo "ku'o",
+  Cmavo "pu",
+  Cmavo "ku",
+  Cmavo "pa",
+  Cmavo "de",
+  Cmavo "poĭ",
+  Cmavo "ke'a",
+  Gismu "gérku",
+  Cmavo "ku'o",
+  Cmavo "zo'u",
+  Cmavo "da",
+  Gismu "cítka",
+  Cmavo "de",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"krokodilo","kind":"fu'ivla"}},{"Bare":{"span":[25,29],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[42,45],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[46,50],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[57,61],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[62,66],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[67,69],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[70,75],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[76,78],"phonemes":"de","kind":"cmavo"}}]"""
 
@@ -121,128 +49,56 @@ Prenex {
   prenex_terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [3,5],
-        },
+        quantifier: Cmavo "pa",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [6,9],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [10,14],
-              },
+              Cmavo "ke'a",
             ],
-            Word {
-              kind: "fu'ivla",
-              phonemes: "krokodilo",
-              span: [15,24],
-            },
+            Fuhivla "krokodílo",
           },
-          kuho: Word {
-            kind: "cmavo",
-            phonemes: "ku'o",
-            span: [25,29],
-          },
+          kuho: Cmavo "ku'o",
         },
       ],
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [30,32],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [33,35],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [36,38],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [39,41],
-        },
+        quantifier: Cmavo "pa",
+        Cmavo "de",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [42,45],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ke'a",
-                span: [46,50],
-              },
+              Cmavo "ke'a",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "gerku",
-              span: [51,56],
-            },
+            Gismu "gérku",
           },
-          kuho: Word {
-            kind: "cmavo",
-            phonemes: "ku'o",
-            span: [57,61],
-          },
+          kuho: Cmavo "ku'o",
         },
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [62,66],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [67,69],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [70,75],
-      },
+      Gismu "cítka",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [76,78],
-        },
+        Cmavo "de",
       ],
     },
   },

@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zdíle je bébna)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [9,14],
-  },
+  Gismu "zdíle",
+  Cmavo "je",
+  Gismu "bébna",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"bebna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [0,5],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  trailing_relation: Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [9,14],
-  },
+  leading_relation: Gismu "zdíle",
+  connective: Cmavo "je",
+  trailing_relation: Gismu "bébna",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"zdile","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"bebna","kind":"gismu"}}}}}}}}}}}}}]}]}'

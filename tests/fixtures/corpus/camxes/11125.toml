@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa .i ru'a no da te fríca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [20,25],
-  },
+  Cmavo "ŭa",
+  Cmavo "i",
+  Cmavo "ru'a",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "te",
+  Gismu "fríca",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"frica","kind":"gismu"}}]"""
 
@@ -61,52 +33,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [5,6],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [7,11],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ru'a",
     },
     Predicate {
       leading_terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [14,16],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
       ],
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [17,19],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "frica",
-          span: [20,25],
-        },
+        se: Cmavo "te",
+        Gismu "fríca",
       },
     },
   },

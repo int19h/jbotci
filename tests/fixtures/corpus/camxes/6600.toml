@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mi péndo cu fínti le samsélpla te pílno le gánse dátni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [24,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ganse",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [52,57],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "péndo",
+  Cmavo "cu",
+  Gismu "fínti",
+  Cmavo "le",
+  Lujvo "samsélpla",
+  Cmavo "te",
+  Gismu "pílno",
+  Cmavo "le",
+  Gismu "gánse",
+  Gismu "dátni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,33],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[34,36],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"ganse","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"datni","kind":"gismu"}}]'
 
@@ -86,80 +38,32 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "pendo",
-        span: [6,11],
-      },
+      relation: Gismu "péndo",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "finti",
-      span: [15,20],
-    },
+    Gismu "fínti",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [21,23],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "samselpla",
-            span: [24,33],
-          },
+          Lujvo "samsélpla",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "te",
-              span: [34,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [37,42],
-            },
+            se: Cmavo "te",
+            Gismu "pílno",
           },
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [43,45],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "ganse",
-            span: [46,51],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "datni",
-            span: [52,57],
-          },
+          Gismu "gánse",
+          Gismu "dátni",
         },
       },
     ],

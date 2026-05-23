@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pu sánga le pu zu selsánga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsanga",
-    span: [20,28],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "sánga",
+  Cmavo "le",
+  Cmavo "pu",
+  Cmavo "zu",
+  Lujvo "selsánga",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"sanga","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"selsanga","kind":"lujvo"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sanga",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "sánga",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [15,17],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "zu",
-              span: [17,19],
-            },
+            Cmavo "pu",
+            Cmavo "zu",
           },
-          Word {
-            kind: "lujvo",
-            phonemes: "selsanga",
-            span: [20,28],
-          },
+          Lujvo "selsánga",
         },
       },
     ],

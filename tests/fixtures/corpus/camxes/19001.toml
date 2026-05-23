@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'e núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [5,10],
-  },
+  Cmavo "na'e",
+  Gismu "núzba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nuzba","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Nahe {
-  nahe: Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [5,10],
-  },
+  nahe: Cmavo "na'e",
+  Gismu "núzba",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"nuzba","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

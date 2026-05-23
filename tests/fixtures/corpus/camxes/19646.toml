@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.can. do)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "can",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
+  Cmevla "can",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"can","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -35,19 +27,11 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"can","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "can",
-      span: [0,3],
-    },
+    Cmevla "can",
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [4,6],
-      },
+      Cmavo "do",
     ],
   },
 }"""

@@ -18,77 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i tcétce le ka na sárcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tcetce",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sarcu",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Lujvo "tcétce",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "na",
+  Gismu "sárcu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"tcetce","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"sarcu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "tcetce",
-      span: [3,9],
-    },
+    Lujvo "tcétce",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [13,15],
-          },
+          nu: Cmavo "ka",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [16,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "sarcu",
-              span: [19,24],
-            },
+            na: Cmavo "na",
+            Gismu "sárcu",
           },
         },
       },

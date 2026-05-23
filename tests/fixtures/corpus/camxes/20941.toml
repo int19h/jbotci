@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na jímpe lu kánta le dákli li'u .i dákli ma ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanta",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dakli",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dakli",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [47,49],
-  },
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "jímpe",
+  Cmavo "lu",
+  Gismu "kánta",
+  Cmavo "le",
+  Gismu "dákli",
+  Cmavo "li'u",
+  Cmavo "i",
+  Gismu "dákli",
+  Cmavo "ma",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"kanta","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"dakli","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"dakli","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -86,85 +38,37 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [6,11],
-        },
+        na: Cmavo "na",
+        Gismu "jímpe",
       },
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [12,14],
-          },
+          lu: Cmavo "lu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "kanta",
-              span: [15,20],
-            },
+            Gismu "kánta",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [21,23],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "dakli",
-                  span: [24,29],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "dákli",
               },
             ],
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [30,34],
-          },
+          lihu: Cmavo "li'u",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [36,37],
-    },
+    i: Cmavo "i",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "dakli",
-        span: [38,43],
-      },
+      Gismu "dákli",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [44,46],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [47,49],
-        },
+        Cmavo "ma",
+        Cmavo "ma",
       ],
     },
   },

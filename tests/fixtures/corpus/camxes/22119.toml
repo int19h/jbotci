@@ -19,61 +19,17 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi flíba tu'a le sotprekárce pe li no re re mu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fliba",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sotprekarce",
-    span: [17,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [35,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [36,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [38,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [39,40],
-  },
+  Cmavo "mi",
+  Gismu "flíba",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Lujvo "sotprekárce",
+  Cmavo "pe",
+  Cmavo "li",
+  Cmavo "no",
+  Cmavo "re",
+  Cmavo "re",
+  Cmavo "mu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fliba","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,28],"phonemes":"sotprekarce","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[35,36],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[38,39],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[39,40],"phonemes":"mu","kind":"cmavo"}}]"""
 
@@ -81,70 +37,26 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "fliba",
-      span: [3,8],
-    },
+    Gismu "flíba",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "tu'a",
-          span: [9,13],
-        },
+        lahe: Cmavo "tu'a",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "sotprekarce",
-            span: [17,28],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "sotprekárce",
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [29,31],
-              },
+              goi: Cmavo "pe",
               MathExpression {
-                li: Word {
-                  kind: "cmavo",
-                  phonemes: "li",
-                  span: [32,34],
-                },
+                li: Cmavo "li",
                 Number {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "no",
-                    span: [35,36],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "re",
-                    span: [36,37],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "re",
-                    span: [38,39],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mu",
-                    span: [39,40],
-                  },
+                  Cmavo "no",
+                  Cmavo "re",
+                  Cmavo "re",
+                  Cmavo "mu",
                 },
               },
             },

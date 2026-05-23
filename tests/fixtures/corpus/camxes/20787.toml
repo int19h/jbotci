@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ xu ma núzba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [10,15],
-  },
+  Cmavo "doĭ",
+  Cmavo "xu",
+  Cmavo "ma",
+  Gismu "núzba",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nuzba","kind":"gismu"}}]'
 
@@ -48,29 +32,13 @@ Text {
     Vocative {
       vocative_markers: [
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [0,3],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [4,6],
-          },
+          Cmavo "doĭ",
+          indicator: Cmavo "xu",
         },
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [7,9],
-      },
+      argument: Cmavo "ma",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "nuzba",
-    span: [10,15],
-  },
+  Gismu "núzba",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"xu","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"nuzba","kind":"gismu"}}}}}}}}}}}]}]}'

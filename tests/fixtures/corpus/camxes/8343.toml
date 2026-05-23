@@ -19,27 +19,11 @@ brackets = "([zo kastá'a] brívla ma)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "kasta'a",
-      span: [5,12],
-    },
+    zo: Cmavo "zo",
+    Lujvo "kastá'a",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "brivla",
-    span: [13,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
+  Lujvo "brívla",
+  Cmavo "ma",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,12],"phonemes":"kasta'a","kind":"lujvo"}}},{"Bare":{"span":[13,19],"phonemes":"brivla","kind":"lujvo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -48,30 +32,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [2,4],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "kasta'a",
-        span: [5,12],
-      },
+      zo: Cmavo "zo",
+      Lujvo "kastá'a",
     },
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "brivla",
-      span: [13,19],
-    },
+    Lujvo "brívla",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [20,22],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

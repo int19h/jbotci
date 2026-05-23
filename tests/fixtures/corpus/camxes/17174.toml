@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(fo le lójbo li'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [15,19],
-  },
+  Cmavo "fo",
+  Cmavo "le",
+  Gismu "lójbo",
+  Cmavo "li'o",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"li'o","kind":"cmavo"}}]"""
 
@@ -47,28 +31,12 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fo",
-        span: [3,5],
-      },
+      fa: Cmavo "fo",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
+        descriptor: Cmavo "le",
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [9,14],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "li'o",
-            span: [15,19],
-          },
+          Gismu "lójbo",
+          indicator: Cmavo "li'o",
         },
       },
     },

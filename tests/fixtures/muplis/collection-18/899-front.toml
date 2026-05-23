@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma .a'u do látcmo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'u",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "latcmo",
-    span: [16,22],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
+  Cmavo "a'u",
+  Cmavo "do",
+  Lujvo "látcmo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"a'u","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"latcmo","kind":"lujvo"}}]"""
 
@@ -56,35 +36,15 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [5,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "a'u",
-          span: [9,12],
-        },
+        Cmavo "ma",
+        indicator: Cmavo "a'u",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [13,15],
-    },
+    Cmavo "do",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "latcmo",
-    span: [16,22],
-  },
+  Lujvo "látcmo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}},"indicator":{"span":[9,12],"phonemes":"a'u","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,22],"phonemes":"latcmo","kind":"lujvo"}}}}}}}}}}}]}]}"""

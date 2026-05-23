@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ky sy kánji samsélpla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kanji",
-    span: [5,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [11,20],
-  },
+  Cmavo "ky",
+  Cmavo "sy",
+  Gismu "kánji",
+  Lujvo "samsélpla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"kanji","kind":"gismu"}},{"Bare":{"span":[11,20],"phonemes":"samselpla","kind":"lujvo"}}]'
 
@@ -47,30 +31,14 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "sy",
-          span: [2,4],
-        },
+        Cmavo "ky",
+        Cmavo "sy",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "kanji",
-      span: [5,10],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "samselpla",
-      span: [11,20],
-    },
+    Gismu "kánji",
+    Lujvo "samsélpla",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ky","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"sy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"kanji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,20],"phonemes":"samselpla","kind":"lujvo"}}}}]}}}}}}}}]}]}'

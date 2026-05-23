@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.used. to be cmána)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "used",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmana",
-    span: [11,16],
-  },
+  Cmevla "used",
+  Cmavo "to",
+  Cmavo "be",
+  Gismu "cmána",
 ]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"used","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cmana","kind":"gismu"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,4],"phonemes":"used","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "used",
-      span: [0,4],
-    },
+    Cmevla "used",
   ],
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [5,7],
-      },
+      to: Cmavo "to",
       PreposedBe {
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cmana",
-          span: [11,16],
-        },
+        be: Cmavo "be",
+        Gismu "cmána",
       },
     },
   ],

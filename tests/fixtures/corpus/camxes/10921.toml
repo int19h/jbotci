@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to .oĭ le nándu júfra toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [22,25],
-  },
+  Cmavo "to",
+  Cmavo "oĭ",
+  Cmavo "le",
+  Gismu "nándu",
+  Gismu "júfra",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[22,25],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [4,6],
-        },
+        Cmavo "to",
+        indicator: Cmavo "oĭ",
       },
       Term {
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [7,9],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "nandu",
-                span: [10,15],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "jufra",
-                span: [16,21],
-              },
+              Gismu "nándu",
+              Gismu "júfra",
             },
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [22,25],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

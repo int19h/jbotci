@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.not. jgári)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "not",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgari",
-    span: [4,9],
-  },
+  Cmevla "not",
+  Gismu "jgári",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"jgari","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "not",
-      span: [0,3],
-    },
+    Cmevla "not",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "jgari",
-    span: [4,9],
-  },
+  Gismu "jgári",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"jgari","kind":"gismu"}}}}}}}}}}}]}]}'

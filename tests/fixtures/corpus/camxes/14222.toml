@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'e na tcídu le cfíka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfika",
-    span: [17,22],
-  },
+  Cmavo "ta'e",
+  Cmavo "na",
+  Gismu "tcídu",
+  Cmavo "le",
+  Gismu "cfíka",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cfika","kind":"gismu"}}]"""
 
@@ -50,36 +30,16 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ta'e",
-      span: [0,4],
-    },
+    tense_modal: Cmavo "ta'e",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [8,13],
-      },
+      na: Cmavo "na",
+      Gismu "tcídu",
     },
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [14,16],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cfika",
-        span: [17,22],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "cfíka",
     },
   ],
 }"""

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o ba bínxo lo mélbi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [16,21],
-  },
+  Cmavo "a'o",
+  Cmavo "ba",
+  Gismu "bínxo",
+  Cmavo "lo",
+  Gismu "mélbi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"melbi","kind":"gismu"}}]"""
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [0,3],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [4,6],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [7,12],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "bínxo",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [13,15],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "melbi",
-          span: [16,21],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "mélbi",
       },
     ],
   },

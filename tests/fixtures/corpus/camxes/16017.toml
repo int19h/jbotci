@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(poĭ rémna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [4,9],
-  },
+  Cmavo "poĭ",
+  Gismu "rémna",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"remna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [4,9],
-  },
+  poi: Cmavo "poĭ",
+  Gismu "rémna",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"remna","kind":"gismu"}}}}}}}}}}}}]}}}]}]}'

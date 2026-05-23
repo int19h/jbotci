@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i mi zmáneĭ le xúnre kréfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zmaneĭ",
-    span: [8,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krefu",
-    span: [24,29],
-  },
+  Cmavo "u'i",
+  Cmavo "mi",
+  Lujvo "zmáneĭ",
+  Cmavo "le",
+  Gismu "xúnre",
+  Gismu "kréfu",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"zmaneĭ","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"krefu","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "zmaneĭ",
-        span: [8,14],
-      },
+      Lujvo "zmáneĭ",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "xunre",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "krefu",
-              span: [24,29],
-            },
+            Gismu "xúnre",
+            Gismu "kréfu",
           },
         },
       ],

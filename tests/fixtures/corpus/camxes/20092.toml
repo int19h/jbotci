@@ -18,115 +18,43 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i le bémro me la zdabártu djédi cu símsa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bemro",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zdabartu",
-    span: [17,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [35,40],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "bémro",
+  Cmavo "me",
+  Cmavo "la",
+  Lujvo "zdabártu",
+  Gismu "djédi",
+  Cmavo "cu",
+  Gismu "símsa",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"bemro","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,25],"phonemes":"zdabartu","kind":"lujvo"}},{"Bare":{"span":[26,31],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"simsa","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "bemro",
-            span: [5,10],
-          },
+          Gismu "bémro",
           Me {
-            me: Word {
-              kind: "cmavo",
-              phonemes: "me",
-              span: [11,13],
-            },
+            me: Cmavo "me",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [14,16],
-              },
+              descriptor: Cmavo "la",
               relation: Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "zdabartu",
-                  span: [17,25],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "djedi",
-                  span: [26,31],
-                },
+                Lujvo "zdabártu",
+                Gismu "djédi",
               },
             },
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [32,34],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "simsa",
-      span: [35,40],
-    },
+    cu: Cmavo "cu",
+    Gismu "símsa",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"bemro","kind":"gismu"}}}},{"Me":{"me":{"Bare":{"Bare":{"span":[11,13],"phonemes":"me","kind":"cmavo"}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[17,25],"phonemes":"zdabartu","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"djedi","kind":"gismu"}}}}]}}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[32,34],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[35,40],"phonemes":"simsa","kind":"gismu"}}}}}}}}}}}]}]}'

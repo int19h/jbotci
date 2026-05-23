@@ -20,22 +20,10 @@ tree = """
 [
   Letter {
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "su",
-        span: [3,5],
-      },
+      zo: Cmavo "zo",
+      Cmavo "su",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [6,8],
-    },
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"su","kind":"cmavo"}}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -48,22 +36,10 @@ Term {
       letter: [
         Letter {
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [0,2],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "su",
-              span: [3,5],
-            },
+            zo: Cmavo "zo",
+            Cmavo "su",
           },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [6,8],
-          },
+          bu: Cmavo "bu",
         },
       ],
     },

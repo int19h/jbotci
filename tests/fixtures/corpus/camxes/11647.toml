@@ -19,58 +19,18 @@ brackets = "([zoĭ xy s,, xy] ge na glíco gi me la .ĭuniks.)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [4,6],
-    },
-    quoted_text: [6,10],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [11,13],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "xy",
+    quoted_text: Verbatim "s,,",
+    closing_delimiter: Cmavo "xy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ĭuniks",
-    span: [35,41],
-  },
+  Cmavo "ge",
+  Cmavo "na",
+  Gismu "glíco",
+  Cmavo "gi",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "ĭuniks",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"xy","kind":"cmavo"},"quoted_text":[6,10],"closing_delimiter":{"span":[11,13],"phonemes":"xy","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,41],"phonemes":"ĭuniks","kind":"cmevla"}}]'
 
@@ -79,65 +39,25 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "xy",
-        span: [4,6],
-      },
-      quoted_text: [6,10],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "xy",
-        span: [11,13],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "xy",
+      quoted_text: Verbatim "s,,",
+      closing_delimiter: Cmavo "xy",
     },
   ],
   Pair {
-    gek: Word {
-      kind: "cmavo",
-      phonemes: "ge",
-      span: [14,16],
-    },
+    gek: Cmavo "ge",
     first: Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [17,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "glico",
-        span: [20,25],
-      },
+      na: Cmavo "na",
+      Gismu "glíco",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [26,28],
-    },
+    gik: Cmavo "gi",
     second: Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [29,31],
-      },
+      me: Cmavo "me",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [32,34],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ĭuniks",
-            span: [35,41],
-          },
+          Cmevla "ĭuniks",
         ],
       },
     },

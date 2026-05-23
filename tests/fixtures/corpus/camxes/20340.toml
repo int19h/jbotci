@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma'a cúsku so'i da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
+  Cmavo "ma'a",
+  Gismu "cúsku",
+  Cmavo "so'i",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[11,15],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -45,30 +29,14 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma'a",
-      span: [0,4],
-    },
+    Cmavo "ma'a",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [5,10],
-    },
+    Gismu "cúsku",
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "so'i",
-          span: [11,15],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [16,18],
-        },
+        quantifier: Cmavo "so'i",
+        Cmavo "da",
       },
     ],
   },

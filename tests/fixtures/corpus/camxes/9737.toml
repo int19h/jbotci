@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.ok. mi ca jaĭ sísti)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ok",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [13,18],
-  },
+  Cmevla "ok",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "jaĭ",
+  Gismu "sísti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ok","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"sisti","kind":"gismu"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ok","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ok",
-      span: [0,2],
-    },
+    Cmevla "ok",
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "ca",
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [9,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sisti",
-          span: [13,18],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "sísti",
       },
     },
   },

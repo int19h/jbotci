@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ ky mi ji'a nánca li pa bi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [26,28],
-  },
+  Cmavo "doĭ",
+  Cmavo "ky",
+  Cmavo "mi",
+  Cmavo "ji'a",
+  Gismu "nánca",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "bi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nanca","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"bi","kind":"cmavo"}}]"""
 
@@ -67,19 +35,11 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ky",
-            span: [4,6],
-          },
+          Cmavo "ky",
         ],
       },
     },
@@ -87,42 +47,18 @@ Text {
   Predicate {
     leading_terms: [
       WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [7,9],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [10,14],
-        },
+        Cmavo "mi",
+        indicator: Cmavo "ji'a",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nanca",
-        span: [15,20],
-      },
+      Gismu "nánca",
       terms: [
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [21,23],
-          },
+          li: Cmavo "li",
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [24,26],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "bi",
-              span: [26,28],
-            },
+            Cmavo "pa",
+            Cmavo "bi",
           },
         },
       ],

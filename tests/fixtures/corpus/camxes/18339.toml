@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ja'o za'o de'a bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [15,20],
-  },
+  Cmavo "ja'o",
+  Cmavo "za'o",
+  Cmavo "de'a",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ja'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"de'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ja'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ja'o",
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "za'o",
-        span: [5,9],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "de'a",
-        span: [10,14],
-      },
+      Cmavo "za'o",
+      Cmavo "de'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [15,20],
-    },
+    Gismu "bróda",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,9],"phonemes":"za'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,14],"phonemes":"de'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ja'o","kind":"cmavo"}}}}]}"""

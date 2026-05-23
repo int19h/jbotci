@@ -18,76 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(me le lórxu .e le vánjba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lorxu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vanjba",
-    span: [18,24],
-  },
+  Cmavo "me",
+  Cmavo "le",
+  Gismu "lórxu",
+  Cmavo "e",
+  Cmavo "le",
+  Lujvo "vánjba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"lorxu","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"vanjba","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Me {
-  me: Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
+  me: Cmavo "me",
   Connected {
     leading_argument: Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "lorxu",
-        span: [6,11],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "lórxu",
     },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [13,14],
-    },
+    connective: Cmavo "e",
     trailing_argument: Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [15,17],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "vanjba",
-        span: [18,24],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "vánjba",
     },
   },
 }"""

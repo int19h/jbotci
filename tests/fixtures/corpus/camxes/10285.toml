@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i níxli joĭ nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [1,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [11,16],
-  },
+  Cmavo "i",
+  Gismu "níxli",
+  Cmavo "joĭ",
+  Gismu "nínmu",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,6],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[7,10],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"ninmu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "nixli",
-      span: [1,6],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "joĭ",
-      span: [7,10],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "ninmu",
-      span: [11,16],
-    },
+    leading_relation: Gismu "níxli",
+    connective: Cmavo "joĭ",
+    trailing_relation: Gismu "nínmu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[1,6],"phonemes":"nixli","kind":"gismu"}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[7,10],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"ninmu","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -18,99 +18,27 @@ error = { position = 7, allowed-next = [] }
 brackets = "(ta'o le pa moĭ me le [dénpa bu] li'u pe [lo'u la .lojban. le'u] na págbu la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
+  Cmavo "ta'o",
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "me",
+  Cmavo "le",
   Letter {
-    Word {
-      kind: "gismu",
-      phonemes: "denpa",
-      span: [20,25],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [26,28],
-    },
+    Gismu "dénpa",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [34,36],
-  },
+  Cmavo "li'u",
+  Cmavo "pe",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [37,41],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [42,44],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "lojban",
-      span: [46,52],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [54,58],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "la",
+    Cmevla "lojban",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [59,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [62,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [68,70],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [71,77],
-  },
+  Cmavo "na",
+  Gismu "págbu",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[20,25],"phonemes":"denpa","kind":"gismu"}},"bu":{"span":[26,28],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[29,33],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"pe","kind":"cmavo"}},{"LohuQuote":{"lohu":{"span":[37,41],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[42,44],"phonemes":"la","kind":"cmavo"},{"span":[46,52],"phonemes":"lojban","kind":"cmevla"}],"lehu":{"span":[54,58],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[59,61],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[62,67],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[68,70],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[71,77],"phonemes":"lojban","kind":"cmevla"}}]"""

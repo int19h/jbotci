@@ -19,86 +19,22 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le do jámfu cu lámji lo cmálu rajyké'a noĭ vásxu krási loĭ rajyké'a be loĭ blábi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamfu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lamji",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [25,30],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rajyke'a",
-    span: [31,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasxu",
-    span: [44,49],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krasi",
-    span: [50,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [56,59],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rajyke'a",
-    span: [60,68],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [69,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [72,75],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blabi",
-    span: [76,81],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "jámfu",
+  Cmavo "cu",
+  Gismu "lámji",
+  Cmavo "lo",
+  Gismu "cmálu",
+  Lujvo "rajyké'a",
+  Cmavo "noĭ",
+  Gismu "vásxu",
+  Gismu "krási",
+  Cmavo "loĭ",
+  Lujvo "rajyké'a",
+  Cmavo "be",
+  Cmavo "loĭ",
+  Gismu "blábi",
 ]"""
 json = """[{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"jamfu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"lamji","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[31,39],"phonemes":"rajyke'a","kind":"lujvo"}},{"Bare":{"span":[40,43],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"vasxu","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"krasi","kind":"gismu"}},{"Bare":{"span":[56,59],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[60,68],"phonemes":"rajyke'a","kind":"lujvo"}},{"Bare":{"span":[69,71],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[72,75],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[76,81],"phonemes":"blabi","kind":"gismu"}}]"""
 
@@ -107,104 +43,40 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [2,4],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [4,6],
-        },
+        Cmavo "do",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jamfu",
-        span: [7,12],
-      },
+      relation: Gismu "jámfu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "lamji",
-      span: [16,21],
-    },
+    Gismu "lámji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [22,24],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmalu",
-            span: [25,30],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "rajyke'a",
-            span: [31,39],
-          },
+          Gismu "cmálu",
+          Lujvo "rajyké'a",
         },
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [40,43],
-            },
+            noi: Cmavo "noĭ",
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "vasxu",
-                  span: [44,49],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "krasi",
-                  span: [50,55],
-                },
+                Gismu "vásxu",
+                Gismu "krási",
               },
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "loĭ",
-                    span: [56,59],
-                  },
+                  descriptor: Cmavo "loĭ",
                   relation: Be {
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "rajyke'a",
-                      span: [60,68],
-                    },
-                    be: Word {
-                      kind: "cmavo",
-                      phonemes: "be",
-                      span: [69,71],
-                    },
+                    Lujvo "rajyké'a",
+                    be: Cmavo "be",
                     first_argument: Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "loĭ",
-                        span: [72,75],
-                      },
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "blabi",
-                        span: [76,81],
-                      },
+                      descriptor: Cmavo "loĭ",
+                      relation: Gismu "blábi",
                     },
                   },
                 },

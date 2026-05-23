@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(císka je naĭ bácru)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [12,17],
-  },
+  Gismu "císka",
+  Cmavo "je",
+  Cmavo "naĭ",
+  Gismu "bácru",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"bacru","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [0,5],
-  },
+  leading_relation: Gismu "císka",
   connective: Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [6,8],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [8,11],
-    },
+    Cmavo "je",
+    nai: Cmavo "naĭ",
   },
-  trailing_relation: Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [12,17],
-  },
+  trailing_relation: Gismu "bácru",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"ciska","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"bacru","kind":"gismu"}}}}}}}}}}}}}]}]}'

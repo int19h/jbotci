@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la zárci me ma nu kláma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [18,23],
-  },
+  Cmavo "la",
+  Gismu "zárci",
+  Cmavo "me",
+  Cmavo "ma",
+  Cmavo "nu",
+  Gismu "kláma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"klama","kind":"gismu"}}]'
 
@@ -56,40 +32,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [3,8],
-        },
+        Gismu "zárci",
         Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [12,14],
-          },
+          me: Cmavo "me",
+          Cmavo "ma",
         },
         Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [15,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "klama",
-            span: [18,23],
-          },
+          nu: Cmavo "nu",
+          Gismu "kláma",
         },
       },
     },

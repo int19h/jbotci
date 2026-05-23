@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do datpápri kláma kákne te zu'e le nu termifterckíku sámpu pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "datpapri",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'e",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [33,35],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "termifterckiku",
-    span: [36,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sampu",
-    span: [51,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [57,62],
-  },
+  Cmavo "do",
+  Lujvo "datpápri",
+  Gismu "kláma",
+  Gismu "kákne",
+  Cmavo "te",
+  Cmavo "zu'e",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "termifterckíku",
+  Gismu "sámpu",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"datpapri","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,50],"phonemes":"termifterckiku","kind":"lujvo"}},{"Bare":{"span":[51,56],"phonemes":"sampu","kind":"gismu"}},{"Bare":{"span":[57,62],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -80,72 +36,28 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "datpapri",
-        span: [3,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [12,17],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kakne",
-        span: [18,23],
-      },
+      Lujvo "datpápri",
+      Gismu "kláma",
+      Gismu "kákne",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [24,26],
-          },
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "zu'e",
-            span: [26,30],
-          },
+          se: Cmavo "te",
+          bai: Cmavo "zu'e",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [31,33],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [33,35],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "lujvo",
-                phonemes: "termifterckiku",
-                span: [36,50],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "sampu",
-                span: [51,56],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "pilno",
-                span: [57,62],
-              },
+              Lujvo "termifterckíku",
+              Gismu "sámpu",
+              Gismu "pílno",
             },
           },
         },

@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu li mo'a ni seljínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seljinga",
-    span: [14,22],
-  },
+  Cmavo "xu",
+  Cmavo "li",
+  Cmavo "mo'a",
+  Cmavo "ni",
+  Lujvo "seljínga",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"mo'a","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[14,22],"phonemes":"seljinga","kind":"lujvo"}}]"""
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mo'a",
-          span: [6,10],
-        },
+        li: Cmavo "li",
+        Cmavo "mo'a",
       },
     ],
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "ni",
-        span: [11,13],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "seljinga",
-        span: [14,22],
-      },
+      nu: Cmavo "ni",
+      Lujvo "seljínga",
     },
   },
 }"""

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .kreĭg. coĭ tsáli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kreĭg",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [14,19],
-  },
+  Cmavo "coĭ",
+  Cmevla "kreĭg",
+  Cmavo "coĭ",
+  Gismu "tsáli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"kreĭg","kind":"cmevla"}},{"Bare":{"span":[10,13],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"tsali","kind":"gismu"}}]'
 
@@ -47,33 +31,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "kreĭg",
-          span: [4,9],
-        },
+        Cmevla "kreĭg",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "coĭ",
-                span: [10,13],
-              },
+              Cmavo "coĭ",
             ],
             argument: RelationVocative {
-              relation: Word {
-                kind: "gismu",
-                phonemes: "tsali",
-                span: [14,19],
-              },
+              relation: Gismu "tsáli",
             },
           },
         ],

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o to le nu gúnka toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [19,22],
-  },
+  Cmavo "co'o",
+  Cmavo "to",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "gúnka",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -57,47 +33,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
       free_modifiers: [
         To {
-          to: Word {
-            kind: "cmavo",
-            phonemes: "to",
-            span: [5,7],
-          },
+          to: Cmavo "to",
           Term {
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [8,10],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "nu",
-                    span: [10,12],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "gunka",
-                    span: [13,18],
-                  },
+                  nu: Cmavo "nu",
+                  Gismu "gúnka",
                 },
               },
             ],
           },
-          toi: Word {
-            kind: "cmavo",
-            phonemes: "toĭ",
-            span: [19,22],
-          },
+          toi: Cmavo "toĭ",
         },
       ],
     },

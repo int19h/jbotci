@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le pu'u kákpa be le ctíle cu na cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakpa",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctile",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [35,40],
-  },
+  Cmavo "le",
+  Cmavo "pu'u",
+  Gismu "kákpa",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "ctíle",
+  Cmavo "cu",
+  Cmavo "na",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"pu'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"kakpa","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ctile","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -71,60 +35,24 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "pu'u",
-          span: [6,10],
-        },
+        nu: Cmavo "pu'u",
         Be {
-          Word {
-            kind: "gismu",
-            phonemes: "kakpa",
-            span: [11,16],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [17,19],
-          },
+          Gismu "kákpa",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [20,22],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "ctile",
-              span: [23,28],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "ctíle",
           },
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
+  cu: Cmavo "cu",
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [32,34],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [35,40],
-    },
+    na: Cmavo "na",
+    Gismu "cínri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[6,10],"phonemes":"pu'u","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"kakpa","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[17,19],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"ctile","kind":"gismu"}}}}}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[29,31],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[32,34],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[35,40],"phonemes":"cinri","kind":"gismu"}}}}}}}}}}}}}]}]}"""

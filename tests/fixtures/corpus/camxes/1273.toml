@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi cu sútra kláma la .meris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Cmavo "cu",
+  Gismu "sútra",
+  Gismu "kláma",
+  Cmavo "la",
+  Cmevla "meris",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"meris","kind":"cmevla"}}]'
 
@@ -56,43 +32,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [4,6],
-  },
+  cu: Cmavo "cu",
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "sutra",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [14,19],
-      },
+      Gismu "sútra",
+      Gismu "kláma",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [20,22],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "meris",
-            span: [23,28],
-          },
+          Cmevla "meris",
         ],
       },
     ],

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi tráji bébna .i ro do bílga le zu'o xámgu zmádu fánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bebna",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [19,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilga",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu'o",
-    span: [34,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [45,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [51,56],
-  },
+  Cmavo "mi",
+  Gismu "tráji",
+  Gismu "bébna",
+  Cmavo "i",
+  Cmavo "ro",
+  Cmavo "do",
+  Gismu "bílga",
+  Cmavo "le",
+  Cmavo "zu'o",
+  Gismu "xámgu",
+  Gismu "zmádu",
+  Gismu "fánva",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[19,20],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"zu'o","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[51,56],"phonemes":"fanva","kind":"gismu"}}]"""
 
@@ -86,81 +38,33 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "traji",
-        span: [6,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "bebna",
-        span: [12,17],
-      },
+      Gismu "tráji",
+      Gismu "bébna",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [19,20],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [21,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [23,25],
-          },
+          quantifier: Cmavo "ro",
+          Cmavo "do",
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "bilga",
-          span: [26,31],
-        },
+        Gismu "bílga",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [32,34],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "zu'o",
-                span: [34,38],
-              },
+              nu: Cmavo "zu'o",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "xamgu",
-                  span: [39,44],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "zmadu",
-                  span: [45,50],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "fanva",
-                  span: [51,56],
-                },
+                Gismu "xámgu",
+                Gismu "zmádu",
+                Gismu "fánva",
               },
             },
           },

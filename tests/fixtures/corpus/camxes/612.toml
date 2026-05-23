@@ -18,86 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .lisas. mi djíca le nu to doĭ .frank. ko sísti toĭ do víska le mlátu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lisas",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frank",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sisti",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [49,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [53,55],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [56,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [62,64],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [65,70],
-  },
+  Cmavo "doĭ",
+  Cmevla "lisas",
+  Cmavo "mi",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "to",
+  Cmavo "doĭ",
+  Cmevla "frank",
+  Cmavo "ko",
+  Gismu "sísti",
+  Cmavo "toĭ",
+  Cmavo "do",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "mlátu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"lisas","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[40,42],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"sisti","kind":"gismu"}},{"Bare":{"span":[49,52],"phonemes":"toĭ","kind":"cmavo"}},{"Bare":{"span":[53,55],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[56,61],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[62,64],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[65,70],"phonemes":"mlatu","kind":"gismu"}}]'
 
@@ -107,116 +43,52 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "lisas",
-        span: [4,9],
-      },
+      argument: Cmevla "lisas",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [11,13],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [14,19],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [23,25],
-            },
+            nu: Cmavo "nu",
             free_modifiers: [
               To {
-                to: Word {
-                  kind: "cmavo",
-                  phonemes: "to",
-                  span: [26,28],
-                },
+                to: Cmavo "to",
                 free_modifiers: [
                   Vocative {
                     vocative_markers: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "doĭ",
-                        span: [29,32],
-                      },
+                      Cmavo "doĭ",
                     ],
-                    argument: Word {
-                      kind: "cmevla",
-                      phonemes: "frank",
-                      span: [33,38],
-                    },
+                    argument: Cmevla "frank",
                   },
                 ],
                 Predicate {
                   leading_terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ko",
-                      span: [40,42],
-                    },
+                    Cmavo "ko",
                   ],
-                  Word {
-                    kind: "gismu",
-                    phonemes: "sisti",
-                    span: [43,48],
-                  },
+                  Gismu "sísti",
                 },
-                toi: Word {
-                  kind: "cmavo",
-                  phonemes: "toĭ",
-                  span: [49,52],
-                },
+                toi: Cmavo "toĭ",
               },
             ],
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [53,55],
-                },
+                Cmavo "do",
               ],
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "viska",
-                  span: [56,61],
-                },
+                Gismu "víska",
                 terms: [
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [62,64],
-                    },
-                    relation: Word {
-                      kind: "gismu",
-                      phonemes: "mlatu",
-                      span: [65,70],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Gismu "mlátu",
                   },
                 ],
               },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a do skámi zváti le gugrkanáda .ŭe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "gugrkanada",
-    span: [23,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [35,37],
-  },
+  Cmavo "za'a",
+  Cmavo "do",
+  Gismu "skámi",
+  Gismu "zváti",
+  Cmavo "le",
+  Fuhivla "gugrkanáda",
+  Cmavo "ŭe",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,33],"phonemes":"gugrkanada","kind":"fu'ivla"}},{"Bare":{"span":[35,37],"phonemes":"ŭe","kind":"cmavo"}}]"""
 
@@ -61,52 +33,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [14,19],
-        },
+        Gismu "skámi",
+        Gismu "zváti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: WithIndicator {
-            Word {
-              kind: "fu'ivla",
-              phonemes: "gugrkanada",
-              span: [23,33],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ŭe",
-              span: [35,37],
-            },
+            Fuhivla "gugrkanáda",
+            indicator: Cmavo "ŭe",
           },
         },
       ],

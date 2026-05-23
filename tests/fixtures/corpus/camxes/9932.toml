@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko na kríci fi lo cesyselmánci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cesyselmanci",
-    span: [20,32],
-  },
+  Cmavo "ko",
+  Cmavo "na",
+  Gismu "kríci",
+  Cmavo "fi",
+  Cmavo "lo",
+  Lujvo "cesyselmánci",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[20,32],"phonemes":"cesyselmanci","kind":"lujvo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [3,5],
-    },
+    Cmavo "ko",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "krici",
-        span: [9,14],
-      },
+      na: Cmavo "na",
+      Gismu "kríci",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [15,17],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [18,20],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "cesyselmanci",
-            span: [20,32],
-          },
+          descriptor: Cmavo "lo",
+          relation: Lujvo "cesyselmánci",
         },
       },
     ],

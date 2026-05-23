@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko djúno fi le bangrnórge kambácru tádji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "bangrnorge",
-    span: [15,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kambacru",
-    span: [26,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadji",
-    span: [35,40],
-  },
+  Cmavo "ko",
+  Gismu "djúno",
+  Cmavo "fi",
+  Cmavo "le",
+  Fuhivla "bangrnórge",
+  Lujvo "kambácru",
+  Gismu "tádji",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,25],"phonemes":"bangrnorge","kind":"fu'ivla"}},{"Bare":{"span":[26,34],"phonemes":"kambacru","kind":"lujvo"}},{"Bare":{"span":[35,40],"phonemes":"tadji","kind":"gismu"}}]"""
 
@@ -60,47 +32,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [3,8],
-    },
+    Gismu "djúno",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [9,11],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "fu'ivla",
-              phonemes: "bangrnorge",
-              span: [15,25],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "kambacru",
-              span: [26,34],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tadji",
-              span: [35,40],
-            },
+            Fuhivla "bangrnórge",
+            Lujvo "kambácru",
+            Gismu "tádji",
           },
         },
       },

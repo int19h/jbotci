@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ci re'u ca pa lo cácra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [17,22],
-  },
+  Cmavo "ci",
+  Cmavo "re'u",
+  Cmavo "ca",
+  Cmavo "pa",
+  Cmavo "lo",
+  Gismu "cácra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"re'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cacra","kind":"gismu"}}]"""
 
@@ -57,41 +33,17 @@ Term {
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "re'u",
-          span: [3,7],
-        },
+        Cmavo "ci",
+        Cmavo "re'u",
       },
       Zohe {},
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [8,10],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [14,16],
-        },
-        outer_quantifier: Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "cacra",
-          span: [17,22],
-        },
+        descriptor: Cmavo "lo",
+        outer_quantifier: Cmavo "pa",
+        relation: Gismu "cácra",
       },
     },
   ],

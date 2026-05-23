@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi cu je'u na mórji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "cu",
+  Cmavo "je'u",
+  Cmavo "na",
+  Gismu "mórji",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"je'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"morji","kind":"gismu"}}]"""
 
@@ -58,42 +34,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {cu je'u} {na mórji}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     cu: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [6,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "je'u",
-        span: [9,13],
-      },
+      Cmavo "cu",
+      indicator: Cmavo "je'u",
     },
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [14,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "morji",
-        span: [17,22],
-      },
+      na: Cmavo "na",
+      Gismu "mórji",
     },
   },
 }"""

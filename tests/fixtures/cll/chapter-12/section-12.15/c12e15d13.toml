@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djudis. cu cítraĭ lo'i lóbypli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djudis",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "citraĭ",
-    span: [15,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [22,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lobypli",
-    span: [27,34],
-  },
+  Cmavo "la",
+  Cmevla "djudis",
+  Cmavo "cu",
+  Lujvo "cítraĭ",
+  Cmavo "lo'i",
+  Lujvo "lóbypli",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"djudis","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,21],"phonemes":"citraĭ","kind":"lujvo"}},{"Bare":{"span":[22,26],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[27,34],"phonemes":"lobypli","kind":"lujvo"}}]"""
 
@@ -63,43 +39,19 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djudis",
-          span: [4,10],
-        },
+        Cmevla "djudis",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "citraĭ",
-      span: [15,21],
-    },
+    Lujvo "cítraĭ",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'i",
-          span: [22,26],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "lobypli",
-          span: [27,34],
-        },
+        descriptor: Cmavo "lo'i",
+        relation: Lujvo "lóbypli",
       },
     ],
   },

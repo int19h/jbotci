@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la jbovláste cu cíkre .i co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovlaste",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [25,29],
-  },
+  Cmavo "la",
+  Lujvo "jbovláste",
+  Cmavo "cu",
+  Gismu "cíkre",
+  Cmavo "i",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"jbovlaste","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -57,43 +33,19 @@ Paragraph {
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "jbovlaste",
-          span: [3,12],
-        },
+        descriptor: Cmavo "la",
+        relation: Lujvo "jbovláste",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [16,21],
-    },
+    cu: Cmavo "cu",
+    Gismu "cíkre",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [25,29],
-          },
+          Cmavo "co'o",
         ],
       },
     ],

@@ -18,42 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu da cpácu le [mo zeĭ cúkta])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
+  Cmavo "xu",
+  Cmavo "da",
+  Gismu "cpácu",
+  Cmavo "le",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [15,17],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [18,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cukta",
-      span: [22,27],
-    },
+    left: Cmavo "mo",
+    zei: Cmavo "zeĭ",
+    Gismu "cúkta",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[15,17],"phonemes":"mo","kind":"cmavo"}},"zei":{"span":[18,21],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[22,27],"phonemes":"cukta","kind":"gismu"}}}]'
@@ -63,50 +35,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cpacu",
-        span: [6,11],
-      },
+      Gismu "cpácu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: ZeiLujvo {
-            left: Word {
-              kind: "cmavo",
-              phonemes: "mo",
-              span: [15,17],
-            },
-            zei: Word {
-              kind: "cmavo",
-              phonemes: "zeĭ",
-              span: [18,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "cukta",
-              span: [22,27],
-            },
+            left: Cmavo "mo",
+            zei: Cmavo "zeĭ",
+            Gismu "cúkta",
           },
         },
       ],

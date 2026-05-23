@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to .u'i le ka plúja cu bánzu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [29,32],
-  },
+  Cmavo "to",
+  Cmavo "u'i",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "plúja",
+  Cmavo "cu",
+  Gismu "bánzu",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"pluja","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"banzu","kind":"gismu"}},{"Bare":{"span":[29,32],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -67,55 +35,23 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "u'i",
-          span: [4,7],
-        },
+        Cmavo "to",
+        indicator: Cmavo "u'i",
       },
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [8,10],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ka",
-                span: [11,13],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "pluja",
-                span: [14,19],
-              },
+              nu: Cmavo "ka",
+              Gismu "plúja",
             },
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [20,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "banzu",
-          span: [23,28],
-        },
+        cu: Cmavo "cu",
+        Gismu "bánzu",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [29,32],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

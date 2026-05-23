@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.eĭ clíva .i co'o .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [19,21],
-  },
+  Cmavo "eĭ",
+  Gismu "clíva",
+  Cmavo "i",
+  Cmavo "co'o",
+  Cmavo "ŭi",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ŭi","kind":"cmavo"}}]"""
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "eĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "eĭ",
     },
   ],
   Paragraph {
-    Word {
-      kind: "gismu",
-      phonemes: "cliva",
-      span: [4,9],
-    },
+    Gismu "clíva",
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [11,12],
-      },
+      i: Cmavo "i",
       free_modifiers: [
         Vocative {
           vocative_markers: [
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "co'o",
-                span: [13,17],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ŭi",
-                span: [19,21],
-              },
+              Cmavo "co'o",
+              indicator: Cmavo "ŭi",
             },
           ],
         },

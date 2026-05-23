@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ le mi djaruntyrángo cu di'i slámi córtu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djaruntyrango",
-    span: [10,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'i",
-    span: [27,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slami",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [38,43],
-  },
+  Cmavo "oĭ",
+  Cmavo "le",
+  Cmavo "mi",
+  Lujvo "djaruntyrángo",
+  Cmavo "cu",
+  Cmavo "di'i",
+  Gismu "slámi",
+  Gismu "córtu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,23],"phonemes":"djaruntyrango","kind":"lujvo"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"di'i","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"slami","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"cortu","kind":"gismu"}}]"""
 
@@ -66,57 +34,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [7,9],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "djaruntyrango",
-          span: [10,23],
-        },
+        relation: Lujvo "djaruntyrángo",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [24,26],
-    },
+    cu: Cmavo "cu",
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "di'i",
-        span: [27,31],
-      },
+      tense_modal: Cmavo "di'i",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "slami",
-          span: [32,37],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cortu",
-          span: [38,43],
-        },
+        Gismu "slámi",
+        Gismu "córtu",
       },
     },
   },

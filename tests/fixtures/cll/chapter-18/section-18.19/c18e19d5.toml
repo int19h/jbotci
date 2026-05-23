@@ -24,16 +24,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(nu'a su'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [5,9],
-  },
+  Cmavo "nu'a",
+  Cmavo "su'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"nu'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"su'i","kind":"cmavo"}}]"""
 
@@ -41,15 +33,7 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"nu'a","kind":"cmavo"}},{"Bare":{"sp
 brackets = "(nu'a su'i)"
 tree = """
 Nuha {
-  nuha: Word {
-    kind: "cmavo",
-    phonemes: "nu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'i",
-    span: [5,9],
-  },
+  nuha: Cmavo "nu'a",
+  Cmavo "su'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nuha":{"nuha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"nu'a","kind":"cmavo"}}},"math_operator":{"Vuhu":{"Bare":{"Bare":{"span":[5,9],"phonemes":"su'i","kind":"cmavo"}}}}}}]}}}}}}}}]}]}"""

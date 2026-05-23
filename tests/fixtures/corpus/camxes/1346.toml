@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi cítka pi no'o leĭ nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'o",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [20,25],
-  },
+  Cmavo "mi",
+  Gismu "cítka",
+  Cmavo "pi",
+  Cmavo "no'o",
+  Cmavo "leĭ",
+  Gismu "nánba",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"no'o","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"nanba","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "citka",
-      span: [3,8],
-    },
+    Gismu "cítka",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [16,19],
-        },
+        descriptor: Cmavo "leĭ",
         outer_quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [9,11],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no'o",
-            span: [11,15],
-          },
+          Cmavo "pi",
+          Cmavo "no'o",
         },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanba",
-          span: [20,25],
-        },
+        relation: Gismu "nánba",
       },
     ],
   },

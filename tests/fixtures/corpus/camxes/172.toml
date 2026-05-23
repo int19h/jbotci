@@ -18,28 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do [zo si] bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
+  Cmavo "do",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [15,20],
-  },
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[15,20],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -47,28 +31,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"ZoQuote":{"zo"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [12,14],
-      },
+      zo: Cmavo "zo",
+      Cmavo "si",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [15,20],
-  },
+  Gismu "bróda",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}},{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"si","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}]}]}'

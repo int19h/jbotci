@@ -21,21 +21,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e do'i lu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'u",
-    span: [10,14],
-  },
+  Cmavo "la'e",
+  Cmavo "do'i",
+  Cmavo "lu'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'i","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"lu'u","kind":"cmavo"}}]"""
 
@@ -45,21 +33,9 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "do'i",
-        span: [5,9],
-      },
-      luhu: Word {
-        kind: "cmavo",
-        phonemes: "lu'u",
-        span: [10,14],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "do'i",
+      luhu: Cmavo "lu'u",
     },
   ],
 }"""

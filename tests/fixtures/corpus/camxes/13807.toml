@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti lójbo .i ta lójbo baĭ la .daktrpepr. .i xu da préti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "daktrpepr",
-    span: [28,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [41,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [49,54],
-  },
+  Cmavo "ti",
+  Gismu "lójbo",
+  Cmavo "i",
+  Cmavo "ta",
+  Gismu "lójbo",
+  Cmavo "baĭ",
+  Cmavo "la",
+  Cmevla "daktrpepr",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "da",
+  Gismu "préti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,38],"phonemes":"daktrpepr","kind":"cmevla"}},{"Bare":{"span":[41,42],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"preti","kind":"gismu"}}]'
 
@@ -86,59 +38,27 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [0,2],
-      },
+      Cmavo "ti",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "lojbo",
-      span: [3,8],
-    },
+    Gismu "lójbo",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ta",
-          span: [12,14],
-        },
+        Cmavo "ta",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [15,20],
-        },
+        Gismu "lójbo",
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "baĭ",
-                span: [21,24],
-              },
+              bai: Cmavo "baĭ",
             },
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [25,27],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "daktrpepr",
-                  span: [28,38],
-                },
+                Cmevla "daktrpepr",
               ],
             },
           },
@@ -148,30 +68,14 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [41,42],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [43,45],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [46,48],
-        },
+        Cmavo "da",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [49,54],
-      },
+      Gismu "préti",
     },
   },
 }"""

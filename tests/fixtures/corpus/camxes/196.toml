@@ -19,47 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le [{(zoĭ .i bu cgi-bin .i) bu} zeĭ samsélpla])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
+  Cmavo "le",
   ZeiLujvo {
     left: Letter {
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [3,6],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [7,8],
-        },
-        quoted_text: [8,18],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [19,20],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "i",
+        quoted_text: Verbatim "bu cgi-bin",
+        closing_delimiter: Cmavo "i",
       },
-      bu: Word {
-        kind: "cmavo",
-        phonemes: "bu",
-        span: [20,22],
-      },
+      bu: Cmavo "bu",
     },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [23,26],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "samselpla",
-      span: [27,36],
-    },
+    zei: Cmavo "zeĭ",
+    Lujvo "samsélpla",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,8],"phonemes":"i","kind":"cmavo"},"quoted_text":[8,18],"closing_delimiter":{"span":[19,20],"phonemes":"i","kind":"cmavo"}}},"bu":{"span":[20,22],"phonemes":"bu","kind":"cmavo"}}},"zei":{"span":[23,26],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[27,36],"phonemes":"samselpla","kind":"lujvo"}}}]'
@@ -69,47 +41,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: ZeiLujvo {
         left: Letter {
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [3,6],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "i",
-              span: [7,8],
-            },
-            quoted_text: [8,18],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "i",
-              span: [19,20],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "i",
+            quoted_text: Verbatim "bu cgi-bin",
+            closing_delimiter: Cmavo "i",
           },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [20,22],
-          },
+          bu: Cmavo "bu",
         },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [23,26],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "samselpla",
-          span: [27,36],
-        },
+        zei: Cmavo "zeĭ",
+        Lujvo "samsélpla",
       },
     },
   ],

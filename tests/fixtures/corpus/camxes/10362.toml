@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(leĭ vi prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [7,12],
-  },
+  Cmavo "leĭ",
+  Cmavo "vi",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"prenu","kind":"gismu"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "leĭ",
-        span: [0,3],
-      },
+      descriptor: Cmavo "leĭ",
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [4,6],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [7,12],
-        },
+        tense_modal: Cmavo "vi",
+        Gismu "prénu",
       },
     },
   ],

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na práli do le do vu péndo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prali",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [21,26],
-  },
+  Cmavo "na",
+  Gismu "práli",
+  Cmavo "do",
+  Cmavo "le",
+  Cmavo "do",
+  Cmavo "vu",
+  Gismu "péndo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prali","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"pendo","kind":"gismu"}}]'
 
@@ -60,47 +32,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "prali",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "práli",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [9,11],
-    },
+    Cmavo "do",
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [12,14],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [15,17],
-        },
+        Cmavo "do",
       ],
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vu",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pendo",
-          span: [21,26],
-        },
+        tense_modal: Cmavo "vu",
+        Gismu "péndo",
       },
     },
   ],

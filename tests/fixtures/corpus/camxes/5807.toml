@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi naĭ mi nítcu le jbópre poĭ dráta mi zi'e poĭ jíbni mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbopre",
-    span: [19,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'e",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [44,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibni",
-    span: [48,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [54,56],
-  },
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "nítcu",
+  Cmavo "le",
+  Lujvo "jbópre",
+  Cmavo "poĭ",
+  Gismu "dráta",
+  Cmavo "mi",
+  Cmavo "zi'e",
+  Cmavo "poĭ",
+  Gismu "jíbni",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"jbopre","kind":"lujvo"}},{"Bare":{"span":[26,29],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"zi'e","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"jibni","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -91,90 +39,38 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [3,6],
-      },
+      indicator: Cmavo "ŭi",
+      nai: Cmavo "naĭ",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [10,15],
-      },
+      Gismu "nítcu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "jbopre",
-            span: [19,25],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "jbópre",
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [26,29],
-              },
+              poi: Cmavo "poĭ",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "drata",
-                  span: [30,35],
-                },
+                Gismu "dráta",
                 terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [36,38],
-                  },
+                  Cmavo "mi",
                 ],
               },
             },
             Zihe {
-              zihe: Word {
-                kind: "cmavo",
-                phonemes: "zi'e",
-                span: [39,43],
-              },
+              zihe: Cmavo "zi'e",
               Poi {
-                poi: Word {
-                  kind: "cmavo",
-                  phonemes: "poĭ",
-                  span: [44,47],
-                },
+                poi: Cmavo "poĭ",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "jibni",
-                    span: [48,53],
-                  },
+                  Gismu "jíbni",
                   terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "mi",
-                      span: [54,56],
-                    },
+                    Cmavo "mi",
                   ],
                 },
               },

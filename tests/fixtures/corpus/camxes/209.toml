@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dy de dy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [34,36],
-  },
+  Cmavo "dy",
+  Cmavo "de",
+  Cmavo "dy",
 ]"""
 json = '[{"Bare":{"span":[28,30],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"dy","kind":"cmavo"}}]'
 
@@ -42,25 +30,13 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "dy",
-          span: [28,30],
-        },
+        Cmavo "dy",
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "de",
-      span: [31,33],
-    },
+    Cmavo "de",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "dy",
-          span: [34,36],
-        },
+        Cmavo "dy",
       ],
     },
   ],

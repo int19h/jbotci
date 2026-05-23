@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca pílno .i je ca'o nélci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [22,27],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "pílno",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "ca'o",
+  Gismu "nélci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"nelci","kind":"gismu"}}]"""
 
@@ -61,46 +33,18 @@ tree = """
 Connected {
   leading_statement: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "pílno",
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [17,21],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [22,27],
-    },
+    tense_modal: Cmavo "ca'o",
+    Gismu "nélci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}}}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[17,21],"phonemes":"ca'o","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"nelci","kind":"gismu"}}}}}}}}}}}}}}}]}]}"""

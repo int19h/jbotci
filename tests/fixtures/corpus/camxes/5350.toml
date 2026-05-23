@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu mrílu císte je cécmu ju lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cecmu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [27,32],
-  },
+  Cmavo "xu",
+  Gismu "mrílu",
+  Gismu "císte",
+  Cmavo "je",
+  Gismu "cécmu",
+  Cmavo "ju",
+  Gismu "lójbo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"ciste","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cecmu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"lojbo","kind":"gismu"}}]'
 
@@ -61,47 +33,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mrilu",
-      span: [3,8],
-    },
+    Gismu "mrílu",
     Connected {
       leading_unit: Connected {
-        leading_unit: Word {
-          kind: "gismu",
-          phonemes: "ciste",
-          span: [9,14],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [15,17],
-        },
-        trailing_unit: Word {
-          kind: "gismu",
-          phonemes: "cecmu",
-          span: [18,23],
-        },
+        leading_unit: Gismu "císte",
+        connective: Cmavo "je",
+        trailing_unit: Gismu "cécmu",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "ju",
-        span: [24,26],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [27,32],
-      },
+      connective: Cmavo "ju",
+      trailing_unit: Gismu "lójbo",
     },
   },
 }"""

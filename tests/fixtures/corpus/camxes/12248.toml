@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda be la .frak. bróda)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frak",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [17,22],
-  },
+  Gismu "bróda",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "frak",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"frak","kind":"cmevla"}},{"Bare":{"span":[17,22],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -50,35 +30,15 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [0,5],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [6,8],
-    },
+    Gismu "bróda",
+    be: Cmavo "be",
     first_argument: Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [9,11],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "frak",
-          span: [12,16],
-        },
+        Cmevla "frak",
       ],
     },
   },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [17,22],
-  },
+  Gismu "bróda",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[12,16],"phonemes":"frak","kind":"cmevla"}}}]}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"broda","kind":"gismu"}}}}]}}}}}}}}]}]}'

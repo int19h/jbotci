@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pu sníme cárvi ca le prunícte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snime",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "prunicte",
-    span: [21,29],
-  },
+  Cmavo "pu",
+  Gismu "sníme",
+  Gismu "cárvi",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "prunícte",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"snime","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,29],"phonemes":"prunicte","kind":"lujvo"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [0,2],
-    },
+    tense_modal: Cmavo "pu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "snime",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "carvi",
-        span: [9,14],
-      },
+      Gismu "sníme",
+      Gismu "cárvi",
     },
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [15,17],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "prunicte",
-          span: [21,29],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "prunícte",
       },
     },
   ],

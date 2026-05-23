@@ -18,45 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na me ly)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [4,6],
-  },
+  Cmavo "na",
+  Cmavo "me",
+  Cmavo "ly",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ly","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  na: Cmavo "na",
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [2,4],
-    },
+    me: Cmavo "me",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ly",
-          span: [4,6],
-        },
+        Cmavo "ly",
       ],
     },
   },

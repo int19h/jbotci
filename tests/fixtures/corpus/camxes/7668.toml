@@ -19,52 +19,16 @@ brackets = "([zo kaŭ] se xébni so'u lójbo prénu doĭ tírno)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "kaŭ",
-      span: [3,6],
-    },
+    zo: Cmavo "zo",
+    Cmavo "kaŭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirno",
-    span: [37,42],
-  },
+  Cmavo "se",
+  Gismu "xébni",
+  Cmavo "so'u",
+  Gismu "lójbo",
+  Gismu "prénu",
+  Cmavo "doĭ",
+  Gismu "tírno",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"kaŭ","kind":"cmavo"}}},{"Bare":{"span":[7,9],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[33,36],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"tirno","kind":"gismu"}}]"""
 
@@ -73,67 +37,31 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "kaŭ",
-        span: [3,6],
-      },
+      zo: Cmavo "zo",
+      Cmavo "kaŭ",
     },
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [7,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xebni",
-        span: [10,15],
-      },
+      se: Cmavo "se",
+      Gismu "xébni",
     },
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so'u",
-            span: [16,20],
-          },
+          Cmavo "so'u",
         ],
         relation: Compound {
+          Gismu "lójbo",
           Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [21,26],
-          },
-          Word {
-            Word {
-              kind: "gismu",
-              phonemes: "prenu",
-              span: [27,32],
-            },
+            Gismu "prénu",
             free_modifiers: [
               Vocative {
                 vocative_markers: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "doĭ",
-                    span: [33,36],
-                  },
+                  Cmavo "doĭ",
                 ],
                 argument: RelationVocative {
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "tirno",
-                    span: [37,42],
-                  },
+                  relation: Gismu "tírno",
                 },
               },
             ],

@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le samsélpla zváti [zoĭ gy http://tripoint.org/lucern/ gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [3,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [13,18],
-  },
+  Cmavo "le",
+  Lujvo "samsélpla",
+  Gismu "zváti",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [19,22],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [23,25],
-    },
-    quoted_text: [25,53],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [54,56],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "http://tripoint.org/lucern/",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"zvati","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[19,22],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"},"quoted_text":[25,53],"closing_delimiter":{"span":[54,56],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -59,41 +35,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "samselpla",
-          span: [3,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zvati",
-          span: [13,18],
-        },
+        Lujvo "samsélpla",
+        Gismu "zváti",
       },
     },
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [19,22],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [23,25],
-      },
-      quoted_text: [25,53],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [54,56],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "http://tripoint.org/lucern/",
+      closing_delimiter: Cmavo "gy",
     },
   ],
 }"""

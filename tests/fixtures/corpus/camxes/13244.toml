@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gaŭ mi'o zy térpa clíva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'o",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [19,24],
-  },
+  Cmavo "gaŭ",
+  Cmavo "mi'o",
+  Cmavo "zy",
+  Gismu "térpa",
+  Gismu "clíva",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"cliva","kind":"gismu"}}]"""
 
@@ -52,39 +32,19 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [0,3],
-        },
+        bai: Cmavo "gaŭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'o",
-        span: [4,8],
-      },
+      Cmavo "mi'o",
     },
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "zy",
-          span: [9,11],
-        },
+        Cmavo "zy",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "terpa",
-      span: [13,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cliva",
-      span: [19,24],
-    },
+    Gismu "térpa",
+    Gismu "clíva",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"gaŭ","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[4,8],"phonemes":"mi'o","kind":"cmavo"}}}}}},{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"zy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"terpa","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"cliva","kind":"gismu"}}}}]}}}}}}}}]}]}"""

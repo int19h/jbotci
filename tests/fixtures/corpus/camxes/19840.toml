@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le samsélkeĭ pe la .robin. spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselkeĭ",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [25,30],
-  },
+  Cmavo "le",
+  Lujvo "samsélkeĭ",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "robin",
+  Gismu "spófu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"samselkeĭ","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[25,30],"phonemes":"spofu","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "samselkeĭ",
-        span: [3,12],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "samsélkeĭ",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [13,15],
-          },
+          goi: Cmavo "pe",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [16,18],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "robin",
-                span: [19,24],
-              },
+              Cmevla "robin",
             ],
           },
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [25,30],
-  },
+  Gismu "spófu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[3,12],"phonemes":"samselkeĭ","kind":"lujvo"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[13,15],"phonemes":"pe","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[19,24],"phonemes":"robin","kind":"cmevla"}}}]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[25,30],"phonemes":"spofu","kind":"gismu"}}}}}}}}}}}]}]}'

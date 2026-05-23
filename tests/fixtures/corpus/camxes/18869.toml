@@ -19,66 +19,18 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le cípni cu cádzu fa'a loĭ gárna gi'e dáspo ri gi'e vófli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cipni",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa'a",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "garna",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [39,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [53,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vofli",
-    span: [58,63],
-  },
+  Cmavo "le",
+  Gismu "cípni",
+  Cmavo "cu",
+  Gismu "cádzu",
+  Cmavo "fa'a",
+  Cmavo "loĭ",
+  Gismu "gárna",
+  Cmavo "gi'e",
+  Gismu "dáspo",
+  Cmavo "ri",
+  Cmavo "gi'e",
+  Gismu "vófli",
 ]"""
 json = """[{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cipni","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"fa'a","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"garna","kind":"gismu"}},{"Bare":{"span":[39,43],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"daspo","kind":"gismu"}},{"Bare":{"span":[50,52],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[53,57],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[58,63],"phonemes":"vofli","kind":"gismu"}}]"""
 
@@ -87,85 +39,37 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cipni",
-        span: [9,14],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "cípni",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   PredicateTail1 {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cadzu",
-        span: [18,23],
-      },
+      Gismu "cádzu",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "fa'a",
-            span: [24,28],
-          },
+          tense_modal: Cmavo "fa'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [29,32],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "garna",
-              span: [33,38],
-            },
+            descriptor: Cmavo "loĭ",
+            relation: Gismu "gárna",
           },
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [39,43],
-        },
+        connective: Cmavo "gi'e",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "daspo",
-            span: [44,49],
-          },
+          Gismu "dáspo",
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [50,52],
-            },
+            Cmavo "ri",
           ],
         },
       },
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [53,57],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vofli",
-          span: [58,63],
-        },
+        connective: Cmavo "gi'e",
+        Gismu "vófli",
       },
     ],
   },

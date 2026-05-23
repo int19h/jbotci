@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pénmi la .xod. ca le purlámdeĭ .i mi joĭ xy jbotávla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "purlamdeĭ",
-    span: [22,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [37,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [41,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbotavla",
-    span: [45,53],
-  },
+  Cmavo "mi",
+  Gismu "pénmi",
+  Cmavo "la",
+  Cmevla "xod",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "purlámdeĭ",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "joĭ",
+  Cmavo "xy",
+  Lujvo "jbotávla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"penmi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,31],"phonemes":"purlamdeĭ","kind":"lujvo"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[45,53],"phonemes":"jbotavla","kind":"lujvo"}}]'
 
@@ -86,90 +38,42 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "penmi",
-        span: [3,8],
-      },
+      Gismu "pénmi",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "xod",
-              span: [12,15],
-            },
+            Cmevla "xod",
           ],
         },
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [16,18],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [19,21],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "purlamdeĭ",
-              span: [22,31],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "purlámdeĭ",
           },
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [33,34],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Connected {
-          leading_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [34,36],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [37,40],
-          },
+          leading_argument: Cmavo "mi",
+          connective: Cmavo "joĭ",
           trailing_argument: Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "xy",
-                span: [41,43],
-              },
+              Cmavo "xy",
             ],
           },
         },
       ],
-      Word {
-        kind: "lujvo",
-        phonemes: "jbotavla",
-        span: [45,53],
-      },
+      Lujvo "jbotávla",
     },
   },
 }"""

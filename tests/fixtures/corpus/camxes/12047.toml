@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(líste le se bévri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bevri",
-    span: [12,17],
-  },
+  Gismu "líste",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "bévri",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"bevri","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [0,5],
-  },
+  Gismu "líste",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [9,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bevri",
-          span: [12,17],
-        },
+        se: Cmavo "se",
+        Gismu "bévri",
       },
     },
   ],

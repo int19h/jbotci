@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i la .kartagos. .eĭ se dáspo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kartagos",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [27,32],
-  },
+  Cmavo "pe'i",
+  Cmavo "la",
+  Cmevla "kartagos",
+  Cmavo "eĭ",
+  Cmavo "se",
+  Gismu "dáspo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"kartagos","kind":"cmevla"}},{"Bare":{"span":[20,22],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"daspo","kind":"gismu"}}]"""
 
@@ -63,48 +39,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [5,7],
-        },
+        la: Cmavo "la",
         names: [
           WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "kartagos",
-              span: [9,17],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "eĭ",
-              span: [20,22],
-            },
+            Cmevla "kartagos",
+            indicator: Cmavo "eĭ",
           },
         ],
       },
     ],
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [23,25],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "daspo",
-        span: [27,32],
-      },
+      se: Cmavo "se",
+      Gismu "dáspo",
     },
   },
 }"""

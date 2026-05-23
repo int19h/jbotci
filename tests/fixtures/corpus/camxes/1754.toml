@@ -18,73 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(rícfu je blánu ja bo críno)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ricfu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crino",
-    span: [20,25],
-  },
+  Gismu "rícfu",
+  Cmavo "je",
+  Gismu "blánu",
+  Cmavo "ja",
+  Cmavo "bo",
+  Gismu "críno",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ricfu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"crino","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: Word {
-    kind: "gismu",
-    phonemes: "ricfu",
-    span: [0,5],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
+  leading_relation: Gismu "rícfu",
+  connective: Cmavo "je",
   trailing_relation: Bo {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "blanu",
-      span: [9,14],
-    },
-    bo_connective: Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [15,17],
-    },
-    bo: Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [17,19],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "crino",
-      span: [20,25],
-    },
+    leading_relation: Gismu "blánu",
+    bo_connective: Cmavo "ja",
+    bo: Cmavo "bo",
+    trailing_relation: Gismu "críno",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"ricfu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Bo":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"blanu","kind":"gismu"}}}},"bo_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[15,17],"phonemes":"ja","kind":"cmavo"}}}]}},"bo":{"Bare":{"Bare":{"span":[17,19],"phonemes":"bo","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"crino","kind":"gismu"}}}}}}}}}}}}}}}]}]}'

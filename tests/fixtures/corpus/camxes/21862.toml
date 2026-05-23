@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nolraĭtí'u pe la .mars.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nolraĭti'u",
-    span: [3,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "mars",
-    span: [20,24],
-  },
+  Cmavo "le",
+  Lujvo "nolraĭtí'u",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "mars",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,13],"phonemes":"nolraĭti'u","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"mars","kind":"cmevla"}}]"""
 
@@ -51,35 +31,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "nolraĭti'u",
-        span: [3,13],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "nolraĭtí'u",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [14,16],
-          },
+          goi: Cmavo "pe",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [17,19],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "mars",
-                span: [20,24],
-              },
+              Cmevla "mars",
             ],
           },
         },

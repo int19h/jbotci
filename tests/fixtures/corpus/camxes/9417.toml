@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(my goĭ ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
+  Cmavo "my",
+  Cmavo "goĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -43,25 +31,13 @@ Term {
     RelativeClause {
       base_argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "my",
-            span: [0,2],
-          },
+          Cmavo "my",
         ],
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [4,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [8,10],
-          },
+          goi: Cmavo "goĭ",
+          Cmavo "ma",
         },
       ],
     },

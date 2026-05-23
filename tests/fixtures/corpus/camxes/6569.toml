@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi xébni le mábla ke línto prúce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mabla",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "linto",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pruce",
-    span: [27,32],
-  },
+  Cmavo "mi",
+  Gismu "xébni",
+  Cmavo "le",
+  Gismu "mábla",
+  Cmavo "ke",
+  Gismu "línto",
+  Gismu "prúce",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"linto","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"pruce","kind":"gismu"}}]'
 
@@ -60,48 +32,20 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xebni",
-      span: [3,8],
-    },
+    Gismu "xébni",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mabla",
-            span: [12,17],
-          },
+          Gismu "mábla",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [18,20],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "linto",
-                span: [21,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "pruce",
-                span: [27,32],
-              },
+              Gismu "línto",
+              Gismu "prúce",
             },
           },
         },

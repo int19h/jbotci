@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.artistic. cúrse)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "artistic",
-    span: [0,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curse",
-    span: [9,14],
-  },
+  Cmevla "artistic",
+  Gismu "cúrse",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"artistic","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"curse","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,8],"phonemes":"artistic","kind":"cmevla"}},{"Bare":{
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "artistic",
-      span: [0,8],
-    },
+    Cmevla "artistic",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "curse",
-    span: [9,14],
-  },
+  Gismu "cúrse",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,8],"phonemes":"artistic","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"curse","kind":"gismu"}}}}}}}}}}}]}]}'

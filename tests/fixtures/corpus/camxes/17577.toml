@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(lo'e pémci je lójbo je cníno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [26,31],
-  },
+  Cmavo "lo'e",
+  Gismu "pémci",
+  Cmavo "je",
+  Gismu "lójbo",
+  Cmavo "je",
+  Gismu "cníno",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pemci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"cnino","kind":"gismu"}}]"""
 
@@ -57,39 +33,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'e",
-        span: [3,7],
-      },
+      descriptor: Cmavo "lo'e",
       relation: Connected {
         leading_relation: Connected {
-          leading_relation: Word {
-            kind: "gismu",
-            phonemes: "pemci",
-            span: [8,13],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [14,16],
-          },
-          trailing_relation: Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [17,22],
-          },
+          leading_relation: Gismu "pémci",
+          connective: Cmavo "je",
+          trailing_relation: Gismu "lójbo",
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [23,25],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "cnino",
-          span: [26,31],
-        },
+        connective: Cmavo "je",
+        trailing_relation: Gismu "cníno",
       },
     },
   ],

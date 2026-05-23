@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(de sérve)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "serve",
-    span: [2,7],
-  },
+  Cmavo "de",
+  Gismu "sérve",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"serve","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "de",
-      span: [0,2],
-    },
+    Cmavo "de",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "serve",
-    span: [2,7],
-  },
+  Gismu "sérve",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"de","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"serve","kind":"gismu"}}}}}}}}}}}]}]}'

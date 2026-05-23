@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ja'o ka'e práli fi my)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prali",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [19,21],
-  },
+  Cmavo "ja'o",
+  Cmavo "ka'e",
+  Gismu "práli",
+  Cmavo "fi",
+  Cmavo "my",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ja'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prali","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"my","kind":"cmavo"}}]"""
 
@@ -51,40 +31,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ja'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ja'o",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [5,9],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "prali",
-        span: [10,15],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "práli",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [16,18],
-        },
+        fa: Cmavo "fi",
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "my",
-              span: [19,21],
-            },
+            Cmavo "my",
           ],
         },
       },

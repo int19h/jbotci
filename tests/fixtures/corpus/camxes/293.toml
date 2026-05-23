@@ -19,28 +19,12 @@ brackets = "([le'u bu] [co bu])"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [0,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [5,7],
-    },
+    Cmavo "le'u",
+    bu: Cmavo "bu",
   },
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [8,10],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [11,13],
-    },
+    Cmavo "co",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,4],"phonemes":"le'u","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[8,10],"phonemes":"co","kind":"cmavo"}},"bu":{"span":[11,13],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -52,28 +36,12 @@ Term {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "le'u",
-            span: [0,4],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [5,7],
-          },
+          Cmavo "le'u",
+          bu: Cmavo "bu",
         },
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "co",
-            span: [8,10],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [11,13],
-          },
+          Cmavo "co",
+          bu: Cmavo "bu",
         },
       ],
     },

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu tcídu le sélmri be la .bab. be'o noĭ cínri mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selmri",
-    span: [15,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bab",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'o",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [38,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [48,50],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tcídu",
+  Cmavo "le",
+  Lujvo "sélmri",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "bab",
+  Cmavo "be'o",
+  Cmavo "noĭ",
+  Gismu "cínri",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,21],"phonemes":"selmri","kind":"lujvo"}},{"Bare":{"span":[22,24],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,31],"phonemes":"bab","kind":"cmevla"}},{"Bare":{"span":[33,37],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[38,41],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -85,82 +37,34 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "tcídu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "selmri",
-            span: [15,21],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [22,24],
-          },
+          Lujvo "sélmri",
+          be: Cmavo "be",
           first_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [25,27],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "bab",
-                span: [28,31],
-              },
+              Cmevla "bab",
             ],
           },
-          beho: Word {
-            kind: "cmavo",
-            phonemes: "be'o",
-            span: [33,37],
-          },
+          beho: Cmavo "be'o",
         },
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [38,41],
-            },
+            noi: Cmavo "noĭ",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "cinri",
-                span: [42,47],
-              },
+              Gismu "cínri",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [48,50],
-                },
+                Cmavo "mi",
               ],
             },
           },

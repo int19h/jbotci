@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu nírna vlípa .i .ĭe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [19,21],
-  },
+  Cmavo "xu",
+  Gismu "nírna",
+  Gismu "vlípa",
+  Cmavo "i",
+  Cmavo "ĭe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ĭe","kind":"cmavo"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Paragraph {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "nirna",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vlipa",
-        span: [9,14],
-      },
+      Gismu "nírna",
+      Gismu "vlípa",
     },
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [16,17],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭe",
-          span: [19,21],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ĭe",
       },
     },
   },

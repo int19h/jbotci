@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le se go'i xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [10,15],
-  },
+  Cmavo "le",
+  Cmavo "se",
+  Cmavo "go'i",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"xamgu","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "go'i",
-            span: [5,9],
-          },
+          se: Cmavo "se",
+          Cmavo "go'i",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [10,15],
-        },
+        Gismu "xámgu",
       },
     },
   ],

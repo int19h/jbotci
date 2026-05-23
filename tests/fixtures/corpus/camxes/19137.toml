@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ve bótpi te lánme te tírxu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "botpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lanme",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tirxu",
-    span: [23,28],
-  },
+  Cmavo "ve",
+  Gismu "bótpi",
+  Cmavo "te",
+  Gismu "lánme",
+  Cmavo "te",
+  Gismu "tírxu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"botpi","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"lanme","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"tirxu","kind":"gismu"}}]'
 
@@ -55,40 +31,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Compound {
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "ve",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "botpi",
-      span: [3,8],
-    },
+    se: Cmavo "ve",
+    Gismu "bótpi",
   },
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "lanme",
-      span: [13,18],
-    },
+    se: Cmavo "te",
+    Gismu "lánme",
   },
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tirxu",
-      span: [23,28],
-    },
+    se: Cmavo "te",
+    Gismu "tírxu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Se":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"botpi","kind":"gismu"}}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[10,12],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"lanme","kind":"gismu"}}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[20,22],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[23,28],"phonemes":"tirxu","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

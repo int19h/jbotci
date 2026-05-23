@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e do'i .a'u cu'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'i",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'u",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [14,18],
-  },
+  Cmavo "la'e",
+  Cmavo "do'i",
+  Cmavo "a'u",
+  Cmavo "cu'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'i","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"a'u","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"cu'i","kind":"cmavo"}}]"""
 
@@ -50,29 +34,13 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
+      lahe: Cmavo "la'e",
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "do'i",
-            span: [5,9],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "a'u",
-            span: [10,13],
-          },
+          Cmavo "do'i",
+          indicator: Cmavo "a'u",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "cu'i",
-          span: [14,18],
-        },
+        indicator: Cmavo "cu'i",
       },
     },
   ],

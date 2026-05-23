@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi sípna ca le lérci nícte tcíka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lerci",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcika",
-    span: [27,32],
-  },
+  Cmavo "mi",
+  Gismu "sípna",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "lérci",
+  Gismu "nícte",
+  Gismu "tcíka",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lerci","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"tcika","kind":"gismu"}}]'
 
@@ -60,47 +32,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [3,8],
-    },
+    Gismu "sípna",
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [9,11],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lerci",
-              span: [15,20],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nicte",
-              span: [21,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tcika",
-              span: [27,32],
-            },
+            Gismu "lérci",
+            Gismu "nícte",
+            Gismu "tcíka",
           },
         },
       },

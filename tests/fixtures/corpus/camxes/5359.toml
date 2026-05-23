@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la démbi dánsu goĭ ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dembi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dansu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [19,21],
-  },
+  Cmavo "la",
+  Gismu "démbi",
+  Gismu "dánsu",
+  Cmavo "goĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"dembi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"dansu","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -51,35 +31,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "dembi",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dansu",
-          span: [9,14],
-        },
+        Gismu "démbi",
+        Gismu "dánsu",
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [15,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [19,21],
-          },
+          goi: Cmavo "goĭ",
+          Cmavo "ma",
         },
       ],
     },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do skúdji lu .i jo naĭ li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skudji",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [21,25],
-  },
+  Cmavo "do",
+  Lujvo "skúdji",
+  Cmavo "lu",
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "naĭ",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"skudji","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -60,49 +32,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "skudji",
-      span: [3,9],
-    },
+    Lujvo "skúdji",
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [10,12],
-        },
+        lu: Cmavo "lu",
         ParagraphStatement {
-          i: Word {
-            kind: "cmavo",
-            phonemes: "i",
-            span: [14,15],
-          },
+          i: Cmavo "i",
           connective: Relation {
-            Word {
-              kind: "cmavo",
-              phonemes: "jo",
-              span: [15,17],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [17,20],
-            },
+            Cmavo "jo",
+            nai: Cmavo "naĭ",
           },
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [21,25],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi le vámsi ku velnárgu vécnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vamsi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velnargu",
-    span: [15,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [24,29],
-  },
+  Cmavo "vi",
+  Cmavo "le",
+  Gismu "vámsi",
+  Cmavo "ku",
+  Lujvo "velnárgu",
+  Gismu "vécnu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"vamsi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"velnargu","kind":"lujvo"}},{"Bare":{"span":[24,29],"phonemes":"vecnu","kind":"gismu"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "vi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "vamsi",
-          span: [6,11],
-        },
-        ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "vámsi",
+        ku: Cmavo "ku",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "velnargu",
-      span: [15,23],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [24,29],
-    },
+    Lujvo "velnárgu",
+    Gismu "vécnu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}}}}]}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"vamsi","kind":"gismu"}}}},"ku":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ku","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[15,23],"phonemes":"velnargu","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"vecnu","kind":"gismu"}}}}]}}}}}}}}]}]}'

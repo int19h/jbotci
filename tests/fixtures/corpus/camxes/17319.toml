@@ -18,46 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xámgu ki'e .rabn.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rabn",
-    span: [11,15],
-  },
+  Gismu "xámgu",
+  Cmavo "ki'e",
+  Cmevla "rabn",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"rabn","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
+  Gismu "xámgu",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [6,10],
-        },
+        Cmavo "ki'e",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "rabn",
-        span: [11,15],
-      },
+      argument: Cmevla "rabn",
     },
   ],
 }"""

@@ -19,49 +19,17 @@ brackets = "([zo .dor.] .e [zo .mij.] cu ráfsi ma)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "dor",
-      span: [3,6],
-    },
+    zo: Cmavo "zo",
+    Cmevla "dor",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [8,9],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "mij",
-      span: [13,16],
-    },
+    zo: Cmavo "zo",
+    Cmevla "mij",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rafsi",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
+  Cmavo "cu",
+  Gismu "ráfsi",
+  Cmavo "ma",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"dor","kind":"cmevla"}}},{"Bare":{"span":[8,9],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,16],"phonemes":"mij","kind":"cmevla"}}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"rafsi","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -71,53 +39,21 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "dor",
-          span: [3,6],
-        },
+        zo: Cmavo "zo",
+        Cmevla "dor",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [8,9],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [10,12],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "mij",
-          span: [13,16],
-        },
+        zo: Cmavo "zo",
+        Cmevla "mij",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rafsi",
-      span: [20,25],
-    },
+    Gismu "ráfsi",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [26,28],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

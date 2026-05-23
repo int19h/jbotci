@@ -18,55 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(kláma pu'o le kláma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [14,19],
-  },
+  Gismu "kláma",
+  Cmavo "pu'o",
+  Cmavo "le",
+  Gismu "kláma",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"pu'o","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"klama","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [0,5],
-  },
+  Gismu "kláma",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu'o",
-        span: [6,10],
-      },
+      tense_modal: Cmavo "pu'o",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [14,19],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kláma",
       },
     },
   ],

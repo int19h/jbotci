@@ -18,178 +18,62 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le pa moĭ sánce pe le xébro válsi no'u [zoĭ zoĭ `aza zoĭ] pu gálxe sánce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebro",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'u",
-    span: [36,40],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Gismu "sánce",
+  Cmavo "pe",
+  Cmavo "le",
+  Gismu "xébro",
+  Gismu "válsi",
+  Cmavo "no'u",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [41,44],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [45,48],
-    },
-    quoted_text: [48,53],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [54,57],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "`aza",
+    closing_delimiter: Cmavo "zoĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [58,60],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galxe",
-    span: [61,66],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sance",
-    span: [67,72],
-  },
+  Cmavo "pu",
+  Gismu "gálxe",
+  Gismu "sánce",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"xebro","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[36,40],"phonemes":"no'u","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[41,44],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[45,48],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[48,53],"closing_delimiter":{"span":[54,57],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[58,60],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[61,66],"phonemes":"galxe","kind":"gismu"}},{"Bare":{"span":[67,72],"phonemes":"sance","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           Moi {
             number: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [6,8],
-              },
+              Cmavo "pa",
             ],
-            moi: Word {
-              kind: "cmavo",
-              phonemes: "moĭ",
-              span: [8,11],
-            },
+            moi: Cmavo "moĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "sance",
-            span: [12,17],
-          },
+          Gismu "sánce",
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [18,20],
-            },
+            goi: Cmavo "pe",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [21,23],
-              },
+              descriptor: Cmavo "le",
               relation: Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "xebro",
-                  span: [24,29],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "valsi",
-                  span: [30,35],
-                },
+                Gismu "xébro",
+                Gismu "válsi",
               },
               relative_clauses: [
                 GoiRelativeClause {
-                  goi: Word {
-                    kind: "cmavo",
-                    phonemes: "no'u",
-                    span: [36,40],
-                  },
+                  goi: Cmavo "no'u",
                   ZoiQuote {
-                    zoi: Word {
-                      kind: "cmavo",
-                      phonemes: "zoĭ",
-                      span: [41,44],
-                    },
-                    opening_delimiter: Word {
-                      kind: "cmavo",
-                      phonemes: "zoĭ",
-                      span: [45,48],
-                    },
-                    quoted_text: [48,53],
-                    closing_delimiter: Word {
-                      kind: "cmavo",
-                      phonemes: "zoĭ",
-                      span: [54,57],
-                    },
+                    zoi: Cmavo "zoĭ",
+                    opening_delimiter: Cmavo "zoĭ",
+                    quoted_text: Verbatim "`aza",
+                    closing_delimiter: Cmavo "zoĭ",
                   },
                 },
               ],
@@ -199,22 +83,10 @@ ParagraphStatement {
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [58,60],
-      },
+      tense_modal: Cmavo "pu",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "galxe",
-          span: [61,66],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sance",
-          span: [67,72],
-        },
+        Gismu "gálxe",
+        Gismu "sánce",
       },
     },
   },

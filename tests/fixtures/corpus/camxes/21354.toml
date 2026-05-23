@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'u saĭ ko víska gi'e sídju mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
+  Cmavo "pe'u",
+  Cmavo "saĭ",
+  Cmavo "ko",
+  Gismu "víska",
+  Cmavo "gi'e",
+  Gismu "sídju",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -63,50 +35,22 @@ Text {
     Vocative {
       vocative_markers: [
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "pe'u",
-            span: [0,4],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "saĭ",
-            span: [4,7],
-          },
+          Cmavo "pe'u",
+          indicator: Cmavo "saĭ",
         },
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [8,10],
-      },
+      argument: Cmavo "ko",
     },
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [11,16],
-    },
+    Gismu "víska",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [17,21],
-        },
+        connective: Cmavo "gi'e",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "sidju",
-            span: [22,27],
-          },
+          Gismu "sídju",
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [28,30],
-            },
+            Cmavo "mi",
           ],
         },
       },

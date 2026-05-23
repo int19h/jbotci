@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(so meĭ degygútci dínko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "degygutci",
-    span: [6,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dinko",
-    span: [16,21],
-  },
+  Cmavo "so",
+  Cmavo "meĭ",
+  Lujvo "degygútci",
+  Gismu "dínko",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[6,15],"phonemes":"degygutci","kind":"lujvo"}},{"Bare":{"span":[16,21],"phonemes":"dinko","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ tree = """
 Compound {
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "so",
-        span: [0,2],
-      },
+      Cmavo "so",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "meĭ",
-      span: [2,5],
-    },
+    moi: Cmavo "meĭ",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "degygutci",
-    span: [6,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dinko",
-    span: [16,21],
-  },
+  Lujvo "degygútci",
+  Gismu "dínko",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[2,5],"phonemes":"meĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[6,15],"phonemes":"degygutci","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"dinko","kind":"gismu"}}}}]}}}}}}}}]}]}'

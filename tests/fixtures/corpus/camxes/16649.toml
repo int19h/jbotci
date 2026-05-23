@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do jaĭ mútce sátci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "satci",
-    span: [13,18],
-  },
+  Cmavo "do",
+  Cmavo "jaĭ",
+  Gismu "mútce",
+  Gismu "sátci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"satci","kind":"gismu"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Compound {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [3,6],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [7,12],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "mútce",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "satci",
-      span: [13,18],
-    },
+    Gismu "sátci",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"mutce","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"satci","kind":"gismu"}}}}]}}}}}}}}]}]}'

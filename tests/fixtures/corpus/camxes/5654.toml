@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.c. djíca le nu sídju do)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "c",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [20,22],
-  },
+  Cmevla "c",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "sídju",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "c",
-      span: [0,1],
-    },
+    Cmevla "c",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "djica",
-      span: [2,7],
-    },
+    Gismu "djíca",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [8,10],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [11,13],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "sidju",
-              span: [14,19],
-            },
+            Gismu "sídju",
             terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [20,22],
-              },
+              Cmavo "do",
             ],
           },
         },

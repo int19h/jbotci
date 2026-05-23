@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nélci la .fus. po'u le pa nélci be mi pémci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "fus",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [40,45],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "fus",
+  Cmavo "po'u",
+  Cmavo "le",
+  Cmavo "pa",
+  Gismu "nélci",
+  Cmavo "be",
+  Cmavo "mi",
+  Gismu "pémci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"fus","kind":"cmevla"}},{"Bare":{"span":[17,21],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"pemci","kind":"gismu"}}]"""
 
@@ -80,77 +36,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [3,8],
-    },
+    Gismu "nélci",
     terms: [
       RelativeClause {
         base_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "fus",
-              span: [12,15],
-            },
+            Cmevla "fus",
           ],
         },
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "po'u",
-              span: [17,21],
-            },
+            goi: Cmavo "po'u",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [22,24],
-              },
+              descriptor: Cmavo "le",
               tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [25,27],
-                },
+                Cmavo "pa",
               ],
               relation: Compound {
                 Be {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "nelci",
-                    span: [28,33],
-                  },
-                  be: Word {
-                    kind: "cmavo",
-                    phonemes: "be",
-                    span: [34,36],
-                  },
-                  first_argument: Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [37,39],
-                  },
+                  Gismu "nélci",
+                  be: Cmavo "be",
+                  first_argument: Cmavo "mi",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "pemci",
-                  span: [40,45],
-                },
+                Gismu "pémci",
               },
             },
           },

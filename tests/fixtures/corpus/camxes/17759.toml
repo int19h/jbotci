@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mílxe cúmki fa lo nu mi rókci cpáre ca la zéldeĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cumki",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpare",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [38,40],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zeldeĭ",
-    span: [41,47],
-  },
+  Gismu "mílxe",
+  Gismu "cúmki",
+  Cmavo "fa",
+  Cmavo "lo",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "rókci",
+  Gismu "cpáre",
+  Cmavo "ca",
+  Cmavo "la",
+  Lujvo "zéldeĭ",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cumki","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"rokci","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[41,47],"phonemes":"zeldeĭ","kind":"lujvo"}}]'
 
@@ -80,75 +36,31 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "milxe",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cumki",
-      span: [6,11],
-    },
+    Gismu "mílxe",
+    Gismu "cúmki",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [12,14],
-      },
+      fa: Cmavo "fa",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [15,17],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [17,19],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [20,22],
-              },
+              Cmavo "mi",
             ],
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "rokci",
-                  span: [23,28],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cpare",
-                  span: [29,34],
-                },
+                Gismu "rókci",
+                Gismu "cpáre",
               },
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [35,37],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [38,40],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "zeldeĭ",
-                      span: [41,47],
-                    },
+                    descriptor: Cmavo "la",
+                    relation: Lujvo "zéldeĭ",
                   },
                 },
               ],

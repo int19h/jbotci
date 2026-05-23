@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'u do vréjygaŭ fi le do lójbo dráci pe la .lobyfest.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vrejygaŭ",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "draci",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lobyfest",
-    span: [45,53],
-  },
+  Cmavo "i",
+  Cmavo "e'u",
+  Cmavo "do",
+  Lujvo "vréjygaŭ",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "lójbo",
+  Gismu "dráci",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "lobyfest",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"vrejygaŭ","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"draci","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[45,53],"phonemes":"lobyfest","kind":"cmevla"}}]"""
 
@@ -85,82 +37,34 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'u",
-      span: [2,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "e'u",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "vrejygaŭ",
-        span: [9,17],
-      },
+      Lujvo "vréjygaŭ",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [18,20],
-          },
+          fa: Cmavo "fi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [21,23],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [24,26],
-              },
+              Cmavo "do",
             ],
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "lojbo",
-                span: [27,32],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "draci",
-                span: [33,38],
-              },
+              Gismu "lójbo",
+              Gismu "dráci",
             },
             relative_clauses: [
               GoiRelativeClause {
-                goi: Word {
-                  kind: "cmavo",
-                  phonemes: "pe",
-                  span: [39,41],
-                },
+                goi: Cmavo "pe",
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [42,44],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "lobyfest",
-                      span: [45,53],
-                    },
+                    Cmevla "lobyfest",
                   ],
                 },
               },

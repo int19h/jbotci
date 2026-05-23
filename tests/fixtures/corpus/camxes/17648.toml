@@ -18,46 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(so to .recap.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "recap",
-    span: [6,11],
-  },
+  Cmavo "so",
+  Cmavo "to",
+  Cmevla "recap",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"recap","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [0,2],
-  },
+  Cmavo "so",
   free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [3,5],
-      },
+      to: Cmavo "to",
       Text {
         leading_cmevla: [
-          Word {
-            kind: "cmevla",
-            phonemes: "recap",
-            span: [6,11],
-          },
+          Cmevla "recap",
         ],
       },
     },

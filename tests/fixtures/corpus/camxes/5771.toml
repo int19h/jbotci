@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(seljórne seltcídu)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "seljorne",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltcidu",
-    span: [9,17],
-  },
+  Lujvo "seljórne",
+  Lujvo "seltcídu",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"seljorne","kind":"lujvo"}},{"Bare":{"span":[9,17],"phonemes":"seltcidu","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "seljorne",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seltcidu",
-    span: [9,17],
-  },
+  Lujvo "seljórne",
+  Lujvo "seltcídu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"seljorne","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,17],"phonemes":"seltcidu","kind":"lujvo"}}}}]}}}}}}}}]}]}'

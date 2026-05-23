@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la .elf. smibí'o le jíbni be ra .i la rémna se smibí'o le jíbni be ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "elf",
-    span: [6,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "smibi'o",
-    span: [11,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibni",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [35,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [46,48],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "smibi'o",
-    span: [49,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [57,59],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibni",
-    span: [60,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [66,68],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [69,71],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "elf",
+  Lujvo "smibí'o",
+  Cmavo "le",
+  Gismu "jíbni",
+  Cmavo "be",
+  Cmavo "ra",
+  Cmavo "i",
+  Cmavo "la",
+  Gismu "rémna",
+  Cmavo "se",
+  Lujvo "smibí'o",
+  Cmavo "le",
+  Gismu "jíbni",
+  Cmavo "be",
+  Cmavo "ra",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"elf","kind":"cmevla"}},{"Bare":{"span":[11,18],"phonemes":"smibi'o","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"jibni","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[35,36],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[49,56],"phonemes":"smibi'o","kind":"lujvo"}},{"Bare":{"span":[57,59],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[60,65],"phonemes":"jibni","kind":"gismu"}},{"Bare":{"span":[66,68],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[69,71],"phonemes":"ra","kind":"cmavo"}}]"""
 
@@ -110,57 +42,25 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [3,5],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "elf",
-              span: [6,9],
-            },
+            Cmevla "elf",
           ],
         },
       ],
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "smibi'o",
-          span: [11,18],
-        },
+        Lujvo "smibí'o",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [19,21],
-            },
+            descriptor: Cmavo "le",
             relation: Be {
-              Word {
-                kind: "gismu",
-                phonemes: "jibni",
-                span: [22,27],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [28,30],
-              },
-              first_argument: Word {
-                kind: "cmavo",
-                phonemes: "ra",
-                span: [31,33],
-              },
+              Gismu "jíbni",
+              be: Cmavo "be",
+              first_argument: Cmavo "ra",
             },
           },
         ],
@@ -168,61 +68,25 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [35,36],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [37,39],
-          },
+          descriptor: Cmavo "la",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "remna",
-              span: [40,45],
-            },
+            Gismu "rémna",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [46,48],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "smibi'o",
-                span: [49,56],
-              },
+              se: Cmavo "se",
+              Lujvo "smibí'o",
             },
           },
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [57,59],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "jibni",
-              span: [60,65],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [66,68],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "ra",
-              span: [69,71],
-            },
+            Gismu "jíbni",
+            be: Cmavo "be",
+            first_argument: Cmavo "ra",
           },
         },
       ],

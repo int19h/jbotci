@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .jexom. mi mútce sínma do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jexom",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sinma",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [25,27],
-  },
+  Cmavo "doĭ",
+  Cmevla "jexom",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "sínma",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"jexom","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"sinma","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -57,46 +33,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "jexom",
-        span: [4,9],
-      },
+      argument: Cmevla "jexom",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [10,12],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [13,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sinma",
-          span: [19,24],
-        },
+        Gismu "mútce",
+        Gismu "sínma",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [25,27],
-        },
+        Cmavo "do",
       ],
     },
   },

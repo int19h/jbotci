@@ -18,55 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i fu lo plíni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plini",
-    span: [11,16],
-  },
+  Cmavo "go'i",
+  Cmavo "fu",
+  Cmavo "lo",
+  Gismu "plíni",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"plini","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fu",
-        span: [5,7],
-      },
+      fa: Cmavo "fu",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [8,10],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "plini",
-          span: [11,16],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "plíni",
       },
     },
   ],

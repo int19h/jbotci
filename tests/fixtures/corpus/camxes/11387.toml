@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le gaĭ moĭ cácra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [13,18],
-  },
+  Cmavo "le",
+  Cmavo "gaĭ",
+  Cmavo "moĭ",
+  Gismu "cácra",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"gaĭ","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cacra","kind":"gismu"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "gaĭ",
-              span: [6,9],
-            },
+            Cmavo "gaĭ",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "moĭ",
-            span: [9,12],
-          },
+          moi: Cmavo "moĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cacra",
-          span: [13,18],
-        },
+        Gismu "cácra",
       },
     },
   ],

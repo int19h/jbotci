@@ -19,77 +19,21 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi .e la .avital. pu sojypá'a le nu do fónxa bénji fi [.a bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "avital",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sojypa'a",
-    span: [22,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [46,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [52,54],
-  },
+  Cmavo "mi",
+  Cmavo "e",
+  Cmavo "la",
+  Cmevla "avital",
+  Cmavo "pu",
+  Lujvo "sojypá'a",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "fónxa",
+  Gismu "bénji",
+  Cmavo "fi",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [55,56],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [56,58],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"avital","kind":"cmevla"}},{"Bare":{"span":[19,21],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[22,30],"phonemes":"sojypa'a","kind":"lujvo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[52,54],"phonemes":"fi","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[55,56],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[56,58],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -99,99 +43,43 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [7,8],
-      },
+      leading_argument: Cmavo "mi",
+      connective: Cmavo "e",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "avital",
-            span: [12,18],
-          },
+          Cmevla "avital",
         ],
       },
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [19,21],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "sojypa'a",
-        span: [22,30],
-      },
+      tense_modal: Cmavo "pu",
+      Lujvo "sojypá'a",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [31,33],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [34,36],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [37,39],
-              },
+              Cmavo "do",
             ],
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "fonxa",
-                  span: [40,45],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "benji",
-                  span: [46,51],
-                },
+                Gismu "fónxa",
+                Gismu "bénji",
               },
               terms: [
                 Fa {
-                  fa: Word {
-                    kind: "cmavo",
-                    phonemes: "fi",
-                    span: [52,54],
-                  },
+                  fa: Cmavo "fi",
                   Letter {
                     letter: [
                       Letter {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "a",
-                          span: [55,56],
-                        },
-                        bu: Word {
-                          kind: "cmavo",
-                          phonemes: "bu",
-                          span: [56,58],
-                        },
+                        Cmavo "a",
+                        bu: Cmavo "bu",
                       },
                     ],
                   },

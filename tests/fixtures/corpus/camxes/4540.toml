@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu jdári sílna jgéna nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdari",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "silna",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgena",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [21,26],
-  },
+  Cmavo "xu",
+  Gismu "jdári",
+  Gismu "sílna",
+  Gismu "jgéna",
+  Gismu "nánba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jdari","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"silna","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"jgena","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"nanba","kind":"gismu"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "jdari",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "silna",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jgena",
-      span: [15,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nanba",
-      span: [21,26],
-    },
+    Gismu "jdári",
+    Gismu "sílna",
+    Gismu "jgéna",
+    Gismu "nánba",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"jdari","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"silna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"jgena","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"nanba","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

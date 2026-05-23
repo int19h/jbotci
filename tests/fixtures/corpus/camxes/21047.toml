@@ -18,65 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xébni .i xébni .i xébni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [18,23],
-  },
+  Gismu "xébni",
+  Cmavo "i",
+  Gismu "xébni",
+  Cmavo "i",
+  Gismu "xébni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xebni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "xebni",
-    span: [0,5],
+  Gismu "xébni",
+  ParagraphStatement {
+    i: Cmavo "i",
+    Gismu "xébni",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xebni",
-      span: [9,14],
-    },
-  },
-  ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "xebni",
-      span: [18,23],
-    },
+    i: Cmavo "i",
+    Gismu "xébni",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"xebni","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"xebni","kind":"gismu"}}}}}}}}}}},{"i":{"Bare":{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"xebni","kind":"gismu"}}}}}}}}}}}]}]}'

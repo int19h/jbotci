@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i pe'i za'u vo prénu cu tcétce jímpe fi la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tcetce",
-    span: [28,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [47,53],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "pe'i",
+  Cmavo "za'u",
+  Cmavo "vo",
+  Gismu "prénu",
+  Cmavo "cu",
+  Lujvo "tcétce",
+  Gismu "jímpe",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"tcetce","kind":"lujvo"}},{"Bare":{"span":[35,40],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[47,53],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -86,84 +38,36 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [0,1],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [2,6],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "pe'i",
-      span: [7,11],
-    },
+    indicator: Cmavo "pe'i",
   },
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [12,16],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "vo",
-              span: [16,18],
-            },
+            Cmavo "za'u",
+            Cmavo "vo",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [19,24],
-        },
+        relation: Gismu "prénu",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [25,27],
-    },
+    cu: Cmavo "cu",
     Relation {
       Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "tcetce",
-          span: [28,34],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [35,40],
-        },
+        Lujvo "tcétce",
+        Gismu "jímpe",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [41,43],
-          },
+          fa: Cmavo "fi",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [44,46],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "lojban",
-                span: [47,53],
-              },
+              Cmevla "lojban",
             ],
           },
         },

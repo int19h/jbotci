@@ -18,64 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je mútce nu gléki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [13,18],
-  },
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "mútce",
+  Cmavo "nu",
+  Gismu "gléki",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,3],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"gleki","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [4,9],
-    },
+    Gismu "mútce",
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "nu",
-        span: [10,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gleki",
-        span: [13,18],
-      },
+      nu: Cmavo "nu",
+      Gismu "gléki",
     },
   },
 }"""

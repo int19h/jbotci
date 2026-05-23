@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu le lójbo fónxa gírzu cu cínri do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [33,35],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "fónxa",
+  Gismu "gírzu",
+  Cmavo "cu",
+  Gismu "cínri",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -66,57 +34,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fonxa",
-            span: [12,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "girzu",
-            span: [18,23],
-          },
+          Gismu "lójbo",
+          Gismu "fónxa",
+          Gismu "gírzu",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [24,26],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [27,32],
-      },
+      Gismu "cínri",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [33,35],
-        },
+        Cmavo "do",
       ],
     },
   },

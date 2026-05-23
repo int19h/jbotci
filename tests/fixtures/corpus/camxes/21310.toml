@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ni nítce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitce",
-    span: [3,8],
-  },
+  Cmavo "ni",
+  Gismu "nítce",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nitce","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitce",
-    span: [3,8],
-  },
+  nu: Cmavo "ni",
+  Gismu "nítce",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ni","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"nitce","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

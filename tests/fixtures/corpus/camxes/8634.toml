@@ -18,55 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bródu bródu ceĭ bróda)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ceĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [16,21],
-  },
+  Gismu "bródu",
+  Gismu "bródu",
+  Cmavo "ceĭ",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"brodu","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"brodu","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"ceĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"broda","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "brodu",
-    span: [0,5],
-  },
+  Gismu "bródu",
   Cei {
-    Word {
-      kind: "gismu",
-      phonemes: "brodu",
-      span: [6,11],
-    },
+    Gismu "bródu",
     assignments: [
       CeiAssignment {
-        cei: Word {
-          kind: "cmavo",
-          phonemes: "ceĭ",
-          span: [12,15],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "broda",
-          span: [16,21],
-        },
+        cei: Cmavo "ceĭ",
+        Gismu "bróda",
       },
     ],
   },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'u mi mílxe to'e júndi za'u re'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re'u",
-    span: [29,33],
-  },
+  Cmavo "u'u",
+  Cmavo "mi",
+  Gismu "mílxe",
+  Cmavo "to'e",
+  Gismu "júndi",
+  Cmavo "za'u",
+  Cmavo "re'u",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"jundi","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"re'u","kind":"cmavo"}}]"""
 
@@ -61,54 +33,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "milxe",
-          span: [8,13],
-        },
+        Gismu "mílxe",
         Nahe {
-          nahe: Word {
-            kind: "cmavo",
-            phonemes: "to'e",
-            span: [14,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jundi",
-            span: [19,24],
-          },
+          nahe: Cmavo "to'e",
+          Gismu "júndi",
         },
       },
       terms: [
         Tagged {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [25,29],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "re'u",
-              span: [29,33],
-            },
+            Cmavo "za'u",
+            Cmavo "re'u",
           },
           Zohe {},
         },

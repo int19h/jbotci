@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le le cúsku ku gérku cu bárda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [28,33],
-  },
+  Cmavo "le",
+  Cmavo "le",
+  Gismu "cúsku",
+  Cmavo "ku",
+  Gismu "gérku",
+  Cmavo "cu",
+  Gismu "bárda",
 ]"""
 json = '[{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"barda","kind":"gismu"}}]'
 
@@ -62,46 +34,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [4,6],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [7,9],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cusku",
-            span: [10,15],
-          },
-          ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [16,18],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "cúsku",
+          ku: Cmavo "ku",
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "gerku",
-        span: [19,24],
-      },
+      relation: Gismu "gérku",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [28,33],
-  },
+  cu: Cmavo "cu",
+  Gismu "bárda",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"cusku","kind":"gismu"}}}},"ku":{"Bare":{"Bare":{"span":[16,18],"phonemes":"ku","kind":"cmavo"}}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"gerku","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[28,33],"phonemes":"barda","kind":"gismu"}}}}}}}}}}}]}]}'

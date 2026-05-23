@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.aĭ cidjrpítsa cítka ca zi ku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [4,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [25,27],
-  },
+  Cmavo "aĭ",
+  Fuhivla "cidjrpítsa",
+  Gismu "cítka",
+  Cmavo "ca",
+  Cmavo "zi",
+  Cmavo "ku",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ku","kind":"cmavo"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   Relation {
     Compound {
-      Word {
-        kind: "fu'ivla",
-        phonemes: "cidjrpitsa",
-        span: [4,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [15,20],
-      },
+      Fuhivla "cidjrpítsa",
+      Gismu "cítka",
     },
     terms: [
       Tagged {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [21,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "zi",
-            span: [23,25],
-          },
+          Cmavo "ca",
+          Cmavo "zi",
         },
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [25,27],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],

@@ -19,32 +19,12 @@ brackets = "([mi bu] zu co'a tádni)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [3,5],
-    },
+    Cmavo "mi",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [13,18],
-  },
+  Cmavo "zu",
+  Cmavo "co'a",
+  Gismu "tádni",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,7],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tadni","kind":"gismu"}}]"""
 
@@ -55,38 +35,18 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [0,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [3,5],
-          },
+          Cmavo "mi",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "zu",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [8,12],
-      },
+      Cmavo "zu",
+      Cmavo "co'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "tadni",
-      span: [13,18],
-    },
+    Gismu "tádni",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"zu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[8,12],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"tadni","kind":"gismu"}}}}}}}}}}}}}]}]}"""

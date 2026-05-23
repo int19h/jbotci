@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(caŭ sélzdi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "caŭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selzdi",
-    span: [3,9],
-  },
+  Cmavo "caŭ",
+  Lujvo "sélzdi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"caŭ","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"selzdi","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"caŭ","kind":"cmavo"}},{"Bare":{"span
 tree = """
 TenseModal {
   tense_modal: Simple {
-    bai: Word {
-      kind: "cmavo",
-      phonemes: "caŭ",
-      span: [0,3],
-    },
+    bai: Cmavo "caŭ",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "selzdi",
-    span: [3,9],
-  },
+  Lujvo "sélzdi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"caŭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,9],"phonemes":"selzdi","kind":"lujvo"}}}}}}}}}}}}}]}]}'

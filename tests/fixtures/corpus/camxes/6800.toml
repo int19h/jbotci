@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ne ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ne",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [2,4],
-  },
+  Cmavo "ne",
+  Cmavo "ta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ne","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 GoiRelativeClause {
-  goi: Word {
-    kind: "cmavo",
-    phonemes: "ne",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [2,4],
-  },
+  goi: Cmavo "ne",
+  Cmavo "ta",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ne","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}}}}}]}}}]}]}'

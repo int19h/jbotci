@@ -26,66 +26,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ga la .paris. gi la .rom. na ku se kláma la .djan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "paris",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rom",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [41,45],
-  },
+  Cmavo "ga",
+  Cmavo "la",
+  Cmevla "paris",
+  Cmavo "gi",
+  Cmavo "la",
+  Cmevla "rom",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "se",
+  Gismu "kláma",
+  Cmavo "la",
+  Cmevla "djan",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"paris","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"rom","kind":"cmevla"}},{"Bare":{"span":[24,26],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"djan","kind":"cmevla"}}]'
 
@@ -95,84 +47,36 @@ tree = """
 Predicate {
   leading_terms: [
     Gek {
-      gek: Word {
-        kind: "cmavo",
-        phonemes: "ga",
-        span: [0,2],
-      },
+      gek: Cmavo "ga",
       leading_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "paris",
-            span: [6,11],
-          },
+          Cmevla "paris",
         ],
       },
-      gik: Word {
-        kind: "cmavo",
-        phonemes: "gi",
-        span: [13,15],
-      },
+      gik: Cmavo "gi",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [16,18],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "rom",
-            span: [19,22],
-          },
+          Cmevla "rom",
         ],
       },
     },
     NaKu {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [24,26],
-      },
-      na_ku: Word {
-        kind: "cmavo",
-        phonemes: "ku",
-        span: [26,28],
-      },
+      na: Cmavo "na",
+      na_ku: Cmavo "ku",
     },
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [29,31],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "klama",
-        span: [32,37],
-      },
+      se: Cmavo "se",
+      Gismu "kláma",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [38,40],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [41,45],
-          },
+          Cmevla "djan",
         ],
       },
     ],

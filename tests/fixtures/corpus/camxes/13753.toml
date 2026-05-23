@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu zu cílre ru'e py)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [19,21],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "zu",
+  Gismu "cílre",
+  Cmavo "ru'e",
+  Cmavo "py",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"py","kind":"cmavo"}}]"""
 
@@ -55,47 +31,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zu",
-          span: [5,7],
-        },
+        Cmavo "pu",
+        Cmavo "zu",
       },
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "cilre",
-          span: [8,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [14,18],
-        },
+        Gismu "cílre",
+        indicator: Cmavo "ru'e",
       },
     },
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "py",
-            span: [19,21],
-          },
+          Cmavo "py",
         ],
       },
     ],

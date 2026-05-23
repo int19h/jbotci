@@ -18,101 +18,37 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i bénji lo dátni pe baŭ le xrábybaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrabybaŭ",
-    span: [27,35],
-  },
+  Cmavo "i",
+  Gismu "bénji",
+  Cmavo "lo",
+  Gismu "dátni",
+  Cmavo "pe",
+  Cmavo "baŭ",
+  Cmavo "le",
+  Lujvo "xrábybaŭ",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"xrabybaŭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "benji",
-      span: [2,7],
-    },
+    Gismu "bénji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [8,10],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "datni",
-          span: [11,16],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "dátni",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [17,19],
-            },
+            goi: Cmavo "pe",
             Tagged {
               tag: Simple {
-                bai: Word {
-                  kind: "cmavo",
-                  phonemes: "baŭ",
-                  span: [20,23],
-                },
+                bai: Cmavo "baŭ",
               },
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [24,26],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "xrabybaŭ",
-                  span: [27,35],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "xrábybaŭ",
               },
             },
           },

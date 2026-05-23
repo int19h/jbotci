@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gu'e bárda je xúnre gi gérku ja mlátu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "gu'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [32,37],
-  },
+  Cmavo "gu'e",
+  Gismu "bárda",
+  Cmavo "je",
+  Gismu "xúnre",
+  Cmavo "gi",
+  Gismu "gérku",
+  Cmavo "ja",
+  Gismu "mlátu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"gu'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"mlatu","kind":"gismu"}}]"""
 
@@ -65,48 +33,16 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"gu'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Connected {
   leading_relation: Guha {
-    guhek: Word {
-      kind: "cmavo",
-      phonemes: "gu'e",
-      span: [0,4],
-    },
+    guhek: Cmavo "gu'e",
     leading_predicate: Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "barda",
-        span: [5,10],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [11,13],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "xunre",
-        span: [14,19],
-      },
+      leading_relation: Gismu "bárda",
+      connective: Cmavo "je",
+      trailing_relation: Gismu "xúnre",
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [20,22],
-    },
-    trailing_predicate: Word {
-      kind: "gismu",
-      phonemes: "gerku",
-      span: [23,28],
-    },
+    gik: Cmavo "gi",
+    trailing_predicate: Gismu "gérku",
   },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [29,31],
-  },
-  trailing_relation: Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [32,37],
-  },
+  connective: Cmavo "ja",
+  trailing_relation: Gismu "mlátu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Guha":{"guhek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"gu'e","kind":"cmavo"}}}]}},"leading_predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"barda","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[11,13],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"xunre","kind":"gismu"}}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[20,22],"phonemes":"gi","kind":"cmavo"}}}]}},"trailing_predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"gerku","kind":"gismu"}}}}}}}}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[29,31],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[32,37],"phonemes":"mlatu","kind":"gismu"}}}}}}}}}}}}}]}]}"""

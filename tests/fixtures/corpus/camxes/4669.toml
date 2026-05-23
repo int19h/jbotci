@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(na ko xánka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xanka",
-    span: [6,11],
-  },
+  Cmavo "na",
+  Cmavo "ko",
+  Gismu "xánka",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xanka","kind":"gismu"}}]'
 
@@ -41,21 +29,9 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [3,5],
-    },
+    Cmavo "na",
+    Cmavo "ko",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "xanka",
-    span: [6,11],
-  },
+  Gismu "xánka",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"BareNa":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"xanka","kind":"gismu"}}}}}}}}}}}]}]}'

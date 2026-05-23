@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'écpe le nu líste le sumbásti)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "mi'ecpe",
-    span: [0,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "liste",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sumbasti",
-    span: [23,31],
-  },
+  Lujvo "mi'écpe",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "líste",
+  Cmavo "le",
+  Lujvo "sumbásti",
 ]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"mi'ecpe","kind":"lujvo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"liste","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,31],"phonemes":"sumbasti","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "mi'ecpe",
-    span: [0,7],
-  },
+  Lujvo "mi'écpe",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [8,10],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [11,13],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "liste",
-            span: [14,19],
-          },
+          Gismu "líste",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [20,22],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "sumbasti",
-                span: [23,31],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "sumbásti",
             },
           ],
         },

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ze'u pu se jíbri no da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [21,23],
-  },
+  Cmavo "mi",
+  Cmavo "ze'u",
+  Cmavo "pu",
+  Cmavo "se",
+  Gismu "jíbri",
+  Cmavo "no",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -60,51 +32,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ze'u",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [7,9],
-        },
+        Cmavo "ze'u",
+        Cmavo "pu",
       },
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [10,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jibri",
-          span: [13,18],
-        },
+        se: Cmavo "se",
+        Gismu "jíbri",
       },
     },
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [19,21],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [21,23],
-        },
+        quantifier: Cmavo "no",
+        Cmavo "da",
       },
     ],
   },

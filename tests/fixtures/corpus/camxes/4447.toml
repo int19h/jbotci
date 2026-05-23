@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca le míntu témci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mintu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [12,17],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "míntu",
+  Gismu "témci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mintu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"temci","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mintu",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "temci",
-            span: [12,17],
-          },
+          Gismu "míntu",
+          Gismu "témci",
         },
       },
     },

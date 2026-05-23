@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mu moĭ jgíta mu meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jgita",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [17,20],
-  },
+  Cmavo "le",
+  Cmavo "mu",
+  Cmavo "moĭ",
+  Gismu "jgíta",
+  Cmavo "mu",
+  Cmavo "meĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jgita","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"meĭ","kind":"cmavo"}}]'
 
@@ -56,44 +32,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [3,5],
-            },
+            Cmavo "mu",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "moĭ",
-            span: [5,8],
-          },
+          moi: Cmavo "moĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "jgita",
-          span: [9,14],
-        },
+        Gismu "jgíta",
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [15,17],
-            },
+            Cmavo "mu",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "meĭ",
-            span: [17,20],
-          },
+          moi: Cmavo "meĭ",
         },
       },
     },

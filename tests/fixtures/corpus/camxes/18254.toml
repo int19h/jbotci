@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o .araĭzen. .i xu nícte vi do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "araĭzen",
-    span: [5,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [27,29],
-  },
+  Cmavo "co'o",
+  Cmevla "araĭzen",
+  Cmavo "i",
+  Cmavo "xu",
+  Gismu "nícte",
+  Cmavo "vi",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,12],"phonemes":"araĭzen","kind":"cmevla"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -62,50 +34,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "araĭzen",
-        span: [5,12],
-      },
+      argument: Cmevla "araĭzen",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [13,14],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [15,17],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nicte",
-        span: [18,23],
-      },
+      Gismu "nícte",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [24,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [27,29],
-          },
+          tense_modal: Cmavo "vi",
+          Cmavo "do",
         },
       ],
     },

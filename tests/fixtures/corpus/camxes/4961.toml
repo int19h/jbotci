@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi va vu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vu",
-    span: [6,8],
-  },
+  Cmavo "vi",
+  Cmavo "va",
+  Cmavo "vu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"va","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"vu","kind":"cmavo"}}]'
 
@@ -41,27 +29,15 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "vi",
       Zohe {},
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "va",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "va",
       Zohe {},
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vu",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "vu",
       Zohe {},
     },
   ],

@@ -18,69 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i doĭ .eĭmis. za'a go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "eĭmis",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [20,24],
-  },
+  Cmavo "i",
+  Cmavo "doĭ",
+  Cmevla "eĭmis",
+  Cmavo "za'a",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"eĭmis","kind":"cmevla"}},{"Bare":{"span":[15,19],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [3,6],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "eĭmis",
-          span: [8,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "za'a",
-          span: [15,19],
-        },
+        Cmevla "eĭmis",
+        indicator: Cmavo "za'a",
       },
     },
   ],
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [20,24],
-  },
+  Cmavo "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"eĭmis","kind":"cmevla"}}},"indicator":{"span":[15,19],"phonemes":"za'a","kind":"cmavo"}}}]}}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,24],"phonemes":"go'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

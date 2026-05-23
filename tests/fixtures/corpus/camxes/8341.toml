@@ -19,48 +19,16 @@ brackets = "([zoĭ gy ramble gy] smúni ma baŭ la .lojban.)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [4,6],
-    },
-    quoted_text: [8,14],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "ramble",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [36,42],
-  },
+  Gismu "smúni",
+  Cmavo "ma",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[8,14],"closing_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[20,25],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[36,42],"phonemes":"lojban","kind":"cmevla"}}]'
 
@@ -69,56 +37,24 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [4,6],
-      },
-      quoted_text: [8,14],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [16,18],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "ramble",
+      closing_delimiter: Cmavo "gy",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [20,25],
-    },
+    Gismu "smúni",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [26,28],
-      },
+      Cmavo "ma",
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "baŭ",
-            span: [29,32],
-          },
+          bai: Cmavo "baŭ",
         },
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [33,35],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [36,42],
-            },
+            Cmevla "lojban",
           ],
         },
       },

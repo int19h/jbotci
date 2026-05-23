@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do pu se ra'a tcídu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [19,21],
-  },
+  Cmavo "do",
+  Cmavo "pu",
+  Cmavo "se",
+  Cmavo "ra'a",
+  Gismu "tcídu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ra'a","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -55,46 +31,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "pu",
       Zohe {},
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [6,8],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ra'a",
-          span: [8,12],
-        },
+        se: Cmavo "se",
+        bai: Cmavo "ra'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [13,18],
-      },
+      Gismu "tcídu",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [19,21],
-      },
+      Cmavo "ma",
     ],
   },
 }"""

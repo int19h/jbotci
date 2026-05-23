@@ -24,11 +24,7 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = ".ivan."
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "iván",
-    span: [1,5],
-  },
+  Cmevla "ivan",
 ]"""
 json = '[{"Bare":{"span":[1,5],"phonemes":"iván","kind":"cmevla"}}]'
 
@@ -37,11 +33,7 @@ brackets = ".ivan."
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "iván",
-      span: [1,5],
-    },
+    Cmevla "ivan",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,5],"phonemes":"iván","kind":"cmevla"}}}]}'

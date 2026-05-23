@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ju'i naĭ mi cílre fi la .lojban. fu le nu cúsku tróci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [23,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [45,50],
-  },
+  Cmavo "ju'i",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "cílre",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "fu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cúsku",
+  Gismu "tróci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cilre","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[31,33],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"troci","kind":"gismu"}}]"""
 
@@ -87,81 +39,33 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ju'i",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        Cmavo "ju'i",
+        Cmavo "naĭ",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cilre",
-      span: [11,16],
-    },
+    Gismu "cílre",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [17,19],
-        },
+        fa: Cmavo "fi",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [20,22],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [23,29],
-            },
+            Cmevla "lojban",
           ],
         },
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fu",
-          span: [31,33],
-        },
+        fa: Cmavo "fu",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [34,36],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [36,38],
-            },
+            nu: Cmavo "nu",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [39,44],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "troci",
-                span: [45,50],
-              },
+              Gismu "cúsku",
+              Gismu "tróci",
             },
           },
         },

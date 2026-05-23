@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(deĭ na lo brídi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bridi",
-    span: [10,15],
-  },
+  Cmavo "deĭ",
+  Cmavo "na",
+  Cmavo "lo",
+  Gismu "brídi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"bridi","kind":"gismu"}}]'
 
@@ -46,27 +30,11 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "deĭ",
-      span: [0,3],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [4,6],
-    },
+    Cmavo "deĭ",
+    Cmavo "na",
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [7,9],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "bridi",
-        span: [10,15],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "brídi",
     },
   ],
 }"""

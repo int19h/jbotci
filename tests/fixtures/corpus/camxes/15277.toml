@@ -18,62 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .fraktur. xu do nélci loĭ gísmu poĭ símsa [zo bróda])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "fraktur",
-    span: [4,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gismu",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [40,45],
-  },
+  Cmavo "doĭ",
+  Cmevla "fraktur",
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "nélci",
+  Cmavo "loĭ",
+  Gismu "gísmu",
+  Cmavo "poĭ",
+  Gismu "símsa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [46,48],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [49,54],
-    },
+    zo: Cmavo "zo",
+    Gismu "bróda",
   },
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,11],"phonemes":"fraktur","kind":"cmevla"}},{"Bare":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[26,29],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"gismu","kind":"gismu"}},{"Bare":{"span":[36,39],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"simsa","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[46,48],"phonemes":"zo","kind":"cmavo"},"word":{"span":[49,54],"phonemes":"broda","kind":"gismu"}}}]'
@@ -84,77 +40,33 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "fraktur",
-          span: [4,11],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [14,16],
-        },
+        Cmevla "fraktur",
+        indicator: Cmavo "xu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [17,19],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [20,25],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [26,29],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "gismu",
-            span: [30,35],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Gismu "gísmu",
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [36,39],
-              },
+              poi: Cmavo "poĭ",
               Relation {
-                Word {
-                  kind: "gismu",
-                  phonemes: "simsa",
-                  span: [40,45],
-                },
+                Gismu "símsa",
                 terms: [
                   ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [46,48],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "broda",
-                      span: [49,54],
-                    },
+                    zo: Cmavo "zo",
+                    Gismu "bróda",
                   },
                 ],
               },

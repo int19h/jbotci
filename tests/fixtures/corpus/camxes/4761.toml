@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(be fúnge)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "funge",
-    span: [2,7],
-  },
+  Cmavo "be",
+  Gismu "fúnge",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"funge","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 PreposedBe {
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "funge",
-    span: [2,7],
-  },
+  be: Cmavo "be",
+  Gismu "fúnge",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"PreposedBe":{"be":{"Bare":{"Bare":{"span":[0,2],"phonemes":"be","kind":"cmavo"}}},"base":{"Word":{"Bare":{"Bare":{"span":[2,7],"phonemes":"funge","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .e'o leĭ blábi nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blabi",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [18,23],
-  },
+  Cmavo "i",
+  Cmavo "e'o",
+  Cmavo "leĭ",
+  Gismu "blábi",
+  Gismu "nánba",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"blabi","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"nanba","kind":"gismu"}}]"""
 
@@ -54,36 +34,16 @@ brackets = "([.i .e'o] [leĭ {blábi nánba}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "e'o",
-      span: [4,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "e'o",
   },
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [8,11],
-        },
+        descriptor: Cmavo "leĭ",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "blabi",
-            span: [12,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nanba",
-            span: [18,23],
-          },
+          Gismu "blábi",
+          Gismu "nánba",
         },
       },
     ],

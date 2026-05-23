@@ -18,79 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi dénpa la .tcim. .isabel.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tcim",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "isabel",
-    span: [20,26],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "dénpa",
+  Cmavo "la",
+  Cmevla "tcim",
+  Cmevla "isabel",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"tcim","kind":"cmevla"}},{"Bare":{"span":[20,26],"phonemes":"isabel","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [2,4],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "denpa",
-        span: [5,10],
-      },
+      Gismu "dénpa",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [11,13],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "tcim",
-              span: [15,19],
-            },
-            Word {
-              kind: "cmevla",
-              phonemes: "isabel",
-              span: [20,26],
-            },
+            Cmevla "tcim",
+            Cmevla "isabel",
           ],
         },
       ],

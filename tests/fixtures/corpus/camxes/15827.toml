@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa maĭ crépu loĭ plíbu táxfu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crepu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plibu",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "taxfu",
-    span: [22,27],
-  },
+  Cmavo "pa",
+  Cmavo "maĭ",
+  Gismu "crépu",
+  Cmavo "loĭ",
+  Gismu "plíbu",
+  Gismu "táxfu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"crepu","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"plibu","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"taxfu","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
       ],
-      mai: Word {
-        kind: "cmavo",
-        phonemes: "maĭ",
-        span: [2,5],
-      },
+      mai: Cmavo "maĭ",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "crepu",
-      span: [6,11],
-    },
+    Gismu "crépu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [12,15],
-        },
+        descriptor: Cmavo "loĭ",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "plibu",
-            span: [16,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "taxfu",
-            span: [22,27],
-          },
+          Gismu "plíbu",
+          Gismu "táxfu",
         },
       },
     ],

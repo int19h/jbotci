@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.and. so grána gárna)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "and",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "grana",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "garna",
-    span: [14,19],
-  },
+  Cmevla "and",
+  Cmavo "so",
+  Gismu "grána",
+  Gismu "gárna",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"grana","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"garna","kind":"gismu"}}]'
 
@@ -45,33 +29,17 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "and",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "so",
-            span: [4,6],
-          },
+          Cmavo "so",
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "grana",
-            span: [7,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "garna",
-            span: [14,19],
-          },
+          Gismu "grána",
+          Gismu "gárna",
         },
       },
     ],

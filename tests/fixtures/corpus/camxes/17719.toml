@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.rlp. ka sévzi)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sevzi",
-    span: [8,13],
-  },
+  Cmevla "rlp",
+  Cmavo "ka",
+  Gismu "sévzi",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sevzi","kind":"gismu"}}]'
 
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "rlp",
-      span: [0,3],
-    },
+    Cmevla "rlp",
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "ka",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sevzi",
-      span: [8,13],
-    },
+    nu: Cmavo "ka",
+    Gismu "sévzi",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"rlp","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"sevzi","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

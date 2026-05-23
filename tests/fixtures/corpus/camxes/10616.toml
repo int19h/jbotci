@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .xorxes. mi pu tcídu le pa moĭ po'o xe fánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xorxes",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [41,46],
-  },
+  Cmavo "doĭ",
+  Cmevla "xorxes",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Cmavo "po'o",
+  Cmavo "xe",
+  Gismu "fánva",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"xorxes","kind":"cmevla"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"po'o","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"fanva","kind":"gismu"}}]"""
 
@@ -82,80 +38,36 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xorxes",
-        span: [4,10],
-      },
+      argument: Cmevla "xorxes",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [12,14],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [15,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tcidu",
-          span: [18,23],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "tcídu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [24,26],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Moi {
               number: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [27,29],
-                },
+                Cmavo "pa",
               ],
               moi: WithIndicator {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "moĭ",
-                  span: [29,32],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "po'o",
-                  span: [33,37],
-                },
+                Cmavo "moĭ",
+                indicator: Cmavo "po'o",
               },
             },
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "xe",
-                span: [38,40],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "fanva",
-                span: [41,46],
-              },
+              se: Cmavo "xe",
+              Gismu "fánva",
             },
           },
         },

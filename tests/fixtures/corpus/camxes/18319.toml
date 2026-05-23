@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'u mi djísku lu jaĭ cáfne faĭ li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "djisku",
-    span: [8,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [32,36],
-  },
+  Cmavo "u'u",
+  Cmavo "mi",
+  Lujvo "djísku",
+  Cmavo "lu",
+  Cmavo "jaĭ",
+  Gismu "cáfne",
+  Cmavo "faĭ",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"djisku","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[28,31],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -66,63 +34,31 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "lujvo",
-        phonemes: "djisku",
-        span: [8,14],
-      },
+      Lujvo "djísku",
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [15,17],
-          },
+          lu: Cmavo "lu",
           Relation {
             Jai {
-              jai: Word {
-                kind: "cmavo",
-                phonemes: "jaĭ",
-                span: [18,21],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cafne",
-                span: [22,27],
-              },
+              jai: Cmavo "jaĭ",
+              Gismu "cáfne",
             },
             terms: [
               Fa {
-                fa: Word {
-                  kind: "cmavo",
-                  phonemes: "faĭ",
-                  span: [28,31],
-                },
+                fa: Cmavo "faĭ",
                 Zohe {},
               },
             ],
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [32,36],
-          },
+          lihu: Cmavo "li'u",
         },
       ],
     },

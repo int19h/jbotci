@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le na xámgu tcíka .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcika",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [19,22],
-  },
+  Cmavo "le",
+  Cmavo "na",
+  Gismu "xámgu",
+  Gismu "tcíka",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"tcika","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -51,34 +31,14 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [3,5],
-        },
+        na: Cmavo "na",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xamgu",
-            span: [6,11],
-          },
+          Gismu "xámgu",
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "tcika",
-              span: [12,17],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'i",
-              span: [19,22],
-            },
+            Gismu "tcíka",
+            indicator: Cmavo "u'i",
           },
         },
       },

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lítki túbna vaŭ ki'a)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "litki",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tubna",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [16,20],
-  },
+  Gismu "lítki",
+  Gismu "túbna",
+  Cmavo "vaŭ",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"litki","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"tubna","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -45,28 +29,12 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"litki","kind":"gismu"}},{"Bare":{"s
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "litki",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tubna",
-      span: [6,11],
-    },
+    Gismu "lítki",
+    Gismu "túbna",
   },
   vau: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [12,15],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ki'a",
-      span: [16,20],
-    },
+    Cmavo "vaŭ",
+    indicator: Cmavo "ki'a",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"litki","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"tubna","kind":"gismu"}}}}]},"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[16,20],"phonemes":"ki'a","kind":"cmavo"}}}}}}}}}}}]}]}"""

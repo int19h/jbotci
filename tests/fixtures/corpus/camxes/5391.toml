@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pi so'u maĭ jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [13,18],
-  },
+  Cmavo "mi",
+  Cmavo "pi",
+  Cmavo "so'u",
+  Cmavo "maĭ",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -51,38 +31,18 @@ tree = """
 Predicate {
   leading_terms: [
     Koha {
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
       free_modifiers: [
         Mai {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pi",
-              span: [3,5],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "so'u",
-              span: [5,9],
-            },
+            Cmavo "pi",
+            Cmavo "so'u",
           ],
-          mai: Word {
-            kind: "cmavo",
-            phonemes: "maĭ",
-            span: [9,12],
-          },
+          mai: Cmavo "maĭ",
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [13,18],
-  },
+  Gismu "jímpe",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}},{"Mai":{"number":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,9],"phonemes":"so'u","kind":"cmavo"}}}],"mai":{"Bare":{"Bare":{"span":[9,12],"phonemes":"maĭ","kind":"cmavo"}}}}}]}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"jimpe","kind":"gismu"}}}}}}}}}}}]}]}"""

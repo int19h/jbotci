@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le smáni cu nénri le mi pálku .i la'e di'u plúka mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "palku",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [37,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluka",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [48,50],
-  },
+  Cmavo "le",
+  Gismu "smáni",
+  Cmavo "cu",
+  Gismu "nénri",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "pálku",
+  Cmavo "i",
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Gismu "plúka",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"palku","kind":"gismu"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"pluka","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -87,85 +39,37 @@ Paragraph {
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "smani",
-          span: [3,8],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "smáni",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [9,11],
-    },
+    cu: Cmavo "cu",
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nenri",
-        span: [12,17],
-      },
+      Gismu "nénri",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [21,23],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "palku",
-            span: [24,29],
-          },
+          relation: Gismu "pálku",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [31,32],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [33,37],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "di'u",
-            span: [37,41],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "di'u",
         },
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "pluka",
-          span: [42,47],
-        },
+        Gismu "plúka",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [48,50],
-          },
+          Cmavo "mi",
         ],
       },
     },

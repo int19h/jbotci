@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la jípci vrúsi da ga'a mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jipci",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vrusi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'a",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [26,28],
-  },
+  Cmavo "la",
+  Gismu "jípci",
+  Gismu "vrúsi",
+  Cmavo "da",
+  Cmavo "ga'a",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jipci","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"vrusi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ga'a","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -57,42 +33,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [3,5],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jipci",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vrusi",
-          span: [12,17],
-        },
+        Gismu "jípci",
+        Gismu "vrúsi",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [18,20],
-    },
+    Cmavo "da",
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ga'a",
-          span: [21,25],
-        },
+        bai: Cmavo "ga'a",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [26,28],
-      },
+      Cmavo "mi",
     },
   ],
 }"""

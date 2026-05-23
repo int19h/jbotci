@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti ki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki",
-    span: [2,4],
-  },
+  Cmavo "ti",
+  Cmavo "ki",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ki","kind":"cmavo"}}]'
 
@@ -35,17 +27,9 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ki",
-        span: [2,4],
-      },
+      tense_modal: Cmavo "ki",
       Zohe {},
     },
   ],

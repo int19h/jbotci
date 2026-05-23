@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko se zdíle le nu lojbangírzu pénmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lojbangirzu",
-    span: [18,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [30,35],
-  },
+  Cmavo "ko",
+  Cmavo "se",
+  Gismu "zdíle",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "lojbangírzu",
+  Gismu "pénmi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,29],"phonemes":"lojbangirzu","kind":"lujvo"}},{"Bare":{"span":[30,35],"phonemes":"penmi","kind":"gismu"}}]'
 
@@ -60,49 +32,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zdile",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "zdíle",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [15,17],
-          },
+          nu: Cmavo "nu",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "lojbangirzu",
-              span: [18,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "penmi",
-              span: [30,35],
-            },
+            Lujvo "lojbangírzu",
+            Gismu "pénmi",
           },
         },
       },

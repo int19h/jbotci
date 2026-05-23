@@ -18,92 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xúsra le du'u [zo mutmí'i] cu xláli)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [8,12],
-  },
+  Gismu "xúsra",
+  Cmavo "le",
+  Cmavo "du'u",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [13,15],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "mutmi'i",
-      span: [16,23],
-    },
+    zo: Cmavo "zo",
+    Lujvo "mutmí'i",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xlali",
-    span: [27,32],
-  },
+  Cmavo "cu",
+  Gismu "xláli",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xusra","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"du'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[13,15],"phonemes":"zo","kind":"cmavo"},"word":{"span":[16,23],"phonemes":"mutmi'i","kind":"lujvo"}}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"xlali","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "xusra",
-    span: [0,5],
-  },
+  Gismu "xúsra",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "du'u",
-          span: [8,12],
-        },
+        nu: Cmavo "du'u",
         Predicate {
           leading_terms: [
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [13,15],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "mutmi'i",
-                span: [16,23],
-              },
+              zo: Cmavo "zo",
+              Lujvo "mutmí'i",
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [24,26],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "xlali",
-            span: [27,32],
-          },
+          cu: Cmavo "cu",
+          Gismu "xláli",
         },
       },
     },

@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.and. cmávo)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "and",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [4,9],
-  },
+  Cmevla "and",
+  Gismu "cmávo",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"cmavo","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "and",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [4,9],
-  },
+  Gismu "cmávo",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"cmavo","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -18,32 +18,12 @@ error = { position = 4, allowed-next = [] }
 brackets = "(coĭ la po [zo ce'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [7,9],
-  },
+  Cmavo "coĭ",
+  Cmavo "la",
+  Cmavo "po",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ce'u",
-      span: [13,17],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ce'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"po","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,17],"phonemes":"ce'u","kind":"cmavo"}}}]"""

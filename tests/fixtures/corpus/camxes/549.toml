@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da ro de zo'u da víska de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [23,25],
-  },
+  Cmavo "da",
+  Cmavo "ro",
+  Cmavo "de",
+  Cmavo "zo'u",
+  Cmavo "da",
+  Gismu "víska",
+  Cmavo "de",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"de","kind":"cmavo"}}]"""
 
@@ -60,49 +32,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Prenex {
   prenex_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [0,2],
-    },
+    Cmavo "da",
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [6,8],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "de",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [9,13],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [14,16],
-      },
+      Cmavo "da",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [17,22],
-      },
+      Gismu "víska",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "de",
-          span: [23,25],
-        },
+        Cmavo "de",
       ],
     },
   },

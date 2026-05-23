@@ -19,31 +19,11 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(to la'a clíra dúkse toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clira",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dukse",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [23,26],
-  },
+  Cmavo "to",
+  Cmavo "la'a",
+  Gismu "clíra",
+  Gismu "dúkse",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"clira","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -53,34 +33,14 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [3,5],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "la'a",
-          span: [6,10],
-        },
+        Cmavo "to",
+        indicator: Cmavo "la'a",
       },
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "clira",
-          span: [11,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dukse",
-          span: [17,22],
-        },
+        Gismu "clíra",
+        Gismu "dúkse",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [23,26],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

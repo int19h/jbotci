@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i za'a le py mínde vréji cu la'a dráni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minde",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [29,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [34,39],
-  },
+  Cmavo "i",
+  Cmavo "za'a",
+  Cmavo "le",
+  Cmavo "py",
+  Gismu "mínde",
+  Gismu "vréji",
+  Cmavo "cu",
+  Cmavo "la'a",
+  Gismu "dráni",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"minde","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"vreji","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"drani","kind":"gismu"}}]"""
 
@@ -70,67 +34,31 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "za'a",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "za'a",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [8,10],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
           Letter {
             letter: [
-              Word {
-                kind: "cmavo",
-                phonemes: "py",
-                span: [11,13],
-              },
+              Cmavo "py",
             ],
           },
         ],
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "minde",
-            span: [14,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vreji",
-            span: [20,25],
-          },
+          Gismu "mínde",
+          Gismu "vréji",
         },
       },
     ],
     cu: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [26,28],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [29,33],
-      },
+      Cmavo "cu",
+      indicator: Cmavo "la'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "drani",
-      span: [34,39],
-    },
+    Gismu "dráni",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"za'a","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[11,13],"phonemes":"py","kind":"cmavo"}}}]}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"minde","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"vreji","kind":"gismu"}}}}]}}}}],"cu":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}}},"indicator":{"span":[29,33],"phonemes":"la'a","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[34,39],"phonemes":"drani","kind":"gismu"}}}}}}}}}}}]}]}"""

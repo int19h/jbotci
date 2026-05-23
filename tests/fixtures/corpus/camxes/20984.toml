@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'i ku lu mi cíblykaĭ li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ciblykaĭ",
-    span: [13,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [22,26],
-  },
+  Cmavo "ta'i",
+  Cmavo "ku",
+  Cmavo "lu",
+  Cmavo "mi",
+  Lujvo "cíblykaĭ",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ta'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"ciblykaĭ","kind":"lujvo"}},{"Bare":{"span":[22,26],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -57,45 +33,21 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ta'i",
-          span: [0,4],
-        },
+        bai: Cmavo "ta'i",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
     Lu {
-      lu: Word {
-        kind: "cmavo",
-        phonemes: "lu",
-        span: [7,9],
-      },
+      lu: Cmavo "lu",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [10,12],
-          },
+          Cmavo "mi",
         ],
-        Word {
-          kind: "lujvo",
-          phonemes: "ciblykaĭ",
-          span: [13,21],
-        },
+        Lujvo "cíblykaĭ",
       },
-      lihu: Word {
-        kind: "cmavo",
-        phonemes: "li'u",
-        span: [22,26],
-      },
+      lihu: Cmavo "li'u",
     },
   ],
 }"""

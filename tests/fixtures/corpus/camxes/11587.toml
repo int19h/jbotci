@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca za nu'o cúsku peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu'o",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [19,22],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "za",
+  Cmavo "nu'o",
+  Gismu "cúsku",
+  Cmavo "peĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"nu'o","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "za",
-        span: [5,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "nu'o",
-        span: [8,12],
-      },
+      Cmavo "ca",
+      Cmavo "za",
+      Cmavo "nu'o",
     },
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [13,18],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [19,22],
-      },
+      Gismu "cúsku",
+      indicator: Cmavo "peĭ",
     },
   },
 }"""

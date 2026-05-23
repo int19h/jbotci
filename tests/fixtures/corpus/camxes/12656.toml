@@ -19,115 +19,43 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(zo'u mi na djúna ma kaŭ poĭ tráji xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuna",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [30,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [36,41],
-  },
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "djúna",
+  Cmavo "ma",
+  Cmavo "kaŭ",
+  Cmavo "poĭ",
+  Gismu "tráji",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"djuna","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"xamgu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Prenex {
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [11,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "djuna",
-          span: [14,19],
-        },
+        na: Cmavo "na",
+        Gismu "djúna",
       },
       terms: [
         RelativeClause {
           base_argument: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [20,22],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "kaŭ",
-              span: [22,25],
-            },
+            Cmavo "ma",
+            indicator: Cmavo "kaŭ",
           },
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [26,29],
-              },
+              poi: Cmavo "poĭ",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "traji",
-                  span: [30,35],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "xamgu",
-                  span: [36,41],
-                },
+                Gismu "tráji",
+                Gismu "xámgu",
               },
             },
           ],

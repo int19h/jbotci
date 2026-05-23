@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(tívni ke xájmi tígni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tivni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xajmi",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tigni",
-    span: [15,20],
-  },
+  Gismu "tívni",
+  Cmavo "ke",
+  Gismu "xájmi",
+  Gismu "tígni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"tivni","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xajmi","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"tigni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "tivni",
-    span: [0,5],
-  },
+  Gismu "tívni",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xajmi",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tigni",
-        span: [15,20],
-      },
+      Gismu "xájmi",
+      Gismu "tígni",
     },
   },
 }"""

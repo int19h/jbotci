@@ -18,34 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sípna ca)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
+  Gismu "sípna",
+  Cmavo "ca",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
+  Gismu "sípna",
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "ca",
       Zohe {},
     },
   ],

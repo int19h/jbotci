@@ -18,58 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na srána doĭ mámta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [13,18],
-  },
+  Cmavo "na",
+  Gismu "srána",
+  Cmavo "doĭ",
+  Gismu "mámta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mamta","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
+  na: Cmavo "na",
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "srana",
-      span: [3,8],
-    },
+    Gismu "srána",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [9,12],
-          },
+          Cmavo "doĭ",
         ],
         argument: RelationVocative {
-          relation: Word {
-            kind: "gismu",
-            phonemes: "mamta",
-            span: [13,18],
-          },
+          relation: Gismu "mámta",
         },
       },
     ],

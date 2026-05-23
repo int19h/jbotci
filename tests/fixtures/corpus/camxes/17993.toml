@@ -19,52 +19,16 @@ brackets = "([zo gánxo] cu jaĭ kámpu ki'u tu'a mi po'o)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ganxo",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "gánxo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kampu",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [35,39],
-  },
+  Cmavo "cu",
+  Cmavo "jaĭ",
+  Gismu "kámpu",
+  Cmavo "ki'u",
+  Cmavo "tu'a",
+  Cmavo "mi",
+  Cmavo "po'o",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"ganxo","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"kampu","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"po'o","kind":"cmavo"}}]"""
 
@@ -73,62 +37,26 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "ganxo",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "gánxo",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Relation {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [12,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kampu",
-        span: [16,21],
-      },
+      jai: Cmavo "jaĭ",
+      Gismu "kámpu",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ki'u",
-            span: [22,26],
-          },
+          bai: Cmavo "ki'u",
         },
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [27,31],
-          },
+          lahe: Cmavo "tu'a",
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [32,34],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "po'o",
-              span: [35,39],
-            },
+            Cmavo "mi",
+            indicator: Cmavo "po'o",
           },
         },
       },

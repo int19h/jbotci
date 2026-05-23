@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ni'o lo li'o klirysílna mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ni'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [8,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "klirysilna",
-    span: [12,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [23,25],
-  },
+  Cmavo "ni'o",
+  Cmavo "lo",
+  Cmavo "li'o",
+  Lujvo "klirysílna",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"li'o","kind":"cmavo"}},{"Bare":{"span":[12,22],"phonemes":"klirysilna","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -50,38 +30,18 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Paragraph {
   niho: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ni'o",
-      span: [0,4],
-    },
+    Cmavo "ni'o",
   ],
   Term {
     terms: [
       Descriptor {
         descriptor: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [5,7],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "li'o",
-            span: [8,12],
-          },
+          Cmavo "lo",
+          indicator: Cmavo "li'o",
         },
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "klirysilna",
-            span: [12,22],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo",
-            span: [23,25],
-          },
+          Lujvo "klirysílna",
+          Cmavo "mo",
         },
       },
     ],

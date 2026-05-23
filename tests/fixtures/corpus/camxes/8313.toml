@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi se xráni di'o zy jy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zy",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jy",
-    span: [19,21],
-  },
+  Cmavo "mi",
+  Cmavo "se",
+  Gismu "xráni",
+  Cmavo "di'o",
+  Cmavo "zy",
+  Cmavo "jy",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xrani","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"di'o","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"jy","kind":"cmavo"}}]"""
 
@@ -55,46 +31,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xrani",
-        span: [6,11],
-      },
+      se: Cmavo "se",
+      Gismu "xráni",
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "di'o",
-            span: [12,16],
-          },
+          bai: Cmavo "di'o",
         },
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "zy",
-              span: [17,19],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "jy",
-              span: [19,21],
-            },
+            Cmavo "zy",
+            Cmavo "jy",
           ],
         },
       },

@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.ask. tsáli)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ásk",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
+  Cmevla "ask",
+  Gismu "tsáli",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"ásk","kind":"cmevla"}},{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"ásk","kind":"cmevla"}},{"Bare":{"spa
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ásk",
-      span: [0,3],
-    },
+    Cmevla "ask",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [4,9],
-  },
+  Gismu "tsáli",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"ásk","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"tsali","kind":"gismu"}}}}}}}}}}}]}]}'

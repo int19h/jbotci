@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pi so'a lijdrbaptíste prénu cu se térpa mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "lijdrbaptiste",
-    span: [7,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [39,41],
-  },
+  Cmavo "pi",
+  Cmavo "so'a",
+  Fuhivla "lijdrbaptíste",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "térpa",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[7,20],"phonemes":"lijdrbaptiste","kind":"fu'ivla"}},{"Bare":{"span":[21,26],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -68,56 +36,24 @@ Predicate {
     Descriptor {
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "so'a",
-            span: [2,6],
-          },
+          Cmavo "pi",
+          Cmavo "so'a",
         },
       ],
       relation: Compound {
-        Word {
-          kind: "fu'ivla",
-          phonemes: "lijdrbaptiste",
-          span: [7,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [21,26],
-        },
+        Fuhivla "lijdrbaptíste",
+        Gismu "prénu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [27,29],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [30,32],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "terpa",
-        span: [33,38],
-      },
+      se: Cmavo "se",
+      Gismu "térpa",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [39,41],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

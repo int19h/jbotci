@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(pa ro lu la .lojban. .on.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [10,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "on",
-    span: [17,19],
-  },
+  Cmavo "pa",
+  Cmavo "ro",
+  Cmavo "lu",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmevla "on",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[17,19],"phonemes":"on","kind":"cmevla"}}]'
 
@@ -58,42 +34,18 @@ Term {
   terms: [
     Quantified {
       quantifier: Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [2,4],
-        },
+        Cmavo "pa",
+        Cmavo "ro",
       },
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [4,6],
-        },
+        lu: Cmavo "lu",
         Term {
           terms: [
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [7,9],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "lojban",
-                  span: [10,16],
-                },
-                Word {
-                  kind: "cmevla",
-                  phonemes: "on",
-                  span: [17,19],
-                },
+                Cmevla "lojban",
+                Cmevla "on",
               ],
             },
           ],

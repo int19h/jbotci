@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko glíbaŭ távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glibaŭ",
-    span: [3,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [10,15],
-  },
+  Cmavo "ko",
+  Lujvo "glíbaŭ",
+  Gismu "távla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"glibaŭ","kind":"lujvo"}},{"Bare":{"span":[10,15],"phonemes":"tavla","kind":"gismu"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "glibaŭ",
-      span: [3,9],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [10,15],
-    },
+    Lujvo "glíbaŭ",
+    Gismu "távla",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,9],"phonemes":"glibaŭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"tavla","kind":"gismu"}}}}]}}}}}}}}]}]}'

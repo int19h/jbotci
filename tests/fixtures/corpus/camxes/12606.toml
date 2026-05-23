@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(jaĭ cfári faĭ le nu cílre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cilre",
-    span: [19,24],
-  },
+  Cmavo "jaĭ",
+  Gismu "cfári",
+  Cmavo "faĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cílre",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cfari","kind":"gismu"}},{"Bare":{"span":[10,13],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cilre","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [0,3],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cfari",
-      span: [4,9],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "cfári",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "faĭ",
-        span: [10,13],
-      },
+      fa: Cmavo "faĭ",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "cilre",
-            span: [19,24],
-          },
+          nu: Cmavo "nu",
+          Gismu "cílre",
         },
       },
     },

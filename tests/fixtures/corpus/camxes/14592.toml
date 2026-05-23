@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .moskov. poĭ rúsko)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "moskov",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rusko",
-    span: [14,19],
-  },
+  Cmavo "la",
+  Cmevla "moskov",
+  Cmavo "poĭ",
+  Gismu "rúsko",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"moskov","kind":"cmevla"}},{"Bare":{"span":[10,13],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"rusko","kind":"gismu"}}]'
 
@@ -47,31 +31,15 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "moskov",
-            span: [3,9],
-          },
+          Cmevla "moskov",
         ],
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [10,13],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "rusko",
-            span: [14,19],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "rúsko",
         },
       ],
     },

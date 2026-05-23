@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .ŭog. .ĭi térpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ŭog",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭi",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [14,19],
-  },
+  Cmavo "doĭ",
+  Cmevla "ŭog",
+  Cmavo "ĭi",
+  Gismu "térpa",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"ŭog","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"ĭi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"terpa","kind":"gismu"}}]'
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "ŭog",
-          span: [5,8],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭi",
-          span: [11,13],
-        },
+        Cmevla "ŭog",
+        indicator: Cmavo "ĭi",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [14,19],
-  },
+  Gismu "térpa",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[5,8],"phonemes":"ŭog","kind":"cmevla"}}},"indicator":{"span":[11,13],"phonemes":"ĭi","kind":"cmavo"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"terpa","kind":"gismu"}}}}}}}}}}}]}]}'

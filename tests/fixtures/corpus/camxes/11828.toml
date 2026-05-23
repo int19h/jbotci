@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na cúrmi le nu císka le júfra poĭ pa moĭ vásru slakábu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curmi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jufra",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [36,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [40,45],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "slakabu",
-    span: [46,53],
-  },
+  Cmavo "na",
+  Gismu "cúrmi",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "císka",
+  Cmavo "le",
+  Gismu "júfra",
+  Cmavo "poĭ",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Gismu "vásru",
+  Fuhivla "slakábu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"curmi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[30,33],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[36,39],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[46,53],"phonemes":"slakabu","kind":"fu'ivla"}}]"""
 
@@ -85,80 +37,32 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "curmi",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "cúrmi",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [12,14],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "ciska",
-            span: [15,20],
-          },
+          Gismu "císka",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [21,23],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "jufra",
-                span: [24,29],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "júfra",
               relative_clauses: [
                 Poi {
-                  poi: Word {
-                    kind: "cmavo",
-                    phonemes: "poĭ",
-                    span: [30,33],
-                  },
+                  poi: Cmavo "poĭ",
                   Compound {
                     Moi {
                       number: [
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "pa",
-                          span: [34,36],
-                        },
+                        Cmavo "pa",
                       ],
-                      moi: Word {
-                        kind: "cmavo",
-                        phonemes: "moĭ",
-                        span: [36,39],
-                      },
+                      moi: Cmavo "moĭ",
                     },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "vasru",
-                      span: [40,45],
-                    },
-                    Word {
-                      kind: "fu'ivla",
-                      phonemes: "slakabu",
-                      span: [46,53],
-                    },
+                    Gismu "vásru",
+                    Fuhivla "slakábu",
                   },
                 },
               ],

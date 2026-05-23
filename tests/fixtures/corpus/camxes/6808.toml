@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(taĭ lo malnínmu pe lo ca'irná'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malninmu",
-    span: [15,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [27,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ca'irna'e",
-    span: [30,39],
-  },
+  Cmavo "taĭ",
+  Cmavo "lo",
+  Lujvo "malnínmu",
+  Cmavo "pe",
+  Cmavo "lo",
+  Lujvo "ca'irná'e",
 ]"""
 json = """[{"Bare":{"span":[8,11],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"malninmu","kind":"lujvo"}},{"Bare":{"span":[24,26],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[30,39],"phonemes":"ca'irna'e","kind":"lujvo"}}]"""
 
@@ -57,41 +33,17 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [8,11],
-        },
+        bai: Cmavo "taĭ",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "malninmu",
-          span: [15,23],
-        },
+        descriptor: Cmavo "lo",
+        relation: Lujvo "malnínmu",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [24,26],
-            },
+            goi: Cmavo "pe",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo",
-                span: [27,29],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "ca'irna'e",
-                span: [30,39],
-              },
+              descriptor: Cmavo "lo",
+              relation: Lujvo "ca'irná'e",
             },
           },
         ],

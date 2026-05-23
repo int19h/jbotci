@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.and. stáble)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "and",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "stable",
-    span: [4,10],
-  },
+  Cmevla "and",
+  Lujvo "stáble",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span":[4,10],"phonemes":"stable","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "and",
-      span: [0,3],
-    },
+    Cmevla "and",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "stable",
-    span: [4,10],
-  },
+  Lujvo "stáble",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"and","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,10],"phonemes":"stable","kind":"lujvo"}}}}}}}}}}}]}]}'

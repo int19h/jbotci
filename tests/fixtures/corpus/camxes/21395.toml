@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je tcáci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcaci",
-    span: [4,9],
-  },
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "tcáci",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,3],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tcaci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcaci",
-    span: [4,9],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
+  Gismu "tcáci",
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[1,3],"phonemes":"je","kind":"cmavo"}}}]}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"tcaci","kind":"gismu"}}}}}}}}}}}]}]}'

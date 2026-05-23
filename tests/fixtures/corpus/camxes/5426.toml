@@ -19,27 +19,11 @@ brackets = "([la bu] da nélci)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [0,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [3,5],
-    },
+    Cmavo "la",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [8,13],
-  },
+  Cmavo "da",
+  Gismu "nélci",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nelci","kind":"gismu"}}]'
 
@@ -50,29 +34,13 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [0,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [3,5],
-          },
+          Cmavo "la",
+          bu: Cmavo "bu",
         },
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [5,7],
-    },
+    Cmavo "da",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [8,13],
-  },
+  Gismu "nélci",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"nelci","kind":"gismu"}}}}}}}}}}}]}]}'

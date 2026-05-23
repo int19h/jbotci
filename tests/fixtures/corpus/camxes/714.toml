@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .alis. cu blánu prénu .i je la .alis. cu zdáni prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alis",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [26,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alis",
-    span: [34,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [43,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [49,54],
-  },
+  Cmavo "la",
+  Cmevla "alis",
+  Cmavo "cu",
+  Gismu "blánu",
+  Gismu "prénu",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "la",
+  Cmevla "alis",
+  Cmavo "cu",
+  Gismu "zdáni",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[26,27],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[40,42],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[49,54],"phonemes":"prenu","kind":"gismu"}}]'
 
@@ -87,81 +39,33 @@ Connected {
   leading_statement: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "alis",
-            span: [4,8],
-          },
+          Cmevla "alis",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [10,12],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "blanu",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [19,24],
-      },
+      Gismu "blánu",
+      Gismu "prénu",
     },
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [26,27],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [27,29],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [30,32],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "alis",
-            span: [34,38],
-          },
+          Cmevla "alis",
         ],
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [40,42],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zdani",
-        span: [43,48],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [49,54],
-      },
+      Gismu "zdáni",
+      Gismu "prénu",
     },
   },
 }"""

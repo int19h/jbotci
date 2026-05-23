@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do cúrmi co clíva le mákfa dánmo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curmi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "makfa",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danmo",
-    span: [30,35],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "cúrmi",
+  Cmavo "co",
+  Gismu "clíva",
+  Cmavo "le",
+  Gismu "mákfa",
+  Gismu "dánmo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"curmi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"makfa","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"danmo","kind":"gismu"}}]'
 
@@ -66,57 +34,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       Co {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "curmi",
-          span: [6,11],
-        },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [12,14],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "cliva",
-          span: [15,20],
-        },
+        leading_relation: Gismu "cúrmi",
+        co: Cmavo "co",
+        trailing_relation: Gismu "clíva",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [21,23],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "makfa",
-              span: [24,29],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "danmo",
-              span: [30,35],
-            },
+            Gismu "mákfa",
+            Gismu "dánmo",
           },
         },
       ],

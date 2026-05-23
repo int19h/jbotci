@@ -18,113 +18,41 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi pu kélci vi le kélci kúmfa po'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [33,37],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "kélci",
+  Cmavo "vi",
+  Cmavo "le",
+  Gismu "kélci",
+  Gismu "kúmfa",
+  Cmavo "po'o",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"kumfa","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"po'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "kelci",
-          span: [9,14],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "kélci",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [15,17],
-          },
+          tense_modal: Cmavo "vi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [18,20],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "kelci",
-                span: [21,26],
-              },
+              Gismu "kélci",
               WithIndicator {
-                Word {
-                  kind: "gismu",
-                  phonemes: "kumfa",
-                  span: [27,32],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "po'o",
-                  span: [33,37],
-                },
+                Gismu "kúmfa",
+                indicator: Cmavo "po'o",
               },
             },
           },

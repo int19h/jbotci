@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .ceĭn. le bláci cu kúnti .i le bírje cu pu kúkte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ceĭn",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blaci",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [29,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birje",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kukte",
-    span: [46,51],
-  },
+  Cmavo "doĭ",
+  Cmevla "ceĭn",
+  Cmavo "le",
+  Gismu "bláci",
+  Cmavo "cu",
+  Gismu "kúnti",
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "bírje",
+  Cmavo "cu",
+  Cmavo "pu",
+  Gismu "kúkte",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ceĭn","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"blaci","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"kunti","kind":"gismu"}},{"Bare":{"span":[29,30],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"birje","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"kukte","kind":"gismu"}}]'
 
@@ -87,83 +39,35 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "ceĭn",
-        span: [4,8],
-      },
+      argument: Cmevla "ceĭn",
     },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [10,12],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "blaci",
-            span: [13,18],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "bláci",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [19,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kunti",
-        span: [22,27],
-      },
+      cu: Cmavo "cu",
+      Gismu "kúnti",
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [29,30],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [31,33],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "birje",
-              span: [34,39],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "bírje",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [40,42],
-        },
+        cu: Cmavo "cu",
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [43,45],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kukte",
-            span: [46,51],
-          },
+          tense_modal: Cmavo "pu",
+          Gismu "kúkte",
         },
       },
     },

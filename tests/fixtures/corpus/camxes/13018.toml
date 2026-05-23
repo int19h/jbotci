@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(no cínri poĭ mi ca ka'e sánji ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [19,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [30,32],
-  },
+  Cmavo "no",
+  Gismu "cínri",
+  Cmavo "poĭ",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "ka'e",
+  Gismu "sánji",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"sanji","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -67,58 +35,26 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [0,2],
-        },
+        Cmavo "no",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [3,8],
-      },
+      relation: Gismu "cínri",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [9,12],
-          },
+          poi: Cmavo "poĭ",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [13,15],
-              },
+              Cmavo "mi",
             ],
             Relation {
               TenseModal {
                 tense_modal: Composite {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [16,18],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ka'e",
-                    span: [19,23],
-                  },
+                  Cmavo "ca",
+                  Cmavo "ka'e",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sanji",
-                  span: [24,29],
-                },
+                Gismu "sánji",
               },
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ri",
-                  span: [30,32],
-                },
+                Cmavo "ri",
               ],
             },
           },

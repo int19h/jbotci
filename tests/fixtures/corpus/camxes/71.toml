@@ -18,62 +18,18 @@ error = { position = 5, allowed-next = [] }
 brackets = "(lo [.ŭi zeĭ cínmo] cu gléki cínmo cu cáfne se lífri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
+  Cmavo "lo",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [4,6],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [7,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmo",
-      span: [11,16],
-    },
+    left: Cmavo "ŭi",
+    zei: Cmavo "zeĭ",
+    Gismu "cínmo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [33,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [48,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [57,62],
-  },
+  Cmavo "cu",
+  Gismu "gléki",
+  Gismu "cínmo",
+  Cmavo "cu",
+  Gismu "cáfne",
+  Cmavo "se",
+  Gismu "lífri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[4,6],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[7,10],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[11,16],"phonemes":"cinmo","kind":"gismu"}}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"gleki","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[45,47],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"lifri","kind":"gismu"}}]'

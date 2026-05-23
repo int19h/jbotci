@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .zed. jínvi je na mórji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "zed",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinvi",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [19,24],
-  },
+  Cmavo "doĭ",
+  Cmevla "zed",
+  Gismu "jínvi",
+  Cmavo "je",
+  Cmavo "na",
+  Gismu "mórji",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"zed","kind":"cmevla"}},{"Bare":{"span":[8,13],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"morji","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "zed",
-        span: [4,7],
-      },
+      argument: Cmevla "zed",
     },
   ],
   PredicateTail1 {
-    Word {
-      kind: "gismu",
-      phonemes: "jinvi",
-      span: [8,13],
-    },
+    Gismu "jínvi",
     continuations: [
       PredicateTailContinuation {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [14,16],
-        },
+        connective: Cmavo "je",
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "morji",
-            span: [19,24],
-          },
+          na: Cmavo "na",
+          Gismu "mórji",
         },
       },
     ],

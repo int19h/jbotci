@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .paŭl. do pu zi mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "paŭl",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [19,21],
-  },
+  Cmavo "doĭ",
+  Cmevla "paŭl",
+  Cmavo "do",
+  Cmavo "pu",
+  Cmavo "zi",
+  Cmavo "mo",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"paŭl","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mo","kind":"cmavo"}}]'
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "paŭl",
-        span: [4,9],
-      },
+      argument: Cmevla "paŭl",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [10,12],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [13,15],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [16,18],
-        },
+        Cmavo "pu",
+        Cmavo "zi",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [19,21],
-      },
+      Cmavo "mo",
     },
   },
 }"""

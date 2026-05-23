@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi prámi do soĭ vo'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "soĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'a",
-    span: [16,20],
-  },
+  Cmavo "mi",
+  Gismu "prámi",
+  Cmavo "do",
+  Cmavo "soĭ",
+  Cmavo "vo'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"soĭ","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"vo'a","kind":"cmavo"}}]"""
 
@@ -57,37 +37,17 @@ brackets = "(mi [prámi {do (soĭ vo'a)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [3,8],
-    },
+    Gismu "prámi",
     terms: [
       Koha {
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [9,11],
-        },
+        Cmavo "do",
         free_modifiers: [
           Soi {
-            soi: Word {
-              kind: "cmavo",
-              phonemes: "soĭ",
-              span: [12,15],
-            },
-            leading_argument: Word {
-              kind: "cmavo",
-              phonemes: "vo'a",
-              span: [16,20],
-            },
+            soi: Cmavo "soĭ",
+            leading_argument: Cmavo "vo'a",
           },
         ],
       },

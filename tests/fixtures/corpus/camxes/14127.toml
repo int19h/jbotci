@@ -18,53 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(seĭ básti [zo gúnka] fa lu se gúnka li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "basti",
-    span: [4,9],
-  },
+  Cmavo "seĭ",
+  Gismu "básti",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [10,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gunka",
-      span: [13,18],
-    },
+    zo: Cmavo "zo",
+    Gismu "gúnka",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [34,38],
-  },
+  Cmavo "fa",
+  Cmavo "lu",
+  Cmavo "se",
+  Gismu "gúnka",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"basti","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[10,12],"phonemes":"zo","kind":"cmavo"},"word":{"span":[13,18],"phonemes":"gunka","kind":"gismu"}}},{"Bare":{"span":[19,21],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -73,61 +37,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "basti",
-        span: [4,9],
-      },
+      sei: Cmavo "seĭ",
+      relation: Gismu "básti",
     },
   ],
   Term {
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [10,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gunka",
-          span: [13,18],
-        },
+        zo: Cmavo "zo",
+        Gismu "gúnka",
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [19,21],
-        },
+        fa: Cmavo "fa",
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [22,24],
-          },
+          lu: Cmavo "lu",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [25,27],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "gunka",
-              span: [28,33],
-            },
+            se: Cmavo "se",
+            Gismu "gúnka",
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [34,38],
-          },
+          lihu: Cmavo "li'u",
         },
       },
     ],

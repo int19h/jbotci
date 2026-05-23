@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti ny ti ny)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [7,9],
-  },
+  Cmavo "ti",
+  Cmavo "ny",
+  Cmavo "ti",
+  Cmavo "ny",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ny","kind":"cmavo"}}]'
 
@@ -45,32 +29,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ny",
-          span: [2,4],
-        },
+        Cmavo "ny",
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [5,7],
-    },
+    Cmavo "ti",
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ny",
-          span: [7,9],
-        },
+        Cmavo "ny",
       ],
     },
   ],

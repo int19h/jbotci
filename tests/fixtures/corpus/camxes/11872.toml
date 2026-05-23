@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.as. nérkla)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "as",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nerkla",
-    span: [3,9],
-  },
+  Cmevla "as",
+  Lujvo "nérkla",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"as","kind":"cmevla"}},{"Bare":{"span":[3,9],"phonemes":"nerkla","kind":"lujvo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"as","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "as",
-      span: [0,2],
-    },
+    Cmevla "as",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "nerkla",
-    span: [3,9],
-  },
+  Lujvo "nérkla",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"as","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,9],"phonemes":"nerkla","kind":"lujvo"}}}}}}}}}}}]}]}'

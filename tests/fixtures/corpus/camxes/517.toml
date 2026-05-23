@@ -18,41 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ci mu ce'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'i",
-    span: [6,10],
-  },
+  Cmavo "ci",
+  Cmavo "mu",
+  Cmavo "ce'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ce'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'i",
-    span: [6,10],
-  },
+  Cmavo "ci",
+  Cmavo "mu",
+  Cmavo "ce'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,5],"phonemes":"mu","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,10],"phonemes":"ce'i","kind":"cmavo"}}}]}}}}}}]}]}"""

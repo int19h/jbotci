@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.xod. re tsísku)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tsisku",
-    span: [8,14],
-  },
+  Cmevla "xod",
+  Cmavo "re",
+  Lujvo "tsísku",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"tsisku","kind":"lujvo"}}]'
 
@@ -41,27 +29,15 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "xod",
-      span: [0,3],
-    },
+    Cmevla "xod",
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [5,7],
-          },
+          Cmavo "re",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "tsisku",
-          span: [8,14],
-        },
+        relation: Lujvo "tsísku",
       },
     ],
   },

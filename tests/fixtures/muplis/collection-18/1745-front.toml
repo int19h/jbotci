@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i laĭ .djo'uns. prámi le pa tíxnu be ro me vo'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "laĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djo'uns",
-    span: [7,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tixnu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'a",
-    span: [43,47],
-  },
+  Cmavo "i",
+  Cmavo "laĭ",
+  Cmevla "djo'uns",
+  Gismu "prámi",
+  Cmavo "le",
+  Cmavo "pa",
+  Gismu "tíxnu",
+  Cmavo "be",
+  Cmavo "ro",
+  Cmavo "me",
+  Cmavo "vo'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[7,14],"phonemes":"djo'uns","kind":"cmevla"}},{"Bare":{"span":[16,21],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"tixnu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[43,47],"phonemes":"vo'a","kind":"cmavo"}}]"""
 
@@ -83,78 +39,34 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{laĭ .djo'uns.} {prámi (le pa [tíxnu be {ro (me vo'a)}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "laĭ",
-          span: [3,6],
-        },
+        la: Cmavo "laĭ",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djo'uns",
-            span: [7,14],
-          },
+          Cmevla "djo'uns",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "prami",
-        span: [16,21],
-      },
+      Gismu "prámi",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [22,24],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [25,27],
-            },
+            Cmavo "pa",
           ],
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "tixnu",
-              span: [28,33],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [34,36],
-            },
+            Gismu "tíxnu",
+            be: Cmavo "be",
             first_argument: Descriptor {
               tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ro",
-                  span: [37,39],
-                },
+                Cmavo "ro",
               ],
               relation: Me {
-                me: Word {
-                  kind: "cmavo",
-                  phonemes: "me",
-                  span: [40,42],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "vo'a",
-                  span: [43,47],
-                },
+                me: Cmavo "me",
+                Cmavo "vo'a",
               },
             },
           },

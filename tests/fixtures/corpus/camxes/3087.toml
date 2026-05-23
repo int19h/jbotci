@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pónjo zgíke fínti)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [12,17],
-  },
+  Gismu "pónjo",
+  Gismu "zgíke",
+  Gismu "fínti",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ponjo","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"finti","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [12,17],
-  },
+  Gismu "pónjo",
+  Gismu "zgíke",
+  Gismu "fínti",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"ponjo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zgike","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"finti","kind":"gismu"}}}}]}}}}}}}}]}]}'

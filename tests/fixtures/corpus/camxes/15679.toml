@@ -19,66 +19,26 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(na pu zi zváti zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [17,21],
-  },
+  Cmavo "na",
+  Cmavo "pu",
+  Cmavo "zi",
+  Gismu "zváti",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Na {
-  na: Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
+  na: Cmavo "na",
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [8,10],
-      },
+      Cmavo "pu",
+      Cmavo "zi",
     },
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [11,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "zo'o",
-        span: [17,21],
-      },
+      Gismu "zváti",
+      indicator: Cmavo "zo'o",
     },
   },
 }"""

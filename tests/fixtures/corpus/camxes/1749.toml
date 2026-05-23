@@ -18,61 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(re pi ze re ji'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'i",
-    span: [12,16],
-  },
+  Cmavo "re",
+  Cmavo "pi",
+  Cmavo "ze",
+  Cmavo "re",
+  Cmavo "ji'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ji'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'i",
-    span: [12,16],
-  },
+  Cmavo "re",
+  Cmavo "pi",
+  Cmavo "ze",
+  Cmavo "re",
+  Cmavo "ji'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"ze","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[12,16],"phonemes":"ji'i","kind":"cmavo"}}}]}}}}}}]}]}"""

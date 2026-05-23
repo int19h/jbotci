@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e do mi pu za cíkre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [16,21],
-  },
+  Cmavo "je'e",
+  Cmavo "do",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "cíkre",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cikre","kind":"gismu"}}]"""
 
@@ -57,45 +33,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      argument: Cmavo "do",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [8,10],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za",
-          span: [13,15],
-        },
+        Cmavo "pu",
+        Cmavo "za",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cikre",
-        span: [16,21],
-      },
+      Gismu "cíkre",
     },
   },
 }"""

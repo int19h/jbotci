@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xy zo'u ma súmji li xy li pa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sumji",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [26,28],
-  },
+  Cmavo "xy",
+  Cmavo "zo'u",
+  Cmavo "ma",
+  Gismu "súmji",
+  Cmavo "li",
+  Cmavo "xy",
+  Cmavo "li",
+  Cmavo "pa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"sumji","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"pa","kind":"cmavo"}}]"""
 
@@ -67,57 +35,25 @@ Prenex {
   prenex_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xy",
-          span: [0,2],
-        },
+        Cmavo "xy",
       ],
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [3,7],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [8,10],
-      },
+      Cmavo "ma",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sumji",
-        span: [11,16],
-      },
+      Gismu "súmji",
       terms: [
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [17,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xy",
-            span: [20,22],
-          },
+          li: Cmavo "li",
+          Cmavo "xy",
         },
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [23,25],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [26,28],
-          },
+          li: Cmavo "li",
+          Cmavo "pa",
         },
       ],
     },

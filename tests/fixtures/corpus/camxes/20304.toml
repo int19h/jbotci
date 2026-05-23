@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi kláma cpácu ckáfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckafi",
-    span: [15,20],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Gismu "cpácu",
+  Gismu "ckáfi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"ckafi","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cpacu",
-      span: [9,14],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "ckafi",
-      span: [15,20],
-    },
+    Gismu "kláma",
+    Gismu "cpácu",
+    Gismu "ckáfi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cpacu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"ckafi","kind":"gismu"}}}}]}}}}}}}}]}]}'

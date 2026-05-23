@@ -19,57 +19,17 @@ brackets = "([lo'u mi fi la .mumym. cu .eĭ clíra le'u] ki'a)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fi",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [11,13],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "mumym",
-      span: [14,19],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [20,22],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "eĭ",
-      span: [23,25],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "clira",
-      span: [26,31],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [32,36],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "mi",
+    Cmavo "fi",
+    Cmavo "la",
+    Cmevla "mumym",
+    Cmavo "cu",
+    Cmavo "eĭ",
+    Gismu "clíra",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [37,41],
-  },
+  Cmavo "ki'a",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"mi","kind":"cmavo"},{"span":[8,10],"phonemes":"fi","kind":"cmavo"},{"span":[11,13],"phonemes":"la","kind":"cmavo"},{"span":[14,19],"phonemes":"mumym","kind":"cmevla"},{"span":[20,22],"phonemes":"cu","kind":"cmavo"},{"span":[23,25],"phonemes":"eĭ","kind":"cmavo"},{"span":[26,31],"phonemes":"clira","kind":"gismu"}],"lehu":{"span":[32,36],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[37,41],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -79,57 +39,17 @@ Term {
   terms: [
     WithIndicator {
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [5,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "mumym",
-          span: [14,19],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [20,22],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [23,25],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "clira",
-          span: [26,31],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [32,36],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "mi",
+        Cmavo "fi",
+        Cmavo "la",
+        Cmevla "mumym",
+        Cmavo "cu",
+        Cmavo "eĭ",
+        Gismu "clíra",
+        lehu: Cmavo "le'u",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [37,41],
-      },
+      indicator: Cmavo "ki'a",
     },
   ],
 }"""

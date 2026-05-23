@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu mi gúnka ji'a .u'i naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [23,26],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "gúnka",
+  Cmavo "ji'a",
+  Cmavo "u'i",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -61,48 +33,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [6,8],
-            },
+            Cmavo "mi",
           ],
           WithIndicator {
             WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "gunka",
-                span: [9,14],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ji'a",
-                span: [15,19],
-              },
+              Gismu "gúnka",
+              indicator: Cmavo "ji'a",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "u'i",
-              span: [20,23],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [23,26],
-            },
+            indicator: Cmavo "u'i",
+            nai: Cmavo "naĭ",
           },
         },
       },

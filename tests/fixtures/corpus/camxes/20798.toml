@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ba zi cúsku fo la .tikis.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tikis",
-    span: [18,23],
-  },
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "cúsku",
+  Cmavo "fo",
+  Cmavo "la",
+  Cmevla "tikis",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tikis","kind":"cmevla"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Relation {
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [3,5],
-      },
+      Cmavo "ba",
+      Cmavo "zi",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [6,11],
-    },
+    Gismu "cúsku",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fo",
-        span: [12,14],
-      },
+      fa: Cmavo "fo",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [15,17],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "tikis",
-            span: [18,23],
-          },
+          Cmevla "tikis",
         ],
       },
     },

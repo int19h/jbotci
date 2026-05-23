@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'o da poĭ vérba cu kláma na ku su'o de poĭ ckúle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "verba",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [38,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [42,47],
-  },
+  Cmavo "su'o",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "vérba",
+  Cmavo "cu",
+  Gismu "kláma",
+  Cmavo "na",
+  Cmavo "ku",
+  Cmavo "su'o",
+  Cmavo "de",
+  Cmavo "poĭ",
+  Gismu "ckúle",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"verba","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[38,41],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"ckule","kind":"gismu"}}]"""
 
@@ -87,82 +39,34 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [4,6],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "da",
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [7,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "verba",
-            span: [11,16],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "vérba",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [20,25],
-    },
+    Gismu "kláma",
     terms: [
       NaKu {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [26,28],
-        },
-        na_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [28,30],
-        },
+        na: Cmavo "na",
+        na_ku: Cmavo "ku",
       },
       RelativeClause {
         base_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [31,35],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de",
-            span: [35,37],
-          },
+          quantifier: Cmavo "su'o",
+          Cmavo "de",
         },
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [38,41],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ckule",
-              span: [42,47],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "ckúle",
           },
         ],
       },

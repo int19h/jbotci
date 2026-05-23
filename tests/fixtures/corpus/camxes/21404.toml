@@ -18,59 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le [.ŭi zeĭ coĭ] na du le [.ŭi zeĭ caĭ])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
+  Cmavo "le",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [3,5],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [6,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "coĭ",
-      span: [10,13],
-    },
+    left: Cmavo "ŭi",
+    zei: Cmavo "zeĭ",
+    Cmavo "coĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
+  Cmavo "na",
+  Cmavo "du",
+  Cmavo "le",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [22,24],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [25,28],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "caĭ",
-      span: [29,32],
-    },
+    left: Cmavo "ŭi",
+    zei: Cmavo "zeĭ",
+    Cmavo "caĭ",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[3,5],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[6,9],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[10,13],"phonemes":"coĭ","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[22,24],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[25,28],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[29,32],"phonemes":"caĭ","kind":"cmavo"}}}]'
@@ -80,66 +40,26 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: ZeiLujvo {
-        left: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [3,5],
-        },
-        zei: Word {
-          kind: "cmavo",
-          phonemes: "zeĭ",
-          span: [6,9],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [10,13],
-        },
+        left: Cmavo "ŭi",
+        zei: Cmavo "zeĭ",
+        Cmavo "coĭ",
       },
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [14,16],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "du",
-        span: [16,18],
-      },
+      na: Cmavo "na",
+      Cmavo "du",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [19,21],
-        },
+        descriptor: Cmavo "le",
         relation: ZeiLujvo {
-          left: Word {
-            kind: "cmavo",
-            phonemes: "ŭi",
-            span: [22,24],
-          },
-          zei: Word {
-            kind: "cmavo",
-            phonemes: "zeĭ",
-            span: [25,28],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "caĭ",
-            span: [29,32],
-          },
+          left: Cmavo "ŭi",
+          zei: Cmavo "zeĭ",
+          Cmavo "caĭ",
         },
       },
     ],

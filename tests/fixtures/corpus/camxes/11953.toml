@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i peĭ do djíca le nu gásnu le nu citkákeĭ se pi'o ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [32,34],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "citkakeĭ",
-    span: [35,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [46,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [51,53],
-  },
+  Cmavo "i",
+  Cmavo "peĭ",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "gásnu",
+  Cmavo "le",
+  Cmavo "nu",
+  Fuhivla "citkákeĭ",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[35,43],"phonemes":"citkakeĭ","kind":"fu'ivla"}},{"Bare":{"span":[44,46],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[46,50],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -90,88 +38,36 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "peĭ",
-      span: [3,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "peĭ",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [7,9],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [10,15],
-      },
+      Gismu "djíca",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [16,18],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [19,21],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "gasnu",
-                span: [23,28],
-              },
+              Gismu "gásnu",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [29,31],
-                  },
+                  descriptor: Cmavo "le",
                   relation: Abstraction {
-                    nu: Word {
-                      kind: "cmavo",
-                      phonemes: "nu",
-                      span: [32,34],
-                    },
+                    nu: Cmavo "nu",
                     Relation {
-                      Word {
-                        kind: "fu'ivla",
-                        phonemes: "citkakeĭ",
-                        span: [35,43],
-                      },
+                      Fuhivla "citkákeĭ",
                       terms: [
                         Tagged {
                           tense_modal: Simple {
-                            se: Word {
-                              kind: "cmavo",
-                              phonemes: "se",
-                              span: [44,46],
-                            },
-                            bai: Word {
-                              kind: "cmavo",
-                              phonemes: "pi'o",
-                              span: [46,50],
-                            },
+                            se: Cmavo "se",
+                            bai: Cmavo "pi'o",
                           },
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "ma",
-                            span: [51,53],
-                          },
+                          Cmavo "ma",
                         },
                       ],
                     },

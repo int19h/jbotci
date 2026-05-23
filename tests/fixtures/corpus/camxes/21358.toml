@@ -18,53 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to [lo'u se ra'a le'u] cu xámgu se pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [3,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ra'a",
-      span: [11,15],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [16,20],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "se",
+    Cmavo "ra'a",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [33,38],
-  },
+  Cmavo "cu",
+  Gismu "xámgu",
+  Cmavo "se",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"LohuQuote":{"lohu":{"span":[3,7],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[8,10],"phonemes":"se","kind":"cmavo"},{"span":[11,15],"phonemes":"ra'a","kind":"cmavo"}],"lehu":{"span":[16,20],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -73,58 +37,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           LohuQuote {
-            lohu: Word {
-              kind: "cmavo",
-              phonemes: "lo'u",
-              span: [3,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [8,10],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ra'a",
-              span: [11,15],
-            },
-            lehu: Word {
-              kind: "cmavo",
-              phonemes: "le'u",
-              span: [16,20],
-            },
+            lohu: Cmavo "lo'u",
+            Cmavo "se",
+            Cmavo "ra'a",
+            lehu: Cmavo "le'u",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [21,23],
-        },
+        cu: Cmavo "cu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xamgu",
-            span: [24,29],
-          },
+          Gismu "xámgu",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [30,32],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "pilno",
-              span: [33,38],
-            },
+            se: Cmavo "se",
+            Gismu "pílno",
           },
         },
       },

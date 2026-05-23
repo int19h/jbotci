@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vlípa lídvru ca ku)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lidvru",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [15,17],
-  },
+  Gismu "vlípa",
+  Lujvo "lídvru",
+  Cmavo "ca",
+  Cmavo "ku",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[6,12],"phonemes":"lidvru","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ku","kind":"cmavo"}}]'
 
@@ -45,30 +29,14 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "vlipa",
-      span: [0,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "lidvru",
-      span: [6,12],
-    },
+    Gismu "vlípa",
+    Lujvo "lídvru",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [13,15],
-      },
+      tense_modal: Cmavo "ca",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [15,17],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],

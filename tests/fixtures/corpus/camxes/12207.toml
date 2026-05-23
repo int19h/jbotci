@@ -18,64 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ci le me [zoĭ gy unicorns gy] cu te píxra fi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [5,7],
-  },
+  Cmavo "ci",
+  Cmavo "le",
+  Cmavo "me",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [8,11],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [12,14],
-    },
-    quoted_text: [16,24],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [25,27],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "unicorns",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [44,46],
-  },
+  Cmavo "cu",
+  Cmavo "te",
+  Gismu "píxra",
+  Cmavo "fi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"me","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[8,11],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[12,14],"phonemes":"gy","kind":"cmavo"},"quoted_text":[16,24],"closing_delimiter":{"span":[25,27],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[29,31],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"pixra","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -84,73 +40,29 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [2,4],
-      },
-      outer_quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ci",
-        span: [0,1],
-      },
+      descriptor: Cmavo "le",
+      outer_quantifier: Cmavo "ci",
       relation: Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [5,7],
-        },
+        me: Cmavo "me",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [8,11],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [12,14],
-          },
-          quoted_text: [16,24],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [25,27],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "unicorns",
+          closing_delimiter: Cmavo "gy",
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [29,31],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "te",
-        span: [32,34],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pixra",
-        span: [35,40],
-      },
+      se: Cmavo "te",
+      Gismu "píxra",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [41,43],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [44,46],
-        },
+        fa: Cmavo "fi",
+        Cmavo "mi",
       },
     ],
   },

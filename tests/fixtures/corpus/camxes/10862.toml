@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.for. fu tu re re fe rénce)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "for",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rence",
-    span: [15,20],
-  },
+  Cmevla "for",
+  Cmavo "fu",
+  Cmavo "tu",
+  Cmavo "re",
+  Cmavo "re",
+  Cmavo "fe",
+  Gismu "rénce",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"for","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"fu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"rence","kind":"gismu"}}]'
 
@@ -60,52 +32,24 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"for","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "for",
-      span: [0,3],
-    },
+    Cmevla "for",
   ],
   Term {
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fu",
-          span: [4,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "tu",
-          span: [6,8],
-        },
+        fa: Cmavo "fu",
+        Cmavo "tu",
       },
       Descriptor {
         tail_elements: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [8,10],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [11,13],
-            },
+            Cmavo "re",
+            Cmavo "re",
           },
         ],
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "fe",
-            span: [13,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "rence",
-            span: [15,20],
-          },
+          tense_modal: Cmavo "fe",
+          Gismu "rénce",
         },
       },
     ],

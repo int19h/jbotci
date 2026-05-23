@@ -18,80 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le tcíma ji'a pu xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcima",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "tcíma",
+  Cmavo "ji'a",
+  Cmavo "pu",
+  Gismu "xámgu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"tcima","kind":"gismu"}},{"Bare":{"span":[11,15],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"xamgu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "tcima",
-            span: [5,10],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [11,15],
-          },
+          Gismu "tcíma",
+          indicator: Cmavo "ji'a",
         },
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [16,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [19,24],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "xámgu",
     },
   },
 }"""

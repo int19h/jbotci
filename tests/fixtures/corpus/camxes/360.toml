@@ -19,27 +19,11 @@ brackets = "([.a bu] prámi by)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [1,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [2,4],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [11,13],
-  },
+  Gismu "prámi",
+  Cmavo "by",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,10],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"by","kind":"cmavo"}}]'
 
@@ -50,34 +34,18 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [1,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [2,4],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "prami",
-      span: [5,10],
-    },
+    Gismu "prámi",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [11,13],
-          },
+          Cmavo "by",
         ],
       },
     ],

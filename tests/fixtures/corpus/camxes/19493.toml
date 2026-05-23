@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(si'o cfári zékri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zekri",
-    span: [11,16],
-  },
+  Cmavo "si'o",
+  Gismu "cfári",
+  Gismu "zékri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cfari","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"zekri","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [0,4],
-  },
+  nu: Cmavo "si'o",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "cfari",
-      span: [5,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "zekri",
-      span: [11,16],
-    },
+    Gismu "cfári",
+    Gismu "zékri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,4],"phonemes":"si'o","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cfari","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"zekri","kind":"gismu"}}}}]}}}}}}}}}}}}}}}}]}]}"""

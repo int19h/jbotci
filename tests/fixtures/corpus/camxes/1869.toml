@@ -18,79 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(teĭ [.e bu] [.akut. bu] foĭ ty teĭ [.akut. bu] [.e bu] foĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "teĭ",
-    span: [0,3],
+  Cmavo "teĭ",
+  Letter {
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [5,6],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [6,8],
-    },
+    Cmevla "akut",
+    bu: Cmavo "bu",
+  },
+  Cmavo "foĭ",
+  Cmavo "ty",
+  Cmavo "teĭ",
+  Letter {
+    Cmevla "akut",
+    bu: Cmavo "bu",
   },
   Letter {
-    Word {
-      kind: "cmevla",
-      phonemes: "akut",
-      span: [10,14],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [16,18],
-    },
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "foĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ty",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "teĭ",
-    span: [27,30],
-  },
-  Letter {
-    Word {
-      kind: "cmevla",
-      phonemes: "akut",
-      span: [32,36],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [38,40],
-    },
-  },
-  Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [42,43],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [43,45],
-    },
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "foĭ",
-    span: [46,49],
-  },
+  Cmavo "foĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"teĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[5,6],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[10,14],"phonemes":"akut","kind":"cmevla"}},"bu":{"span":[16,18],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[19,22],"phonemes":"foĭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"teĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[32,36],"phonemes":"akut","kind":"cmevla"}},"bu":{"span":[38,40],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[42,43],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[43,45],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[46,49],"phonemes":"foĭ","kind":"cmavo"}}]'
 
@@ -100,79 +48,27 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "teĭ",
-          span: [0,3],
+        Cmavo "teĭ",
+        Letter {
+          Cmavo "e",
+          bu: Cmavo "bu",
         },
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [5,6],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [6,8],
-          },
+          Cmevla "akut",
+          bu: Cmavo "bu",
+        },
+        Cmavo "foĭ",
+        Cmavo "ty",
+        Cmavo "teĭ",
+        Letter {
+          Cmevla "akut",
+          bu: Cmavo "bu",
         },
         Letter {
-          Word {
-            kind: "cmevla",
-            phonemes: "akut",
-            span: [10,14],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [16,18],
-          },
+          Cmavo "e",
+          bu: Cmavo "bu",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "foĭ",
-          span: [19,22],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ty",
-          span: [23,25],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "teĭ",
-          span: [27,30],
-        },
-        Letter {
-          Word {
-            kind: "cmevla",
-            phonemes: "akut",
-            span: [32,36],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [38,40],
-          },
-        },
-        Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [42,43],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [43,45],
-          },
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "foĭ",
-          span: [46,49],
-        },
+        Cmavo "foĭ",
       ],
     },
   ],

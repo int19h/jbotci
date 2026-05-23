@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le do skámi júdri cu srána ny)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "judri",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [27,29],
-  },
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "skámi",
+  Gismu "júdri",
+  Cmavo "cu",
+  Gismu "srána",
+  Cmavo "ny",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"judri","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"ny","kind":"cmavo"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [3,5],
-        },
+        Cmavo "do",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "judri",
-          span: [12,17],
-        },
+        Gismu "skámi",
+        Gismu "júdri",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "srana",
-      span: [21,26],
-    },
+    Gismu "srána",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ny",
-            span: [27,29],
-          },
+          Cmavo "ny",
         ],
       },
     ],

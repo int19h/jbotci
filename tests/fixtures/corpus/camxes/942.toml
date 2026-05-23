@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le me le ci nolráĭtru ku me'u nunsálci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nolraĭtru",
-    span: [12,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me'u",
-    span: [27,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunsalci",
-    span: [32,40],
-  },
+  Cmavo "le",
+  Cmavo "me",
+  Cmavo "le",
+  Cmavo "ci",
+  Lujvo "nolráĭtru",
+  Cmavo "ku",
+  Cmavo "me'u",
+  Lujvo "nunsálci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[12,21],"phonemes":"nolraĭtru","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"me'u","kind":"cmavo"}},{"Bare":{"span":[32,40],"phonemes":"nunsalci","kind":"lujvo"}}]"""
 
@@ -67,53 +35,21 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [3,5],
-          },
+          me: Cmavo "me",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [6,8],
-            },
+            descriptor: Cmavo "le",
             tail_elements: [
-              Word {
-                kind: "cmavo",
-                phonemes: "ci",
-                span: [9,11],
-              },
+              Cmavo "ci",
             ],
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "nolraĭtru",
-              span: [12,21],
-            },
-            ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [23,25],
-            },
+            relation: Lujvo "nolráĭtru",
+            ku: Cmavo "ku",
           },
-          mehu: Word {
-            kind: "cmavo",
-            phonemes: "me'u",
-            span: [27,31],
-          },
+          mehu: Cmavo "me'u",
         },
-        Word {
-          kind: "lujvo",
-          phonemes: "nunsalci",
-          span: [32,40],
-        },
+        Lujvo "nunsálci",
       },
     },
   ],

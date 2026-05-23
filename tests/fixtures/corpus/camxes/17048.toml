@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi vi zváti gi'e ku'i kákne ju'o cu'i le nu sídju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'o",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'i",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [41,46],
-  },
+  Cmavo "mi",
+  Cmavo "vi",
+  Gismu "zváti",
+  Cmavo "gi'e",
+  Cmavo "ku'i",
+  Gismu "kákne",
+  Cmavo "ju'o",
+  Cmavo "cu'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "sídju",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"sidju","kind":"gismu"}}]"""
 
@@ -80,77 +36,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail1 {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "vi",
+      Gismu "zváti",
     },
     continuations: [
       PredicateTailContinuation {
         connective: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [12,16],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ku'i",
-            span: [16,20],
-          },
+          Cmavo "gi'e",
+          indicator: Cmavo "ku'i",
         },
         Relation {
           WithIndicator {
             WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "kakne",
-                span: [21,26],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ju'o",
-                span: [27,31],
-              },
+              Gismu "kákne",
+              indicator: Cmavo "ju'o",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "cu'i",
-              span: [31,35],
-            },
+            indicator: Cmavo "cu'i",
           },
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [36,38],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "nu",
-                  span: [38,40],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "sidju",
-                  span: [41,46],
-                },
+                nu: Cmavo "nu",
+                Gismu "sídju",
               },
             },
           ],

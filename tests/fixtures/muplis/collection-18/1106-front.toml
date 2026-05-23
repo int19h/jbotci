@@ -21,16 +21,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u va'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [5,9],
-  },
+  Cmavo "so'u",
+  Cmavo "va'e",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"va'e","kind":"cmavo"}}]"""
 
@@ -39,16 +31,8 @@ brackets = "(so'u va'e)"
 tree = """
 Moi {
   number: [
-    Word {
-      kind: "cmavo",
-      phonemes: "so'u",
-      span: [0,4],
-    },
+    Cmavo "so'u",
   ],
-  moi: Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [5,9],
-  },
+  moi: Cmavo "va'e",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[5,9],"phonemes":"va'e","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

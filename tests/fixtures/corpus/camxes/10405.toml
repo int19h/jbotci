@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu na tcáti se vásru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcati",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [15,20],
-  },
+  Cmavo "xu",
+  Cmavo "na",
+  Gismu "tcáti",
+  Cmavo "se",
+  Gismu "vásru",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcati","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"vasru","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [3,5],
-    },
+    na: Cmavo "na",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "tcati",
-        span: [6,11],
-      },
+      Gismu "tcáti",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [12,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "vasru",
-          span: [15,20],
-        },
+        se: Cmavo "se",
+        Gismu "vásru",
       },
     },
   },

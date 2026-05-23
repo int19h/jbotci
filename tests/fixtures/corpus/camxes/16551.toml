@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko tróci fínti ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [15,17],
-  },
+  Cmavo "ko",
+  Gismu "tróci",
+  Gismu "fínti",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -45,31 +29,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "troci",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "finti",
-        span: [9,14],
-      },
+      Gismu "tróci",
+      Gismu "fínti",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [15,17],
-      },
+      Cmavo "ra",
     ],
   },
 }"""

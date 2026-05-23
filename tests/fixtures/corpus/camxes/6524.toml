@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa re da sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [7,12],
-  },
+  Cmavo "pa",
+  Cmavo "re",
+  Cmavo "da",
+  Gismu "sípna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"sipna","kind":"gismu"}}]'
 
@@ -47,28 +31,12 @@ Predicate {
   leading_terms: [
     Quantified {
       quantifier: Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [2,4],
-        },
+        Cmavo "pa",
+        Cmavo "re",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [4,6],
-      },
+      Cmavo "da",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [7,12],
-  },
+  Gismu "sípna",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"re","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}]}]}'

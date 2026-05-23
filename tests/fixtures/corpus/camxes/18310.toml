@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lo skárycaŭ críno sídbo cu féngu sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skarycaŭ",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "crino",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidbo",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fengu",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [33,38],
-  },
+  Cmavo "lo",
+  Lujvo "skárycaŭ",
+  Gismu "críno",
+  Gismu "sídbo",
+  Cmavo "cu",
+  Gismu "féngu",
+  Gismu "sípna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"skarycaŭ","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"crino","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"sidbo","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"fengu","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"sipna","kind":"gismu"}}]'
 
@@ -61,46 +33,18 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "skarycaŭ",
-          span: [3,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "crino",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sidbo",
-          span: [18,23],
-        },
+        Lujvo "skárycaŭ",
+        Gismu "críno",
+        Gismu "sídbo",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [24,26],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "fengu",
-      span: [27,32],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [33,38],
-    },
+    Gismu "féngu",
+    Gismu "sípna",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"skarycaŭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"crino","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"sidbo","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[24,26],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[27,32],"phonemes":"fengu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[33,38],"phonemes":"sipna","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(rupne'úru li pa ci boĭ lo'o)"
 tree = """
 [
-  Word {
-    kind: "fu'ivla",
-    phonemes: "rupne'uru",
-    span: [0,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'o",
-    span: [22,26],
-  },
+  Fuhivla "rupne'úru",
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "ci",
+  Cmavo "boĭ",
+  Cmavo "lo'o",
 ]"""
 json = """[{"Bare":{"span":[0,9],"phonemes":"rupne'uru","kind":"fu'ivla"}},{"Bare":{"span":[10,12],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"lo'o","kind":"cmavo"}}]"""
 
@@ -58,40 +34,16 @@ json = """[{"Bare":{"span":[0,9],"phonemes":"rupne'uru","kind":"fu'ivla"}},{"Bar
 brackets = "(rupne'úru [li {(pa ci) boĭ} lo'o])"
 tree = """
 Relation {
-  Word {
-    kind: "fu'ivla",
-    phonemes: "rupne'uru",
-    span: [0,9],
-  },
+  Fuhivla "rupne'úru",
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [10,12],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [13,15],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [15,17],
-        },
-        boi: Word {
-          kind: "cmavo",
-          phonemes: "boĭ",
-          span: [18,21],
-        },
+        Cmavo "pa",
+        Cmavo "ci",
+        boi: Cmavo "boĭ",
       },
-      loho: Word {
-        kind: "cmavo",
-        phonemes: "lo'o",
-        span: [22,26],
-      },
+      loho: Cmavo "lo'o",
     },
   ],
 }"""

@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ selfenbú'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selfenbu'u",
-    span: [7,17],
-  },
+  Cmavo "oĭ",
+  Lujvo "selfenbú'u",
 ]"""
 json = """[{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,17],"phonemes":"selfenbu'u","kind":"lujvo"}}]"""
 
@@ -36,17 +28,9 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [4,6],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "selfenbu'u",
-    span: [7,17],
-  },
+  Lujvo "selfenbú'u",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[7,17],"phonemes":"selfenbu'u","kind":"lujvo"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}}}}]}"""

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to la .loz. cu selpílno zárci toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "loz",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selpilno",
-    span: [14,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [29,32],
-  },
+  Cmavo "to",
+  Cmavo "la",
+  Cmevla "loz",
+  Cmavo "cu",
+  Lujvo "selpílno",
+  Gismu "zárci",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"loz","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,22],"phonemes":"selpilno","kind":"lujvo"}},{"Bare":{"span":[23,28],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[29,32],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [3,5],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "loz",
-                span: [6,9],
-              },
+              Cmevla "loz",
             ],
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [11,13],
-        },
+        cu: Cmavo "cu",
         Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "selpilno",
-            span: [14,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zarci",
-            span: [23,28],
-          },
+          Lujvo "selpílno",
+          Gismu "zárci",
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [29,32],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

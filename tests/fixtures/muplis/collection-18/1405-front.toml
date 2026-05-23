@@ -21,121 +21,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le mámta be do cu taĭ plána .i da'i se ri'a bo ri jaĭ gaŭ spófaŭ faĭ le crípu pe la .london.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plana",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [51,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [55,58],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "spofaŭ",
-    span: [59,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [66,69],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [70,72],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cripu",
-    span: [73,78],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [79,81],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [82,84],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "london",
-    span: [86,92],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "mámta",
+  Cmavo "be",
+  Cmavo "do",
+  Cmavo "cu",
+  Cmavo "taĭ",
+  Gismu "plána",
+  Cmavo "i",
+  Cmavo "da'i",
+  Cmavo "se",
+  Cmavo "ri'a",
+  Cmavo "bo",
+  Cmavo "ri",
+  Cmavo "jaĭ",
+  Cmavo "gaŭ",
+  Lujvo "spófaŭ",
+  Cmavo "faĭ",
+  Cmavo "le",
+  Gismu "crípu",
+  Cmavo "pe",
+  Cmavo "la",
+  Cmevla "london",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"plana","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,36],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[51,54],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[55,58],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[59,65],"phonemes":"spofaŭ","kind":"lujvo"}},{"Bare":{"span":[66,69],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[70,72],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[73,78],"phonemes":"cripu","kind":"gismu"}},{"Bare":{"span":[79,81],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[82,84],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[86,92],"phonemes":"london","kind":"cmevla"}}]"""
 
@@ -143,153 +51,61 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{(le [mámta be do]) cu (taĭ plána)} {.i da'i} {se ri'a bo} {ri ([jaĭ gaŭ spófaŭ] [faĭ {le crípu (pe [la .london.])}])}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Connected {
     leading_statement: Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [2,4],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "mamta",
-              span: [5,10],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [11,13],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [14,16],
-            },
+            Gismu "mámta",
+            be: Cmavo "be",
+            first_argument: Cmavo "do",
           },
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [17,19],
-      },
+      cu: Cmavo "cu",
       TenseModal {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "taĭ",
-            span: [20,23],
-          },
+          bai: Cmavo "taĭ",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "plana",
-          span: [24,29],
-        },
+        Gismu "plána",
       },
     },
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [30,31],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "da'i",
-        span: [32,36],
-      },
+      Cmavo "i",
+      indicator: Cmavo "da'i",
     },
     connective: Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [37,39],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ri'a",
-        span: [40,44],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [45,47],
-      },
+      Cmavo "se",
+      Cmavo "ri'a",
+      Cmavo "bo",
     },
     trailing_statement: Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ri",
-          span: [48,50],
-        },
+        Cmavo "ri",
       ],
       Relation {
         Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [51,54],
-          },
+          jai: Cmavo "jaĭ",
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "gaŭ",
-              span: [55,58],
-            },
+            bai: Cmavo "gaŭ",
           },
-          Word {
-            kind: "lujvo",
-            phonemes: "spofaŭ",
-            span: [59,65],
-          },
+          Lujvo "spófaŭ",
         },
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "faĭ",
-              span: [66,69],
-            },
+            fa: Cmavo "faĭ",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [70,72],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "cripu",
-                span: [73,78],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "crípu",
               relative_clauses: [
                 GoiRelativeClause {
-                  goi: Word {
-                    kind: "cmavo",
-                    phonemes: "pe",
-                    span: [79,81],
-                  },
+                  goi: Cmavo "pe",
                   Name {
-                    la: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [82,84],
-                    },
+                    la: Cmavo "la",
                     names: [
-                      Word {
-                        kind: "cmevla",
-                        phonemes: "london",
-                        span: [86,92],
-                      },
+                      Cmevla "london",
                     ],
                   },
                 },

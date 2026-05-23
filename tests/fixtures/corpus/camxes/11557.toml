@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi tcídu fi'o sélsnu la zíryroĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [9,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsnu",
-    span: [14,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ziryroĭ",
-    span: [24,31],
-  },
+  Cmavo "mi",
+  Gismu "tcídu",
+  Cmavo "fi'o",
+  Lujvo "sélsnu",
+  Cmavo "la",
+  Lujvo "zíryroĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[14,20],"phonemes":"selsnu","kind":"lujvo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,31],"phonemes":"ziryroĭ","kind":"lujvo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tcidu",
-      span: [3,8],
-    },
+    Gismu "tcídu",
     terms: [
       Tagged {
         tense_modal: Fiho {
-          fiho: Word {
-            kind: "cmavo",
-            phonemes: "fi'o",
-            span: [9,13],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "selsnu",
-            span: [14,20],
-          },
+          fiho: Cmavo "fi'o",
+          Lujvo "sélsnu",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [21,23],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "ziryroĭ",
-            span: [24,31],
-          },
+          descriptor: Cmavo "la",
+          relation: Lujvo "zíryroĭ",
         },
       },
     ],

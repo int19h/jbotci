@@ -19,66 +19,18 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(loĭ jdíni zo'u tu'e do pónse .i na ja do djíca tu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdini",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'e",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [39,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'u",
-    span: [46,50],
-  },
+  Cmavo "loĭ",
+  Gismu "jdíni",
+  Cmavo "zo'u",
+  Cmavo "tu'e",
+  Cmavo "do",
+  Gismu "pónse",
+  Cmavo "i",
+  Cmavo "na",
+  Cmavo "ja",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "tu'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"jdini","kind":"gismu"}},{"Bare":{"span":[10,14],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"tu'e","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[46,50],"phonemes":"tu'u","kind":"cmavo"}}]"""
 
@@ -87,81 +39,33 @@ tree = """
 Prenex {
   prenex_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jdini",
-        span: [4,9],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "jdíni",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [10,14],
-  },
+  zohu: Cmavo "zo'u",
   Tuhe {
-    tuhe: Word {
-      kind: "cmavo",
-      phonemes: "tu'e",
-      span: [15,19],
-    },
+    tuhe: Cmavo "tu'e",
     Connected {
       leading_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [20,22],
-          },
+          Cmavo "do",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "ponse",
-          span: [23,28],
-        },
+        Gismu "pónse",
       },
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [30,31],
-      },
+      i: Cmavo "i",
       connective: Relation {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [31,33],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ja",
-          span: [33,35],
-        },
+        na: Cmavo "na",
+        Cmavo "ja",
       },
       trailing_statement: Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [36,38],
-          },
+          Cmavo "do",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "djica",
-          span: [39,44],
-        },
+        Gismu "djíca",
       },
     },
-    tuhu: Word {
-      kind: "cmavo",
-      phonemes: "tu'u",
-      span: [46,50],
-    },
+    tuhu: Cmavo "tu'u",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"jdini","kind":"gismu"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[10,14],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Tuhe":{"tuhe":{"Bare":{"Bare":{"span":[15,19],"phonemes":"tu'e","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[20,22],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"ponse","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"na":{"Bare":{"Bare":{"span":[31,33],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[33,35],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[36,38],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[39,44],"phonemes":"djica","kind":"gismu"}}}}}}}}}}}}}]}]},"tuhu":{"Bare":{"Bare":{"span":[46,50],"phonemes":"tu'u","kind":"cmavo"}}}}}}}}]}]}"""

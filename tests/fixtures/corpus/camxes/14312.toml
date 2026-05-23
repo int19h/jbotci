@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(túgni .i [zo kelcrgálfa])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
+  Gismu "túgni",
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "fu'ivla",
-      phonemes: "kelcrgalfa",
-      span: [12,22],
-    },
+    zo: Cmavo "zo",
+    Fuhivla "kelcrgálfa",
   },
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"tugni","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,22],"phonemes":"kelcrgalfa","kind":"fu'ivla"}}}]"""
@@ -46,30 +30,14 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"tugni","kind":"gismu"}},{"Bare":{"s
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "tugni",
-    span: [0,5],
-  },
+  Gismu "túgni",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [9,11],
-          },
-          Word {
-            kind: "fu'ivla",
-            phonemes: "kelcrgalfa",
-            span: [12,22],
-          },
+          zo: Cmavo "zo",
+          Fuhivla "kelcrgálfa",
         },
       ],
     },

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u naĭ .i ko na sénpi .i leĭ bífce cu gírzu vlípa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "senpi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bifce",
-    span: [30,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [36,38],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [39,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlipa",
-    span: [45,50],
-  },
+  Cmavo "e'u",
+  Cmavo "naĭ",
+  Cmavo "i",
+  Cmavo "ko",
+  Cmavo "na",
+  Gismu "sénpi",
+  Cmavo "i",
+  Cmavo "leĭ",
+  Gismu "bífce",
+  Cmavo "cu",
+  Gismu "gírzu",
+  Gismu "vlípa",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"senpi","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"bifce","kind":"gismu"}},{"Bare":{"span":[36,38],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"vlipa","kind":"gismu"}}]"""
 
@@ -86,84 +38,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'u",
-        span: [1,4],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [4,7],
-      },
+      indicator: Cmavo "e'u",
+      nai: Cmavo "naĭ",
     },
   ],
   Paragraph {
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [9,10],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko",
-            span: [11,13],
-          },
+          Cmavo "ko",
         ],
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [14,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "senpi",
-            span: [17,22],
-          },
+          na: Cmavo "na",
+          Gismu "sénpi",
         },
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [24,25],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "leĭ",
-              span: [26,29],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "bifce",
-              span: [30,35],
-            },
+            descriptor: Cmavo "leĭ",
+            relation: Gismu "bífce",
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [36,38],
-        },
+        cu: Cmavo "cu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "girzu",
-            span: [39,44],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vlipa",
-            span: [45,50],
-          },
+          Gismu "gírzu",
+          Gismu "vlípa",
         },
       },
     },

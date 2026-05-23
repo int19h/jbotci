@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(re moĭ ki'a bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [11,16],
-  },
+  Cmavo "re",
+  Cmavo "moĭ",
+  Cmavo "ki'a",
+  Gismu "bángu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"bangu","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Compound {
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "re",
-        span: [0,2],
-      },
+      Cmavo "re",
     ],
     moi: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [2,5],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [6,10],
-      },
+      Cmavo "moĭ",
+      indicator: Cmavo "ki'a",
     },
   },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [11,16],
-  },
+  Gismu "bángu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}}}],"moi":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[2,5],"phonemes":"moĭ","kind":"cmavo"}}},"indicator":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"bangu","kind":"gismu"}}}}]}}}}}}}}]}]}"""

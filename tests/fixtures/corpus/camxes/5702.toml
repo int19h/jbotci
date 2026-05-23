@@ -18,71 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .ceĭn. se te se te se te .oĭ cúsku fi la .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ceĭn",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [37,40],
-  },
+  Cmavo "la",
+  Cmevla "ceĭn",
+  Cmavo "se",
+  Cmavo "te",
+  Cmavo "se",
+  Cmavo "te",
+  Cmavo "se",
+  Cmavo "te",
+  Cmavo "oĭ",
+  Gismu "cúsku",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "xod",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ceĭn","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[37,40],"phonemes":"xod","kind":"cmevla"}}]'
 
@@ -91,69 +39,29 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "ceĭn",
-          span: [3,7],
-        },
+        Cmevla "ceĭn",
       ],
     },
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [8,10],
-      },
+      se: Cmavo "se",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "te",
-          span: [10,12],
-        },
+        se: Cmavo "te",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [12,14],
-          },
+          se: Cmavo "se",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "te",
-              span: [14,16],
-            },
+            se: Cmavo "te",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [16,18],
-              },
+              se: Cmavo "se",
               Se {
                 se: WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "te",
-                    span: [18,20],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "oĭ",
-                    span: [22,24],
-                  },
+                  Cmavo "te",
+                  indicator: Cmavo "oĭ",
                 },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cusku",
-                  span: [25,30],
-                },
+                Gismu "cúsku",
               },
             },
           },
@@ -162,23 +70,11 @@ Predicate {
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [31,33],
-        },
+        fa: Cmavo "fi",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [34,36],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "xod",
-              span: [37,40],
-            },
+            Cmevla "xod",
           ],
         },
       },

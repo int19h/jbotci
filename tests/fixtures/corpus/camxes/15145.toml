@@ -18,86 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i pa maĭ jmáji le plíbu táxfu .i re maĭ mo .i ci maĭ práli .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jmaji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plibu",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "taxfu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [43,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [47,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prali",
-    span: [51,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [58,60],
-  },
+  Cmavo "i",
+  Cmavo "pa",
+  Cmavo "maĭ",
+  Gismu "jmáji",
+  Cmavo "le",
+  Gismu "plíbu",
+  Gismu "táxfu",
+  Cmavo "i",
+  Cmavo "re",
+  Cmavo "maĭ",
+  Cmavo "mo",
+  Cmavo "i",
+  Cmavo "ci",
+  Cmavo "maĭ",
+  Gismu "práli",
+  Cmavo "ŭi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jmaji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"plibu","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"taxfu","kind":"gismu"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[43,44],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[47,50],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"prali","kind":"gismu"}},{"Bare":{"span":[58,60],"phonemes":"ŭi","kind":"cmavo"}}]'
 
@@ -105,117 +41,53 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Mai {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [3,5],
-          },
+          Cmavo "pa",
         ],
-        mai: Word {
-          kind: "cmavo",
-          phonemes: "maĭ",
-          span: [5,8],
-        },
+        mai: Cmavo "maĭ",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "jmaji",
-        span: [9,14],
-      },
+      Gismu "jmáji",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "plibu",
-              span: [18,23],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "taxfu",
-              span: [24,29],
-            },
+            Gismu "plíbu",
+            Gismu "táxfu",
           },
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [31,32],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Mai {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [33,35],
-          },
+          Cmavo "re",
         ],
-        mai: Word {
-          kind: "cmavo",
-          phonemes: "maĭ",
-          span: [35,38],
-        },
+        mai: Cmavo "maĭ",
       },
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [39,41],
-    },
+    Cmavo "mo",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [43,44],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Mai {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [45,47],
-          },
+          Cmavo "ci",
         ],
-        mai: Word {
-          kind: "cmavo",
-          phonemes: "maĭ",
-          span: [47,50],
-        },
+        mai: Cmavo "maĭ",
       },
     ],
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "prali",
-        span: [51,56],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [58,60],
-      },
+      Gismu "práli",
+      indicator: Cmavo "ŭi",
     },
   },
 }"""

@@ -21,21 +21,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .tom. jínga)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tom",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [8,13],
-  },
+  Cmavo "la",
+  Cmevla "tom",
+  Gismu "jínga",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"tom","kind":"cmevla"}},{"Bare":{"span":[8,13],"phonemes":"jinga","kind":"gismu"}}]'
 
@@ -45,24 +33,12 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "tom",
-          span: [3,6],
-        },
+        Cmevla "tom",
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "jinga",
-    span: [8,13],
-  },
+  Gismu "jínga",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"tom","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"jinga","kind":"gismu"}}}}}}}}}}}]}]}'

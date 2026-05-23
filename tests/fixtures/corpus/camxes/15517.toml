@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fi tcíka fa li xa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcika",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [15,17],
-  },
+  Cmavo "fi",
+  Gismu "tcíka",
+  Cmavo "fa",
+  Cmavo "li",
+  Cmavo "xa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcika","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xa","kind":"cmavo"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [0,2],
-      },
+      fa: Cmavo "fi",
       Zohe {},
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tcika",
-      span: [3,8],
-    },
+    Gismu "tcíka",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [9,11],
-        },
+        fa: Cmavo "fa",
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [12,14],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [15,17],
-          },
+          li: Cmavo "li",
+          Cmavo "xa",
         },
       },
     ],

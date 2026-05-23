@@ -19,16 +19,8 @@ brackets = "(zo si)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [3,5],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"si","kind":"cmavo"}}}]'
@@ -38,16 +30,8 @@ tree = """
 Term {
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "si",
-        span: [3,5],
-      },
+      zo: Cmavo "zo",
+      Cmavo "si",
     },
   ],
 }"""

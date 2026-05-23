@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(practíce practíce practíce)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [9,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [18,26],
-  },
+  Lujvo "practíce",
+  Lujvo "practíce",
+  Lujvo "practíce",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"practice","kind":"lujvo"}},{"Bare":{"span":[9,17],"phonemes":"practice","kind":"lujvo"}},{"Bare":{"span":[18,26],"phonemes":"practice","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [0,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [9,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "practice",
-    span: [18,26],
-  },
+  Lujvo "practíce",
+  Lujvo "practíce",
+  Lujvo "practíce",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"practice","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,17],"phonemes":"practice","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[18,26],"phonemes":"practice","kind":"lujvo"}}}}]}}}}}}}}]}]}'

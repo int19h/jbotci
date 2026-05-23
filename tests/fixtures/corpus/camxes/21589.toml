@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sníme tcíma ru'i le ca dónri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "snime",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcima",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'i",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "donri",
-    span: [23,28],
-  },
+  Gismu "sníme",
+  Gismu "tcíma",
+  Cmavo "ru'i",
+  Cmavo "le",
+  Cmavo "ca",
+  Gismu "dónri",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"snime","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"tcima","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"ru'i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"donri","kind":"gismu"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"snime","kind":"gismu"}},{"Bare":{"s
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "snime",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tcima",
-      span: [6,11],
-    },
+    Gismu "sníme",
+    Gismu "tcíma",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ru'i",
-        span: [12,16],
-      },
+      tense_modal: Cmavo "ru'i",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [20,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "donri",
-            span: [23,28],
-          },
+          tense_modal: Cmavo "ca",
+          Gismu "dónri",
         },
       },
     },

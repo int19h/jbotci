@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ ru'e vi cízra ka lénkytce)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lenkytce",
-    span: [20,28],
-  },
+  Cmavo "oĭ",
+  Cmavo "ru'e",
+  Cmavo "vi",
+  Gismu "cízra",
+  Cmavo "ka",
+  Lujvo "lénkytce",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[20,28],"phonemes":"lenkytce","kind":"lujvo"}}]"""
 
@@ -57,42 +33,18 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ru'e",
-          span: [3,7],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "ru'e",
       },
     },
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "vi",
-      span: [8,10],
-    },
+    tense_modal: Cmavo "vi",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cizra",
-        span: [11,16],
-      },
+      Gismu "cízra",
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [17,19],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "lenkytce",
-          span: [20,28],
-        },
+        nu: Cmavo "ka",
+        Lujvo "lénkytce",
       },
     },
   },

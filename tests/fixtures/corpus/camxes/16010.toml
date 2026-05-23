@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le lerseltcídu pe le vlácku ca mu'o naĭ se zbásu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lerseltcidu",
-    span: [3,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlacku",
-    span: [21,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'o",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [39,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [42,47],
-  },
+  Cmavo "le",
+  Lujvo "lerseltcídu",
+  Cmavo "pe",
+  Cmavo "le",
+  Lujvo "vlácku",
+  Cmavo "ca",
+  Cmavo "mu'o",
+  Cmavo "naĭ",
+  Cmavo "se",
+  Gismu "zbásu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,14],"phonemes":"lerseltcidu","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"vlacku","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"mu'o","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"zbasu","kind":"gismu"}}]"""
 
@@ -76,71 +36,31 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "lerseltcidu",
-        span: [3,14],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "lerseltcídu",
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "pe",
-            span: [15,17],
-          },
+          goi: Cmavo "pe",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [18,20],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "vlacku",
-              span: [21,27],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "vlácku",
           },
         },
       ],
     },
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [28,30],
-        },
+        Cmavo "ca",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mu'o",
-                span: [31,35],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [35,38],
-              },
+              Cmavo "mu'o",
+              Cmavo "naĭ",
             ],
             argument: RelationVocative {
               relation: Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [39,41],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "zbasu",
-                  span: [42,47],
-                },
+                se: Cmavo "se",
+                Gismu "zbásu",
               },
             },
           },

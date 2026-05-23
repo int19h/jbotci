@@ -18,175 +18,63 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i .i le rálju tcíni zo'u re da sélcmi .i no da míntu cmíma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ralju",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcini",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [30,32],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selcmi",
-    span: [33,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [41,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mintu",
-    span: [48,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [54,59],
-  },
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "rálju",
+  Gismu "tcíni",
+  Cmavo "zo'u",
+  Cmavo "re",
+  Cmavo "da",
+  Lujvo "sélcmi",
+  Cmavo "i",
+  Cmavo "no",
+  Cmavo "da",
+  Gismu "míntu",
+  Gismu "cmíma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"ralju","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"tcini","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[33,39],"phonemes":"selcmi","kind":"lujvo"}},{"Bare":{"span":[41,42],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"mintu","kind":"gismu"}},{"Bare":{"span":[54,59],"phonemes":"cmima","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Prenex {
       prenex_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [8,10],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "ralju",
-              span: [11,16],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "tcini",
-              span: [17,22],
-            },
+            Gismu "rálju",
+            Gismu "tcíni",
           },
         },
       ],
-      zohu: Word {
-        kind: "cmavo",
-        phonemes: "zo'u",
-        span: [23,27],
-      },
+      zohu: Cmavo "zo'u",
       Predicate {
         leading_terms: [
           Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [28,30],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [30,32],
-            },
+            quantifier: Cmavo "re",
+            Cmavo "da",
           },
         ],
-        Word {
-          kind: "lujvo",
-          phonemes: "selcmi",
-          span: [33,39],
-        },
+        Lujvo "sélcmi",
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [41,42],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [43,45],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [45,47],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "da",
         },
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mintu",
-          span: [48,53],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cmima",
-          span: [54,59],
-        },
+        Gismu "míntu",
+        Gismu "cmíma",
       },
     },
   },

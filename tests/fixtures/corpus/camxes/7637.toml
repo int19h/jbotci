@@ -18,77 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i bénji fi le sámymri .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samymri",
-    span: [14,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [22,24],
-  },
+  Cmavo "i",
+  Gismu "bénji",
+  Cmavo "fi",
+  Cmavo "le",
+  Lujvo "sámymri",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,21],"phonemes":"samymri","kind":"lujvo"}},{"Bare":{"span":[22,24],"phonemes":"oĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "benji",
-      span: [2,7],
-    },
+    Gismu "bénji",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [8,10],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           relation: WithIndicator {
-            Word {
-              kind: "lujvo",
-              phonemes: "samymri",
-              span: [14,21],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "oĭ",
-              span: [22,24],
-            },
+            Lujvo "sámymri",
+            indicator: Cmavo "oĭ",
           },
         },
       },

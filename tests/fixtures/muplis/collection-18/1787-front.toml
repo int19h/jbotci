@@ -21,38 +21,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo .tam.] cméne la .tam.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "tam",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmevla "tam",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tam",
-    span: [20,23],
-  },
+  Gismu "cméne",
+  Cmavo "la",
+  Cmevla "tam",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"tam","kind":"cmevla"}}},{"Bare":{"span":[11,16],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"tam","kind":"cmevla"}}]'
 
@@ -60,45 +36,21 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":
 brackets = "(.i [{zo .tam.} {cméne (la .tam.)}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "tam",
-          span: [6,9],
-        },
+        zo: Cmavo "zo",
+        Cmevla "tam",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cmene",
-        span: [11,16],
-      },
+      Gismu "cméne",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [17,19],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "tam",
-              span: [20,23],
-            },
+            Cmevla "tam",
           ],
         },
       ],

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ri ránji .i je ránji doĭ péndo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ranji",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [23,28],
-  },
+  Cmavo "ri",
+  Gismu "ránji",
+  Cmavo "i",
+  Cmavo "je",
+  Gismu "ránji",
+  Cmavo "doĭ",
+  Gismu "péndo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ranji","kind":"gismu"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"ranji","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"pendo","kind":"gismu"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Connected {
   leading_statement: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ri",
-        span: [0,2],
-      },
+      Cmavo "ri",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "ranji",
-      span: [3,8],
-    },
+    Gismu "ránji",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [10,12],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Word {
-    Word {
-      kind: "gismu",
-      phonemes: "ranji",
-      span: [13,18],
-    },
+    Gismu "ránji",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [19,22],
-          },
+          Cmavo "doĭ",
         ],
         argument: RelationVocative {
-          relation: Word {
-            kind: "gismu",
-            phonemes: "pendo",
-            span: [23,28],
-          },
+          relation: Gismu "péndo",
         },
       },
     ],

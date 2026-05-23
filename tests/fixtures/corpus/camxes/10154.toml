@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to ma tcíni la jbovláste toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcini",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbovlaste",
-    span: [15,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [26,29],
-  },
+  Cmavo "to",
+  Cmavo "ma",
+  Gismu "tcíni",
+  Cmavo "la",
+  Lujvo "jbovláste",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcini","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"jbovlaste","kind":"lujvo"}},{"Bare":{"span":[26,29],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [3,5],
-          },
+          Cmavo "ma",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "tcini",
-            span: [6,11],
-          },
+          Gismu "tcíni",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [12,14],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "jbovlaste",
-                span: [15,24],
-              },
+              descriptor: Cmavo "la",
+              relation: Lujvo "jbovláste",
             },
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [26,29],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

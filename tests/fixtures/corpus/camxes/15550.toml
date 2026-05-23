@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ko pílno lo lójbo vlácku zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vlacku",
-    span: [21,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [28,32],
-  },
+  Cmavo "ko",
+  Gismu "pílno",
+  Cmavo "lo",
+  Gismu "lójbo",
+  Lujvo "vlácku",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,27],"phonemes":"vlacku","kind":"lujvo"}},{"Bare":{"span":[28,32],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -56,42 +32,18 @@ json = """[{"Bare":{"span":[3,5],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [3,5],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [6,11],
-    },
+    Gismu "pílno",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [12,14],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [15,20],
-          },
+          Gismu "lójbo",
           WithIndicator {
-            Word {
-              kind: "lujvo",
-              phonemes: "vlacku",
-              span: [21,27],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "zo'o",
-              span: [28,32],
-            },
+            Lujvo "vlácku",
+            indicator: Cmavo "zo'o",
           },
         },
       },

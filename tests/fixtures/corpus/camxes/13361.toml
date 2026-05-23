@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ko péndo gy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pendo",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gy",
-    span: [9,11],
-  },
+  Cmavo "ko",
+  Gismu "péndo",
+  Cmavo "gy",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pendo","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"gy","kind":"cmavo"}}]'
 
@@ -40,26 +28,14 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "pendo",
-      span: [3,8],
-    },
+    Gismu "péndo",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [9,11],
-          },
+          Cmavo "gy",
         ],
       },
     ],

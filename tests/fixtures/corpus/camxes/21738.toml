@@ -19,38 +19,14 @@ brackets = "([la'o gy IRC topic gy] zo'u fy mo)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [0,4],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [5,7],
-    },
-    quoted_text: [7,17],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [18,20],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "IRC topic",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [29,31],
-  },
+  Cmavo "zo'u",
+  Cmavo "fy",
+  Cmavo "mo",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[21,25],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -59,46 +35,22 @@ tree = """
 Prenex {
   prenex_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "la'o",
-        span: [0,4],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [5,7],
-      },
-      quoted_text: [7,17],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [18,20],
-      },
+      zoi: Cmavo "la'o",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "IRC topic",
+      closing_delimiter: Cmavo "gy",
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [21,25],
-  },
+  zohu: Cmavo "zo'u",
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "fy",
-            span: [26,28],
-          },
+          Cmavo "fy",
         ],
       },
     ],
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [29,31],
-    },
+    Cmavo "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[21,25],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[26,28],"phonemes":"fy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[29,31],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

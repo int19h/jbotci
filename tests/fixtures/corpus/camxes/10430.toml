@@ -19,33 +19,13 @@ brackets = "([zoĭ gy dragon gy] xe fánva)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [4,6],
-    },
-    quoted_text: [8,14],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "dragon",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [23,28],
-  },
+  Cmavo "xe",
+  Gismu "fánva",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[8,14],"closing_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[20,22],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"fanva","kind":"gismu"}}]'
 
@@ -54,35 +34,15 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [4,6],
-      },
-      quoted_text: [8,14],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "gy",
-        span: [16,18],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "gy",
+      quoted_text: Verbatim "dragon",
+      closing_delimiter: Cmavo "gy",
     },
   ],
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "xe",
-      span: [20,22],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "fanva",
-      span: [23,28],
-    },
+    se: Cmavo "xe",
+    Gismu "fánva",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[8,14],"closing_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[20,22],"phonemes":"xe","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"fanva","kind":"gismu"}}}}}}}}}}}}}]}]}'

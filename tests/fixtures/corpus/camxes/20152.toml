@@ -19,22 +19,10 @@ brackets = "([.e bu] ki'a)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [0,1],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [1,3],
-    },
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [4,8],
-  },
+  Cmavo "ki'a",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[4,8],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -46,22 +34,10 @@ Term {
       letter: [
         WithIndicator {
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "e",
-              span: [0,1],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [1,3],
-            },
+            Cmavo "e",
+            bu: Cmavo "bu",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ki'a",
-            span: [4,8],
-          },
+          indicator: Cmavo "ki'a",
         },
       ],
     },

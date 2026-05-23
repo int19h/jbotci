@@ -18,110 +18,38 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i détri fa li re mu bi'o re bi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "detri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [27,29],
-  },
+  Cmavo "i",
+  Gismu "détri",
+  Cmavo "fa",
+  Cmavo "li",
+  Cmavo "re",
+  Cmavo "mu",
+  Cmavo "bi'o",
+  Cmavo "re",
+  Cmavo "bi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"detri","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"bi'o","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"bi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "detri",
-      span: [3,8],
-    },
+    Gismu "détri",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [9,11],
-        },
+        fa: Cmavo "fa",
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [12,14],
-          },
+          li: Cmavo "li",
           Connected {
             left_expression: Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [15,17],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "mu",
-                span: [17,19],
-              },
+              Cmavo "re",
+              Cmavo "mu",
             },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "bi'o",
-              span: [20,24],
-            },
+            connective: Cmavo "bi'o",
             right_expression: Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [25,27],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "bi",
-                span: [27,29],
-              },
+              Cmavo "re",
+              Cmavo "bi",
             },
           },
         },

@@ -18,150 +18,54 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi pu za míkce se kátna ca le pu zi vóndeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mikce",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "katna",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [34,36],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vondeĭ",
-    span: [37,43],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "míkce",
+  Cmavo "se",
+  Gismu "kátna",
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "pu",
+  Cmavo "zi",
+  Lujvo "vóndeĭ",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"mikce","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"katna","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[37,43],"phonemes":"vondeĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "za",
-            span: [8,10],
-          },
+          Cmavo "pu",
+          Cmavo "za",
         },
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mikce",
-            span: [11,16],
-          },
+          Gismu "míkce",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [17,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "katna",
-              span: [20,25],
-            },
+            se: Cmavo "se",
+            Gismu "kátna",
           },
         },
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [26,28],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [29,31],
-            },
+            descriptor: Cmavo "le",
             relation: TenseModal {
               tense_modal: Composite {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pu",
-                  span: [32,34],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "zi",
-                  span: [34,36],
-                },
+                Cmavo "pu",
+                Cmavo "zi",
               },
-              Word {
-                kind: "lujvo",
-                phonemes: "vondeĭ",
-                span: [37,43],
-              },
+              Lujvo "vóndeĭ",
             },
           },
         },

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cáfne cúsku le seldú'u)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seldu'u",
-    span: [15,22],
-  },
+  Gismu "cáfne",
+  Gismu "cúsku",
+  Cmavo "le",
+  Lujvo "seldú'u",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,22],"phonemes":"seldu'u","kind":"lujvo"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"s
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "cafne",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [6,11],
-    },
+    Gismu "cáfne",
+    Gismu "cúsku",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [12,14],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "seldu'u",
-        span: [15,22],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "seldú'u",
     },
   ],
 }"""

@@ -21,21 +21,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do cíkre ta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [9,11],
-  },
+  Cmavo "do",
+  Gismu "cíkre",
+  Cmavo "ta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ta","kind":"cmavo"}}]'
 
@@ -44,24 +32,12 @@ brackets = "(do [cíkre ta])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cikre",
-      span: [3,8],
-    },
+    Gismu "cíkre",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ta",
-        span: [9,11],
-      },
+      Cmavo "ta",
     ],
   },
 }"""

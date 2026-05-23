@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'i mrílu jaĭ cásnu ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [21,23],
-  },
+  Cmavo "so'i",
+  Gismu "mrílu",
+  Cmavo "jaĭ",
+  Gismu "cásnu",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[11,14],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -52,37 +32,17 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'i",
-          span: [0,4],
-        },
+        Cmavo "so'i",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mrilu",
-          span: [5,10],
-        },
+        Gismu "mrílu",
         Jai {
-          jai: Word {
-            kind: "cmavo",
-            phonemes: "jaĭ",
-            span: [11,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [15,20],
-          },
+          jai: Cmavo "jaĭ",
+          Gismu "cásnu",
         },
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [21,23],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}}}]}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"mrilu","kind":"gismu"}}}},{"Jai":{"jai":{"Bare":{"Bare":{"span":[11,14],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"casnu","kind":"gismu"}}}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[21,23],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}]}]}"""

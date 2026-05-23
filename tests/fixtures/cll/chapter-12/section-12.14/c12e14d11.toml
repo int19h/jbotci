@@ -24,31 +24,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mínde ke xánce pílno ke'e)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "minde",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xance",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [21,25],
-  },
+  Gismu "mínde",
+  Cmavo "ke",
+  Gismu "xánce",
+  Gismu "pílno",
+  Cmavo "ke'e",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"minde","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -56,34 +36,14 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"minde","kind":"gismu"}},{"Bare":{"s
 brackets = "(mínde [ke {xánce pílno} ke'e])"
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "minde",
-    span: [0,5],
-  },
+  Gismu "mínde",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xance",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [15,20],
-      },
+      Gismu "xánce",
+      Gismu "pílno",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [21,25],
-    },
+    kehe: Cmavo "ke'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"minde","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"xance","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[21,25],"phonemes":"ke'e","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

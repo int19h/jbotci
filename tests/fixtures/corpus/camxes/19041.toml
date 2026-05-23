@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nítcu co cítka .i clíva ji'a .i co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [19,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cliva",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [35,39],
-  },
+  Cmavo "mi",
+  Gismu "nítcu",
+  Cmavo "co",
+  Gismu "cítka",
+  Cmavo "i",
+  Gismu "clíva",
+  Cmavo "ji'a",
+  Cmavo "i",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[19,20],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[27,31],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -71,63 +35,27 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Co {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "nitcu",
-        span: [3,8],
-      },
-      co: Word {
-        kind: "cmavo",
-        phonemes: "co",
-        span: [9,11],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [12,17],
-      },
+      leading_relation: Gismu "nítcu",
+      co: Cmavo "co",
+      trailing_relation: Gismu "cítka",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [19,20],
-    },
+    i: Cmavo "i",
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "cliva",
-        span: [21,26],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ji'a",
-        span: [27,31],
-      },
+      Gismu "clíva",
+      indicator: Cmavo "ji'a",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [33,34],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [35,39],
-          },
+          Cmavo "co'o",
         ],
       },
     ],

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do bánli coĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [13,18],
-  },
+  Cmavo "do",
+  Gismu "bánli",
+  Cmavo "coĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"banli","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"robin","kind":"cmevla"}}]'
 
@@ -45,32 +29,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "banli",
-      span: [3,8],
-    },
+    Gismu "bánli",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "coĭ",
-            span: [9,12],
-          },
+          Cmavo "coĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "robin",
-          span: [13,18],
-        },
+        argument: Cmevla "robin",
       },
     ],
   },

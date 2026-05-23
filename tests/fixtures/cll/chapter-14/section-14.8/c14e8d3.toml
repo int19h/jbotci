@@ -24,66 +24,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi nélci la .djan. .e bo la .martas. .a bo la .meris.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "martas",
-    span: [28,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [45,50],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "e",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "martas",
+  Cmavo "a",
+  Cmavo "bo",
+  Cmavo "la",
+  Cmevla "meris",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[20,21],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"martas","kind":"cmevla"}},{"Bare":{"span":[37,38],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"meris","kind":"cmevla"}}]'
 
@@ -92,81 +44,33 @@ brackets = "(mi [nélci {(la .djan.) .e bo ([la .martas.] .a bo [la .meris.])}])
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [3,8],
-    },
+    Gismu "nélci",
     terms: [
       Bo {
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [13,17],
-            },
+            Cmevla "djan",
           ],
         },
-        bo_connective: Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [20,21],
-        },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [21,23],
-        },
+        bo_connective: Cmavo "e",
+        bo: Cmavo "bo",
         trailing_argument: Bo {
           leading_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [24,26],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "martas",
-                span: [28,34],
-              },
+              Cmevla "martas",
             ],
           },
-          bo_connective: Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [37,38],
-          },
-          bo: Word {
-            kind: "cmavo",
-            phonemes: "bo",
-            span: [38,40],
-          },
+          bo_connective: Cmavo "a",
+          bo: Cmavo "bo",
           trailing_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [41,43],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "meris",
-                span: [45,50],
-              },
+              Cmevla "meris",
             ],
           },
         },

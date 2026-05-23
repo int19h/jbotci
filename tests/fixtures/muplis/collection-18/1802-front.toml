@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ra nénri le skúsro pe ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nenri",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "skusro",
-    span: [12,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [22,24],
-  },
+  Cmavo "ra",
+  Gismu "nénri",
+  Cmavo "le",
+  Lujvo "skúsro",
+  Cmavo "pe",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"skusro","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -59,42 +35,18 @@ brackets = "(ra [nénri {le skúsro (pe ra)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ra",
-      span: [0,2],
-    },
+    Cmavo "ra",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nenri",
-      span: [3,8],
-    },
+    Gismu "nénri",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "skusro",
-          span: [12,18],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "skúsro",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [19,21],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ra",
-              span: [22,24],
-            },
+            goi: Cmavo "pe",
+            Cmavo "ra",
           },
         ],
       },

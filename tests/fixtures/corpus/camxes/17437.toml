@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.jes. ja)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "jes",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [4,6],
-  },
+  Cmevla "jes",
+  Cmavo "ja",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"jes","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"ja","kind":"cmavo"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"jes","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "jes",
-      span: [0,3],
-    },
+    Cmevla "jes",
   ],
-  leading_connective: Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [4,6],
-  },
+  leading_connective: Cmavo "ja",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"jes","kind":"cmevla"}}}],"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"ja","kind":"cmavo"}}}]}}}'

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .bancus. to coĭ zírpu toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zirpu",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [24,27],
-  },
+  Cmavo "coĭ",
+  Cmevla "bancus",
+  Cmavo "to",
+  Cmavo "coĭ",
+  Gismu "zírpu",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zirpu","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -57,49 +33,25 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "bancus",
-          span: [4,10],
-        },
+        Cmevla "bancus",
         free_modifiers: [
           To {
-            to: Word {
-              kind: "cmavo",
-              phonemes: "to",
-              span: [11,13],
-            },
+            to: Cmavo "to",
             free_modifiers: [
               Vocative {
                 vocative_markers: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "coĭ",
-                    span: [14,17],
-                  },
+                  Cmavo "coĭ",
                 ],
                 argument: RelationVocative {
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "zirpu",
-                    span: [18,23],
-                  },
+                  relation: Gismu "zírpu",
                 },
               },
             ],
             Text {},
-            toi: Word {
-              kind: "cmavo",
-              phonemes: "toĭ",
-              span: [24,27],
-            },
+            toi: Cmavo "toĭ",
           },
         ],
       },

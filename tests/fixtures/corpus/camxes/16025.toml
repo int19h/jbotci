@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le la .djisus. malglétu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djisus",
-    span: [6,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malgletu",
-    span: [14,22],
-  },
+  Cmavo "le",
+  Cmavo "la",
+  Cmevla "djisus",
+  Lujvo "malglétu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"djisus","kind":"cmevla"}},{"Bare":{"span":[14,22],"phonemes":"malgletu","kind":"lujvo"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [3,5],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djisus",
-              span: [6,12],
-            },
+            Cmevla "djisus",
           ],
         },
       ],
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "malgletu",
-        span: [14,22],
-      },
+      relation: Lujvo "malglétu",
     },
   ],
 }"""

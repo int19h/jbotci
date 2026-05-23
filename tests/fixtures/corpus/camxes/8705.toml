@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi ca pónse je cítka leĭ nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [25,30],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "pónse",
+  Cmavo "je",
+  Gismu "cítka",
+  Cmavo "leĭ",
+  Gismu "nánba",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"nanba","kind":"gismu"}}]'
 
@@ -60,49 +32,21 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
+      tense_modal: Cmavo "ca",
       Connected {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "ponse",
-          span: [6,11],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [12,14],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "citka",
-          span: [15,20],
-        },
+        leading_relation: Gismu "pónse",
+        connective: Cmavo "je",
+        trailing_relation: Gismu "cítka",
       },
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "leĭ",
-          span: [21,24],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanba",
-          span: [25,30],
-        },
+        descriptor: Cmavo "leĭ",
+        relation: Gismu "nánba",
       },
     ],
   },

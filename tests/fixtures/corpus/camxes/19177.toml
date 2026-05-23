@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(na nélci le sútra kárce jívna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "karce",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jivna",
-    span: [24,29],
-  },
+  Cmavo "na",
+  Gismu "nélci",
+  Cmavo "le",
+  Gismu "sútra",
+  Gismu "kárce",
+  Gismu "jívna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"jivna","kind":"gismu"}}]'
 
@@ -55,40 +31,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [3,8],
-    },
+    na: Cmavo "na",
+    Gismu "nélci",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "karce",
-          span: [18,23],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jivna",
-          span: [24,29],
-        },
+        Gismu "sútra",
+        Gismu "kárce",
+        Gismu "jívna",
       },
     },
   ],

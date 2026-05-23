@@ -18,33 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(be fo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [3,5],
-  },
+  Cmavo "be",
+  Cmavo "fo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"fo","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 BeLink {
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [0,2],
-  },
+  be: Cmavo "be",
   first_argument: Zohe {
-    tag: Word {
-      kind: "cmavo",
-      phonemes: "fo",
-      span: [3,5],
-    },
+    tag: Cmavo "fo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeLink":{"be":{"Bare":{"Bare":{"span":[0,2],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Zohe":{"tag":{"Fa":{"Bare":{"Bare":{"span":[3,5],"phonemes":"fo","kind":"cmavo"}}}}}}}}}}]}]}'

@@ -18,27 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi tátpi [frúmu bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
+  Cmavo "mi",
+  Gismu "tátpi",
   Letter {
-    Word {
-      kind: "gismu",
-      phonemes: "frumu",
-      span: [21,26],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [27,29],
-    },
+    Gismu "frúmu",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}},{"Letter":{"base":{"Bare":{"span":[21,26],"phonemes":"frumu","kind":"gismu"}},"bu":{"span":[27,29],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -47,32 +31,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tatpi",
-      span: [3,8],
-    },
+    Gismu "tátpi",
     terms: [
       Letter {
         letter: [
           Letter {
-            Word {
-              kind: "gismu",
-              phonemes: "frumu",
-              span: [21,26],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [27,29],
-            },
+            Gismu "frúmu",
+            bu: Cmavo "bu",
           },
         ],
       },

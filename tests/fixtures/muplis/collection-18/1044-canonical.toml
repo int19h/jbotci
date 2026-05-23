@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(taĭ ku zo'u mélbi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [12,17],
-  },
+  Cmavo "taĭ",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Gismu "mélbi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"melbi","kind":"gismu"}}]"""
 
@@ -51,30 +35,14 @@ Prenex {
   prenex_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [0,3],
-        },
+        bai: Cmavo "taĭ",
       },
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [4,6],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
-  zohu: Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [12,17],
-  },
+  zohu: Cmavo "zo'u",
+  Gismu "mélbi",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"taĭ","kind":"cmavo"}}}}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[4,6],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[7,11],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"melbi","kind":"gismu"}}}}}}}}}}}}}]}]}"""

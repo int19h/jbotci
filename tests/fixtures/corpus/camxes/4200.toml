@@ -18,71 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le te jórne be le skámi po mi beĭ la .internet. cu dráta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "internet",
-    span: [37,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [49,54],
-  },
+  Cmavo "le",
+  Cmavo "te",
+  Gismu "jórne",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "skámi",
+  Cmavo "po",
+  Cmavo "mi",
+  Cmavo "beĭ",
+  Cmavo "la",
+  Cmevla "internet",
+  Cmavo "cu",
+  Gismu "dráta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jorne","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"po","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[37,45],"phonemes":"internet","kind":"cmevla"}},{"Bare":{"span":[46,48],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"drata","kind":"gismu"}}]'
 
@@ -91,74 +39,30 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Be {
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [3,5],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jorne",
-            span: [6,11],
-          },
+          se: Cmavo "te",
+          Gismu "jórne",
         },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [12,14],
-        },
+        be: Cmavo "be",
         first_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [18,23],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "skámi",
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "po",
-                span: [24,26],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [27,29],
-              },
+              goi: Cmavo "po",
+              Cmavo "mi",
             },
           ],
         },
         bei_links: [
           BeiLink {
-            bei: Word {
-              kind: "cmavo",
-              phonemes: "beĭ",
-              span: [30,33],
-            },
+            bei: Cmavo "beĭ",
             argument: Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [34,36],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "internet",
-                  span: [37,45],
-                },
+                Cmevla "internet",
               ],
             },
           },
@@ -166,15 +70,7 @@ Predicate {
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [49,54],
-  },
+  cu: Cmavo "cu",
+  Gismu "dráta",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Be":{"base":{"Se":{"se":{"Bare":{"Bare":{"span":[3,5],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"jorne","kind":"gismu"}}}}}},"be":{"Bare":{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"skami","kind":"gismu"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[24,26],"phonemes":"po","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}}}}}}]}},"bei_links":[{"bei":{"Bare":{"Bare":{"span":[30,33],"phonemes":"beĭ","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[37,45],"phonemes":"internet","kind":"cmevla"}}}]}}}]}}]}}}}],"cu":{"Bare":{"Bare":{"span":[46,48],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[49,54],"phonemes":"drata","kind":"gismu"}}}}}}}}}}}]}]}'

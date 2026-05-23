@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(távla le mi mámta gi'e gúnka)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [23,28],
-  },
+  Gismu "távla",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "mámta",
+  Cmavo "gi'e",
+  Gismu "gúnka",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gunka","kind":"gismu"}}]"""
 
@@ -55,45 +31,21 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"s
 tree = """
 PredicateTail1 {
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [0,5],
-    },
+    Gismu "távla",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [9,11],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mamta",
-          span: [12,17],
-        },
+        relation: Gismu "mámta",
       },
     ],
   },
   continuations: [
     PredicateTailContinuation {
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "gi'e",
-        span: [18,22],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [23,28],
-      },
+      connective: Cmavo "gi'e",
+      Gismu "gúnka",
     },
   ],
 }"""

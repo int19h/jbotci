@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.s. sígja)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "s",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sigja",
-    span: [2,7],
-  },
+  Cmevla "s",
+  Gismu "sígja",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"sigja","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "s",
-      span: [0,1],
-    },
+    Cmevla "s",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "sigja",
-    span: [2,7],
-  },
+  Gismu "sígja",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"s","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"sigja","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e di'u cfípu mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfipu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Gismu "cfípu",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cfipu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Predicate {
   leading_terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "la'e",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "di'u",
-        span: [4,8],
-      },
+      lahe: Cmavo "la'e",
+      Cmavo "di'u",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cfipu",
-      span: [9,14],
-    },
+    Gismu "cfípu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [15,17],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .rotester. grúsi se tsáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rotester",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "grusi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsani",
-    span: [21,26],
-  },
+  Cmavo "la",
+  Cmevla "rotester",
+  Gismu "grúsi",
+  Cmavo "se",
+  Gismu "tsáni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"rotester","kind":"cmevla"}},{"Bare":{"span":[12,17],"phonemes":"grusi","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tsani","kind":"gismu"}}]'
 
@@ -51,37 +31,17 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "rotester",
-          span: [3,11],
-        },
+        Cmevla "rotester",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "grusi",
-      span: [12,17],
-    },
+    Gismu "grúsi",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [18,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tsani",
-        span: [21,26],
-      },
+      se: Cmavo "se",
+      Gismu "tsáni",
     },
   },
 }"""

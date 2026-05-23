@@ -18,68 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'e mi sélsku ki'u le nu sábji le núnpli [zo xáĭtcu] zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsku",
-    span: [8,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sabji",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunpli",
-    span: [35,41],
-  },
+  Cmavo "di'e",
+  Cmavo "mi",
+  Lujvo "sélsku",
+  Cmavo "ki'u",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "sábji",
+  Cmavo "le",
+  Lujvo "núnpli",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [42,44],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xaĭtcu",
-      span: [45,51],
-    },
+    zo: Cmavo "zo",
+    Lujvo "xáĭtcu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [52,56],
-  },
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"selsku","kind":"lujvo"}},{"Bare":{"span":[15,19],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sabji","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,41],"phonemes":"nunpli","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[42,44],"phonemes":"zo","kind":"cmavo"},"word":{"span":[45,51],"phonemes":"xaĭtcu","kind":"lujvo"}}},{"Bare":{"span":[52,56],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -87,81 +39,33 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"di'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "di'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
+    Cmavo "di'e",
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "selsku",
-      span: [8,14],
-    },
+    Lujvo "sélsku",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ki'u",
-            span: [15,19],
-          },
+          bai: Cmavo "ki'u",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [20,22],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [23,25],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "sabji",
-                span: [26,31],
-              },
+              Gismu "sábji",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [32,34],
-                  },
-                  relation: Word {
-                    kind: "lujvo",
-                    phonemes: "nunpli",
-                    span: [35,41],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Lujvo "núnpli",
                 },
                 WithIndicator {
                   ZoQuote {
-                    zo: Word {
-                      kind: "cmavo",
-                      phonemes: "zo",
-                      span: [42,44],
-                    },
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "xaĭtcu",
-                      span: [45,51],
-                    },
+                    zo: Cmavo "zo",
+                    Lujvo "xáĭtcu",
                   },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "zo'o",
-                    span: [52,56],
-                  },
+                  indicator: Cmavo "zo'o",
                 },
               ],
             },

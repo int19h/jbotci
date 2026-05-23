@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ka'e cítka la'e la .led. .zeplin. .i la'e di'u na xráni do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "led",
-    span: [22,25],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "zeplin",
-    span: [26,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [34,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [36,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'u",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrani",
-    span: [48,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [54,56],
-  },
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Gismu "cítka",
+  Cmavo "la'e",
+  Cmavo "la",
+  Cmevla "led",
+  Cmevla "zeplin",
+  Cmavo "i",
+  Cmavo "la'e",
+  Cmavo "di'u",
+  Cmavo "na",
+  Gismu "xráni",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"led","kind":"cmevla"}},{"Bare":{"span":[26,32],"phonemes":"zeplin","kind":"cmevla"}},{"Bare":{"span":[34,35],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"xrani","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -91,49 +39,21 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ka'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "citka",
-          span: [8,13],
-        },
+        tense_modal: Cmavo "ka'e",
+        Gismu "cítka",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [14,18],
-          },
+          lahe: Cmavo "la'e",
           Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [19,21],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "led",
-                span: [22,25],
-              },
-              Word {
-                kind: "cmevla",
-                phonemes: "zeplin",
-                span: [26,32],
-              },
+              Cmevla "led",
+              Cmevla "zeplin",
             ],
           },
         },
@@ -141,45 +61,21 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [34,35],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "la'e",
-            span: [36,40],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "di'u",
-            span: [40,44],
-          },
+          lahe: Cmavo "la'e",
+          Cmavo "di'u",
         },
       ],
       Relation {
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [45,47],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "xrani",
-            span: [48,53],
-          },
+          na: Cmavo "na",
+          Gismu "xráni",
         },
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [54,56],
-          },
+          Cmavo "do",
         ],
       },
     },

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.or. núkni je lójbo cúkta)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "or",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nukni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [18,23],
-  },
+  Cmevla "or",
+  Gismu "núkni",
+  Cmavo "je",
+  Gismu "lójbo",
+  Gismu "cúkta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"nukni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"cukta","kind":"gismu"}}]'
 
@@ -50,35 +30,15 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "or",
-      span: [0,2],
-    },
+    Cmevla "or",
   ],
   Compound {
     Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "nukni",
-        span: [3,8],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [9,11],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [12,17],
-      },
+      leading_unit: Gismu "núkni",
+      connective: Cmavo "je",
+      trailing_unit: Gismu "lójbo",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cukta",
-      span: [18,23],
-    },
+    Gismu "cúkta",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"nukni","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"cukta","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,63 +18,19 @@ error = { position = 8, allowed-next = [] }
 brackets = "(le zgíke be [zoĭ gy Hamster Theatre gy] ca se tínra mi zoĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
+  Cmavo "le",
+  Gismu "zgíke",
+  Cmavo "be",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [12,15],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [16,18],
-    },
-    quoted_text: [20,35],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [37,39],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Hamster Theatre",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [41,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tinra",
-    span: [47,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [53,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zoĭ",
-    span: [57,60],
-  },
+  Cmavo "ca",
+  Cmavo "se",
+  Gismu "tínra",
+  Cmavo "mi",
+  Cmavo "zoĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"zgike","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[12,15],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[20,35],"closing_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[41,43],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"tinra","kind":"gismu"}},{"Bare":{"span":[53,55],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[57,60],"phonemes":"zoĭ","kind":"cmavo"}}]'

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'u mi sezyjítfa cúska)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'u",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sezyjitfa",
-    span: [7,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuska",
-    span: [17,22],
-  },
+  Cmavo "u'u",
+  Cmavo "mi",
+  Lujvo "sezyjítfa",
+  Gismu "cúska",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,16],"phonemes":"sezyjitfa","kind":"lujvo"}},{"Bare":{"span":[17,22],"phonemes":"cuska","kind":"gismu"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'u",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'u",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "sezyjitfa",
-        span: [7,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cuska",
-        span: [17,22],
-      },
+      Lujvo "sezyjítfa",
+      Gismu "cúska",
     },
   },
 }"""

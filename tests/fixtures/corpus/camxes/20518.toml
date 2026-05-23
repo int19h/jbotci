@@ -18,73 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nícte mídju sódva vénzmi ka gléki)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "midju",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "venzmi",
-    span: [18,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gleki",
-    span: [28,33],
-  },
+  Gismu "nícte",
+  Gismu "mídju",
+  Gismu "sódva",
+  Lujvo "vénzmi",
+  Cmavo "ka",
+  Gismu "gléki",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"midju","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[18,24],"phonemes":"venzmi","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"gleki","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "midju",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "venzmi",
-    span: [18,24],
-  },
+  Gismu "nícte",
+  Gismu "mídju",
+  Gismu "sódva",
+  Lujvo "vénzmi",
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "ka",
-      span: [25,27],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "gleki",
-      span: [28,33],
-    },
+    nu: Cmavo "ka",
+    Gismu "gléki",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"nicte","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"midju","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"sodva","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,24],"phonemes":"venzmi","kind":"lujvo"}}}},{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[25,27],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[28,33],"phonemes":"gleki","kind":"gismu"}}}}}}}}}}}}]}}}}}}}}]}]}'

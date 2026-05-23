@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o zásti fa le xámgu válsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [1,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [23,28],
-  },
+  Cmavo "a'o",
+  Gismu "zásti",
+  Cmavo "fa",
+  Cmavo "le",
+  Gismu "xámgu",
+  Gismu "válsi",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"valsi","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'o",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "zasti",
-      span: [5,10],
-    },
+    Gismu "zásti",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [11,13],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "xamgu",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "valsi",
-              span: [23,28],
-            },
+            Gismu "xámgu",
+            Gismu "válsi",
           },
         },
       },

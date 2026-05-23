@@ -19,71 +19,23 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(pu tcídu da poĭ srána le terfríca [{zo y'y} bu] [zo xy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srana",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terfrica",
-    span: [28,36],
-  },
+  Cmavo "pu",
+  Gismu "tcídu",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "srána",
+  Cmavo "le",
+  Lujvo "terfríca",
   Letter {
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [37,39],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "y'y",
-        span: [40,43],
-      },
+      zo: Cmavo "zo",
+      Cmavo "y'y",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [43,45],
-    },
+    bu: Cmavo "bu",
   },
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [46,48],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [49,51],
-    },
+    zo: Cmavo "zo",
+    Cmavo "xy",
   },
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,36],"phonemes":"terfrica","kind":"lujvo"}},{"Letter":{"base":{"ZoQuote":{"zo":{"span":[37,39],"phonemes":"zo","kind":"cmavo"},"word":{"span":[40,43],"phonemes":"y'y","kind":"cmavo"}}},"bu":{"span":[43,45],"phonemes":"bu","kind":"cmavo"}}},{"ZoQuote":{"zo":{"span":[46,48],"phonemes":"zo","kind":"cmavo"},"word":{"span":[49,51],"phonemes":"xy","kind":"cmavo"}}}]"""
@@ -92,84 +44,36 @@ json = """[{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tcidu",
-      span: [6,11],
-    },
+    tense_modal: Cmavo "pu",
+    Gismu "tcídu",
   },
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [12,14],
-      },
+      base_argument: Cmavo "da",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [15,18],
-          },
+          poi: Cmavo "poĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "srana",
-              span: [19,24],
-            },
+            Gismu "srána",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [25,27],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "terfrica",
-                  span: [28,36],
-                },
+                descriptor: Cmavo "le",
+                relation: Lujvo "terfríca",
               },
               Letter {
                 letter: [
                   Letter {
                     ZoQuote {
-                      zo: Word {
-                        kind: "cmavo",
-                        phonemes: "zo",
-                        span: [37,39],
-                      },
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "y'y",
-                        span: [40,43],
-                      },
+                      zo: Cmavo "zo",
+                      Cmavo "y'y",
                     },
-                    bu: Word {
-                      kind: "cmavo",
-                      phonemes: "bu",
-                      span: [43,45],
-                    },
+                    bu: Cmavo "bu",
                   },
                 ],
               },
               ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [46,48],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "xy",
-                  span: [49,51],
-                },
+                zo: Cmavo "zo",
+                Cmavo "xy",
               },
             ],
           },

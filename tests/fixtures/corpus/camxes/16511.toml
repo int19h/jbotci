@@ -18,42 +18,14 @@ error = { position = 6, allowed-next = [] }
 brackets = "(.i mi tádni la [.lojban. bu] co'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "tádni",
+  Cmavo "la",
   Letter {
-    Word {
-      kind: "cmevla",
-      phonemes: "lojban",
-      span: [15,21],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [23,25],
-    },
+    Cmevla "lojban",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [26,30],
-  },
+  Cmavo "co'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[15,21],"phonemes":"lojban","kind":"cmevla"}},"bu":{"span":[23,25],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[26,30],"phonemes":"co'a","kind":"cmavo"}}]"""

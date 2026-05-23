@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ jbocásnu múnje)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbocasnu",
-    span: [4,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "munje",
-    span: [13,18],
-  },
+  Cmavo "coĭ",
+  Lujvo "jbocásnu",
+  Gismu "múnje",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"jbocasnu","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"munje","kind":"gismu"}}]'
 
@@ -42,24 +30,12 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "jbocasnu",
-            span: [4,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "munje",
-            span: [13,18],
-          },
+          Lujvo "jbocásnu",
+          Gismu "múnje",
         },
       },
     },

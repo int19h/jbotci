@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi pósydji lo cmálu tánxe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "posydji",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tanxe",
-    span: [20,25],
-  },
+  Cmavo "mi",
+  Lujvo "pósydji",
+  Cmavo "lo",
+  Gismu "cmálu",
+  Gismu "tánxe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"posydji","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"tanxe","kind":"gismu"}}]'
 
@@ -50,36 +30,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "posydji",
-      span: [3,10],
-    },
+    Lujvo "pósydji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [11,13],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmalu",
-            span: [14,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tanxe",
-            span: [20,25],
-          },
+          Gismu "cmálu",
+          Gismu "tánxe",
         },
       },
     ],

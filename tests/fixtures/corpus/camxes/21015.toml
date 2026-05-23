@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(va'o le fágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [15,20],
-  },
+  Cmavo "va'o",
+  Cmavo "le",
+  Gismu "fágri",
 ]"""
 json = """[{"Bare":{"span":[7,11],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"fagri","kind":"gismu"}}]"""
 
@@ -42,23 +30,11 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "va'o",
-          span: [7,11],
-        },
+        bai: Cmavo "va'o",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "fagri",
-          span: [15,20],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "fágri",
       },
     },
   ],

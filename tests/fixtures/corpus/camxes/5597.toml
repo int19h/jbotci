@@ -19,43 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ma xe fánva fe [zoĭ gy example gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [14,16],
-  },
+  Cmavo "ma",
+  Cmavo "xe",
+  Gismu "fánva",
+  Cmavo "fe",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [17,20],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [21,23],
-    },
-    quoted_text: [25,32],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [34,36],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "example",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"fe","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[17,20],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[21,23],"phonemes":"gy","kind":"cmavo"},"quoted_text":[25,32],"closing_delimiter":{"span":[34,36],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -64,49 +36,21 @@ json = '[{"Bare":{"span":[2,4],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [2,4],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "xe",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "fanva",
-        span: [8,13],
-      },
+      se: Cmavo "xe",
+      Gismu "fánva",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [14,16],
-        },
+        fa: Cmavo "fe",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [17,20],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [21,23],
-          },
-          quoted_text: [25,32],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [34,36],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "example",
+          closing_delimiter: Cmavo "gy",
         },
       },
     ],

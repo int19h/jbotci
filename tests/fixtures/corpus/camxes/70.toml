@@ -19,43 +19,15 @@ brackets = "([zoĭ zoĭ Katamari Damacy zoĭ] cu cízra se kélci)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [40,43],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [44,47],
-    },
-    quoted_text: [47,63],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [64,67],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "Katamari Damacy",
+    closing_delimiter: Cmavo "zoĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [68,70],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [71,76],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [77,79],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [80,85],
-  },
+  Cmavo "cu",
+  Gismu "cízra",
+  Cmavo "se",
+  Gismu "kélci",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[40,43],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[44,47],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[47,63],"closing_delimiter":{"span":[64,67],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[68,70],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[71,76],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[77,79],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[80,85],"phonemes":"kelci","kind":"gismu"}}]'
 
@@ -64,46 +36,18 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [40,43],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [44,47],
-      },
-      quoted_text: [47,63],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [64,67],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "Katamari Damacy",
+      closing_delimiter: Cmavo "zoĭ",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [68,70],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "cizra",
-      span: [71,76],
-    },
+    Gismu "cízra",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [77,79],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [80,85],
-      },
+      se: Cmavo "se",
+      Gismu "kélci",
     },
   },
 }"""

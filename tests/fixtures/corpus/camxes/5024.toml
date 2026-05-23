@@ -19,32 +19,12 @@ brackets = "([zo du'u] cu xámgu selpílno)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "du'u",
-      span: [3,7],
-    },
+    zo: Cmavo "zo",
+    Cmavo "du'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [11,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selpilno",
-    span: [17,25],
-  },
+  Cmavo "cu",
+  Gismu "xámgu",
+  Lujvo "selpílno",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,7],"phonemes":"du'u","kind":"cmavo"}}},{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[17,25],"phonemes":"selpilno","kind":"lujvo"}}]"""
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "du'u",
-        span: [3,7],
-      },
+      zo: Cmavo "zo",
+      Cmavo "du'u",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [8,10],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [11,16],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selpilno",
-      span: [17,25],
-    },
+    Gismu "xámgu",
+    Lujvo "selpílno",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,7],"phonemes":"du'u","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"xamgu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,25],"phonemes":"selpilno","kind":"lujvo"}}}}]}}}}}}}}]}]}"""

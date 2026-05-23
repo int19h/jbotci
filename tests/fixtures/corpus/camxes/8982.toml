@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ me la .rlp. bróde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brode",
-    span: [14,19],
-  },
+  Cmavo "coĭ",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "rlp",
+  Gismu "bróde",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[14,19],"phonemes":"brode","kind":"gismu"}}]'
 
@@ -52,40 +32,20 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelationVocative {
         relation: Compound {
           Me {
-            me: Word {
-              kind: "cmavo",
-              phonemes: "me",
-              span: [4,6],
-            },
+            me: Cmavo "me",
             Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [7,9],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "rlp",
-                  span: [10,13],
-                },
+                Cmevla "rlp",
               ],
             },
           },
-          Word {
-            kind: "gismu",
-            phonemes: "brode",
-            span: [14,19],
-          },
+          Gismu "bróde",
         },
       },
     },

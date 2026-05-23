@@ -18,62 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i mi pu smádu tu'a le se brívla be [zo vécnu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smadu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "brivla",
-    span: [28,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [35,37],
-  },
+  Cmavo "u'i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "smádu",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Cmavo "se",
+  Lujvo "brívla",
+  Cmavo "be",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [38,40],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [41,46],
-    },
+    zo: Cmavo "zo",
+    Gismu "vécnu",
   },
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"smadu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,34],"phonemes":"brivla","kind":"lujvo"}},{"Bare":{"span":[35,37],"phonemes":"be","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[38,40],"phonemes":"zo","kind":"cmavo"},"word":{"span":[41,46],"phonemes":"vecnu","kind":"gismu"}}}]"""
@@ -83,76 +39,32 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [1,4],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [8,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "smadu",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "pu",
+        Gismu "smádu",
       },
       terms: [
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [17,21],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [22,24],
-            },
+            descriptor: Cmavo "le",
             relation: Be {
               Se {
-                se: Word {
-                  kind: "cmavo",
-                  phonemes: "se",
-                  span: [25,27],
-                },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "brivla",
-                  span: [28,34],
-                },
+                se: Cmavo "se",
+                Lujvo "brívla",
               },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [35,37],
-              },
+              be: Cmavo "be",
               first_argument: ZoQuote {
-                zo: Word {
-                  kind: "cmavo",
-                  phonemes: "zo",
-                  span: [38,40],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "vecnu",
-                  span: [41,46],
-                },
+                zo: Cmavo "zo",
+                Gismu "vécnu",
               },
             },
           },

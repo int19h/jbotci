@@ -18,161 +18,57 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i .i mi pu za míkce se kátna ca le pu zi vóndeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mikce",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "katna",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [39,41],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vondeĭ",
-    span: [42,48],
-  },
+  Cmavo "go'i",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Gismu "míkce",
+  Cmavo "se",
+  Gismu "kátna",
+  Cmavo "ca",
+  Cmavo "le",
+  Cmavo "pu",
+  Cmavo "zi",
+  Lujvo "vóndeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"mikce","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"katna","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[42,48],"phonemes":"vondeĭ","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  Cmavo "go'i",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [6,7],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [8,10],
-        },
+        Cmavo "mi",
       ],
       Relation {
         TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [11,13],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "za",
-              span: [13,15],
-            },
+            Cmavo "pu",
+            Cmavo "za",
           },
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "mikce",
-              span: [16,21],
-            },
+            Gismu "míkce",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [22,24],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "katna",
-                span: [25,30],
-              },
+              se: Cmavo "se",
+              Gismu "kátna",
             },
           },
         },
         terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [31,33],
-            },
+            tense_modal: Cmavo "ca",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [34,36],
-              },
+              descriptor: Cmavo "le",
               relation: TenseModal {
                 tense_modal: Composite {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "pu",
-                    span: [37,39],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "zi",
-                    span: [39,41],
-                  },
+                  Cmavo "pu",
+                  Cmavo "zi",
                 },
-                Word {
-                  kind: "lujvo",
-                  phonemes: "vondeĭ",
-                  span: [42,48],
-                },
+                Lujvo "vóndeĭ",
               },
             },
           },

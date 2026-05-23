@@ -18,68 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xúrti mi ba'e fo sy)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xurti",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [17,19],
-  },
+  Gismu "xúrti",
+  Cmavo "mi",
+  Cmavo "ba'e",
+  Cmavo "fo",
+  Cmavo "sy",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xurti","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"sy","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "xurti",
-    span: [0,5],
-  },
+  Gismu "xúrti",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [6,8],
-    },
+    Cmavo "mi",
     Fa {
       fa: Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [9,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "fo",
-          span: [14,16],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "fo",
       },
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "sy",
-            span: [17,19],
-          },
+          Cmavo "sy",
         ],
       },
     },

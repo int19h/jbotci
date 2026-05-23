@@ -18,148 +18,52 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi ca'o tcídu le ze moĭ págbu be la cmálu noltrubé'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [22,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [38,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "noltrube'a",
-    span: [44,54],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "ca'o",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "ze",
+  Cmavo "moĭ",
+  Gismu "págbu",
+  Cmavo "be",
+  Cmavo "la",
+  Gismu "cmálu",
+  Lujvo "noltrubé'a",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[44,54],"phonemes":"noltrube'a","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [6,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tcidu",
-          span: [11,16],
-        },
+        tense_modal: Cmavo "ca'o",
+        Gismu "tcídu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Moi {
               number: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ze",
-                  span: [20,22],
-                },
+                Cmavo "ze",
               ],
-              moi: Word {
-                kind: "cmavo",
-                phonemes: "moĭ",
-                span: [22,25],
-              },
+              moi: Cmavo "moĭ",
             },
             Be {
-              Word {
-                kind: "gismu",
-                phonemes: "pagbu",
-                span: [26,31],
-              },
-              be: Word {
-                kind: "cmavo",
-                phonemes: "be",
-                span: [32,34],
-              },
+              Gismu "págbu",
+              be: Cmavo "be",
               first_argument: Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [35,37],
-                },
+                descriptor: Cmavo "la",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "cmalu",
-                    span: [38,43],
-                  },
-                  Word {
-                    kind: "lujvo",
-                    phonemes: "noltrube'a",
-                    span: [44,54],
-                  },
+                  Gismu "cmálu",
+                  Lujvo "noltrubé'a",
                 },
               },
             },

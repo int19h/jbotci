@@ -18,22 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sélcme [zo máĭcro])"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "selcme",
-    span: [0,6],
-  },
+  Lujvo "sélcme",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [7,9],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "maĭcro",
-      span: [10,16],
-    },
+    zo: Cmavo "zo",
+    Lujvo "máĭcro",
   },
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"selcme","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[7,9],"phonemes":"zo","kind":"cmavo"},"word":{"span":[10,16],"phonemes":"maĭcro","kind":"lujvo"}}}]'
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"selcme","kind":"lujvo"}},{"ZoQuote":{
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "selcme",
-    span: [0,6],
-  },
+  Lujvo "sélcme",
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [7,9],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "maĭcro",
-        span: [10,16],
-      },
+      zo: Cmavo "zo",
+      Lujvo "máĭcro",
     },
   ],
 }"""

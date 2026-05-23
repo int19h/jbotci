@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .loglan. cu bángu lo lójbo normórsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "loglan",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [23,28],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "normorsi",
-    span: [29,37],
-  },
+  Cmavo "la",
+  Cmevla "loglan",
+  Cmavo "cu",
+  Gismu "bángu",
+  Cmavo "lo",
+  Gismu "lójbo",
+  Lujvo "normórsi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"loglan","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[29,37],"phonemes":"normorsi","kind":"lujvo"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "loglan",
-          span: [3,9],
-        },
+        Cmevla "loglan",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bangu",
-      span: [14,19],
-    },
+    Gismu "bángu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [20,22],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [23,28],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "normorsi",
-            span: [29,37],
-          },
+          Gismu "lójbo",
+          Lujvo "normórsi",
         },
       },
     ],

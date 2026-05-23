@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko rápli pe'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rapli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [9,13],
-  },
+  Cmavo "ko",
+  Gismu "rápli",
+  Cmavo "pe'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"rapli","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"pe'u","kind":"cmavo"}}]"""
 
@@ -40,26 +28,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko",
-      span: [0,2],
-    },
+    Cmavo "ko",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "rapli",
-      span: [3,8],
-    },
+    Gismu "rápli",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pe'u",
-            span: [9,13],
-          },
+          Cmavo "pe'u",
         ],
       },
     ],

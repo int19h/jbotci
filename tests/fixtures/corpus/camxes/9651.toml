@@ -19,31 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(fractúre .ĭe)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "fracture",
-    span: [0,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [12,14],
-  },
+  Lujvo "fractúre",
+  Cmavo "ĭe",
 ]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"ĭe","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  Word {
-    kind: "lujvo",
-    phonemes: "fracture",
-    span: [0,8],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [12,14],
-  },
+  Lujvo "fractúre",
+  indicator: Cmavo "ĭe",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}}},"indicator":{"span":[12,14],"phonemes":"ĭe","kind":"cmavo"}}}}}}}}}}}]}]}'

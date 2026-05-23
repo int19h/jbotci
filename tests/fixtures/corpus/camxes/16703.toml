@@ -18,67 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ze'a ma do'o távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'o",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [15,20],
-  },
+  Cmavo "i",
+  Cmavo "ze'a",
+  Cmavo "ma",
+  Cmavo "do'o",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"do'o","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tavla","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ze'a",
-          span: [2,6],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "ze'a",
+        Cmavo "ma",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do'o",
-        span: [10,14],
-      },
+      Cmavo "do'o",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [15,20],
-    },
+    Gismu "távla",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[2,6],"phonemes":"ze'a","kind":"cmavo"}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[10,14],"phonemes":"do'o","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"tavla","kind":"gismu"}}}}}}}}}}}]}]}"""

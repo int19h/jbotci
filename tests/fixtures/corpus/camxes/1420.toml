@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi kláma be le zárci co sútra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [24,29],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "co",
+  Gismu "sútra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"sutra","kind":"gismu"}}]'
 
@@ -60,45 +32,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [9,11],
-    },
+    Gismu "kláma",
+    be: Cmavo "be",
     first_argument: Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [12,14],
-      },
+      descriptor: Cmavo "le",
       relation: Co {
-        leading_relation: Word {
-          kind: "gismu",
-          phonemes: "zarci",
-          span: [15,20],
-        },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [21,23],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [24,29],
-        },
+        leading_relation: Gismu "zárci",
+        co: Cmavo "co",
+        trailing_relation: Gismu "sútra",
       },
     },
   },

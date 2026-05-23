@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le cpíni le vásru cu la'a múkti le nu le cpíni cu vólfi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpini",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vasru",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [37,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [42,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpini",
-    span: [57,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [63,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "volfi",
-    span: [66,71],
-  },
+  Cmavo "le",
+  Gismu "cpíni",
+  Cmavo "le",
+  Gismu "vásru",
+  Cmavo "cu",
+  Cmavo "la'a",
+  Gismu "múkti",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "le",
+  Gismu "cpíni",
+  Cmavo "cu",
+  Gismu "vólfi",
 ]"""
 json = """[{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cpini","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"vasru","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"mukti","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"cpini","kind":"gismu"}},{"Bare":{"span":[63,65],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"volfi","kind":"gismu"}}]"""
 
@@ -91,86 +39,34 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [16,18],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cpini",
-        span: [19,24],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "cpíni",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [25,27],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "vasru",
-        span: [28,33],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "vásru",
     },
   ],
   cu: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [34,36],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "la'a",
-      span: [37,41],
-    },
+    Cmavo "cu",
+    indicator: Cmavo "la'a",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "mukti",
-      span: [42,47],
-    },
+    Gismu "múkti",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [48,50],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [51,53],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [54,56],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "cpini",
-                  span: [57,62],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "cpíni",
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [63,65],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "volfi",
-              span: [66,71],
-            },
+            cu: Cmavo "cu",
+            Gismu "vólfi",
           },
         },
       },

@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cíksi pu zu le mu'e jbógri)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbogri",
-    span: [19,25],
-  },
+  Gismu "cíksi",
+  Cmavo "pu",
+  Cmavo "zu",
+  Cmavo "le",
+  Cmavo "mu'e",
+  Lujvo "jbógri",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"mu'e","kind":"cmavo"}},{"Bare":{"span":[19,25],"phonemes":"jbogri","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [0,5],
-  },
+  Gismu "cíksi",
   terms: [
     Tagged {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zu",
-          span: [8,10],
-        },
+        Cmavo "pu",
+        Cmavo "zu",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "mu'e",
-            span: [14,18],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "jbogri",
-            span: [19,25],
-          },
+          nu: Cmavo "mu'e",
+          Lujvo "jbógri",
         },
       },
     },

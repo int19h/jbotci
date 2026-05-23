@@ -18,82 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [zo nárga] na ji'a go'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "narga",
-      span: [5,10],
-    },
+    zo: Cmavo "zo",
+    Gismu "nárga",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [19,23],
-  },
+  Cmavo "na",
+  Cmavo "ji'a",
+  Cmavo "go'i",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,10],"phonemes":"narga","kind":"gismu"}}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"go'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [2,4],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "narga",
-          span: [5,10],
-        },
+        zo: Cmavo "zo",
+        Gismu "nárga",
       },
     ],
     Na {
       na: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [11,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [14,18],
-        },
+        Cmavo "na",
+        indicator: Cmavo "ji'a",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'i",
-        span: [19,23],
-      },
+      Cmavo "go'i",
     },
   },
 }"""

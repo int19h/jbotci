@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(py na'e ke vrúde brópre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vrude",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bropre",
-    span: [18,24],
-  },
+  Cmavo "py",
+  Cmavo "na'e",
+  Cmavo "ke",
+  Gismu "vrúde",
+  Lujvo "brópre",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"py","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vrude","kind":"gismu"}},{"Bare":{"span":[18,24],"phonemes":"bropre","kind":"lujvo"}}]"""
 
@@ -52,37 +32,17 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "py",
-          span: [0,2],
-        },
+        Cmavo "py",
       ],
     },
   ],
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "na'e",
-      span: [4,8],
-    },
+    nahe: Cmavo "na'e",
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [9,11],
-      },
+      ke: Cmavo "ke",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "vrude",
-          span: [12,17],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "bropre",
-          span: [18,24],
-        },
+        Gismu "vrúde",
+        Lujvo "brópre",
       },
     },
   },

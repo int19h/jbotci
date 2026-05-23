@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca le ckúle ke nánca re moĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [23,26],
-  },
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "ckúle",
+  Cmavo "ke",
+  Gismu "nánca",
+  Cmavo "re",
+  Cmavo "moĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nanca","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"moĭ","kind":"cmavo"}}]'
 
@@ -61,48 +33,20 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "ckule",
-            span: [6,11],
-          },
+          Gismu "ckúle",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [12,14],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "nanca",
-                span: [15,20],
-              },
+              Gismu "nánca",
               Moi {
                 number: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "re",
-                    span: [21,23],
-                  },
+                  Cmavo "re",
                 ],
-                moi: Word {
-                  kind: "cmavo",
-                  phonemes: "moĭ",
-                  span: [23,26],
-                },
+                moi: Cmavo "moĭ",
               },
             },
           },

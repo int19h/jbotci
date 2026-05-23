@@ -19,16 +19,8 @@ brackets = "(zo'o bu)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'o",
-      span: [0,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [4,6],
-    },
+    Cmavo "zo'o",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},"bu":{"span":[4,6],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -40,16 +32,8 @@ Term {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "zo'o",
-            span: [0,4],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [4,6],
-          },
+          Cmavo "zo'o",
+          bu: Cmavo "bu",
         },
       ],
     },

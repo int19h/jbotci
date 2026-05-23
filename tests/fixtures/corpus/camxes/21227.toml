@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma krínu co júndi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krinu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [12,17],
-  },
+  Cmavo "ma",
+  Gismu "krínu",
+  Cmavo "co",
+  Gismu "júndi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"krinu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jundi","kind":"gismu"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Co {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "krinu",
-      span: [3,8],
-    },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [9,11],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "jundi",
-      span: [12,17],
-    },
+    leading_relation: Gismu "krínu",
+    co: Cmavo "co",
+    trailing_relation: Gismu "júndi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"krinu","kind":"gismu"}}}},"co":{"Bare":{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"jundi","kind":"gismu"}}}}}}}}}}}}}]}]}'

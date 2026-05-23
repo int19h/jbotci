@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le bárda je xúnre je bándu je cúkta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bandu",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [27,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [30,35],
-  },
+  Cmavo "le",
+  Gismu "bárda",
+  Cmavo "je",
+  Gismu "xúnre",
+  Cmavo "je",
+  Gismu "bándu",
+  Cmavo "je",
+  Gismu "cúkta",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"bandu","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"cukta","kind":"gismu"}}]'
 
@@ -66,51 +34,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Connected {
         leading_relation: Connected {
           leading_relation: Connected {
-            leading_relation: Word {
-              kind: "gismu",
-              phonemes: "barda",
-              span: [3,8],
-            },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "je",
-              span: [9,11],
-            },
-            trailing_relation: Word {
-              kind: "gismu",
-              phonemes: "xunre",
-              span: [12,17],
-            },
+            leading_relation: Gismu "bárda",
+            connective: Cmavo "je",
+            trailing_relation: Gismu "xúnre",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "je",
-            span: [18,20],
-          },
-          trailing_relation: Word {
-            kind: "gismu",
-            phonemes: "bandu",
-            span: [21,26],
-          },
+          connective: Cmavo "je",
+          trailing_relation: Gismu "bándu",
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "je",
-          span: [27,29],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "cukta",
-          span: [30,35],
-        },
+        connective: Cmavo "je",
+        trailing_relation: Gismu "cúkta",
       },
     },
   ],

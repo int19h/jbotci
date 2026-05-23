@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ca ma co'u zváti ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [20,22],
-  },
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "ma",
+  Cmavo "co'u",
+  Gismu "zváti",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -59,43 +35,19 @@ brackets = "([do {ca ma}] [{co'u zváti} ti])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [6,8],
-      },
+      tense_modal: Cmavo "ca",
+      Cmavo "ma",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "co'u",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zvati",
-        span: [14,19],
-      },
+      tense_modal: Cmavo "co'u",
+      Gismu "zváti",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [20,22],
-      },
+      Cmavo "ti",
     ],
   },
 }"""

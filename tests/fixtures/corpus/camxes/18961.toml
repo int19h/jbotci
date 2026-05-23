@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le smáni rémna cu vlíle .i je le rémna rémna na vlíle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [25,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [32,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [47,52],
-  },
+  Cmavo "le",
+  Gismu "smáni",
+  Gismu "rémna",
+  Cmavo "cu",
+  Gismu "vlíle",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "le",
+  Gismu "rémna",
+  Gismu "rémna",
+  Cmavo "na",
+  Gismu "vlíle",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[25,26],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"vlile","kind":"gismu"}}]'
 
@@ -87,79 +39,31 @@ Connected {
   leading_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "smani",
-            span: [3,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "remna",
-            span: [9,14],
-          },
+          Gismu "smáni",
+          Gismu "rémna",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vlile",
-      span: [18,23],
-    },
+    cu: Cmavo "cu",
+    Gismu "vlíle",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [25,26],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [26,28],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [29,31],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "remna",
-            span: [32,37],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "remna",
-            span: [38,43],
-          },
+          Gismu "rémna",
+          Gismu "rémna",
         },
       },
     ],
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [44,46],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "vlile",
-        span: [47,52],
-      },
+      na: Cmavo "na",
+      Gismu "vlíle",
     },
   },
 }"""

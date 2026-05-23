@@ -18,56 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tcídu gi'e naĭ gálfi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "galfi",
-    span: [14,19],
-  },
+  Gismu "tcídu",
+  Cmavo "gi'e",
+  Cmavo "naĭ",
+  Gismu "gálfi",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"galfi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 PredicateTail1 {
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [0,5],
-  },
+  Gismu "tcídu",
   continuations: [
     PredicateTailContinuation {
       connective: PredicateTail {
-        Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [6,10],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [10,13],
-        },
+        Cmavo "gi'e",
+        nai: Cmavo "naĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "galfi",
-        span: [14,19],
-      },
+      Gismu "gálfi",
     },
   ],
 }"""

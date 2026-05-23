@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .duramater. ba zi xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "duramater",
-    span: [3,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [19,24],
-  },
+  Cmavo "la",
+  Cmevla "duramater",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "xrúti",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"duramater","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"xruti","kind":"gismu"}}]'
 
@@ -51,38 +31,18 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "duramater",
-          span: [3,12],
-        },
+        Cmevla "duramater",
       ],
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [13,15],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [16,18],
-      },
+      Cmavo "ba",
+      Cmavo "zi",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "xruti",
-      span: [19,24],
-    },
+    Gismu "xrúti",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,12],"phonemes":"duramater","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[13,15],"phonemes":"ba","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[16,18],"phonemes":"zi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"xruti","kind":"gismu"}}}}}}}}}}}}}]}]}'

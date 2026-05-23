@@ -18,104 +18,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo .adam.] xébro ke se bácru tádji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "adam",
-      span: [7,11],
-    },
+    zo: Cmavo "zo",
+    Cmevla "adam",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "xebro",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadji",
-    span: [31,36],
-  },
+  Gismu "xébro",
+  Cmavo "ke",
+  Cmavo "se",
+  Gismu "bácru",
+  Gismu "tádji",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[7,11],"phonemes":"adam","kind":"cmevla"}}},{"Bare":{"span":[13,18],"phonemes":"xebro","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"tadji","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "adam",
-          span: [7,11],
-        },
+        zo: Cmavo "zo",
+        Cmevla "adam",
       },
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xebro",
-        span: [13,18],
-      },
+      Gismu "xébro",
       Ke {
-        ke: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [19,21],
-        },
+        ke: Cmavo "ke",
         Compound {
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [22,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "bacru",
-              span: [25,30],
-            },
+            se: Cmavo "se",
+            Gismu "bácru",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "tadji",
-            span: [31,36],
-          },
+          Gismu "tádji",
         },
       },
     },

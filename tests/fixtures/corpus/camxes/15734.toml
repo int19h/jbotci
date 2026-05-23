@@ -18,67 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(va'o le nu do nítcu le cméne vaŭ mi stídi [zo .dydyrys.])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [36,41],
-  },
+  Cmavo "va'o",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "nítcu",
+  Cmavo "le",
+  Gismu "cméne",
+  Cmavo "vaŭ",
+  Cmavo "mi",
+  Gismu "stídi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [42,44],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "dydyrys",
-      span: [45,52],
-    },
+    zo: Cmavo "zo",
+    Cmevla "dydyrys",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[29,32],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"stidi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[42,44],"phonemes":"zo","kind":"cmavo"},"word":{"span":[45,52],"phonemes":"dydyrys","kind":"cmevla"}}}]"""
@@ -89,86 +41,38 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "va'o",
-          span: [0,4],
-        },
+        bai: Cmavo "va'o",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [8,10],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [11,13],
-              },
+              Cmavo "do",
             ],
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "nitcu",
-                span: [14,19],
-              },
+              Gismu "nítcu",
               terms: [
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [20,22],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "cmene",
-                    span: [23,28],
-                  },
+                  descriptor: Cmavo "le",
+                  relation: Gismu "cméne",
                 },
               ],
-              vau: Word {
-                kind: "cmavo",
-                phonemes: "vaŭ",
-                span: [29,32],
-              },
+              vau: Cmavo "vaŭ",
             },
           },
         },
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [33,35],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "stidi",
-      span: [36,41],
-    },
+    Gismu "stídi",
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [42,44],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "dydyrys",
-          span: [45,52],
-        },
+        zo: Cmavo "zo",
+        Cmevla "dydyrys",
       },
     ],
   },

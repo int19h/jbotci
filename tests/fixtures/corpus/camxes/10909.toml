@@ -18,64 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gírzu be ma beĭ ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "beĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [16,18],
-  },
+  Gismu "gírzu",
+  Cmavo "be",
+  Cmavo "ma",
+  Cmavo "beĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Be {
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  first_argument: Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
+  Gismu "gírzu",
+  be: Cmavo "be",
+  first_argument: Cmavo "ma",
   bei_links: [
     BeiLink {
-      bei: Word {
-        kind: "cmavo",
-        phonemes: "beĭ",
-        span: [12,15],
-      },
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [16,18],
-      },
+      bei: Cmavo "beĭ",
+      argument: Cmavo "ma",
     },
   ],
 }"""

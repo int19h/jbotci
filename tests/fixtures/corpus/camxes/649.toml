@@ -18,119 +18,47 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ge la .djan. nánmu gi naĭ la .djeĭmyz. nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭmyz",
-    span: [27,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [36,41],
-  },
+  Cmavo "ge",
+  Cmavo "la",
+  Cmevla "djan",
+  Gismu "nánmu",
+  Cmavo "gi",
+  Cmavo "naĭ",
+  Cmavo "la",
+  Cmevla "djeĭmyz",
+  Gismu "nínmu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[12,17],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,34],"phonemes":"djeĭmyz","kind":"cmevla"}},{"Bare":{"span":[36,41],"phonemes":"ninmu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Pair {
-  gek: Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
+  gek: Cmavo "ge",
   first: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djan",
-            span: [6,10],
-          },
+          Cmevla "djan",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "nanmu",
-      span: [12,17],
-    },
+    Gismu "nánmu",
   },
   gik: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [18,20],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [20,23],
-    },
+    Cmavo "gi",
+    nai: Cmavo "naĭ",
   },
   second: Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [24,26],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djeĭmyz",
-            span: [27,34],
-          },
+          Cmevla "djeĭmyz",
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "ninmu",
-      span: [36,41],
-    },
+    Gismu "nínmu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}}}]}},"first":{"Plain":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[6,10],"phonemes":"djan","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"nanmu","kind":"gismu"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"gi","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}}}}},"second":{"Plain":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[27,34],"phonemes":"djeĭmyz","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"ninmu","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

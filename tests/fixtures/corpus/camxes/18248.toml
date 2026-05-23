@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ki'e doĭ .camgusmis. .i na spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "camgusmis",
-    span: [11,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [21,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "ki'e",
+  Cmavo "doĭ",
+  Cmevla "camgusmis",
+  Cmavo "i",
+  Cmavo "na",
+  Gismu "spófu",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[11,20],"phonemes":"camgusmis","kind":"cmevla"}},{"Bare":{"span":[21,22],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"spofu","kind":"gismu"}}]"""
 
@@ -60,50 +32,22 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ki'e",
-            span: [2,6],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [7,10],
-          },
+          Cmavo "ki'e",
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "camgusmis",
-          span: [11,20],
-        },
+        argument: Cmevla "camgusmis",
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [21,22],
-    },
+    i: Cmavo "i",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [23,25],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "spofu",
-        span: [26,31],
-      },
+      na: Cmavo "na",
+      Gismu "spófu",
     },
   },
 }"""

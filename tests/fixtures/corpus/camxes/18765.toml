@@ -18,89 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i so'u roĭ víska do bu'u ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'u",
-    span: [20,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [25,27],
-  },
+  Cmavo "i",
+  Cmavo "so'u",
+  Cmavo "roĭ",
+  Gismu "víska",
+  Cmavo "do",
+  Cmavo "bu'u",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ti","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "so'u",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [7,10],
-        },
+        Cmavo "so'u",
+        Cmavo "roĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [11,16],
-      },
+      Gismu "víska",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [17,19],
-      },
+      Cmavo "do",
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "bu'u",
-          span: [20,24],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ti",
-          span: [25,27],
-        },
+        tense_modal: Cmavo "bu'u",
+        Cmavo "ti",
       },
     ],
   },

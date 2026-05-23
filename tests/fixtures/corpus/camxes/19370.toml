@@ -18,44 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to xénru tu'a [la'o gy Sesame Street gy] toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xenru",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [9,13],
-  },
+  Cmavo "to",
+  Gismu "xénru",
+  Cmavo "tu'a",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [14,18],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [19,21],
-    },
-    quoted_text: [23,36],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [37,39],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Sesame Street",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [41,44],
-  },
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xenru","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"tu'a","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[14,18],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[19,21],"phonemes":"gy","kind":"cmavo"},"quoted_text":[23,36],"closing_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[41,44],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -64,50 +36,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xenru",
-          span: [3,8],
-        },
+        Gismu "xénru",
         terms: [
           Lahe {
-            lahe: Word {
-              kind: "cmavo",
-              phonemes: "tu'a",
-              span: [9,13],
-            },
+            lahe: Cmavo "tu'a",
             ZoiQuote {
-              zoi: Word {
-                kind: "cmavo",
-                phonemes: "la'o",
-                span: [14,18],
-              },
-              opening_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [19,21],
-              },
-              quoted_text: [23,36],
-              closing_delimiter: Word {
-                kind: "cmavo",
-                phonemes: "gy",
-                span: [37,39],
-              },
+              zoi: Cmavo "la'o",
+              opening_delimiter: Cmavo "gy",
+              quoted_text: Verbatim "Sesame Street",
+              closing_delimiter: Cmavo "gy",
             },
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [41,44],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

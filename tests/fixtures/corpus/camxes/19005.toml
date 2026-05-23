@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ci pi'e re bi moĭ lo'i pémci be fi la .emylis. .dikinsyn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'e",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "emylis",
-    span: [34,40],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dikinsyn",
-    span: [41,49],
-  },
+  Cmavo "ci",
+  Cmavo "pi'e",
+  Cmavo "re",
+  Cmavo "bi",
+  Cmavo "moĭ",
+  Cmavo "lo'i",
+  Gismu "pémci",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "la",
+  Cmevla "emylis",
+  Cmevla "dikinsyn",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"bi","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"lo'i","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"pemci","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,40],"phonemes":"emylis","kind":"cmevla"}},{"Bare":{"span":[41,49],"phonemes":"dikinsyn","kind":"cmevla"}}]"""
 
@@ -86,73 +38,25 @@ tree = """
 Relation {
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ci",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "pi'e",
-        span: [2,6],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "re",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "bi",
-        span: [8,10],
-      },
+      Cmavo "ci",
+      Cmavo "pi'e",
+      Cmavo "re",
+      Cmavo "bi",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "moĭ",
-      span: [10,13],
-    },
+    moi: Cmavo "moĭ",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo'i",
-        span: [14,18],
-      },
+      descriptor: Cmavo "lo'i",
       relation: Be {
-        Word {
-          kind: "gismu",
-          phonemes: "pemci",
-          span: [19,24],
-        },
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [25,27],
-        },
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [27,29],
-        },
+        Gismu "pémci",
+        be: Cmavo "be",
+        fa: Cmavo "fi",
         first_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [30,32],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "emylis",
-              span: [34,40],
-            },
-            Word {
-              kind: "cmevla",
-              phonemes: "dikinsyn",
-              span: [41,49],
-            },
+            Cmevla "emylis",
+            Cmevla "dikinsyn",
           ],
         },
       },

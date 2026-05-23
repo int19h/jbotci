@@ -18,90 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le xúnre skári cu ja'a mélbi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skari",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'a",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Gismu "xúnre",
+  Gismu "skári",
+  Cmavo "cu",
+  Cmavo "ja'a",
+  Gismu "mélbi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"skari","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"melbi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [2,4],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xunre",
-            span: [5,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "skari",
-            span: [11,16],
-          },
+          Gismu "xúnre",
+          Gismu "skári",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [17,19],
-    },
+    cu: Cmavo "cu",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "ja'a",
-        span: [20,24],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "melbi",
-        span: [25,30],
-      },
+      na: Cmavo "ja'a",
+      Gismu "mélbi",
     },
   },
 }"""

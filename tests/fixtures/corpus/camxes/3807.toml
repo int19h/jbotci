@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu ba'e vámtu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vamtu",
-    span: [8,13],
-  },
+  Cmavo "xu",
+  Cmavo "ba'e",
+  Gismu "vámtu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vamtu","kind":"gismu"}}]"""
 
@@ -41,24 +29,12 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Emphasized {
-    bahe: Word {
-      kind: "cmavo",
-      phonemes: "ba'e",
-      span: [3,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "vamtu",
-      span: [8,13],
-    },
+    bahe: Cmavo "ba'e",
+    Gismu "vámtu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Emphasized":{"bahe":{"span":[3,7],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[8,13],"phonemes":"vamtu","kind":"gismu"}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}"""

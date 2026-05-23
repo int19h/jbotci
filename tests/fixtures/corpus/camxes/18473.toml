@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'o ca'o za'o válsi jámna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jamna",
-    span: [21,26],
-  },
+  Cmavo "na'o",
+  Cmavo "ca'o",
+  Cmavo "za'o",
+  Gismu "válsi",
+  Gismu "jámna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"jamna","kind":"gismu"}}]"""
 
@@ -50,33 +30,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 TenseModal {
   tense_modal: Composite {
-    Word {
-      kind: "cmavo",
-      phonemes: "na'o",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [5,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "za'o",
-      span: [10,14],
-    },
+    Cmavo "na'o",
+    Cmavo "ca'o",
+    Cmavo "za'o",
   },
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "valsi",
-      span: [15,20],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jamna",
-      span: [21,26],
-    },
+    Gismu "válsi",
+    Gismu "jámna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,9],"phonemes":"ca'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,14],"phonemes":"za'o","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"jamna","kind":"gismu"}}}}]}}}}}}}}}}]}]}"""

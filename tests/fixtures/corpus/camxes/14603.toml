@@ -18,96 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le selsénva be mi ba zi zásti .i le mi skámi cu smásku fi mi ca le nícte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsenva",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [30,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [38,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [44,46],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "smasku",
-    span: [47,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [54,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [57,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [60,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [63,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [66,71],
-  },
+  Cmavo "le",
+  Lujvo "selsénva",
+  Cmavo "be",
+  Cmavo "mi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "zásti",
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "skámi",
+  Cmavo "cu",
+  Lujvo "smásku",
+  Cmavo "fi",
+  Cmavo "mi",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "nícte",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"selsenva","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[30,31],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[44,46],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[47,53],"phonemes":"smasku","kind":"lujvo"}},{"Bare":{"span":[54,56],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[57,59],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[63,65],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"nicte","kind":"gismu"}}]'
 
@@ -117,119 +45,47 @@ Paragraph {
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "selsenva",
-            span: [3,11],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [12,14],
-          },
-          first_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [15,17],
-          },
+          Lujvo "selsénva",
+          be: Cmavo "be",
+          first_argument: Cmavo "mi",
         },
       },
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [18,20],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [20,22],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "zasti",
-        span: [23,28],
-      },
+      Gismu "zásti",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [30,31],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [32,34],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [35,37],
-            },
+            Cmavo "mi",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "skami",
-            span: [38,43],
-          },
+          relation: Gismu "skámi",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [44,46],
-      },
+      cu: Cmavo "cu",
       Relation {
-        Word {
-          kind: "lujvo",
-          phonemes: "smasku",
-          span: [47,53],
-        },
+        Lujvo "smásku",
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [54,56],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [57,59],
-            },
+            fa: Cmavo "fi",
+            Cmavo "mi",
           },
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [60,62],
-            },
+            tense_modal: Cmavo "ca",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [63,65],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "nicte",
-                span: [66,71],
-              },
+              descriptor: Cmavo "le",
+              relation: Gismu "nícte",
             },
           },
         ],

@@ -21,36 +21,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭe saĭ taĭ .ĭa naĭ mélbi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭe",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭa",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [17,22],
-  },
+  Cmavo "ŭe",
+  Cmavo "saĭ",
+  Cmavo "taĭ",
+  Cmavo "ĭa",
+  Cmavo "naĭ",
+  Gismu "mélbi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ĭa","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"melbi","kind":"gismu"}}]'
 
@@ -61,44 +37,20 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭe",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [3,6],
-        },
+        Cmavo "ŭe",
+        indicator: Cmavo "saĭ",
       },
     },
   ],
   TenseModal {
     tense_modal: Simple {
       bai: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "taĭ",
-          span: [7,10],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭa",
-          span: [11,13],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [13,16],
-        },
+        Cmavo "taĭ",
+        indicator: Cmavo "ĭa",
+        nai: Cmavo "naĭ",
       },
     },
-    Word {
-      kind: "gismu",
-      phonemes: "melbi",
-      span: [17,22],
-    },
+    Gismu "mélbi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[7,10],"phonemes":"taĭ","kind":"cmavo"}}},"indicator":{"span":[11,13],"phonemes":"ĭa","kind":"cmavo"},"nai":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"melbi","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

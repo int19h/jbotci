@@ -20,39 +20,15 @@ tree = """
 [
   Letter {
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [4,8],
-      },
-      quoted_text: [8,11],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [12,16],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "ba'e",
+      quoted_text: Verbatim "bu",
+      closing_delimiter: Cmavo "ba'e",
     },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [17,19],
-    },
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [23,28],
-  },
+  Cmavo "cu",
+  Gismu "bróda",
 ]"""
 json = """[{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,8],"phonemes":"ba'e","kind":"cmavo"},"quoted_text":[8,11],"closing_delimiter":{"span":[12,16],"phonemes":"ba'e","kind":"cmavo"}}},"bu":{"span":[17,19],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -64,41 +40,17 @@ Predicate {
       letter: [
         Letter {
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [0,3],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [4,8],
-            },
-            quoted_text: [8,11],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "ba'e",
-              span: [12,16],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "ba'e",
+            quoted_text: Verbatim "bu",
+            closing_delimiter: Cmavo "ba'e",
           },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [17,19],
-          },
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [23,28],
-  },
+  cu: Cmavo "cu",
+  Gismu "bróda",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,8],"phonemes":"ba'e","kind":"cmavo"},"quoted_text":[8,11],"closing_delimiter":{"span":[12,16],"phonemes":"ba'e","kind":"cmavo"}}},"bu":{"span":[17,19],"phonemes":"bu","kind":"cmavo"}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}]}]}"""

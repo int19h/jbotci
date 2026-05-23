@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'e nánmu nítcu tu'a re nínmu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [25,30],
-  },
+  Cmavo "so'e",
+  Gismu "nánmu",
+  Gismu "nítcu",
+  Cmavo "tu'a",
+  Cmavo "re",
+  Gismu "nínmu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"ninmu","kind":"gismu"}}]"""
 
@@ -57,44 +33,20 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'e",
-          span: [0,4],
-        },
+        Cmavo "so'e",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [5,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nitcu",
-          span: [11,16],
-        },
+        Gismu "nánmu",
+        Gismu "nítcu",
       },
     },
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [17,21],
-      },
+      lahe: Cmavo "tu'a",
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [22,24],
-          },
+          Cmavo "re",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ninmu",
-          span: [25,30],
-        },
+        relation: Gismu "nínmu",
       },
     },
   ],

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ ky ko kréfu cpédu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krefu",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpedu",
-    span: [17,22],
-  },
+  Cmavo "doĭ",
+  Cmavo "ky",
+  Cmavo "ko",
+  Gismu "kréfu",
+  Gismu "cpédu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"krefu","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"cpedu","kind":"gismu"}}]'
 
@@ -52,42 +32,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ky",
-            span: [4,6],
-          },
+          Cmavo "ky",
         ],
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [8,10],
-      },
+      Cmavo "ko",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "krefu",
-        span: [11,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cpedu",
-        span: [17,22],
-      },
+      Gismu "kréfu",
+      Gismu "cpédu",
     },
   },
 }"""

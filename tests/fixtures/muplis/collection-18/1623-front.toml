@@ -21,36 +21,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ra jo'u mi pu cádzu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [17,22],
-  },
+  Cmavo "i",
+  Cmavo "ra",
+  Cmavo "jo'u",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "cádzu",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"jo'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cadzu","kind":"gismu"}}]"""
 
@@ -58,42 +34,18 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{ra jo'u mi} {pu cádzu}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Connected {
-        leading_argument: Word {
-          kind: "cmavo",
-          phonemes: "ra",
-          span: [3,5],
-        },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "jo'u",
-          span: [6,10],
-        },
-        trailing_argument: Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [11,13],
-        },
+        leading_argument: Cmavo "ra",
+        connective: Cmavo "jo'u",
+        trailing_argument: Cmavo "mi",
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [14,16],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cadzu",
-        span: [17,22],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cádzu",
     },
   },
 }"""

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(clíra cérni fi ti)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "clira",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cerni",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [15,17],
-  },
+  Gismu "clíra",
+  Gismu "cérni",
+  Cmavo "fi",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"clira","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -45,29 +29,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"clira","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "clira",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cerni",
-      span: [6,11],
-    },
+    Gismu "clíra",
+    Gismu "cérni",
   },
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [12,14],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [15,17],
-      },
+      fa: Cmavo "fi",
+      Cmavo "ti",
     },
   ],
 }"""

@@ -18,141 +18,37 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kámni kágni dráni mápni dátni rígni prúni néjni fláni sfáni cévni túrni gúrni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kamni",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapni",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [30,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pruni",
-    span: [36,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nejni",
-    span: [42,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flani",
-    span: [48,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sfani",
-    span: [54,59],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [60,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [66,71],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gurni",
-    span: [72,77],
-  },
+  Gismu "kámni",
+  Gismu "kágni",
+  Gismu "dráni",
+  Gismu "mápni",
+  Gismu "dátni",
+  Gismu "rígni",
+  Gismu "prúni",
+  Gismu "néjni",
+  Gismu "fláni",
+  Gismu "sfáni",
+  Gismu "cévni",
+  Gismu "túrni",
+  Gismu "gúrni",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kamni","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"kagni","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"mapni","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"rigni","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"pruni","kind":"gismu"}},{"Bare":{"span":[42,47],"phonemes":"nejni","kind":"gismu"}},{"Bare":{"span":[48,53],"phonemes":"flani","kind":"gismu"}},{"Bare":{"span":[54,59],"phonemes":"sfani","kind":"gismu"}},{"Bare":{"span":[60,65],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[66,71],"phonemes":"turni","kind":"gismu"}},{"Bare":{"span":[72,77],"phonemes":"gurni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "kamni",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kagni",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapni",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rigni",
-    span: [30,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pruni",
-    span: [36,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nejni",
-    span: [42,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "flani",
-    span: [48,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sfani",
-    span: [54,59],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [60,65],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [66,71],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gurni",
-    span: [72,77],
-  },
+  Gismu "kámni",
+  Gismu "kágni",
+  Gismu "dráni",
+  Gismu "mápni",
+  Gismu "dátni",
+  Gismu "rígni",
+  Gismu "prúni",
+  Gismu "néjni",
+  Gismu "fláni",
+  Gismu "sfáni",
+  Gismu "cévni",
+  Gismu "túrni",
+  Gismu "gúrni",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"kamni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"kagni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"drani","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"mapni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[30,35],"phonemes":"rigni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[36,41],"phonemes":"pruni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[42,47],"phonemes":"nejni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[48,53],"phonemes":"flani","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[54,59],"phonemes":"sfani","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[60,65],"phonemes":"cevni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[66,71],"phonemes":"turni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[72,77],"phonemes":"gurni","kind":"gismu"}}}}]}}}}}}}}]}]}'

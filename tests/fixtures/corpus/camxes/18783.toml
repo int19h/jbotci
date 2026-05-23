@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ge naĭ krínu gi ku'i rínka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krinu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [19,24],
-  },
+  Cmavo "ge",
+  Cmavo "naĭ",
+  Gismu "krínu",
+  Cmavo "gi",
+  Cmavo "ku'i",
+  Gismu "rínka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"krinu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"rinka","kind":"gismu"}}]"""
 
@@ -55,38 +31,14 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ge",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "ge",
+    nai: Cmavo "naĭ",
   },
-  first: Word {
-    kind: "gismu",
-    phonemes: "krinu",
-    span: [6,11],
-  },
+  first: Gismu "krínu",
   gik: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [12,14],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [14,18],
-    },
+    Cmavo "gi",
+    indicator: Cmavo "ku'i",
   },
-  second: Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [19,24],
-  },
+  second: Gismu "rínka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}}}},"first":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"krinu","kind":"gismu"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}}},"indicator":{"span":[14,18],"phonemes":"ku'i","kind":"cmavo"}}}]}},"second":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"rinka","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}"""

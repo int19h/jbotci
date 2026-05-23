@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu da ka'e nírna cméne dúnda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nirna",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [23,28],
-  },
+  Cmavo "xu",
+  Cmavo "da",
+  Cmavo "ka'e",
+  Gismu "nírna",
+  Gismu "cméne",
+  Gismu "dúnda",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"dunda","kind":"gismu"}}]"""
 
@@ -56,43 +32,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [3,5],
-      },
+      Cmavo "da",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [6,10],
-      },
+      tense_modal: Cmavo "ka'e",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nirna",
-          span: [11,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cmene",
-          span: [17,22],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "dunda",
-          span: [23,28],
-        },
+        Gismu "nírna",
+        Gismu "cméne",
+        Gismu "dúnda",
       },
     },
   },

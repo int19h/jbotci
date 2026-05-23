@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ tátpi .oĭ .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [15,17],
-  },
+  Cmavo "oĭ",
+  Gismu "tátpi",
+  Cmavo "oĭ",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -46,31 +30,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   WithIndicator {
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "tatpi",
-        span: [4,9],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [11,13],
-      },
+      Gismu "tátpi",
+      indicator: Cmavo "oĭ",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [15,17],
-    },
+    indicator: Cmavo "oĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"tatpi","kind":"gismu"}}},"indicator":{"span":[11,13],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[15,17],"phonemes":"oĭ","kind":"cmavo"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}}}}]}'

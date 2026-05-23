@@ -18,90 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ba ca'a zénba le ka plúja)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [22,27],
-  },
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "ca'a",
+  Gismu "zénba",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "plúja",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zenba","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"pluja","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'a",
-          span: [6,10],
-        },
+        Cmavo "ba",
+        Cmavo "ca'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "zenba",
-        span: [11,16],
-      },
+      Gismu "zénba",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [17,19],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [19,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pluja",
-            span: [22,27],
-          },
+          nu: Cmavo "ka",
+          Gismu "plúja",
         },
       },
     ],

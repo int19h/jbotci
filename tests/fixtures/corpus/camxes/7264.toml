@@ -18,90 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .cleverdras. .i go naĭ [zo .cleverdras.] gi [zo .kleverdras.] cu dráni .i do xábju ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "cleverdras",
-    span: [4,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [20,23],
-  },
+  Cmavo "doĭ",
+  Cmevla "cleverdras",
+  Cmavo "i",
+  Cmavo "go",
+  Cmavo "naĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [24,26],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "cleverdras",
-      span: [27,37],
-    },
+    zo: Cmavo "zo",
+    Cmevla "cleverdras",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [38,40],
-  },
+  Cmavo "gi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [41,43],
-    },
-    Word {
-      kind: "cmevla",
-      phonemes: "kleverdras",
-      span: [44,54],
-    },
+    zo: Cmavo "zo",
+    Cmevla "kleverdras",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [55,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [58,63],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [65,66],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [67,69],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [70,75],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [76,78],
-  },
+  Cmavo "cu",
+  Gismu "dráni",
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "xábju",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"cleverdras","kind":"cmevla"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"go","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[24,26],"phonemes":"zo","kind":"cmavo"},"word":{"span":[27,37],"phonemes":"cleverdras","kind":"cmevla"}}},{"Bare":{"span":[38,40],"phonemes":"gi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[41,43],"phonemes":"zo","kind":"cmavo"},"word":{"span":[44,54],"phonemes":"kleverdras","kind":"cmevla"}}},{"Bare":{"span":[55,57],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[58,63],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[65,66],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[67,69],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[70,75],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[76,78],"phonemes":"ma","kind":"cmavo"}}]'
 
@@ -111,110 +47,46 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "cleverdras",
-        span: [4,14],
-      },
+      argument: Cmevla "cleverdras",
     },
   ],
   Paragraph {
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [16,17],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
           Gek {
             gek: Forethought {
-              Word {
-                kind: "cmavo",
-                phonemes: "go",
-                span: [18,20],
-              },
-              nai: Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [20,23],
-              },
+              Cmavo "go",
+              nai: Cmavo "naĭ",
             },
             leading_argument: ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [24,26],
-              },
-              Word {
-                kind: "cmevla",
-                phonemes: "cleverdras",
-                span: [27,37],
-              },
+              zo: Cmavo "zo",
+              Cmevla "cleverdras",
             },
-            gik: Word {
-              kind: "cmavo",
-              phonemes: "gi",
-              span: [38,40],
-            },
+            gik: Cmavo "gi",
             trailing_argument: ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [41,43],
-              },
-              Word {
-                kind: "cmevla",
-                phonemes: "kleverdras",
-                span: [44,54],
-              },
+              zo: Cmavo "zo",
+              Cmevla "kleverdras",
             },
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [55,57],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "drani",
-          span: [58,63],
-        },
+        cu: Cmavo "cu",
+        Gismu "dráni",
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [65,66],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [67,69],
-          },
+          Cmavo "do",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "xabju",
-            span: [70,75],
-          },
+          Gismu "xábju",
           terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [76,78],
-            },
+            Cmavo "ma",
           ],
         },
       },

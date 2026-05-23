@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'a cládu cárvi .i ja'o cármi cárvi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cladu",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [31,36],
-  },
+  Cmavo "za'a",
+  Gismu "cládu",
+  Gismu "cárvi",
+  Cmavo "i",
+  Cmavo "ja'o",
+  Gismu "cármi",
+  Gismu "cárvi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cladu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"ja'o","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"carmi","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"carvi","kind":"gismu"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "za'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "za'a",
     },
   ],
   Paragraph {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cladu",
-        span: [5,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "carvi",
-        span: [11,16],
-      },
+      Gismu "cládu",
+      Gismu "cárvi",
     },
     ParagraphStatement {
       i: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "i",
-          span: [18,19],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ja'o",
-          span: [20,24],
-        },
+        Cmavo "i",
+        indicator: Cmavo "ja'o",
       },
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "carmi",
-          span: [25,30],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "carvi",
-          span: [31,36],
-        },
+        Gismu "cármi",
+        Gismu "cárvi",
       },
     },
   },

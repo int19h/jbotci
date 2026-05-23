@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.takes. coĭ sútra)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "takes",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [10,15],
-  },
+  Cmevla "takes",
+  Cmavo "coĭ",
+  Gismu "sútra",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"takes","kind":"cmevla"}},{"Bare":{"span":[6,9],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}}]'
 
@@ -40,27 +28,15 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"takes","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "takes",
-      span: [0,5],
-    },
+    Cmevla "takes",
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [6,9],
-        },
+        Cmavo "coĭ",
       ],
       argument: RelationVocative {
-        relation: Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [10,15],
-        },
+        relation: Gismu "sútra",
       },
     },
   ],

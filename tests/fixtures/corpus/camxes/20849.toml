@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i do poĭ mérko ku'o sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "merko",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [23,28],
-  },
+  Cmavo "pe'i",
+  Cmavo "do",
+  Cmavo "poĭ",
+  Gismu "mérko",
+  Cmavo "ku'o",
+  Gismu "sípna",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"merko","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ku'o","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"sipna","kind":"gismu"}}]"""
 
@@ -56,47 +32,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Predicate {
     leading_terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [5,7],
-        },
+        base_argument: Cmavo "do",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [8,11],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "merko",
-              span: [12,17],
-            },
-            kuho: Word {
-              kind: "cmavo",
-              phonemes: "ku'o",
-              span: [18,22],
-            },
+            poi: Cmavo "poĭ",
+            Gismu "mérko",
+            kuho: Cmavo "ku'o",
           },
         ],
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [23,28],
-    },
+    Gismu "sípna",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[8,11],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"merko","kind":"gismu"}}}}}}}}}},"kuho":{"Bare":{"Bare":{"span":[18,22],"phonemes":"ku'o","kind":"cmavo"}}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"sipna","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}}}}]}"""

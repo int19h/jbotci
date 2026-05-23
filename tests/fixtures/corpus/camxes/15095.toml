@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i vi mi djédi mídju)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "midju",
-    span: [19,24],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "vi",
+  Cmavo "mi",
+  Gismu "djédi",
+  Gismu "mídju",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"midju","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [7,9],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [10,12],
-        },
+        tense_modal: Cmavo "vi",
+        Cmavo "mi",
       },
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "djedi",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "midju",
-        span: [19,24],
-      },
+      Gismu "djédi",
+      Gismu "mídju",
     },
   },
 }"""

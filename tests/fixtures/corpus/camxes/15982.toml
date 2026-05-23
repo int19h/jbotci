@@ -18,149 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mu'i tu'a le nu múmdeĭ ku mi cínmo le ka múlno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "mumdeĭ",
-    span: [18,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mulno",
-    span: [43,48],
-  },
+  Cmavo "i",
+  Cmavo "mu'i",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "múmdeĭ",
+  Cmavo "ku",
+  Cmavo "mi",
+  Gismu "cínmo",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "múlno",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,24],"phonemes":"mumdeĭ","kind":"lujvo"}},{"Bare":{"span":[25,27],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"mulno","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "mu'i",
-            span: [2,6],
-          },
+          bai: Cmavo "mu'i",
         },
         Lahe {
-          lahe: Word {
-            kind: "cmavo",
-            phonemes: "tu'a",
-            span: [7,11],
-          },
+          lahe: Cmavo "tu'a",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [12,14],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [15,17],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "mumdeĭ",
-                span: [18,24],
-              },
+              nu: Cmavo "nu",
+              Lujvo "múmdeĭ",
             },
-            ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [25,27],
-            },
+            ku: Cmavo "ku",
           },
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [28,30],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "cinmo",
-        span: [31,36],
-      },
+      Gismu "cínmo",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [37,39],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "ka",
-              span: [40,42],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "mulno",
-              span: [43,48],
-            },
+            nu: Cmavo "ka",
+            Gismu "múlno",
           },
         },
       ],

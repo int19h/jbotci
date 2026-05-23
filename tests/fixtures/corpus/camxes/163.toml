@@ -19,26 +19,10 @@ brackets = "([zo si] co nalselmorjyválsi)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "si",
-      span: [9,11],
-    },
+    zo: Cmavo "zo",
+    Cmavo "si",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [12,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalselmorjyvalsi",
-    span: [15,31],
-  },
+  Cmavo "co",
+  Lujvo "nalselmorjyválsi",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,11],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[12,14],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[15,31],"phonemes":"nalselmorjyvalsi","kind":"lujvo"}}]'

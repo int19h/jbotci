@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu cy noĭ ka'e li'o vízyzva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vizyzva",
-    span: [23,30],
-  },
+  Cmavo "xu",
+  Cmavo "cy",
+  Cmavo "noĭ",
+  Cmavo "ka'e",
+  Cmavo "li'o",
+  Lujvo "vízyzva",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"li'o","kind":"cmavo"}},{"Bare":{"span":[23,30],"phonemes":"vizyzva","kind":"lujvo"}}]"""
 
@@ -57,11 +33,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [3,5],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
@@ -69,38 +41,18 @@ Text {
       RelativeClause {
         base_argument: Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "cy",
-              span: [6,8],
-            },
+            Cmavo "cy",
           ],
         },
         relative_clauses: [
           Noi {
-            noi: Word {
-              kind: "cmavo",
-              phonemes: "noĭ",
-              span: [9,12],
-            },
+            noi: Cmavo "noĭ",
             TenseModal {
               tense_modal: WithIndicator {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ka'e",
-                  span: [13,17],
-                },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "li'o",
-                  span: [18,22],
-                },
+                Cmavo "ka'e",
+                indicator: Cmavo "li'o",
               },
-              Word {
-                kind: "lujvo",
-                phonemes: "vizyzva",
-                span: [23,30],
-              },
+              Lujvo "vízyzva",
             },
           },
         ],

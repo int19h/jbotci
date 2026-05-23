@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kúbli be li ci)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kubli",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [12,14],
-  },
+  Gismu "kúbli",
+  Cmavo "be",
+  Cmavo "li",
+  Cmavo "ci",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"kubli","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ci","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Be {
-  Word {
-    kind: "gismu",
-    phonemes: "kubli",
-    span: [0,5],
-  },
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
+  Gismu "kúbli",
+  be: Cmavo "be",
   first_argument: MathExpression {
-    li: Word {
-      kind: "cmavo",
-      phonemes: "li",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ci",
-      span: [12,14],
-    },
+    li: Cmavo "li",
+    Cmavo "ci",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"kubli","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[9,11],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"ci","kind":"cmavo"}}}]}}}}}}}]}}}}}}}}]}]}'

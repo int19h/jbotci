@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa prénu pu pílno le ti válsi ne'i le jbomrilulíste)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ne'i",
-    span: [30,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [35,37],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "jbomriluliste",
-    span: [38,51],
-  },
+  Cmavo "pa",
+  Gismu "prénu",
+  Cmavo "pu",
+  Gismu "pílno",
+  Cmavo "le",
+  Cmavo "ti",
+  Gismu "válsi",
+  Cmavo "ne'i",
+  Cmavo "le",
+  Fuhivla "jbomrilulíste",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[30,34],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,51],"phonemes":"jbomriluliste","kind":"fu'ivla"}}]"""
 
@@ -77,69 +37,29 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "prenu",
-        span: [3,8],
-      },
+      relation: Gismu "prénu",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [9,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [12,17],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "pílno",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ti",
-            span: [21,23],
-          },
+          Cmavo "ti",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "valsi",
-          span: [24,29],
-        },
+        relation: Gismu "válsi",
       },
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ne'i",
-          span: [30,34],
-        },
+        tense_modal: Cmavo "ne'i",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [35,37],
-          },
-          relation: Word {
-            kind: "fu'ivla",
-            phonemes: "jbomriluliste",
-            span: [38,51],
-          },
+          descriptor: Cmavo "le",
+          relation: Fuhivla "jbomrilulíste",
         },
       },
     ],

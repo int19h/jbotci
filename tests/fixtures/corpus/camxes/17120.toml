@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i le nu zmádu fi le ni tolkínli keĭ .e le ni córgaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolkinli",
-    span: [24,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [33,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [38,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [42,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "corgaŭ",
-    span: [45,51],
-  },
+  Cmavo "mu'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "zmádu",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "ni",
+  Lujvo "tolkínli",
+  Cmavo "keĭ",
+  Cmavo "e",
+  Cmavo "le",
+  Cmavo "ni",
+  Lujvo "córgaŭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[24,32],"phonemes":"tolkinli","kind":"lujvo"}},{"Bare":{"span":[33,36],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[38,39],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[45,51],"phonemes":"corgaŭ","kind":"lujvo"}}]"""
 
@@ -92,84 +40,32 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "mu'i",
-          span: [0,4],
-        },
+        bai: Cmavo "mu'i",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [7,9],
-          },
+          nu: Cmavo "nu",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "zmadu",
-              span: [10,15],
-            },
+            Gismu "zmádu",
             terms: [
               Fa {
-                fa: Word {
-                  kind: "cmavo",
-                  phonemes: "fi",
-                  span: [16,18],
-                },
+                fa: Cmavo "fi",
                 Connected {
                   leading_argument: Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [19,21],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Abstraction {
-                      nu: Word {
-                        kind: "cmavo",
-                        phonemes: "ni",
-                        span: [21,23],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "tolkinli",
-                        span: [24,32],
-                      },
-                      kei: Word {
-                        kind: "cmavo",
-                        phonemes: "keĭ",
-                        span: [33,36],
-                      },
+                      nu: Cmavo "ni",
+                      Lujvo "tolkínli",
+                      kei: Cmavo "keĭ",
                     },
                   },
-                  connective: Word {
-                    kind: "cmavo",
-                    phonemes: "e",
-                    span: [38,39],
-                  },
+                  connective: Cmavo "e",
                   trailing_argument: Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [40,42],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Abstraction {
-                      nu: Word {
-                        kind: "cmavo",
-                        phonemes: "ni",
-                        span: [42,44],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "corgaŭ",
-                        span: [45,51],
-                      },
+                      nu: Cmavo "ni",
+                      Lujvo "córgaŭ",
                     },
                   },
                 },

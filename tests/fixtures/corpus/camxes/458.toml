@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.i .ĭa mi víska le blánu zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [27,32],
-  },
+  Cmavo "i",
+  Cmavo "ĭa",
+  Cmavo "mi",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "blánu",
+  Gismu "zdáni",
 ]"""
 json = '[{"Bare":{"span":[2,3],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ĭa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"zdani","kind":"gismu"}}]'
 
@@ -61,49 +33,21 @@ json = '[{"Bare":{"span":[2,3],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [2,3],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ĭa",
-      span: [6,8],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ĭa",
   },
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [9,11],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [12,17],
-      },
+      Gismu "víska",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "blanu",
-              span: [21,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "zdani",
-              span: [27,32],
-            },
+            Gismu "blánu",
+            Gismu "zdáni",
           },
         },
       ],

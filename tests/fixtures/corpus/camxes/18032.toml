@@ -18,33 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kéĭdji ma)"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "keĭdji",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [7,9],
-  },
+  Lujvo "kéĭdji",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"keĭdji","kind":"lujvo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "lujvo",
-    phonemes: "keĭdji",
-    span: [0,6],
-  },
+  Lujvo "kéĭdji",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [7,9],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,6],"phonemes":"keĭdji","kind":"lujvo"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

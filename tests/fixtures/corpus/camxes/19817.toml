@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.jilks. do xábju ma .i mi co'u mórji)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "jilks",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [20,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [25,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "morji",
-    span: [30,35],
-  },
+  Cmevla "jilks",
+  Cmavo "do",
+  Gismu "xábju",
+  Cmavo "ma",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "co'u",
+  Gismu "mórji",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[20,21],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"morji","kind":"gismu"}}]"""
 
@@ -66,61 +34,29 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "jilks",
-      span: [0,5],
-    },
+    Cmevla "jilks",
   ],
   Paragraph {
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [7,9],
-        },
+        Cmavo "do",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "xabju",
-          span: [10,15],
-        },
+        Gismu "xábju",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [16,18],
-          },
+          Cmavo "ma",
         ],
       },
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [20,21],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [22,24],
-          },
+          Cmavo "mi",
         ],
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "co'u",
-            span: [25,29],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "morji",
-            span: [30,35],
-          },
+          tense_modal: Cmavo "co'u",
+          Gismu "mórji",
         },
       },
     },

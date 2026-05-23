@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i doĭ .robin. .i mi joĭ ko taĭ távla ca lo na mútce bálvi djédi vaŭ .e'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "balvi",
-    span: [52,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [58,63],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [64,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'u",
-    span: [69,72],
-  },
+  Cmavo "i",
+  Cmavo "doĭ",
+  Cmevla "robin",
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "joĭ",
+  Cmavo "ko",
+  Cmavo "taĭ",
+  Gismu "távla",
+  Cmavo "ca",
+  Cmavo "lo",
+  Cmavo "na",
+  Gismu "mútce",
+  Gismu "bálvi",
+  Gismu "djédi",
+  Cmavo "vaŭ",
+  Cmavo "e'u",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"balvi","kind":"gismu"}},{"Bare":{"span":[58,63],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[64,67],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[69,72],"phonemes":"e'u","kind":"cmavo"}}]"""
 
@@ -110,120 +42,52 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [3,6],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "robin",
-          span: [7,12],
-        },
+        argument: Cmevla "robin",
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [15,16],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Connected {
-          leading_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [20,23],
-          },
-          trailing_argument: Word {
-            kind: "cmavo",
-            phonemes: "ko",
-            span: [24,26],
-          },
+          leading_argument: Cmavo "mi",
+          connective: Cmavo "joĭ",
+          trailing_argument: Cmavo "ko",
         },
       ],
       Relation {
         TenseModal {
           tense_modal: Simple {
-            bai: Word {
-              kind: "cmavo",
-              phonemes: "taĭ",
-              span: [27,30],
-            },
+            bai: Cmavo "taĭ",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [31,36],
-          },
+          Gismu "távla",
         },
         terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "ca",
-              span: [37,39],
-            },
+            tense_modal: Cmavo "ca",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo",
-                span: [40,42],
-              },
+              descriptor: Cmavo "lo",
               relation: Na {
-                na: Word {
-                  kind: "cmavo",
-                  phonemes: "na",
-                  span: [43,45],
-                },
+                na: Cmavo "na",
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "mutce",
-                    span: [46,51],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "balvi",
-                    span: [52,57],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "djedi",
-                    span: [58,63],
-                  },
+                  Gismu "mútce",
+                  Gismu "bálvi",
+                  Gismu "djédi",
                 },
               },
             },
           },
         ],
         vau: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "vaŭ",
-            span: [64,67],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "e'u",
-            span: [69,72],
-          },
+          Cmavo "vaŭ",
+          indicator: Cmavo "e'u",
         },
       },
     },

@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to le démbi dánsu cu sánga toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dembi",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dansu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanga",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [27,30],
-  },
+  Cmavo "to",
+  Cmavo "le",
+  Gismu "démbi",
+  Gismu "dánsu",
+  Cmavo "cu",
+  Gismu "sánga",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"dembi","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"dansu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"sanga","kind":"gismu"}},{"Bare":{"span":[27,30],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -61,49 +33,21 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [3,5],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "dembi",
-                span: [6,11],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "dansu",
-                span: [12,17],
-              },
+              Gismu "démbi",
+              Gismu "dánsu",
             },
           },
         ],
-        cu: Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "sanga",
-          span: [21,26],
-        },
+        cu: Cmavo "cu",
+        Gismu "sánga",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [27,30],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

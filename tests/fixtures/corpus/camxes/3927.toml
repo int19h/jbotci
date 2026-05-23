@@ -18,86 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .rlp. zo'o do djíca le se sítna ji le nu mi távla baŭ la .lojban.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sitna",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [46,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "baŭ",
-    span: [52,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [56,58],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [59,65],
-  },
+  Cmavo "doĭ",
+  Cmevla "rlp",
+  Cmavo "zo'o",
+  Cmavo "do",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "se",
+  Gismu "sítna",
+  Cmavo "ji",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "távla",
+  Cmavo "baŭ",
+  Cmavo "la",
+  Cmevla "lojban",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[8,12],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"sitna","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[52,55],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[56,58],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[59,65],"phonemes":"lojban","kind":"cmevla"}}]"""
 
@@ -107,113 +43,49 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "rlp",
-          span: [4,7],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [8,12],
-        },
+        Cmevla "rlp",
+        indicator: Cmavo "zo'o",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [13,15],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [16,21],
-      },
+      Gismu "djíca",
       terms: [
         Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [22,24],
-            },
+            descriptor: Cmavo "le",
             relation: Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [25,27],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "sitna",
-                span: [28,33],
-              },
+              se: Cmavo "se",
+              Gismu "sítna",
             },
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "ji",
-            span: [34,36],
-          },
+          connective: Cmavo "ji",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [37,39],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [40,42],
-              },
+              nu: Cmavo "nu",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [43,45],
-                  },
+                  Cmavo "mi",
                 ],
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "tavla",
-                    span: [46,51],
-                  },
+                  Gismu "távla",
                   terms: [
                     Tagged {
                       tense_modal: Simple {
-                        bai: Word {
-                          kind: "cmavo",
-                          phonemes: "baŭ",
-                          span: [52,55],
-                        },
+                        bai: Cmavo "baŭ",
                       },
                       Name {
-                        la: Word {
-                          kind: "cmavo",
-                          phonemes: "la",
-                          span: [56,58],
-                        },
+                        la: Cmavo "la",
                         names: [
-                          Word {
-                            kind: "cmevla",
-                            phonemes: "lojban",
-                            span: [59,65],
-                          },
+                          Cmevla "lojban",
                         ],
                       },
                     },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi .ŭi ba zi cidjrpítsa cpácu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [10,12],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [13,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [24,29],
-  },
+  Cmavo "ŭi",
+  Cmavo "ŭi",
+  Cmavo "ba",
+  Cmavo "zi",
+  Fuhivla "cidjrpítsa",
+  Gismu "cpácu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[13,23],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[24,29],"phonemes":"cpacu","kind":"gismu"}}]"""
 
@@ -57,43 +33,19 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [5,7],
-        },
+        Cmavo "ŭi",
+        indicator: Cmavo "ŭi",
       },
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zi",
-        span: [10,12],
-      },
+      Cmavo "ba",
+      Cmavo "zi",
     },
     Compound {
-      Word {
-        kind: "fu'ivla",
-        phonemes: "cidjrpitsa",
-        span: [13,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cpacu",
-        span: [24,29],
-      },
+      Fuhivla "cidjrpítsa",
+      Gismu "cpácu",
     },
   },
 }"""

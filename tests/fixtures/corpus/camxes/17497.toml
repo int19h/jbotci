@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ja'o ma'a ca'a pílno lo nalskámi fónxa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalskami",
-    span: [24,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [33,38],
-  },
+  Cmavo "ja'o",
+  Cmavo "ma'a",
+  Cmavo "ca'a",
+  Gismu "pílno",
+  Cmavo "lo",
+  Lujvo "nalskámi",
+  Gismu "fónxa",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ja'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[24,32],"phonemes":"nalskami","kind":"lujvo"}},{"Bare":{"span":[33,38],"phonemes":"fonxa","kind":"gismu"}}]"""
 
@@ -61,52 +33,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ja'o",
-        span: [0,4],
-      },
+      indicator: Cmavo "ja'o",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma'a",
-        span: [5,9],
-      },
+      Cmavo "ma'a",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca'a",
-          span: [10,14],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [15,20],
-        },
+        tense_modal: Cmavo "ca'a",
+        Gismu "pílno",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [21,23],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "nalskami",
-              span: [24,32],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "fonxa",
-              span: [33,38],
-            },
+            Lujvo "nalskámi",
+            Gismu "fónxa",
           },
         },
       ],

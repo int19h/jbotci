@@ -19,42 +19,14 @@ brackets = "([la bu] da pónse le cúkla bétfu)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "la",
-      span: [0,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [3,5],
-    },
+    Cmavo "la",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponse",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukla",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "betfu",
-    span: [23,28],
-  },
+  Cmavo "da",
+  Gismu "pónse",
+  Cmavo "le",
+  Gismu "cúkla",
+  Gismu "bétfu",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},"bu":{"span":[3,5],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cukla","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"betfu","kind":"gismu"}}]'
 
@@ -65,49 +37,21 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [0,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [3,5],
-          },
+          Cmavo "la",
+          bu: Cmavo "bu",
         },
       ],
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [5,7],
-    },
+    Cmavo "da",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "ponse",
-      span: [8,13],
-    },
+    Gismu "pónse",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cukla",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "betfu",
-            span: [23,28],
-          },
+          Gismu "cúkla",
+          Gismu "bétfu",
         },
       },
     ],

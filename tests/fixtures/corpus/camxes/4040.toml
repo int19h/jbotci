@@ -19,22 +19,10 @@ brackets = "([.e bu] mrílu)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "e",
-      span: [1,2],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [2,4],
-    },
+    Cmavo "e",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [5,10],
-  },
+  Gismu "mrílu",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,10],"phonemes":"mrilu","kind":"gismu"}}]'
 
@@ -45,24 +33,12 @@ Predicate {
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [1,2],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [2,4],
-          },
+          Cmavo "e",
+          bu: Cmavo "bu",
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [5,10],
-  },
+  Gismu "mrílu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"mrilu","kind":"gismu"}}}}}}}}}}}]}]}'

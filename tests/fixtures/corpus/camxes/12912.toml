@@ -18,53 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .frac. .i do pílno [zo vaŭ] mu'i ma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frac",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
+  Cmavo "doĭ",
+  Cmevla "frac",
+  Cmavo "i",
+  Cmavo "do",
+  Gismu "pílno",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "vaŭ",
-      span: [24,27],
-    },
+    zo: Cmavo "zo",
+    Cmavo "vaŭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu'i",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [33,35],
-  },
+  Cmavo "mu'i",
+  Cmavo "ma",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"frac","kind":"cmevla"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,27],"phonemes":"vaŭ","kind":"cmavo"}}},{"Bare":{"span":[28,32],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"ma","kind":"cmavo"}}]"""
 
@@ -74,65 +38,29 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "frac",
-        span: [4,8],
-      },
+      argument: Cmevla "frac",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [10,11],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [12,14],
-        },
+        Cmavo "do",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [15,20],
-        },
+        Gismu "pílno",
         terms: [
           ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [21,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "vaŭ",
-              span: [24,27],
-            },
+            zo: Cmavo "zo",
+            Cmavo "vaŭ",
           },
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "mu'i",
-                span: [28,32],
-              },
+              bai: Cmavo "mu'i",
             },
-            Word {
-              kind: "cmavo",
-              phonemes: "ma",
-              span: [33,35],
-            },
+            Cmavo "ma",
           },
         ],
       },

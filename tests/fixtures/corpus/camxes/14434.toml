@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pi su'o lójbo bángu jávni cu plúja)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "javni",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [28,33],
-  },
+  Cmavo "pi",
+  Cmavo "su'o",
+  Gismu "lójbo",
+  Gismu "bángu",
+  Gismu "jávni",
+  Cmavo "cu",
+  Gismu "plúja",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"javni","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"pluja","kind":"gismu"}}]"""
 
@@ -63,46 +35,18 @@ Predicate {
     Descriptor {
       tail_elements: [
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "pi",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [2,6],
-          },
+          Cmavo "pi",
+          Cmavo "su'o",
         },
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [7,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [13,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "javni",
-          span: [19,24],
-        },
+        Gismu "lójbo",
+        Gismu "bángu",
+        Gismu "jávni",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [28,33],
-  },
+  cu: Cmavo "cu",
+  Gismu "plúja",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,6],"phonemes":"su'o","kind":"cmavo"}}}]}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,12],"phonemes":"lojbo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"bangu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"javni","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[28,33],"phonemes":"pluja","kind":"gismu"}}}}}}}}}}}]}]}"""

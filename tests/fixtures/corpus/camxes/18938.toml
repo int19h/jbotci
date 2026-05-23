@@ -18,63 +18,19 @@ error = { position = 6, allowed-next = [] }
 brackets = "(ju'i do'u za'u li ze mu cu'o zváti [la'o gy http://www.dullesdayshotel.com/rooms.html gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'u",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'o",
-    span: [24,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [30,35],
-  },
+  Cmavo "ju'i",
+  Cmavo "do'u",
+  Cmavo "za'u",
+  Cmavo "li",
+  Cmavo "ze",
+  Cmavo "mu",
+  Cmavo "cu'o",
+  Gismu "zváti",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [36,40],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [41,43],
-    },
-    quoted_text: [45,86],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [87,89],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "http://www.dullesdayshotel.com/rooms.html",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"cu'o","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"zvati","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[36,40],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[41,43],"phonemes":"gy","kind":"cmavo"},"quoted_text":[45,86],"closing_delimiter":{"span":[87,89],"phonemes":"gy","kind":"cmavo"}}}]"""

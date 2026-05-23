@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e mi ba víska .i ko dénpa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [23,28],
-  },
+  Cmavo "je'e",
+  Cmavo "mi",
+  Cmavo "ba",
+  Gismu "víska",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "dénpa",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"denpa","kind":"gismu"}}]"""
 
@@ -62,51 +34,23 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
-        },
+        Cmavo "je'e",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      argument: Cmavo "mi",
     },
   ],
   Paragraph {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [8,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "viska",
-        span: [11,16],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "víska",
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [18,19],
-      },
+      i: Cmavo "i",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ko",
-            span: [20,22],
-          },
+          Cmavo "ko",
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "denpa",
-          span: [23,28],
-        },
+        Gismu "dénpa",
       },
     },
   },

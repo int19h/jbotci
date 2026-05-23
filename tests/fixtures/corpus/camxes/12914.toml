@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. mi na tróci co cfípygaŭ do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [22,24],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cfipygaŭ",
-    span: [25,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [34,36],
-  },
+  Cmavo "doĭ",
+  Cmevla "xod",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "tróci",
+  Cmavo "co",
+  Lujvo "cfípygaŭ",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[25,33],"phonemes":"cfipygaŭ","kind":"lujvo"}},{"Bare":{"span":[34,36],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -67,58 +35,26 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xod",
-        span: [5,8],
-      },
+      argument: Cmevla "xod",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [10,12],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [13,15],
-        },
+        na: Cmavo "na",
         Co {
-          leading_relation: Word {
-            kind: "gismu",
-            phonemes: "troci",
-            span: [16,21],
-          },
-          co: Word {
-            kind: "cmavo",
-            phonemes: "co",
-            span: [22,24],
-          },
-          trailing_relation: Word {
-            kind: "lujvo",
-            phonemes: "cfipygaŭ",
-            span: [25,33],
-          },
+          leading_relation: Gismu "tróci",
+          co: Cmavo "co",
+          trailing_relation: Lujvo "cfípygaŭ",
         },
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [34,36],
-        },
+        Cmavo "do",
       ],
     },
   },

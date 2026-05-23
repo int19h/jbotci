@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi fe'e ci roĭ tervécnu lo selsálta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tervecnu",
-    span: [14,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [23,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsalta",
-    span: [26,34],
-  },
+  Cmavo "mi",
+  Cmavo "fe'e",
+  Cmavo "ci",
+  Cmavo "roĭ",
+  Lujvo "tervécnu",
+  Cmavo "lo",
+  Lujvo "selsálta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"fe'e","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[14,22],"phonemes":"tervecnu","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[26,34],"phonemes":"selsalta","kind":"lujvo"}}]"""
 
@@ -60,49 +32,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "fe'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ci",
-          span: [8,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "roĭ",
-          span: [10,13],
-        },
+        Cmavo "fe'e",
+        Cmavo "ci",
+        Cmavo "roĭ",
       },
-      Word {
-        kind: "lujvo",
-        phonemes: "tervecnu",
-        span: [14,22],
-      },
+      Lujvo "tervécnu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [23,25],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "selsalta",
-          span: [26,34],
-        },
+        descriptor: Cmavo "lo",
+        relation: Lujvo "selsálta",
       },
     ],
   },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ca mútce le ka lázni .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lazni",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [21,23],
-  },
+  Cmavo "ca",
+  Gismu "mútce",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "lázni",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"lazni","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mutce",
-      span: [3,8],
-    },
+    tense_modal: Cmavo "ca",
+    Gismu "mútce",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [11,13],
-        },
+        nu: Cmavo "ka",
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "lazni",
-            span: [14,19],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "oĭ",
-            span: [21,23],
-          },
+          Gismu "lázni",
+          indicator: Cmavo "oĭ",
         },
       },
     },

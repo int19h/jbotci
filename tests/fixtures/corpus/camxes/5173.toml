@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .rms. cu ckápe fénki)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rms",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckape",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fenki",
-    span: [16,21],
-  },
+  Cmavo "la",
+  Cmevla "rms",
+  Cmavo "cu",
+  Gismu "ckápe",
+  Gismu "fénki",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"rms","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"ckape","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"fenki","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "rms",
-          span: [3,6],
-        },
+        Cmevla "rms",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [7,9],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "ckape",
-      span: [10,15],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "fenki",
-      span: [16,21],
-    },
+    Gismu "ckápe",
+    Gismu "fénki",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"rms","kind":"cmevla"}}}]}}}],"cu":{"Bare":{"Bare":{"span":[7,9],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"ckape","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"fenki","kind":"gismu"}}}}]}}}}}}}}]}]}'

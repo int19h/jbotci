@@ -18,133 +18,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fáncu le jeĭ ctúca keĭ le jeĭ jbógri cásnu keĭ ma)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctuca",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbogri",
-    span: [30,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [43,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [47,49],
-  },
+  Gismu "fáncu",
+  Cmavo "le",
+  Cmavo "jeĭ",
+  Gismu "ctúca",
+  Cmavo "keĭ",
+  Cmavo "le",
+  Cmavo "jeĭ",
+  Lujvo "jbógri",
+  Gismu "cásnu",
+  Cmavo "keĭ",
+  Cmavo "ma",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"fancu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"ctuca","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[30,36],"phonemes":"jbogri","kind":"lujvo"}},{"Bare":{"span":[37,42],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [0,5],
-  },
+  Gismu "fáncu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "jeĭ",
-          span: [9,12],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "ctuca",
-          span: [13,18],
-        },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [19,22],
-        },
+        nu: Cmavo "jeĭ",
+        Gismu "ctúca",
+        kei: Cmavo "keĭ",
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [23,25],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "jeĭ",
-          span: [26,29],
-        },
+        nu: Cmavo "jeĭ",
         Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "jbogri",
-            span: [30,36],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [37,42],
-          },
+          Lujvo "jbógri",
+          Gismu "cásnu",
         },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [43,46],
-        },
+        kei: Cmavo "keĭ",
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [47,49],
-    },
+    Cmavo "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"fancu","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[9,12],"phonemes":"jeĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"ctuca","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[19,22],"phonemes":"keĭ","kind":"cmavo"}}}}}}}},{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[26,29],"phonemes":"jeĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[30,36],"phonemes":"jbogri","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[37,42],"phonemes":"casnu","kind":"gismu"}}}}]}}}}}}},"kei":{"Bare":{"Bare":{"span":[43,46],"phonemes":"keĭ","kind":"cmavo"}}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[47,49],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

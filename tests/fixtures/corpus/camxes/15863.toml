@@ -18,75 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(slílu li re xa no no)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [10,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [12,13],
-  },
+  Gismu "slílu",
+  Cmavo "li",
+  Cmavo "re",
+  Cmavo "xa",
+  Cmavo "no",
+  Cmavo "no",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"slilu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[10,11],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[12,13],"phonemes":"no","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "slilu",
-    span: [0,5],
-  },
+  Gismu "slílu",
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [6,8],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [9,10],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "xa",
-          span: [10,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [11,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "no",
-          span: [12,13],
-        },
+        Cmavo "re",
+        Cmavo "xa",
+        Cmavo "no",
+        Cmavo "no",
       },
     },
   ],

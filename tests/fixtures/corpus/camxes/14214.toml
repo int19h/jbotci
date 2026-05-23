@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le nu tolcrépeĭ báptoĭ .e le ka na djúno cu rínka so'i da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolcrepeĭ",
-    span: [6,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "baptoĭ",
-    span: [16,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [44,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "so'i",
-    span: [50,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [55,57],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Lujvo "tolcrépeĭ",
+  Lujvo "báptoĭ",
+  Cmavo "e",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "na",
+  Gismu "djúno",
+  Cmavo "cu",
+  Gismu "rínka",
+  Cmavo "so'i",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,15],"phonemes":"tolcrepeĭ","kind":"lujvo"}},{"Bare":{"span":[16,22],"phonemes":"baptoĭ","kind":"lujvo"}},{"Bare":{"span":[24,25],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[41,43],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"rinka","kind":"gismu"}},{"Bare":{"span":[50,54],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[55,57],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -92,87 +40,35 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [3,5],
-          },
+          nu: Cmavo "nu",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "tolcrepeĭ",
-              span: [6,15],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "baptoĭ",
-              span: [16,22],
-            },
+            Lujvo "tolcrépeĭ",
+            Lujvo "báptoĭ",
           },
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [24,25],
-      },
+      connective: Cmavo "e",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [26,28],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [29,31],
-          },
+          nu: Cmavo "ka",
           Na {
-            na: Word {
-              kind: "cmavo",
-              phonemes: "na",
-              span: [32,34],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "djuno",
-              span: [35,40],
-            },
+            na: Cmavo "na",
+            Gismu "djúno",
           },
         },
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [41,43],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rinka",
-      span: [44,49],
-    },
+    Gismu "rínka",
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "so'i",
-          span: [50,54],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [55,57],
-        },
+        quantifier: Cmavo "so'i",
+        Cmavo "da",
       },
     ],
   },

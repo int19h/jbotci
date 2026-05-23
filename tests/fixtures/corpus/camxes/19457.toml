@@ -18,81 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ga naĭ do me li mu mu mu gi mi me li xa xa xa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [38,40],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "do",
+  Cmavo "me",
+  Cmavo "li",
+  Cmavo "mu",
+  Cmavo "mu",
+  Cmavo "mu",
+  Cmavo "gi",
+  Cmavo "mi",
+  Cmavo "me",
+  Cmavo "li",
+  Cmavo "xa",
+  Cmavo "xa",
+  Cmavo "xa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"xa","kind":"cmavo"}}]'
 
@@ -100,98 +40,38 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "ga",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [6,8],
-      },
+      Cmavo "do",
     ],
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [9,11],
-      },
+      me: Cmavo "me",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [12,14],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [15,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [17,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [19,21],
-          },
+          Cmavo "mu",
+          Cmavo "mu",
+          Cmavo "mu",
         },
       },
     },
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [22,24],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [25,27],
-      },
+      Cmavo "mi",
     ],
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [28,30],
-      },
+      me: Cmavo "me",
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [31,33],
-        },
+        li: Cmavo "li",
         Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [34,36],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [36,38],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [38,40],
-          },
+          Cmavo "xa",
+          Cmavo "xa",
+          Cmavo "xa",
         },
       },
     },

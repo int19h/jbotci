@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i mi córtu le stédu .i xu loĭ stédu cu córtu cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stedu",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [22,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [27,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stedu",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [40,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [46,51],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "córtu",
+  Cmavo "le",
+  Gismu "stédu",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "loĭ",
+  Gismu "stédu",
+  Cmavo "cu",
+  Gismu "córtu",
+  Gismu "cértu",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"stedu","kind":"gismu"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"stedu","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"certu","kind":"gismu"}}]'
 
@@ -85,37 +37,17 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [3,5],
-        },
+        Cmavo "mi",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cortu",
-          span: [6,11],
-        },
+        Gismu "córtu",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [12,14],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "stedu",
-              span: [15,20],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "stédu",
           },
         ],
       },
@@ -123,48 +55,20 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [22,23],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [24,26],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "loĭ",
-            span: [27,30],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "stedu",
-            span: [31,36],
-          },
+          descriptor: Cmavo "loĭ",
+          relation: Gismu "stédu",
         },
       ],
-      cu: Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [37,39],
-      },
+      cu: Cmavo "cu",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cortu",
-          span: [40,45],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "certu",
-          span: [46,51],
-        },
+        Gismu "córtu",
+        Gismu "cértu",
       },
     },
   },

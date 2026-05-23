@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(gírzu se mífra bénji)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mifra",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [15,20],
-  },
+  Gismu "gírzu",
+  Cmavo "se",
+  Gismu "mífra",
+  Gismu "bénji",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [0,5],
-  },
+  Gismu "gírzu",
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mifra",
-      span: [9,14],
-    },
+    se: Cmavo "se",
+    Gismu "mífra",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [15,20],
-  },
+  Gismu "bénji",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da poĭ lójbo zi'e poĭ dráta mi cu jímpe fi le bangrnórge)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi'e",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "bangrnorge",
-    span: [46,56],
-  },
+  Cmavo "da",
+  Cmavo "poĭ",
+  Gismu "lójbo",
+  Cmavo "zi'e",
+  Cmavo "poĭ",
+  Gismu "dráta",
+  Cmavo "mi",
+  Cmavo "cu",
+  Gismu "jímpe",
+  Cmavo "fi",
+  Cmavo "le",
+  Fuhivla "bangrnórge",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"zi'e","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,56],"phonemes":"bangrnorge","kind":"fu'ivla"}}]"""
 
@@ -86,48 +38,20 @@ tree = """
 Predicate {
   leading_terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [0,2],
-      },
+      base_argument: Cmavo "da",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [3,6],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [7,12],
-          },
+          poi: Cmavo "poĭ",
+          Gismu "lójbo",
         },
         Zihe {
-          zihe: Word {
-            kind: "cmavo",
-            phonemes: "zi'e",
-            span: [13,17],
-          },
+          zihe: Cmavo "zi'e",
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [18,21],
-            },
+            poi: Cmavo "poĭ",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "drata",
-                span: [22,27],
-              },
+              Gismu "dráta",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [28,30],
-                },
+                Cmavo "mi",
               ],
             },
           },
@@ -135,35 +59,15 @@ Predicate {
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [31,33],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jimpe",
-      span: [34,39],
-    },
+    Gismu "jímpe",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [40,42],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [43,45],
-          },
-          relation: Word {
-            kind: "fu'ivla",
-            phonemes: "bangrnorge",
-            span: [46,56],
-          },
+          descriptor: Cmavo "le",
+          relation: Fuhivla "bangrnórge",
         },
       },
     ],

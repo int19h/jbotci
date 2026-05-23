@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .frac. .a'o saĭ by fy ba za cíkre lo lójbo nábmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frac",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [38,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nabmi",
-    span: [44,49],
-  },
+  Cmavo "doĭ",
+  Cmevla "frac",
+  Cmavo "a'o",
+  Cmavo "saĭ",
+  Cmavo "by",
+  Cmavo "fy",
+  Cmavo "ba",
+  Cmavo "za",
+  Gismu "cíkre",
+  Cmavo "lo",
+  Gismu "lójbo",
+  Gismu "nábmi",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"frac","kind":"cmevla"}},{"Bare":{"span":[11,14],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[44,49],"phonemes":"nabmi","kind":"gismu"}}]"""
 
@@ -87,30 +39,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmevla",
-            phonemes: "frac",
-            span: [4,8],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "a'o",
-            span: [11,14],
-          },
+          Cmevla "frac",
+          indicator: Cmavo "a'o",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [14,17],
-        },
+        indicator: Cmavo "saĭ",
       },
     },
   ],
@@ -118,57 +54,25 @@ Text {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [18,20],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "fy",
-            span: [20,22],
-          },
+          Cmavo "by",
+          Cmavo "fy",
         ],
       },
     ],
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [24,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "za",
-            span: [26,28],
-          },
+          Cmavo "ba",
+          Cmavo "za",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "cikre",
-          span: [29,34],
-        },
+        Gismu "cíkre",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [35,37],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "lojbo",
-              span: [38,43],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "nabmi",
-              span: [44,49],
-            },
+            Gismu "lójbo",
+            Gismu "nábmi",
           },
         },
       ],

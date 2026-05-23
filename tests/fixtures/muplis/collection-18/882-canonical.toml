@@ -21,16 +21,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cíkre ta)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [6,8],
-  },
+  Gismu "cíkre",
+  Cmavo "ta",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ta","kind":"cmavo"}}]'
 
@@ -38,17 +30,9 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"cikre","kind":"gismu"}},{"Bare":{"spa
 brackets = "(cíkre ta)"
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [0,5],
-  },
+  Gismu "cíkre",
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [6,8],
-    },
+    Cmavo "ta",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cikre","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ta","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

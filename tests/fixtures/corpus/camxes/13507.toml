@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(vi ku ba za co'a re no no ci moĭ nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [17,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [18,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [19,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [24,29],
-  },
+  Cmavo "vi",
+  Cmavo "ku",
+  Cmavo "ba",
+  Cmavo "za",
+  Cmavo "co'a",
+  Cmavo "re",
+  Cmavo "no",
+  Cmavo "no",
+  Cmavo "ci",
+  Cmavo "moĭ",
+  Gismu "nánca",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[16,17],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,18],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[18,19],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[19,20],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"nanca","kind":"gismu"}}]"""
 
@@ -81,73 +37,29 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [0,2],
-      },
+      tense_modal: Cmavo "vi",
       Zohe {
-        maybe_ku: Word {
-          kind: "cmavo",
-          phonemes: "ku",
-          span: [3,5],
-        },
+        maybe_ku: Cmavo "ku",
       },
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "za",
-        span: [8,10],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [11,15],
-      },
+      Cmavo "ba",
+      Cmavo "za",
+      Cmavo "co'a",
     },
     Compound {
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [16,17],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [17,18],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [18,19],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [19,20],
-          },
+          Cmavo "re",
+          Cmavo "no",
+          Cmavo "no",
+          Cmavo "ci",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "moĭ",
-          span: [20,23],
-        },
+        moi: Cmavo "moĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "nanca",
-        span: [24,29],
-      },
+      Gismu "nánca",
     },
   },
 }"""

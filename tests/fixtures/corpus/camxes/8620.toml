@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do ca zi xámgu lífri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [17,22],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "ca",
+  Cmavo "zi",
+  Gismu "xámgu",
+  Gismu "lífri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"lifri","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [6,8],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [8,10],
-        },
+        Cmavo "ca",
+        Cmavo "zi",
       },
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [11,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "lifri",
-          span: [17,22],
-        },
+        Gismu "xámgu",
+        Gismu "lífri",
       },
     },
   },

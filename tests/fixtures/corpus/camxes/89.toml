@@ -18,22 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda [y bu])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "y",
-      span: [7,8],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [10,12],
-    },
+    Cmavo "y",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Letter":{"base":{"Bare":{"span":[7,8],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[10,12],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -41,25 +29,13 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Letter":{"b
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   terms: [
     Letter {
       letter: [
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "y",
-            span: [7,8],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [10,12],
-          },
+          Cmavo "y",
+          bu: Cmavo "bu",
         },
       ],
     },

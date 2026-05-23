@@ -18,53 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa mi pu kríci fánva fu [zoĭ gy political science gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu",
-    span: [22,24],
-  },
+  Cmavo "ŭa",
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "kríci",
+  Gismu "fánva",
+  Cmavo "fu",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [25,28],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [29,31],
-    },
-    quoted_text: [31,49],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [50,52],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "political science",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"fu","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[25,28],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[29,31],"phonemes":"gy","kind":"cmavo"},"quoted_text":[31,49],"closing_delimiter":{"span":[50,52],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -74,65 +38,29 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭa",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭa",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "pu",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "krici",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fanva",
-            span: [16,21],
-          },
+          Gismu "kríci",
+          Gismu "fánva",
         },
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fu",
-            span: [22,24],
-          },
+          fa: Cmavo "fu",
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "zoĭ",
-              span: [25,28],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [29,31],
-            },
-            quoted_text: [31,49],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [50,52],
-            },
+            zoi: Cmavo "zoĭ",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "political science",
+            closing_delimiter: Cmavo "gy",
           },
         },
       ],

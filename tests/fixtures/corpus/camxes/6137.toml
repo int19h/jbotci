@@ -18,31 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(te bacyselfancykánji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bacyselfancykanji",
-    span: [3,20],
-  },
+  Cmavo "te",
+  Lujvo "bacyselfancykánji",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[3,20],"phonemes":"bacyselfancykanji","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Se {
-  se: Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bacyselfancykanji",
-    span: [3,20],
-  },
+  se: Cmavo "te",
+  Lujvo "bacyselfancykánji",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[3,20],"phonemes":"bacyselfancykanji","kind":"lujvo"}}}}}}}}}}}}}]}]}'

@@ -18,134 +18,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le do múpli cu jítfa gi'e ja'e bo na múpli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jitfa",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja'e",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [35,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mupli",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "le",
+  Cmavo "do",
+  Gismu "múpli",
+  Cmavo "cu",
+  Gismu "jítfa",
+  Cmavo "gi'e",
+  Cmavo "ja'e",
+  Cmavo "bo",
+  Cmavo "na",
+  Gismu "múpli",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"mupli","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"jitfa","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"ja'e","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"mupli","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [6,8],
-          },
+          Cmavo "do",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "mupli",
-          span: [9,14],
-        },
+        relation: Gismu "múpli",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     PredicateTail2 {
-      Word {
-        kind: "gismu",
-        phonemes: "jitfa",
-        span: [18,23],
-      },
+      Gismu "jítfa",
       bo_continuation: BoPredicateTail {
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "gi'e",
-          span: [24,28],
-        },
+        connective: Cmavo "gi'e",
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "ja'e",
-            span: [28,32],
-          },
+          bai: Cmavo "ja'e",
         },
-        bo: Word {
-          kind: "cmavo",
-          phonemes: "bo",
-          span: [32,34],
-        },
+        bo: Cmavo "bo",
         Na {
-          na: Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [35,37],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mupli",
-            span: [38,43],
-          },
+          na: Cmavo "na",
+          Gismu "múpli",
         },
       },
     },

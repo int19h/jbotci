@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi távla fi lo'e mlátu fórca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "forca",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Gismu "távla",
+  Cmavo "fi",
+  Cmavo "lo'e",
+  Gismu "mlátu",
+  Gismu "fórca",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"forca","kind":"gismu"}}]"""
 
@@ -55,42 +31,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [3,8],
-    },
+    Gismu "távla",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fi",
-          span: [9,11],
-        },
+        fa: Cmavo "fi",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo'e",
-            span: [12,16],
-          },
+          descriptor: Cmavo "lo'e",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "mlatu",
-              span: [17,22],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "forca",
-              span: [23,28],
-            },
+            Gismu "mlátu",
+            Gismu "fórca",
           },
         },
       },

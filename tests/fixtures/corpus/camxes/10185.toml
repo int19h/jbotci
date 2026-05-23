@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko'a bájra taĭ lo xírma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bajra",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "taĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xirma",
-    span: [18,23],
-  },
+  Cmavo "ko'a",
+  Gismu "bájra",
+  Cmavo "taĭ",
+  Cmavo "lo",
+  Gismu "xírma",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"bajra","kind":"gismu"}},{"Bare":{"span":[11,14],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"xirma","kind":"gismu"}}]"""
 
@@ -50,38 +30,18 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ko'a",
-      span: [0,4],
-    },
+    Cmavo "ko'a",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "bajra",
-      span: [5,10],
-    },
+    Gismu "bájra",
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "taĭ",
-            span: [11,14],
-          },
+          bai: Cmavo "taĭ",
         },
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [15,17],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "xirma",
-            span: [18,23],
-          },
+          descriptor: Cmavo "lo",
+          relation: Gismu "xírma",
         },
       },
     ],

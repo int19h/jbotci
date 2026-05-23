@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to mútce xámgu selkélci toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selkelci",
-    span: [15,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [24,27],
-  },
+  Cmavo "to",
+  Gismu "mútce",
+  Gismu "xámgu",
+  Lujvo "selkélci",
+  Cmavo "toĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[15,23],"phonemes":"selkelci","kind":"lujvo"}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]'
 
@@ -51,33 +31,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [9,14],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selkelci",
-          span: [15,23],
-        },
+        Gismu "mútce",
+        Gismu "xámgu",
+        Lujvo "selkélci",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [24,27],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

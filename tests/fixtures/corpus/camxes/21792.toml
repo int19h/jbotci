@@ -18,66 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mílxe .i ku'i bílma rínka)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bilma",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [19,24],
-  },
+  Gismu "mílxe",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "bílma",
+  Gismu "rínka",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"bilma","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"rinka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [0,5],
-  },
+  Gismu "mílxe",
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [7,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [8,12],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "bilma",
-        span: [13,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "rinka",
-        span: [19,24],
-      },
+      Gismu "bílma",
+      Gismu "rínka",
     },
   },
 }"""

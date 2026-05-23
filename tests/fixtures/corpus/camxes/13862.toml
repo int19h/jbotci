@@ -18,98 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i pénmi gúnka .i jo naĭ gúnka pénmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunka",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "penmi",
-    span: [29,34],
-  },
+  Cmavo "i",
+  Gismu "pénmi",
+  Gismu "gúnka",
+  Cmavo "i",
+  Cmavo "jo",
+  Cmavo "naĭ",
+  Gismu "gúnka",
+  Gismu "pénmi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"penmi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"gunka","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"penmi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Connected {
     leading_statement: Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "penmi",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [9,14],
-      },
+      Gismu "pénmi",
+      Gismu "gúnka",
     },
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     connective: Relation {
-      Word {
-        kind: "cmavo",
-        phonemes: "jo",
-        span: [17,19],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [19,22],
-      },
+      Cmavo "jo",
+      nai: Cmavo "naĭ",
     },
     trailing_statement: Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "gunka",
-        span: [23,28],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "penmi",
-        span: [29,34],
-      },
+      Gismu "gúnka",
+      Gismu "pénmi",
     },
   },
 }"""

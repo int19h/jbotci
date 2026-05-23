@@ -18,79 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi srúma le du'u pi ro [la'o gy lojban.org gy] cu spófu ca le cábdeĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sruma",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [19,21],
-  },
+  Cmavo "mi",
+  Gismu "srúma",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "pi",
+  Cmavo "ro",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [22,26],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [27,29],
-    },
-    quoted_text: [29,40],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [41,43],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "lojban.org",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [44,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [47,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [53,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [56,58],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [59,65],
-  },
+  Cmavo "cu",
+  Gismu "spófu",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "cábdeĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"sruma","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ro","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[22,26],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[27,29],"phonemes":"gy","kind":"cmavo"},"quoted_text":[29,40],"closing_delimiter":{"span":[41,43],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[44,46],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[53,55],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[56,58],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[59,65],"phonemes":"cabdeĭ","kind":"lujvo"}}]"""
 
@@ -98,95 +42,39 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sruma",
-      span: [3,8],
-    },
+    Gismu "srúma",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [12,16],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
               Quantified {
                 quantifier: Number {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "pi",
-                    span: [17,19],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ro",
-                    span: [19,21],
-                  },
+                  Cmavo "pi",
+                  Cmavo "ro",
                 },
                 ZoiQuote {
-                  zoi: Word {
-                    kind: "cmavo",
-                    phonemes: "la'o",
-                    span: [22,26],
-                  },
-                  opening_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [27,29],
-                  },
-                  quoted_text: [29,40],
-                  closing_delimiter: Word {
-                    kind: "cmavo",
-                    phonemes: "gy",
-                    span: [41,43],
-                  },
+                  zoi: Cmavo "la'o",
+                  opening_delimiter: Cmavo "gy",
+                  quoted_text: Verbatim "lojban.org",
+                  closing_delimiter: Cmavo "gy",
                 },
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [44,46],
-            },
+            cu: Cmavo "cu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "spofu",
-                span: [47,52],
-              },
+              Gismu "spófu",
               terms: [
                 Tagged {
-                  tense_modal: Word {
-                    kind: "cmavo",
-                    phonemes: "ca",
-                    span: [53,55],
-                  },
+                  tense_modal: Cmavo "ca",
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [56,58],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "cabdeĭ",
-                      span: [59,65],
-                    },
+                    descriptor: Cmavo "le",
+                    relation: Lujvo "cábdeĭ",
                   },
                 },
               ],

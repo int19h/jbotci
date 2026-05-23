@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(lámji súmji támji vámji)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "lamji",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sumji",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tamji",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vamji",
-    span: [18,23],
-  },
+  Gismu "lámji",
+  Gismu "súmji",
+  Gismu "támji",
+  Gismu "vámji",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"lamji","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"sumji","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"tamji","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"vamji","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "lamji",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sumji",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tamji",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vamji",
-    span: [18,23],
-  },
+  Gismu "lámji",
+  Gismu "súmji",
+  Gismu "támji",
+  Gismu "vámji",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"lamji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"sumji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"tamji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"vamji","kind":"gismu"}}}}]}}}}}}}}]}]}'

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi dúnda le cúkta gi'e ba bo lébna lo rúpnu vaŭ do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cukta",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lebna",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rupnu",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [42,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [46,48],
-  },
+  Cmavo "mi",
+  Gismu "dúnda",
+  Cmavo "le",
+  Gismu "cúkta",
+  Cmavo "gi'e",
+  Cmavo "ba",
+  Cmavo "bo",
+  Gismu "lébna",
+  Cmavo "lo",
+  Gismu "rúpnu",
+  Cmavo "vaŭ",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"lebna","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"rupnu","kind":"gismu"}},{"Bare":{"span":[42,45],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -85,82 +37,34 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   PredicateTail2 {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "dunda",
-        span: [3,8],
-      },
+      Gismu "dúnda",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [9,11],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "cukta",
-            span: [12,17],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "cúkta",
         },
       ],
     },
     bo_continuation: BoPredicateTail {
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "gi'e",
-        span: [18,22],
-      },
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [22,24],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [24,26],
-      },
+      connective: Cmavo "gi'e",
+      tense_modal: Cmavo "ba",
+      bo: Cmavo "bo",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "lebna",
-          span: [27,32],
-        },
+        Gismu "lébna",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "lo",
-              span: [33,35],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "rupnu",
-              span: [36,41],
-            },
+            descriptor: Cmavo "lo",
+            relation: Gismu "rúpnu",
           },
         ],
-        vau: Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [42,45],
-        },
+        vau: Cmavo "vaŭ",
       },
       tail_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [46,48],
-        },
+        Cmavo "do",
       ],
     },
   },

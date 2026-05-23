@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to xámgu se kélci pe'i toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [23,26],
-  },
+  Cmavo "to",
+  Gismu "xámgu",
+  Cmavo "se",
+  Gismu "kélci",
+  Cmavo "pe'i",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [3,8],
-        },
+        Gismu "xámgu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [9,11],
-          },
+          se: Cmavo "se",
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "kelci",
-              span: [12,17],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "pe'i",
-              span: [18,22],
-            },
+            Gismu "kélci",
+            indicator: Cmavo "pe'i",
           },
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [23,26],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

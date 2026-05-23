@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi pu távla do .o'o naĭ .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "o'o",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [24,26],
-  },
+  Cmavo "mi",
+  Cmavo "pu",
+  Gismu "távla",
+  Cmavo "do",
+  Cmavo "o'o",
+  Cmavo "naĭ",
+  Cmavo "oĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"o'o","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"oĭ","kind":"cmavo"}}]"""
 
@@ -67,49 +39,21 @@ brackets = "(mi [{pu távla} {(do .o'o naĭ) .oĭ}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tavla",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "távla",
     },
     terms: [
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "do",
-            span: [12,14],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "o'o",
-            span: [16,19],
-          },
-          nai: Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [19,22],
-          },
+          Cmavo "do",
+          indicator: Cmavo "o'o",
+          nai: Cmavo "naĭ",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [24,26],
-        },
+        indicator: Cmavo "oĭ",
       },
     ],
   },

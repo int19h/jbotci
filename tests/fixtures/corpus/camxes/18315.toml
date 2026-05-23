@@ -19,43 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cu du .álso)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [3,5],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "also",
-    span: [7,11],
-  },
+  Cmavo "cu",
+  Cmavo "du",
+  Fuhivla "álso",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"also","kind":"fu'ivla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [0,2],
-  },
+  cu: Cmavo "cu",
   Compound {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [3,5],
-    },
-    Word {
-      kind: "fu'ivla",
-      phonemes: "also",
-      span: [7,11],
-    },
+    Cmavo "du",
+    Fuhivla "álso",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"du","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,11],"phonemes":"also","kind":"fu'ivla"}}}}]}}}}}}}}]}]}"""

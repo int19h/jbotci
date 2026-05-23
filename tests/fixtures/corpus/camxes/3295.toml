@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do tcídu le me la .irkstat. nótci pe le deĭ vélsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcidu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "irkstat",
-    span: [21,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "notci",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [35,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "deĭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "velsku",
-    span: [45,51],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "tcídu",
+  Cmavo "le",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "irkstat",
+  Gismu "nótci",
+  Cmavo "pe",
+  Cmavo "le",
+  Cmavo "deĭ",
+  Lujvo "vélsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,28],"phonemes":"irkstat","kind":"cmevla"}},{"Bare":{"span":[29,34],"phonemes":"notci","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[45,51],"phonemes":"velsku","kind":"lujvo"}}]'
 
@@ -86,87 +38,39 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tcidu",
-        span: [6,11],
-      },
+      Gismu "tcídu",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
             Me {
-              me: Word {
-                kind: "cmavo",
-                phonemes: "me",
-                span: [15,17],
-              },
+              me: Cmavo "me",
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [18,20],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "irkstat",
-                    span: [21,28],
-                  },
+                  Cmevla "irkstat",
                 ],
               },
             },
-            Word {
-              kind: "gismu",
-              phonemes: "notci",
-              span: [29,34],
-            },
+            Gismu "nótci",
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [35,37],
-              },
+              goi: Cmavo "pe",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [38,40],
-                },
+                descriptor: Cmavo "le",
                 tail_elements: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "deĭ",
-                    span: [41,44],
-                  },
+                  Cmavo "deĭ",
                 ],
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "velsku",
-                  span: [45,51],
-                },
+                relation: Lujvo "vélsku",
               },
             },
           ],

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ni ko malglétu ko xu zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malgletu",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [23,27],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Cmavo "ko",
+  Lujvo "malglétu",
+  Cmavo "ko",
+  Cmavo "xu",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"malgletu","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ko",
-              span: [6,8],
-            },
+            Cmavo "ko",
           ],
           Relation {
-            Word {
-              kind: "lujvo",
-              phonemes: "malgletu",
-              span: [9,17],
-            },
+            Lujvo "malglétu",
             terms: [
               WithIndicator {
                 WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ko",
-                    span: [18,20],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "xu",
-                    span: [21,23],
-                  },
+                  Cmavo "ko",
+                  indicator: Cmavo "xu",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "zo'o",
-                  span: [23,27],
-                },
+                indicator: Cmavo "zo'o",
               },
             ],
           },

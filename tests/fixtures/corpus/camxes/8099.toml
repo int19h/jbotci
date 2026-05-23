@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma xelfánva fe [zoĭ gy AKA/also-known-as gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xelfanva",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [12,14],
-  },
+  Cmavo "ma",
+  Lujvo "xelfánva",
+  Cmavo "fe",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [15,18],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [19,21],
-    },
-    quoted_text: [23,40],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [42,44],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "AKA/also-known-as",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"xelfanva","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"fe","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[15,18],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[19,21],"phonemes":"gy","kind":"cmavo"},"quoted_text":[23,40],"closing_delimiter":{"span":[42,44],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -58,42 +34,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "xelfanva",
-      span: [3,11],
-    },
+    Lujvo "xelfánva",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [12,14],
-        },
+        fa: Cmavo "fe",
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [15,18],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [19,21],
-          },
-          quoted_text: [23,40],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [42,44],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "AKA/also-known-as",
+          closing_delimiter: Cmavo "gy",
         },
       },
     ],

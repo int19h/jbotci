@@ -21,66 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .a'o le bálvi nícte do zábna se lífri doĭ la .timis.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'o",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "balvi",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nicte",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zabna",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [34,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "timis",
-    span: [47,52],
-  },
+  Cmavo "i",
+  Cmavo "a'o",
+  Cmavo "le",
+  Gismu "bálvi",
+  Gismu "nícte",
+  Cmavo "do",
+  Gismu "zábna",
+  Cmavo "se",
+  Gismu "lífri",
+  Cmavo "doĭ",
+  Cmavo "la",
+  Cmevla "timis",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"balvi","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"nicte","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"zabna","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"lifri","kind":"gismu"}},{"Bare":{"span":[40,43],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"timis","kind":"cmevla"}}]"""
 
@@ -89,83 +41,35 @@ brackets = "([.i .a'o] [{(le [bálvi nícte]) do} {zábna (se [lífri {doĭ (la 
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "a'o",
-      span: [3,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "a'o",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "balvi",
-            span: [10,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "nicte",
-            span: [16,21],
-          },
+          Gismu "bálvi",
+          Gismu "nícte",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [22,24],
-      },
+      Cmavo "do",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zabna",
-        span: [25,30],
-      },
+      Gismu "zábna",
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [31,33],
-        },
+        se: Cmavo "se",
         Word {
-          Word {
-            kind: "gismu",
-            phonemes: "lifri",
-            span: [34,39],
-          },
+          Gismu "lífri",
           free_modifiers: [
             Vocative {
               vocative_markers: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "doĭ",
-                  span: [40,43],
-                },
+                Cmavo "doĭ",
               ],
               argument: Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [44,46],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "timis",
-                    span: [47,52],
-                  },
+                  Cmevla "timis",
                 ],
               },
             },

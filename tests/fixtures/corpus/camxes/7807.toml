@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(va'o raŭ prénu cu bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "raŭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [18,23],
-  },
+  Cmavo "va'o",
+  Cmavo "raŭ",
+  Gismu "prénu",
+  Cmavo "cu",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"raŭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -52,37 +32,17 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "va'o",
-          span: [0,4],
-        },
+        bai: Cmavo "va'o",
       },
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "raŭ",
-            span: [5,8],
-          },
+          Cmavo "raŭ",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [9,14],
-        },
+        relation: Gismu "prénu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [18,23],
-  },
+  cu: Cmavo "cu",
+  Gismu "bróda",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"va'o","kind":"cmavo"}}}}},"argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,8],"phonemes":"raŭ","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}]}]}"""

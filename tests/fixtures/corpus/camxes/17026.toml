@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi nélci gi'e ku'i no'e jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [26,31],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "gi'e",
+  Cmavo "ku'i",
+  Cmavo "no'e",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"jimpe","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [6,11],
-      },
+      Gismu "nélci",
       continuations: [
         PredicateTailContinuation {
           connective: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "gi'e",
-              span: [12,16],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ku'i",
-              span: [16,20],
-            },
+            Cmavo "gi'e",
+            indicator: Cmavo "ku'i",
           },
           Nahe {
-            nahe: Word {
-              kind: "cmavo",
-              phonemes: "no'e",
-              span: [21,25],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jimpe",
-              span: [26,31],
-            },
+            nahe: Cmavo "no'e",
+            Gismu "jímpe",
           },
         },
       ],

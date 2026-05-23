@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .magmas. cmíma ma poĭ gérna klési)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "magmas",
-    span: [3,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [20,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [24,29],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klesi",
-    span: [30,35],
-  },
+  Cmavo "la",
+  Cmevla "magmas",
+  Gismu "cmíma",
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Gismu "gérna",
+  Gismu "klési",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"magmas","kind":"cmevla"}},{"Bare":{"span":[11,16],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[30,35],"phonemes":"klesi","kind":"gismu"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "magmas",
-          span: [3,9],
-        },
+        Cmevla "magmas",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmima",
-      span: [11,16],
-    },
+    Gismu "cmíma",
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [17,19],
-        },
+        base_argument: Cmavo "ma",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [20,23],
-            },
+            poi: Cmavo "poĭ",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "gerna",
-                span: [24,29],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "klesi",
-                span: [30,35],
-              },
+              Gismu "gérna",
+              Gismu "klési",
             },
           },
         ],

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .clsn. jbonúnsla xu píxra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [4,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbonunsla",
-    span: [9,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pixra",
-    span: [22,27],
-  },
+  Cmavo "coĭ",
+  Cmevla "clsn",
+  Lujvo "jbonúnsla",
+  Cmavo "xu",
+  Gismu "píxra",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[9,18],"phonemes":"jbonunsla","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"pixra","kind":"gismu"}}]'
 
@@ -52,37 +32,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "clsn",
-        span: [4,8],
-      },
+      argument: Cmevla "clsn",
     },
   ],
   Compound {
     WithIndicator {
-      Word {
-        kind: "lujvo",
-        phonemes: "jbonunsla",
-        span: [9,18],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [19,21],
-      },
+      Lujvo "jbonúnsla",
+      indicator: Cmavo "xu",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "pixra",
-      span: [22,27],
-    },
+    Gismu "píxra",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,8],"phonemes":"clsn","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[9,18],"phonemes":"jbonunsla","kind":"lujvo"}}},"indicator":{"span":[19,21],"phonemes":"xu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"pixra","kind":"gismu"}}}}]}}}}}}}}]}]}'

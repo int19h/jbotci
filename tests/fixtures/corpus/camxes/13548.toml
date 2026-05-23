@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i na'e ze'u kákne)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [14,19],
-  },
+  Cmavo "pe'i",
+  Cmavo "na'e",
+  Cmavo "ze'u",
+  Gismu "kákne",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"kakne","kind":"gismu"}}]"""
 
@@ -46,31 +30,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [5,9],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ze'u",
-        span: [9,13],
-      },
+      Cmavo "na'e",
+      Cmavo "ze'u",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "kakne",
-      span: [14,19],
-    },
+    Gismu "kákne",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,9],"phonemes":"na'e","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,13],"phonemes":"ze'u","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"kakne","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}}}}]}"""

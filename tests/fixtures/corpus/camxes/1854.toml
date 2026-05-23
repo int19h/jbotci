@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ta níxli bo ckúle co cmálu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nixli",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ckule",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [23,28],
-  },
+  Cmavo "ta",
+  Gismu "níxli",
+  Cmavo "bo",
+  Gismu "ckúle",
+  Cmavo "co",
+  Gismu "cmálu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cmalu","kind":"gismu"}}]'
 
@@ -56,40 +32,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ta",
-      span: [0,2],
-    },
+    Cmavo "ta",
   ],
   Co {
     leading_relation: Bo {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "nixli",
-        span: [3,8],
-      },
-      bo: Word {
-        kind: "cmavo",
-        phonemes: "bo",
-        span: [10,12],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "ckule",
-        span: [14,19],
-      },
+      leading_relation: Gismu "níxli",
+      bo: Cmavo "bo",
+      trailing_relation: Gismu "ckúle",
     },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [20,22],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [23,28],
-    },
+    co: Cmavo "co",
+    trailing_relation: Gismu "cmálu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Co":{"leading_relation":{"Bo":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"nixli","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[10,12],"phonemes":"bo","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"ckule","kind":"gismu"}}}}}},"co":{"Bare":{"Bare":{"span":[20,22],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"cmalu","kind":"gismu"}}}}}}}}}}}}}]}]}'

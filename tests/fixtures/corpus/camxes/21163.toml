@@ -18,79 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(poĭ mi djúno fi lu'a ke'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'a",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [24,28],
-  },
+  Cmavo "poĭ",
+  Cmavo "mi",
+  Gismu "djúno",
+  Cmavo "fi",
+  Cmavo "lu'a",
+  Cmavo "ke'a",
 ]"""
 json = """[{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"lu'a","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
+  poi: Cmavo "poĭ",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "djuno",
-        span: [10,15],
-      },
+      Gismu "djúno",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [16,18],
-          },
+          fa: Cmavo "fi",
           Lahe {
-            lahe: Word {
-              kind: "cmavo",
-              phonemes: "lu'a",
-              span: [19,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ke'a",
-              span: [24,28],
-            },
+            lahe: Cmavo "lu'a",
+            Cmavo "ke'a",
           },
         },
       ],

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'o se lífri ma do fánva)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [20,25],
-  },
+  Cmavo "fi'o",
+  Cmavo "se",
+  Gismu "lífri",
+  Cmavo "ma",
+  Cmavo "do",
+  Gismu "fánva",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lifri","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"fanva","kind":"gismu"}}]"""
 
@@ -57,40 +33,16 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Fiho {
-        fiho: Word {
-          kind: "cmavo",
-          phonemes: "fi'o",
-          span: [0,4],
-        },
+        fiho: Cmavo "fi'o",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [5,7],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "lifri",
-            span: [8,13],
-          },
+          se: Cmavo "se",
+          Gismu "lífri",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [14,16],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [17,19],
-    },
+    Cmavo "do",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [20,25],
-  },
+  Gismu "fánva",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Fiho":{"fiho":{"Bare":{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}}},"relation":{"Se":{"se":{"Bare":{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"lifri","kind":"gismu"}}}}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[14,16],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"fanva","kind":"gismu"}}}}}}}}}}}]}]}"""

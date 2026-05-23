@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i lo'e rémna cu mútce zmádu fi le ka plúja mínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pluja",
-    span: [43,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [49,54],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "lo'e",
+  Gismu "rémna",
+  Cmavo "cu",
+  Gismu "mútce",
+  Gismu "zmádu",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "plúja",
+  Gismu "mínji",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"pluja","kind":"gismu"}},{"Bare":{"span":[49,54],"phonemes":"minji","kind":"gismu"}}]"""
 
@@ -85,80 +37,32 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [8,12],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "remna",
-          span: [13,18],
-        },
+        descriptor: Cmavo "lo'e",
+        relation: Gismu "rémna",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [19,21],
-    },
+    cu: Cmavo "cu",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mutce",
-          span: [22,27],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zmadu",
-          span: [28,33],
-        },
+        Gismu "mútce",
+        Gismu "zmádu",
       },
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [34,36],
-          },
+          fa: Cmavo "fi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [37,39],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ka",
-                span: [40,42],
-              },
+              nu: Cmavo "ka",
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "pluja",
-                  span: [43,48],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "minji",
-                  span: [49,54],
-                },
+                Gismu "plúja",
+                Gismu "mínji",
               },
             },
           },

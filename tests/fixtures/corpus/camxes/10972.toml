@@ -18,58 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(bróda .i coĭ tsáde)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsade",
-    span: [13,18],
-  },
+  Gismu "bróda",
+  Cmavo "i",
+  Cmavo "coĭ",
+  Gismu "tsáde",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tsade","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [0,5],
-  },
+  Gismu "bróda",
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [7,8],
-    },
+    i: Cmavo "i",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "coĭ",
-            span: [9,12],
-          },
+          Cmavo "coĭ",
         ],
         argument: RelationVocative {
-          relation: Word {
-            kind: "gismu",
-            phonemes: "tsade",
-            span: [13,18],
-          },
+          relation: Gismu "tsáde",
         },
       },
     ],

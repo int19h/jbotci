@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(li ze xa xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [3,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [7,9],
-  },
+  Cmavo "li",
+  Cmavo "ze",
+  Cmavo "xa",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -47,28 +31,12 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "ze",
-          span: [3,4],
-        },
+        Cmavo "ze",
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [5,6],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [7,9],
-          },
+          Cmavo "xa",
+          indicator: Cmavo "xu",
         },
       },
     },

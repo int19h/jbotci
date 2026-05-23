@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to cízra fi le ka na pílno la .porkmeĭl. zo'o toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "porkmeĭl",
-    span: [29,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [39,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [44,47],
-  },
+  Cmavo "to",
+  Gismu "cízra",
+  Cmavo "fi",
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "na",
+  Gismu "pílno",
+  Cmavo "la",
+  Cmevla "porkmeĭl",
+  Cmavo "zo'o",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,37],"phonemes":"porkmeĭl","kind":"cmevla"}},{"Bare":{"span":[39,43],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -81,68 +37,28 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cizra",
-          span: [3,8],
-        },
+        Gismu "cízra",
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [9,11],
-            },
+            fa: Cmavo "fi",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [12,14],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "ka",
-                  span: [14,16],
-                },
+                nu: Cmavo "ka",
                 Relation {
                   Na {
-                    na: Word {
-                      kind: "cmavo",
-                      phonemes: "na",
-                      span: [17,19],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "pilno",
-                      span: [20,25],
-                    },
+                    na: Cmavo "na",
+                    Gismu "pílno",
                   },
                   terms: [
                     Name {
-                      la: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [26,28],
-                      },
+                      la: Cmavo "la",
                       names: [
                         WithIndicator {
-                          Word {
-                            kind: "cmevla",
-                            phonemes: "porkmeĭl",
-                            span: [29,37],
-                          },
-                          indicator: Word {
-                            kind: "cmavo",
-                            phonemes: "zo'o",
-                            span: [39,43],
-                          },
+                          Cmevla "porkmeĭl",
+                          indicator: Cmavo "zo'o",
                         },
                       ],
                     },
@@ -153,11 +69,7 @@ Text {
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [44,47],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

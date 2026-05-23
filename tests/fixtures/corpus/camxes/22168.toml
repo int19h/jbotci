@@ -18,69 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ga naĭ mi préti vi [la'o gy #rhythmbox gy] gi mi ka'e go'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ga",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [15,17],
-  },
+  Cmavo "ga",
+  Cmavo "naĭ",
+  Cmavo "mi",
+  Gismu "préti",
+  Cmavo "vi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [18,22],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [23,25],
-    },
-    quoted_text: [27,37],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [39,41],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "#rhythmbox",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [48,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [53,57],
-  },
+  Cmavo "gi",
+  Cmavo "mi",
+  Cmavo "ka'e",
+  Cmavo "go'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"vi","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[18,22],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"},"quoted_text":[27,37],"closing_delimiter":{"span":[39,41],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[42,44],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[48,52],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[53,57],"phonemes":"go'a","kind":"cmavo"}}]"""
 
@@ -88,84 +40,36 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Pair {
   gek: Forethought {
-    Word {
-      kind: "cmavo",
-      phonemes: "ga",
-      span: [0,2],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [2,5],
-    },
+    Cmavo "ga",
+    nai: Cmavo "naĭ",
   },
   first: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [6,8],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "preti",
-        span: [9,14],
-      },
+      Gismu "préti",
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [15,17],
-          },
+          tense_modal: Cmavo "vi",
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [18,22],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [23,25],
-            },
-            quoted_text: [27,37],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [39,41],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "#rhythmbox",
+            closing_delimiter: Cmavo "gy",
           },
         },
       ],
     },
   },
-  gik: Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [42,44],
-  },
+  gik: Cmavo "gi",
   second: Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [45,47],
-      },
+      Cmavo "mi",
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [48,52],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [53,57],
-      },
+      tense_modal: Cmavo "ka'e",
+      Cmavo "go'a",
     },
   },
 }"""

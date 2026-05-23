@@ -18,42 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fa le nunsétca be fi [zo ce'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nunsetca",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [18,20],
-  },
+  Cmavo "fa",
+  Cmavo "le",
+  Lujvo "nunsétca",
+  Cmavo "be",
+  Cmavo "fi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ce'u",
-      span: [24,28],
-    },
+    zo: Cmavo "zo",
+    Cmavo "ce'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"nunsetca","kind":"lujvo"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,28],"phonemes":"ce'u","kind":"cmavo"}}}]"""
@@ -63,44 +35,16 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [0,2],
-      },
+      fa: Cmavo "fa",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "nunsetca",
-            span: [6,14],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [15,17],
-          },
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [18,20],
-          },
+          Lujvo "nunsétca",
+          be: Cmavo "be",
+          fa: Cmavo "fi",
           first_argument: ZoQuote {
-            zo: Word {
-              kind: "cmavo",
-              phonemes: "zo",
-              span: [21,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ce'u",
-              span: [24,28],
-            },
+            zo: Cmavo "zo",
+            Cmavo "ce'u",
           },
         },
       },

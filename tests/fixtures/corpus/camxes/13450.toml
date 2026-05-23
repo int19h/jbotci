@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i je'u na'e cúrmi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "curmi",
-    span: [13,18],
-  },
+  Cmavo "i",
+  Cmavo "je'u",
+  Cmavo "na'e",
+  Gismu "cúrmi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"je'u","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"curmi","kind":"gismu"}}]"""
 
@@ -45,28 +29,12 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "je'u",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "je'u",
   },
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "na'e",
-      span: [8,12],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "curmi",
-      span: [13,18],
-    },
+    nahe: Cmavo "na'e",
+    Gismu "cúrmi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"je'u","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[8,12],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"curmi","kind":"gismu"}}}}}}]}}}}}}}}]}]}"""

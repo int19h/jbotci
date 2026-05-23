@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'e nánmu nítcu tu'a lo xálka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xalka",
-    span: [25,30],
-  },
+  Cmavo "so'e",
+  Gismu "nánmu",
+  Gismu "nítcu",
+  Cmavo "tu'a",
+  Cmavo "lo",
+  Gismu "xálka",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"xalka","kind":"gismu"}}]"""
 
@@ -57,42 +33,18 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "so'e",
-          span: [0,4],
-        },
+        Cmavo "so'e",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "nanmu",
-          span: [5,10],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "nitcu",
-          span: [11,16],
-        },
+        Gismu "nánmu",
+        Gismu "nítcu",
       },
     },
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [17,21],
-      },
+      lahe: Cmavo "tu'a",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [22,24],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "xalka",
-          span: [25,30],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "xálka",
       },
     },
   ],

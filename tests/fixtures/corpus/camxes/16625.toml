@@ -18,146 +18,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i cínri fa le do se plátu pe se ra'a la lobyfésti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [2,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "platu",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra'a",
-    span: [31,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "lobyfesti",
-    span: [39,48],
-  },
+  Cmavo "i",
+  Gismu "cínri",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "do",
+  Cmavo "se",
+  Gismu "plátu",
+  Cmavo "pe",
+  Cmavo "se",
+  Cmavo "ra'a",
+  Cmavo "la",
+  Lujvo "lobyfésti",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[8,10],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"platu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"ra'a","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,48],"phonemes":"lobyfesti","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [2,7],
-    },
+    Gismu "cínri",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [8,10],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [11,13],
-          },
+          descriptor: Cmavo "le",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [14,16],
-            },
+            Cmavo "do",
           ],
           relation: Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [17,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "platu",
-              span: [20,25],
-            },
+            se: Cmavo "se",
+            Gismu "plátu",
           },
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "pe",
-                span: [26,28],
-              },
+              goi: Cmavo "pe",
               Tagged {
                 tag: Simple {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [29,31],
-                  },
-                  bai: Word {
-                    kind: "cmavo",
-                    phonemes: "ra'a",
-                    span: [31,35],
-                  },
+                  se: Cmavo "se",
+                  bai: Cmavo "ra'a",
                 },
                 Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [36,38],
-                  },
-                  relation: Word {
-                    kind: "lujvo",
-                    phonemes: "lobyfesti",
-                    span: [39,48],
-                  },
+                  descriptor: Cmavo "la",
+                  relation: Lujvo "lobyfésti",
                 },
               },
             },

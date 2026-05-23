@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu le távla vréji samsélpla ca xámgu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vreji",
-    span: [12,17],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samselpla",
-    span: [18,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [31,36],
-  },
+  Cmavo "xu",
+  Cmavo "le",
+  Gismu "távla",
+  Gismu "vréji",
+  Lujvo "samsélpla",
+  Cmavo "ca",
+  Gismu "xámgu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"vreji","kind":"gismu"}},{"Bare":{"span":[18,27],"phonemes":"samselpla","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -61,51 +33,23 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [3,5],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vreji",
-            span: [12,17],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "samselpla",
-            span: [18,27],
-          },
+          Gismu "távla",
+          Gismu "vréji",
+          Lujvo "samsélpla",
         },
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [28,30],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [31,36],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "xámgu",
     },
   },
 }"""

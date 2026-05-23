@@ -21,91 +21,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ráŭnzu lo ka mo'u plípe fo ma kaŭ da keĭ lo ka péncu ti voĭ jímca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "raŭnzu",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plipe",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fo",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [32,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [39,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [46,48],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pencu",
-    span: [49,54],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [55,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [58,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimca",
-    span: [62,67],
-  },
+  Cmavo "do",
+  Fuhivla "ráŭnzu",
+  Cmavo "lo",
+  Cmavo "ka",
+  Cmavo "mo'u",
+  Gismu "plípe",
+  Cmavo "fo",
+  Cmavo "ma",
+  Cmavo "kaŭ",
+  Cmavo "da",
+  Cmavo "keĭ",
+  Cmavo "lo",
+  Cmavo "ka",
+  Gismu "péncu",
+  Cmavo "ti",
+  Cmavo "voĭ",
+  Gismu "jímca",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"raŭnzu","kind":"fu'ivla"}},{"Bare":{"span":[10,12],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"plipe","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"pencu","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[58,61],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[62,67],"phonemes":"jimca","kind":"gismu"}}]"""
 
@@ -114,115 +46,47 @@ brackets = "(do [ráŭnzu {(lo [ka {(mo'u plípe) ([fo {ma kaŭ}] da)} keĭ]) (l
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Relation {
-    Word {
-      kind: "fu'ivla",
-      phonemes: "raŭnzu",
-      span: [3,9],
-    },
+    Fuhivla "ráŭnzu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [10,12],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [13,15],
-          },
+          nu: Cmavo "ka",
           Relation {
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "mo'u",
-                span: [16,20],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "plipe",
-                span: [21,26],
-              },
+              tense_modal: Cmavo "mo'u",
+              Gismu "plípe",
             },
             terms: [
               Fa {
-                fa: Word {
-                  kind: "cmavo",
-                  phonemes: "fo",
-                  span: [27,29],
-                },
+                fa: Cmavo "fo",
                 WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "ma",
-                    span: [30,32],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "kaŭ",
-                    span: [32,35],
-                  },
+                  Cmavo "ma",
+                  indicator: Cmavo "kaŭ",
                 },
               },
-              Word {
-                kind: "cmavo",
-                phonemes: "da",
-                span: [36,38],
-              },
+              Cmavo "da",
             ],
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [39,42],
-          },
+          kei: Cmavo "keĭ",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [43,45],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [46,48],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "pencu",
-              span: [49,54],
-            },
+            Gismu "péncu",
             terms: [
               RelativeClause {
-                base_argument: Word {
-                  kind: "cmavo",
-                  phonemes: "ti",
-                  span: [55,57],
-                },
+                base_argument: Cmavo "ti",
                 relative_clauses: [
                   Noi {
-                    noi: Word {
-                      kind: "cmavo",
-                      phonemes: "voĭ",
-                      span: [58,61],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "jimca",
-                      span: [62,67],
-                    },
+                    noi: Cmavo "voĭ",
+                    Gismu "jímca",
                   },
                 ],
               },

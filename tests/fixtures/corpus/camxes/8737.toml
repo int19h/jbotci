@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu fánva ke jímte témci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimte",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [18,23],
-  },
+  Cmavo "xu",
+  Gismu "fánva",
+  Cmavo "ke",
+  Gismu "jímte",
+  Gismu "témci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jimte","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"temci","kind":"gismu"}}]'
 
@@ -51,36 +31,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "fanva",
-      span: [3,8],
-    },
+    Gismu "fánva",
     Ke {
-      ke: Word {
-        kind: "cmavo",
-        phonemes: "ke",
-        span: [9,11],
-      },
+      ke: Cmavo "ke",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jimte",
-          span: [12,17],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "temci",
-          span: [18,23],
-        },
+        Gismu "jímte",
+        Gismu "témci",
       },
     },
   },

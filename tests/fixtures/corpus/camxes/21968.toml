@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.u'i lu ve víkmi li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vikmi",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [16,20],
-  },
+  Cmavo "u'i",
+  Cmavo "lu",
+  Cmavo "ve",
+  Gismu "víkmi",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"vikmi","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -51,38 +31,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [0,3],
-      },
+      indicator: Cmavo "u'i",
     },
   ],
   Term {
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [4,6],
-        },
+        lu: Cmavo "lu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "ve",
-            span: [7,9],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "vikmi",
-            span: [10,15],
-          },
+          se: Cmavo "ve",
+          Gismu "víkmi",
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [16,20],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le xébro gúdge .a le xebgú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebro",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gudge",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xebgu'e",
-    span: [21,28],
-  },
+  Cmavo "le",
+  Gismu "xébro",
+  Gismu "gúdge",
+  Cmavo "a",
+  Cmavo "le",
+  Lujvo "xebgú'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xebro","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"gudge","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,28],"phonemes":"xebgu'e","kind":"lujvo"}}]"""
 
@@ -57,40 +33,16 @@ Term {
   terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xebro",
-            span: [3,8],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "gudge",
-            span: [9,14],
-          },
+          Gismu "xébro",
+          Gismu "gúdge",
         },
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "a",
-        span: [16,17],
-      },
+      connective: Cmavo "a",
       trailing_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [18,20],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "xebgu'e",
-          span: [21,28],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "xebgú'e",
       },
     },
   ],

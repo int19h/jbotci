@@ -24,121 +24,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cy pa ka ce'u sútra cy no keĭ .i cy no ka ce'u cádzu keĭ .i co'i ku zo'u mi zénba cy pa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [26,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [42,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cadzu",
-    span: [47,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [53,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [58,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'i",
-    span: [60,64],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [65,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'u",
-    span: [68,72],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [73,75],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zenba",
-    span: [76,81],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cy",
-    span: [82,84],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [85,87],
-  },
+  Cmavo "cy",
+  Cmavo "pa",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "sútra",
+  Cmavo "cy",
+  Cmavo "no",
+  Cmavo "keĭ",
+  Cmavo "i",
+  Cmavo "cy",
+  Cmavo "no",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "cádzu",
+  Cmavo "keĭ",
+  Cmavo "i",
+  Cmavo "co'i",
+  Cmavo "ku",
+  Cmavo "zo'u",
+  Cmavo "mi",
+  Gismu "zénba",
+  Cmavo "cy",
+  Cmavo "pa",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[53,56],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[58,59],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[60,64],"phonemes":"co'i","kind":"cmavo"}},{"Bare":{"span":[65,67],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[68,72],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[73,75],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[76,81],"phonemes":"zenba","kind":"gismu"}},{"Bare":{"span":[82,84],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[85,87],"phonemes":"pa","kind":"cmavo"}}]"""
 
@@ -150,170 +58,78 @@ Paragraph {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [0,2],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [3,5],
-          },
+          Cmavo "cy",
+          Cmavo "pa",
         ],
       },
     ],
     Abstraction {
-      nu: Word {
-        kind: "cmavo",
-        phonemes: "ka",
-        span: [6,8],
-      },
+      nu: Cmavo "ka",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ce'u",
-            span: [9,13],
-          },
+          Cmavo "ce'u",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "sutra",
-            span: [14,19],
-          },
+          Gismu "sútra",
           terms: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "cy",
-                  span: [20,22],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "no",
-                  span: [23,25],
-                },
+                Cmavo "cy",
+                Cmavo "no",
               ],
             },
           ],
         },
       },
-      kei: Word {
-        kind: "cmavo",
-        phonemes: "keĭ",
-        span: [26,29],
-      },
+      kei: Cmavo "keĭ",
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [31,32],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "cy",
-              span: [33,35],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [36,38],
-            },
+            Cmavo "cy",
+            Cmavo "no",
           ],
         },
       ],
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [39,41],
-        },
+        nu: Cmavo "ka",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ce'u",
-              span: [42,46],
-            },
+            Cmavo "ce'u",
           ],
-          Word {
-            kind: "gismu",
-            phonemes: "cadzu",
-            span: [47,52],
-          },
+          Gismu "cádzu",
         },
-        kei: Word {
-          kind: "cmavo",
-          phonemes: "keĭ",
-          span: [53,56],
-        },
+        kei: Cmavo "keĭ",
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [58,59],
-    },
+    i: Cmavo "i",
     Prenex {
       prenex_terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "co'i",
-            span: [60,64],
-          },
+          tense_modal: Cmavo "co'i",
           Zohe {
-            maybe_ku: Word {
-              kind: "cmavo",
-              phonemes: "ku",
-              span: [65,67],
-            },
+            maybe_ku: Cmavo "ku",
           },
         },
       ],
-      zohu: Word {
-        kind: "cmavo",
-        phonemes: "zo'u",
-        span: [68,72],
-      },
+      zohu: Cmavo "zo'u",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [73,75],
-          },
+          Cmavo "mi",
         ],
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "zenba",
-            span: [76,81],
-          },
+          Gismu "zénba",
           terms: [
             Letter {
               letter: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "cy",
-                  span: [82,84],
-                },
-                Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [85,87],
-                },
+                Cmavo "cy",
+                Cmavo "pa",
               ],
             },
           ],

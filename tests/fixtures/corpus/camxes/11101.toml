@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'e mi noĭ cmíma jy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmima",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jy",
-    span: [18,20],
-  },
+  Cmavo "ba'e",
+  Cmavo "mi",
+  Cmavo "noĭ",
+  Gismu "cmíma",
+  Cmavo "jy",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"jy","kind":"cmavo"}}]"""
 
@@ -52,38 +32,18 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [5,7],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "mi",
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [8,11],
-          },
+          noi: Cmavo "noĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "cmima",
-              span: [12,17],
-            },
+            Gismu "cmíma",
             terms: [
               Letter {
                 letter: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "jy",
-                    span: [18,20],
-                  },
+                  Cmavo "jy",
                 ],
               },
             ],

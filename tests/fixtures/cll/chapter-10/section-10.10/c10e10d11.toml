@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djan. pu co'i cátra la .djim.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'i",
-    span: [13,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "catra",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djim",
-    span: [27,31],
-  },
+  Cmavo "la",
+  Cmevla "djan",
+  Cmavo "pu",
+  Cmavo "co'i",
+  Gismu "cátra",
+  Cmavo "la",
+  Cmevla "djim",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"co'i","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"catra","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"djim","kind":"cmevla"}}]"""
 
@@ -68,53 +40,25 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [4,8],
-        },
+        Cmevla "djan",
       ],
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [10,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "co'i",
-          span: [13,17],
-        },
+        Cmavo "pu",
+        Cmavo "co'i",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "catra",
-        span: [18,23],
-      },
+      Gismu "cátra",
     },
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [24,26],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "djim",
-            span: [27,31],
-          },
+          Cmevla "djim",
         ],
       },
     ],

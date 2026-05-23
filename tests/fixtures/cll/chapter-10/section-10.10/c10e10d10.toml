@@ -24,56 +24,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ctúca pu za'o cíksi le cmáci seldánfu le tádgri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctuca",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmaci",
-    span: [26,31],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "seldanfu",
-    span: [32,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [41,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tadgri",
-    span: [44,50],
-  },
+  Cmavo "le",
+  Gismu "ctúca",
+  Cmavo "pu",
+  Cmavo "za'o",
+  Gismu "cíksi",
+  Cmavo "le",
+  Gismu "cmáci",
+  Lujvo "seldánfu",
+  Cmavo "le",
+  Lujvo "tádgri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ctuca","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"cmaci","kind":"gismu"}},{"Bare":{"span":[32,40],"phonemes":"seldanfu","kind":"lujvo"}},{"Bare":{"span":[41,43],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[44,50],"phonemes":"tadgri","kind":"lujvo"}}]"""
 
@@ -83,69 +43,29 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ctuca",
-        span: [3,8],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "ctúca",
     },
   ],
   Relation {
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "pu",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "za'o",
-          span: [12,16],
-        },
+        Cmavo "pu",
+        Cmavo "za'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "ciksi",
-        span: [17,22],
-      },
+      Gismu "cíksi",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [23,25],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "cmaci",
-            span: [26,31],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "seldanfu",
-            span: [32,40],
-          },
+          Gismu "cmáci",
+          Lujvo "seldánfu",
         },
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [41,43],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "tadgri",
-          span: [44,50],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "tádgri",
       },
     ],
   },

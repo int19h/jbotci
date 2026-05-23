@@ -19,46 +19,22 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tsáli coĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [1,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [12,17],
-  },
+  Gismu "tsáli",
+  Cmavo "coĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[1,6],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[8,11],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"robin","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [1,6],
-  },
+  Gismu "tsáli",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [8,11],
-        },
+        Cmavo "coĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "robin",
-        span: [12,17],
-      },
+      argument: Cmevla "robin",
     },
   ],
 }"""

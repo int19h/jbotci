@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.c. stéba stáli na jo píndi)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "c",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "steba",
-    span: [2,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stali",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pindi",
-    span: [19,24],
-  },
+  Cmevla "c",
+  Gismu "stéba",
+  Gismu "stáli",
+  Cmavo "na",
+  Cmavo "jo",
+  Gismu "píndi",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"steba","kind":"gismu"}},{"Bare":{"span":[8,13],"phonemes":"stali","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"pindi","kind":"gismu"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "c",
-      span: [0,1],
-    },
+    Cmevla "c",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "steba",
-      span: [2,7],
-    },
+    Gismu "stéba",
     Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "stali",
-        span: [8,13],
-      },
+      leading_unit: Gismu "stáli",
       connective: Relation {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [14,16],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "jo",
-          span: [16,18],
-        },
+        na: Cmavo "na",
+        Cmavo "jo",
       },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "pindi",
-        span: [19,24],
-      },
+      trailing_unit: Gismu "píndi",
     },
   },
 }"""

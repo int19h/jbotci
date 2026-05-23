@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(vu'e .eĭ naĭ la .bablfic. sídju mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "vu'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "bablfic",
-    span: [16,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [31,33],
-  },
+  Cmavo "vu'e",
+  Cmavo "eĭ",
+  Cmavo "naĭ",
+  Cmavo "la",
+  Cmevla "bablfic",
+  Gismu "sídju",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"vu'e","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[16,23],"phonemes":"bablfic","kind":"cmevla"}},{"Bare":{"span":[25,30],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"mi","kind":"cmavo"}}]"""
 
@@ -62,53 +34,25 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "vu'e",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [6,8],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [8,11],
-        },
+        Cmavo "vu'e",
+        indicator: Cmavo "eĭ",
+        nai: Cmavo "naĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [12,14],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "bablfic",
-            span: [16,23],
-          },
+          Cmevla "bablfic",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [25,30],
-      },
+      Gismu "sídju",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [31,33],
-        },
+        Cmavo "mi",
       ],
     },
   },

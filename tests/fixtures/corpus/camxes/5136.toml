@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kúnti ke sódva lánte)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sodva",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lante",
-    span: [20,25],
-  },
+  Gismu "kúnti",
+  Cmavo "ke",
+  Gismu "sódva",
+  Gismu "lánte",
 ]"""
 json = '[{"Bare":{"span":[5,10],"phonemes":"kunti","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"lante","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "kunti",
-    span: [5,10],
-  },
+  Gismu "kúnti",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [11,13],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "sodva",
-        span: [14,19],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lante",
-        span: [20,25],
-      },
+      Gismu "sódva",
+      Gismu "lánte",
     },
   },
 }"""

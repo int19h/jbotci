@@ -18,38 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu [zo kaŭ] cu malrábaŭ válsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "kaŭ",
-      span: [6,9],
-    },
+    zo: Cmavo "zo",
+    Cmavo "kaŭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "malrabaŭ",
-    span: [13,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [22,27],
-  },
+  Cmavo "cu",
+  Fuhivla "malrábaŭ",
+  Gismu "válsi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,9],"phonemes":"kaŭ","kind":"cmavo"}}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"malrabaŭ","kind":"fu'ivla"}},{"Bare":{"span":[22,27],"phonemes":"valsi","kind":"gismu"}}]"""
 
@@ -58,44 +34,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "kaŭ",
-          span: [6,9],
-        },
+        zo: Cmavo "zo",
+        Cmavo "kaŭ",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [10,12],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "fu'ivla",
-        phonemes: "malrabaŭ",
-        span: [13,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [22,27],
-      },
+      Fuhivla "malrábaŭ",
+      Gismu "válsi",
     },
   },
 }"""

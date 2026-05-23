@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.erm. cfári)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "erm",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [5,10],
-  },
+  Cmevla "erm",
+  Gismu "cfári",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"erm","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"cfari","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"erm","kind":"cmevla"}},{"Bare":{"span
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "erm",
-      span: [0,3],
-    },
+    Cmevla "erm",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cfari",
-    span: [5,10],
-  },
+  Gismu "cfári",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"erm","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cfari","kind":"gismu"}}}}}}}}}}}]}]}'

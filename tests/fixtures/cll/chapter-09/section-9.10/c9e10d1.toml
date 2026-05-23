@@ -24,66 +24,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .apasonatas. poĭ se cúsku la .artr. .rubnstaĭn. cu se nélci mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "apasonatas",
-    span: [4,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [20,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [23,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "artr",
-    span: [33,37],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rubnstaĭn",
-    span: [40,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [54,56],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [57,62],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [63,65],
-  },
+  Cmavo "la",
+  Cmevla "apasonatas",
+  Cmavo "poĭ",
+  Cmavo "se",
+  Gismu "cúsku",
+  Cmavo "la",
+  Cmevla "artr",
+  Cmevla "rubnstaĭn",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "nélci",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"apasonatas","kind":"cmevla"}},{"Bare":{"span":[16,19],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"artr","kind":"cmevla"}},{"Bare":{"span":[40,49],"phonemes":"rubnstaĭn","kind":"cmevla"}},{"Bare":{"span":[51,53],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[63,65],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -94,57 +46,25 @@ Predicate {
   leading_terms: [
     RelativeClause {
       base_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "apasonatas",
-            span: [4,14],
-          },
+          Cmevla "apasonatas",
         ],
       },
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [16,19],
-          },
+          poi: Cmavo "poĭ",
           Relation {
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [20,22],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [23,28],
-              },
+              se: Cmavo "se",
+              Gismu "cúsku",
             },
             terms: [
               Name {
-                la: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [29,31],
-                },
+                la: Cmavo "la",
                 names: [
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "artr",
-                    span: [33,37],
-                  },
-                  Word {
-                    kind: "cmevla",
-                    phonemes: "rubnstaĭn",
-                    span: [40,49],
-                  },
+                  Cmevla "artr",
+                  Cmevla "rubnstaĭn",
                 ],
               },
             ],
@@ -153,30 +73,14 @@ Predicate {
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [51,53],
-  },
+  cu: Cmavo "cu",
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [54,56],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [57,62],
-      },
+      se: Cmavo "se",
+      Gismu "nélci",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [63,65],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

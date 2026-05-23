@@ -18,22 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(smádi [zo járki])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [0,5],
-  },
+  Gismu "smádi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "jarki",
-      span: [9,14],
-    },
+    zo: Cmavo "zo",
+    Gismu "járki",
   },
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"smadi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,14],"phonemes":"jarki","kind":"gismu"}}}]'
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"smadi","kind":"gismu"}},{"ZoQuote":{"
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "smadi",
-    span: [0,5],
-  },
+  Gismu "smádi",
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [6,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jarki",
-        span: [9,14],
-      },
+      zo: Cmavo "zo",
+      Gismu "járki",
     },
   ],
 }"""

@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi na'e lúmci le mi na'e jínsa se dásni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lumci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinsa",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dasni",
-    span: [34,39],
-  },
+  Cmavo "mi",
+  Cmavo "na'e",
+  Gismu "lúmci",
+  Cmavo "le",
+  Cmavo "mi",
+  Cmavo "na'e",
+  Gismu "jínsa",
+  Cmavo "se",
+  Gismu "dásni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lumci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"jinsa","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"dasni","kind":"gismu"}}]"""
 
@@ -70,63 +34,27 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "na'e",
-        span: [3,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lumci",
-        span: [8,13],
-      },
+      nahe: Cmavo "na'e",
+      Gismu "lúmci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [17,19],
-          },
+          Cmavo "mi",
         ],
         relation: Compound {
           Nahe {
-            nahe: Word {
-              kind: "cmavo",
-              phonemes: "na'e",
-              span: [20,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jinsa",
-              span: [25,30],
-            },
+            nahe: Cmavo "na'e",
+            Gismu "jínsa",
           },
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [31,33],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "dasni",
-              span: [34,39],
-            },
+            se: Cmavo "se",
+            Gismu "dásni",
           },
         },
       },

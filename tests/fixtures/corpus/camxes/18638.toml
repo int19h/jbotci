@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'a do ba'e na flíba xu saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fliba",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [24,27],
-  },
+  Cmavo "ki'a",
+  Cmavo "do",
+  Cmavo "ba'e",
+  Cmavo "na",
+  Gismu "flíba",
+  Cmavo "xu",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"fliba","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
@@ -61,52 +33,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ki'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Na {
       na: Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [8,12],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [13,15],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "na",
       },
       WithIndicator {
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "fliba",
-            span: [16,21],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [22,24],
-          },
+          Gismu "flíba",
+          indicator: Cmavo "xu",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [24,27],
-        },
+        indicator: Cmavo "saĭ",
       },
     },
   },

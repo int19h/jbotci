@@ -18,109 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ge go'i gi go'i ra'o ji'a vaŭ zo'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra'o",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [29,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [33,37],
-  },
+  Cmavo "i",
+  Cmavo "ge",
+  Cmavo "go'i",
+  Cmavo "gi",
+  Cmavo "go'i",
+  Cmavo "ra'o",
+  Cmavo "ji'a",
+  Cmavo "vaŭ",
+  Cmavo "zo'o",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ra'o","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Pair {
-    gek: Word {
-      kind: "cmavo",
-      phonemes: "ge",
-      span: [3,5],
-    },
-    first: Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [6,10],
-    },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [11,13],
-    },
+    gek: Cmavo "ge",
+    first: Cmavo "go'i",
+    gik: Cmavo "gi",
     second: Relation {
       Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "go'i",
-          span: [14,18],
-        },
+        goha: Cmavo "go'i",
         raho: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "ra'o",
-            span: [19,23],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [24,28],
-          },
+          Cmavo "ra'o",
+          indicator: Cmavo "ji'a",
         },
       },
       vau: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "vaŭ",
-          span: [29,32],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [33,37],
-        },
+        Cmavo "vaŭ",
+        indicator: Cmavo "zo'o",
       },
     },
   },

@@ -24,91 +24,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .dyny'abub. .i la .ny'abuty'obub. .i la .cy'ibu'abub. .i la .sykybulyl. .i la .ibubymym. .i la .ny'ybucyc.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "dyny'abub",
-    span: [4,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ny'abuty'obub",
-    span: [22,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [38,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "cy'ibu'abub",
-    span: [44,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [58,59],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [60,62],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "sykybulyl",
-    span: [64,73],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [76,77],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [78,80],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ibubymym",
-    span: [82,90],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [93,94],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [95,97],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ny'ybucyc",
-    span: [99,108],
-  },
+  Cmavo "la",
+  Cmevla "dyny'abub",
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "ny'abuty'obub",
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "cy'ibu'abub",
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "sykybulyl",
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "ibubymym",
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "ny'ybucyc",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,13],"phonemes":"dyny'abub","kind":"cmevla"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,35],"phonemes":"ny'abuty'obub","kind":"cmevla"}},{"Bare":{"span":[38,39],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[44,55],"phonemes":"cy'ibu'abub","kind":"cmevla"}},{"Bare":{"span":[58,59],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[64,73],"phonemes":"sykybulyl","kind":"cmevla"}},{"Bare":{"span":[76,77],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[78,80],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[82,90],"phonemes":"ibubymym","kind":"cmevla"}},{"Bare":{"span":[93,94],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[95,97],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[99,108],"phonemes":"ny'ybucyc","kind":"cmevla"}}]"""
 
@@ -119,141 +51,73 @@ Paragraph {
   Term {
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "dyny'abub",
-            span: [4,13],
-          },
+          Cmevla "dyny'abub",
         ],
       },
     ],
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [16,17],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [18,20],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "ny'abuty'obub",
-              span: [22,35],
-            },
+            Cmevla "ny'abuty'obub",
           ],
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [38,39],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [40,42],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "cy'ibu'abub",
-              span: [44,55],
-            },
+            Cmevla "cy'ibu'abub",
           ],
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [58,59],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [60,62],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "sykybulyl",
-              span: [64,73],
-            },
+            Cmevla "sykybulyl",
           ],
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [76,77],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [78,80],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "ibubymym",
-              span: [82,90],
-            },
+            Cmevla "ibubymym",
           ],
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [93,94],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [95,97],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "ny'ybucyc",
-              span: [99,108],
-            },
+            Cmevla "ny'ybucyc",
           ],
         },
       ],

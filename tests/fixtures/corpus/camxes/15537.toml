@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(te pémci fóldi xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pemci",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "foldi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [15,17],
-  },
+  Cmavo "te",
+  Gismu "pémci",
+  Gismu "fóldi",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pemci","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"foldi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Compound {
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pemci",
-      span: [3,8],
-    },
+    se: Cmavo "te",
+    Gismu "pémci",
   },
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "foldi",
-      span: [9,14],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [15,17],
-    },
+    Gismu "fóldi",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Se":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"te","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"pemci","kind":"gismu"}}}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"foldi","kind":"gismu"}}},"indicator":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}}}]}}}}}}}}]}]}'

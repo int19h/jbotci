@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ca'o cárvi vi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [11,13],
-  },
+  Cmavo "ca'o",
+  Gismu "cárvi",
+  Cmavo "vi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"vi","kind":"cmavo"}}]"""
 
@@ -40,24 +28,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'o",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "carvi",
-      span: [5,10],
-    },
+    tense_modal: Cmavo "ca'o",
+    Gismu "cárvi",
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "vi",
-        span: [11,13],
-      },
+      tense_modal: Cmavo "vi",
       Zohe {},
     },
   ],

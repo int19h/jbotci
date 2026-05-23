@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le génja bírje cu cévni je selprámi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "genja",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "birje",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [24,26],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selprami",
-    span: [27,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [36,38],
-  },
+  Cmavo "le",
+  Gismu "génja",
+  Gismu "bírje",
+  Cmavo "cu",
+  Gismu "cévni",
+  Cmavo "je",
+  Lujvo "selprámi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"genja","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"birje","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"selprami","kind":"lujvo"}},{"Bare":{"span":[36,38],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -66,54 +34,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "genja",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "birje",
-          span: [9,14],
-        },
+        Gismu "génja",
+        Gismu "bírje",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "cevni",
-        span: [18,23],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [24,26],
-      },
-      trailing_relation: Word {
-        kind: "lujvo",
-        phonemes: "selprami",
-        span: [27,35],
-      },
+      leading_relation: Gismu "cévni",
+      connective: Cmavo "je",
+      trailing_relation: Lujvo "selprámi",
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [36,38],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

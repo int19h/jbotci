@@ -18,141 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i seĭ la .djan. cúsku se'u .e'o doĭ .djordj. zo'o rápygaŭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se'u",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e'o",
-    span: [27,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [31,34],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [35,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [43,47],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "rapygaŭ",
-    span: [48,55],
-  },
+  Cmavo "i",
+  Cmavo "seĭ",
+  Cmavo "la",
+  Cmevla "djan",
+  Gismu "cúsku",
+  Cmavo "se'u",
+  Cmavo "e'o",
+  Cmavo "doĭ",
+  Cmevla "djordj",
+  Cmavo "zo'o",
+  Lujvo "rápygaŭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[16,21],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"se'u","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[35,41],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[43,47],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[48,55],"phonemes":"rapygaŭ","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [3,6],
-      },
+      sei: Cmavo "seĭ",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [7,9],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [10,14],
-            },
+            Cmevla "djan",
           ],
         },
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [16,21],
-      },
+      relation: Gismu "cúsku",
       sehu: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [22,26],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "e'o",
-          span: [27,30],
-        },
+        Cmavo "se'u",
+        indicator: Cmavo "e'o",
       },
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [31,34],
-            },
+            Cmavo "doĭ",
           ],
           argument: WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "djordj",
-              span: [35,41],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "zo'o",
-              span: [43,47],
-            },
+            Cmevla "djordj",
+            indicator: Cmavo "zo'o",
           },
         },
       ],
     },
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "rapygaŭ",
-    span: [48,55],
-  },
+  Lujvo "rápygaŭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"span":[3,6],"phonemes":"seĭ","kind":"cmavo"}}},"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[10,14],"phonemes":"djan","kind":"cmevla"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"cusku","kind":"gismu"}}}},"sehu":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[22,26],"phonemes":"se'u","kind":"cmavo"}}},"indicator":{"span":[27,30],"phonemes":"e'o","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[31,34],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[35,41],"phonemes":"djordj","kind":"cmevla"}}},"indicator":{"span":[43,47],"phonemes":"zo'o","kind":"cmavo"}}}]}}}]}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[48,55],"phonemes":"rapygaŭ","kind":"lujvo"}}}}}}}}}}}]}]}"""

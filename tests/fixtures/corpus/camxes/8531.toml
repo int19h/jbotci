@@ -18,72 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi .e la .avital. pu sojypá'a le nu do fónxa bénji [.a bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [4,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "avital",
-    span: [9,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sojypa'a",
-    span: [19,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [43,48],
-  },
+  Cmavo "mi",
+  Cmavo "e",
+  Cmavo "la",
+  Cmevla "avital",
+  Cmavo "pu",
+  Lujvo "sojypá'a",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "fónxa",
+  Gismu "bénji",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [49,50],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [50,52],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"avital","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[19,27],"phonemes":"sojypa'a","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"benji","kind":"gismu"}},{"Letter":{"base":{"Bare":{"span":[49,50],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[50,52],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -93,93 +41,41 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [4,5],
-      },
+      leading_argument: Cmavo "mi",
+      connective: Cmavo "e",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [6,8],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "avital",
-            span: [9,15],
-          },
+          Cmevla "avital",
         ],
       },
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [16,18],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "sojypa'a",
-        span: [19,27],
-      },
+      tense_modal: Cmavo "pu",
+      Lujvo "sojypá'a",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [28,30],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [31,33],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [34,36],
-              },
+              Cmavo "do",
             ],
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "fonxa",
-                  span: [37,42],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "benji",
-                  span: [43,48],
-                },
+                Gismu "fónxa",
+                Gismu "bénji",
               },
               terms: [
                 Letter {
                   letter: [
                     Letter {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "a",
-                        span: [49,50],
-                      },
-                      bu: Word {
-                        kind: "cmavo",
-                        phonemes: "bu",
-                        span: [50,52],
-                      },
+                      Cmavo "a",
+                      bu: Cmavo "bu",
                     },
                   ],
                 },

@@ -18,79 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le me [la'o gy irc gy] nuncásnu be la .lojban. mi pu za co'u cínri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [3,5],
-  },
+  Cmavo "le",
+  Cmavo "me",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [5,9],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [9,11],
-    },
-    quoted_text: [13,16],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [18,20],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "irc",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncasnu",
-    span: [21,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [36,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [44,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za",
-    span: [50,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'u",
-    span: [53,57],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [58,63],
-  },
+  Lujvo "nuncásnu",
+  Cmavo "be",
+  Cmavo "la",
+  Cmevla "lojban",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "za",
+  Cmavo "co'u",
+  Gismu "cínri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[5,9],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[9,11],"phonemes":"gy","kind":"cmavo"},"quoted_text":[13,16],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[21,29],"phonemes":"nuncasnu","kind":"lujvo"}},{"Bare":{"span":[30,32],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[36,42],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[44,46],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[53,57],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[58,63],"phonemes":"cinri","kind":"gismu"}}]"""
 
@@ -99,94 +43,38 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [3,5],
-          },
+          me: Cmavo "me",
           ZoiQuote {
-            zoi: Word {
-              kind: "cmavo",
-              phonemes: "la'o",
-              span: [5,9],
-            },
-            opening_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [9,11],
-            },
-            quoted_text: [13,16],
-            closing_delimiter: Word {
-              kind: "cmavo",
-              phonemes: "gy",
-              span: [18,20],
-            },
+            zoi: Cmavo "la'o",
+            opening_delimiter: Cmavo "gy",
+            quoted_text: Verbatim "irc",
+            closing_delimiter: Cmavo "gy",
           },
         },
         Be {
-          Word {
-            kind: "lujvo",
-            phonemes: "nuncasnu",
-            span: [21,29],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [30,32],
-          },
+          Lujvo "nuncásnu",
+          be: Cmavo "be",
           first_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [33,35],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "lojban",
-                span: [36,42],
-              },
+              Cmevla "lojban",
             ],
           },
         },
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [44,46],
-    },
+    Cmavo "mi",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [47,49],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "za",
-        span: [50,52],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'u",
-        span: [53,57],
-      },
+      Cmavo "pu",
+      Cmavo "za",
+      Cmavo "co'u",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [58,63],
-    },
+    Gismu "cínri",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}}},"argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[5,9],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[9,11],"phonemes":"gy","kind":"cmavo"},"quoted_text":[13,16],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}}}}}}},{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[21,29],"phonemes":"nuncasnu","kind":"lujvo"}}}},"be":{"Bare":{"Bare":{"span":[30,32],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[33,35],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[36,42],"phonemes":"lojban","kind":"cmevla"}}}]}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[44,46],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[47,49],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[50,52],"phonemes":"za","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[53,57],"phonemes":"co'u","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[58,63],"phonemes":"cinri","kind":"gismu"}}}}}}}}}}}}}]}]}"""

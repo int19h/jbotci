@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a do tcíca mi'a doĭ .xod.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tcica",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [23,26],
-  },
+  Cmavo "ru'a",
+  Cmavo "do",
+  Gismu "tcíca",
+  Cmavo "mi'a",
+  Cmavo "doĭ",
+  Cmevla "xod",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tcica","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"xod","kind":"cmevla"}}]"""
 
@@ -56,48 +32,24 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ru'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "ru'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [5,7],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "tcica",
-        span: [8,13],
-      },
+      Gismu "tcíca",
       terms: [
         Koha {
-          Word {
-            kind: "cmavo",
-            phonemes: "mi'a",
-            span: [14,18],
-          },
+          Cmavo "mi'a",
           free_modifiers: [
             Vocative {
               vocative_markers: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "doĭ",
-                  span: [19,22],
-                },
+                Cmavo "doĭ",
               ],
-              argument: Word {
-                kind: "cmevla",
-                phonemes: "xod",
-                span: [23,26],
-              },
+              argument: Cmevla "xod",
             },
           ],
         },

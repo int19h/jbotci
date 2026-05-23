@@ -18,102 +18,38 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mrílu su'o ci ki'o da voĭ fésti mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'o",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "voĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "festi",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [31,33],
-  },
+  Gismu "mrílu",
+  Cmavo "su'o",
+  Cmavo "ci",
+  Cmavo "ki'o",
+  Cmavo "da",
+  Cmavo "voĭ",
+  Gismu "fésti",
+  Cmavo "mi",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"festi","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [0,5],
-  },
+  Gismu "mrílu",
   terms: [
     RelativeClause {
       base_argument: Quantified {
         quantifier: Number {
-          Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [6,10],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ki'o",
-            span: [13,17],
-          },
+          Cmavo "su'o",
+          Cmavo "ci",
+          Cmavo "ki'o",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [18,20],
-        },
+        Cmavo "da",
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "voĭ",
-            span: [21,24],
-          },
+          noi: Cmavo "voĭ",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "festi",
-              span: [25,30],
-            },
+            Gismu "fésti",
             terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [31,33],
-              },
+              Cmavo "mi",
             ],
           },
         },

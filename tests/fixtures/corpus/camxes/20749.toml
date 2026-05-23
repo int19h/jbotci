@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .tal. pe'u do cíkre)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tal",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'u",
-    span: [10,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [18,23],
-  },
+  Cmavo "doĭ",
+  Cmevla "tal",
+  Cmavo "pe'u",
+  Cmavo "do",
+  Gismu "cíkre",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[10,14],"phonemes":"pe'u","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cikre","kind":"gismu"}}]"""
 
@@ -52,41 +32,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Cmevla {
-        Word {
-          kind: "cmevla",
-          phonemes: "tal",
-          span: [5,8],
-        },
+        Cmevla "tal",
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "pe'u",
-                span: [10,14],
-              },
+              Cmavo "pe'u",
             ],
-            argument: Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [15,17],
-            },
+            argument: Cmavo "do",
           },
         ],
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cikre",
-    span: [18,23],
-  },
+  Gismu "cíkre",
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[[{"Bare":{"Bare":{"span":[5,8],"phonemes":"tal","kind":"cmevla"}}}],{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[10,14],"phonemes":"pe'u","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"do","kind":"cmavo"}}}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"cikre","kind":"gismu"}}}}}}}}}}}]}]}"""

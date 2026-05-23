@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.ur. te smúni)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "ur",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [7,12],
-  },
+  Cmevla "ur",
+  Cmavo "te",
+  Gismu "smúni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ur","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"smuni","kind":"gismu"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ur","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "ur",
-      span: [0,2],
-    },
+    Cmevla "ur",
   ],
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "te",
-      span: [4,6],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [7,12],
-    },
+    se: Cmavo "te",
+    Gismu "smúni",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ur","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[4,6],"phonemes":"te","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"smuni","kind":"gismu"}}}}}}}}}}}}}]}]}'

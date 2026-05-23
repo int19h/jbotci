@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(se pílno cánlu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "canlu",
-    span: [9,14],
-  },
+  Cmavo "se",
+  Gismu "pílno",
+  Gismu "cánlu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"canlu","kind":"gismu"}}]'
 
@@ -40,21 +28,9 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Compound {
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [3,8],
-    },
+    se: Cmavo "se",
+    Gismu "pílno",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "canlu",
-    span: [9,14],
-  },
+  Gismu "cánlu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Se":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"pilno","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"canlu","kind":"gismu"}}}}]}}}}}}}}]}]}'

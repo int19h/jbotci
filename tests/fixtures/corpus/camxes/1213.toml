@@ -18,33 +18,13 @@ error = { position = 2, allowed-next = [] }
 brackets = "(me [la'o ly spaghetti ly] la'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
+  Cmavo "me",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [3,7],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [8,10],
-    },
-    quoted_text: [12,21],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "ly",
-      span: [23,25],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "ly",
+    quoted_text: Verbatim "spaghetti",
+    closing_delimiter: Cmavo "ly",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'o",
-    span: [28,32],
-  },
+  Cmavo "la'o",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,7],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"ly","kind":"cmavo"},"quoted_text":[12,21],"closing_delimiter":{"span":[23,25],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[28,32],"phonemes":"la'o","kind":"cmavo"}}]"""

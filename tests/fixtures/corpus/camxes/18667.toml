@@ -18,63 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi nélci la lójbo ke plíbu táxfu tu'i [zoĭ gy CafePress gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plibu",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "taxfu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'i",
-    span: [33,37],
-  },
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "la",
+  Gismu "lójbo",
+  Cmavo "ke",
+  Gismu "plíbu",
+  Gismu "táxfu",
+  Cmavo "tu'i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [38,41],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [42,44],
-    },
-    quoted_text: [46,55],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [56,58],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "CafePress",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"plibu","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"taxfu","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"tu'i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[38,41],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[42,44],"phonemes":"gy","kind":"cmavo"},"quoted_text":[46,55],"closing_delimiter":{"span":[56,58],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -83,77 +39,33 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "nelci",
-      span: [3,8],
-    },
+    Gismu "nélci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [12,17],
-          },
+          Gismu "lójbo",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [18,20],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "plibu",
-                span: [21,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "taxfu",
-                span: [27,32],
-              },
+              Gismu "plíbu",
+              Gismu "táxfu",
             },
           },
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: Word {
-            kind: "cmavo",
-            phonemes: "tu'i",
-            span: [33,37],
-          },
+          bai: Cmavo "tu'i",
         },
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [38,41],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [42,44],
-          },
-          quoted_text: [46,55],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [56,58],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "CafePress",
+          closing_delimiter: Cmavo "gy",
         },
       },
     ],

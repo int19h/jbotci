@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu la líkcku du la .ŭikis.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "likcku",
-    span: [6,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "ŭikis",
-    span: [19,24],
-  },
+  Cmavo "xu",
+  Cmavo "la",
+  Lujvo "líkcku",
+  Cmavo "du",
+  Cmavo "la",
+  Cmevla "ŭikis",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"likcku","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"ŭikis","kind":"cmevla"}}]'
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [3,5],
-        },
+        descriptor: Cmavo "la",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "likcku",
-            span: [6,12],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "du",
-            span: [13,15],
-          },
+          Lujvo "líkcku",
+          Cmavo "du",
         },
       },
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [16,18],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "ŭikis",
-            span: [19,24],
-          },
+          Cmevla "ŭikis",
         ],
       },
     ],

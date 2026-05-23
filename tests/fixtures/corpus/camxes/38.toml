@@ -18,65 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo nu cíksi lo [{ba'e zeĭ se} zeĭ cínmo] cu nándu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciksi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
+  Cmavo "lo",
+  Cmavo "nu",
+  Gismu "cíksi",
+  Cmavo "lo",
   ZeiLujvo {
     left: ZeiLujvo {
-      left: Word {
-        kind: "cmavo",
-        phonemes: "ba'e",
-        span: [15,19],
-      },
-      zei: Word {
-        kind: "cmavo",
-        phonemes: "zeĭ",
-        span: [20,23],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [24,26],
-      },
+      left: Cmavo "ba'e",
+      zei: Cmavo "zeĭ",
+      Cmavo "se",
     },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [27,30],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cinmo",
-      span: [31,36],
-    },
+    zei: Cmavo "zeĭ",
+    Gismu "cínmo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [40,45],
-  },
+  Cmavo "cu",
+  Gismu "nándu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"ciksi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"ZeiLujvo":{"left":{"ZeiLujvo":{"left":{"Bare":{"span":[15,19],"phonemes":"ba'e","kind":"cmavo"}},"zei":{"span":[20,23],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[24,26],"phonemes":"se","kind":"cmavo"}}},"zei":{"span":[27,30],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[31,36],"phonemes":"cinmo","kind":"gismu"}}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"nandu","kind":"gismu"}}]"""
 
@@ -85,58 +41,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
+      descriptor: Cmavo "lo",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [3,5],
-        },
+        nu: Cmavo "nu",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "ciksi",
-            span: [6,11],
-          },
+          Gismu "cíksi",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "lo",
-                span: [12,14],
-              },
+              descriptor: Cmavo "lo",
               relation: ZeiLujvo {
                 left: ZeiLujvo {
-                  left: Word {
-                    kind: "cmavo",
-                    phonemes: "ba'e",
-                    span: [15,19],
-                  },
-                  zei: Word {
-                    kind: "cmavo",
-                    phonemes: "zeĭ",
-                    span: [20,23],
-                  },
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [24,26],
-                  },
+                  left: Cmavo "ba'e",
+                  zei: Cmavo "zeĭ",
+                  Cmavo "se",
                 },
-                zei: Word {
-                  kind: "cmavo",
-                  phonemes: "zeĭ",
-                  span: [27,30],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cinmo",
-                  span: [31,36],
-                },
+                zei: Cmavo "zeĭ",
+                Gismu "cínmo",
               },
             },
           ],
@@ -144,15 +64,7 @@ Predicate {
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [40,45],
-  },
+  cu: Cmavo "cu",
+  Gismu "nándu",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"ciksi","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"ZeiLujvo":{"left":{"Bare":{"span":[15,19],"phonemes":"ba'e","kind":"cmavo"}},"zei":{"span":[20,23],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[24,26],"phonemes":"se","kind":"cmavo"}}},"zei":{"span":[27,30],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[31,36],"phonemes":"cinmo","kind":"gismu"}}}}}}}}]}}}}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"nandu","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -19,32 +19,12 @@ brackets = "([zo xrúkla] bánzu je xámgu)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xrukla",
-      span: [3,9],
-    },
+    zo: Cmavo "zo",
+    Lujvo "xrúkla",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "banzu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [19,24],
-  },
+  Gismu "bánzu",
+  Cmavo "je",
+  Gismu "xámgu",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"xrukla","kind":"lujvo"}}},{"Bare":{"span":[10,15],"phonemes":"banzu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"xamgu","kind":"gismu"}}]'
 
@@ -53,34 +33,14 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "xrukla",
-        span: [3,9],
-      },
+      zo: Cmavo "zo",
+      Lujvo "xrúkla",
     },
   ],
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "banzu",
-      span: [10,15],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [16,18],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [19,24],
-    },
+    leading_relation: Gismu "bánzu",
+    connective: Cmavo "je",
+    trailing_relation: Gismu "xámgu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,9],"phonemes":"xrukla","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"banzu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[16,18],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"xamgu","kind":"gismu"}}}}}}}}}}}}}]}]}'

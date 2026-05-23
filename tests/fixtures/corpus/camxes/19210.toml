@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.carbon. doĭ do)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "carbon",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [12,14],
-  },
+  Cmevla "carbon",
+  Cmavo "doĭ",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"carbon","kind":"cmevla"}},{"Bare":{"span":[8,11],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -41,26 +29,14 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"carbon","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "carbon",
-      span: [0,6],
-    },
+    Cmevla "carbon",
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [8,11],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [12,14],
-      },
+      argument: Cmavo "do",
     },
   ],
 }"""

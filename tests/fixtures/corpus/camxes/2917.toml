@@ -18,46 +18,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .zinx. ma poĭ bángu se jímpe do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "zinx",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [31,33],
-  },
+  Cmavo "doĭ",
+  Cmevla "zinx",
+  Cmavo "ma",
+  Cmavo "poĭ",
+  Gismu "bángu",
+  Cmavo "se",
+  Gismu "jímpe",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"zinx","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"jimpe","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -67,60 +35,28 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "zinx",
-        span: [4,8],
-      },
+      argument: Cmevla "zinx",
     },
   ],
   Term {
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [9,11],
-        },
+        base_argument: Cmavo "ma",
         relative_clauses: [
           Poi {
-            poi: Word {
-              kind: "cmavo",
-              phonemes: "poĭ",
-              span: [12,15],
-            },
+            poi: Cmavo "poĭ",
             Relation {
               Compound {
-                Word {
-                  kind: "gismu",
-                  phonemes: "bangu",
-                  span: [16,21],
-                },
+                Gismu "bángu",
                 Se {
-                  se: Word {
-                    kind: "cmavo",
-                    phonemes: "se",
-                    span: [22,24],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "jimpe",
-                    span: [25,30],
-                  },
+                  se: Cmavo "se",
+                  Gismu "jímpe",
                 },
               },
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [31,33],
-                },
+                Cmavo "do",
               ],
             },
           },

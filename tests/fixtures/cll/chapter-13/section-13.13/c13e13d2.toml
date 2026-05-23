@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi víska le blánu pe'a zdáni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [23,28],
-  },
+  Cmavo "mi",
+  Gismu "víska",
+  Cmavo "le",
+  Gismu "blánu",
+  Cmavo "pe'a",
+  Gismu "zdáni",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zdani","kind":"gismu"}}]"""
 
@@ -62,43 +38,19 @@ brackets = "(mi [víska {le ([blánu pe'a] zdáni)}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
           WithIndicator {
-            Word {
-              kind: "gismu",
-              phonemes: "blanu",
-              span: [12,17],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "pe'a",
-              span: [18,22],
-            },
+            Gismu "blánu",
+            indicator: Cmavo "pe'a",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [23,28],
-          },
+          Gismu "zdáni",
         },
       },
     ],

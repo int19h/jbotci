@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .tom. cu .áĭdji lo ka stáli)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "tom",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [7,9],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "aĭdji",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stali",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "tom",
+  Cmavo "cu",
+  Fuhivla "áĭdji",
+  Cmavo "lo",
+  Cmavo "ka",
+  Gismu "stáli",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"tom","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"aĭdji","kind":"fu'ivla"}},{"Bare":{"span":[16,18],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"stali","kind":"gismu"}}]"""
 
@@ -65,49 +37,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "tom",
-          span: [3,6],
-        },
+        Cmevla "tom",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [7,9],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "fu'ivla",
-      phonemes: "aĭdji",
-      span: [10,15],
-    },
+    Fuhivla "áĭdji",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [16,18],
-        },
+        descriptor: Cmavo "lo",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [19,21],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "stali",
-            span: [22,27],
-          },
+          nu: Cmavo "ka",
+          Gismu "stáli",
         },
       },
     ],

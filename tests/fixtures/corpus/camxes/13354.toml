@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(dy ka'e dáspo le skámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "dy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [18,23],
-  },
+  Cmavo "dy",
+  Cmavo "ka'e",
+  Gismu "dáspo",
+  Cmavo "le",
+  Gismu "skámi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"daspo","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"skami","kind":"gismu"}}]"""
 
@@ -52,39 +32,19 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "dy",
-          span: [0,2],
-        },
+        Cmavo "dy",
       ],
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [4,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "daspo",
-        span: [9,14],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "dáspo",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "skami",
-          span: [18,23],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "skámi",
       },
     ],
   },

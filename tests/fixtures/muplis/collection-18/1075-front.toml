@@ -21,31 +21,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pi gláre ca le dónri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "donri",
-    span: [15,20],
-  },
+  Cmavo "pi",
+  Gismu "gláre",
+  Cmavo "ca",
+  Cmavo "le",
+  Gismu "dónri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"donri","kind":"gismu"}}]'
 
@@ -56,35 +36,15 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pi",
-          span: [0,2],
-        },
+        Cmavo "pi",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "glare",
-        span: [3,8],
-      },
+      relation: Gismu "gláre",
     },
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [9,11],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "donri",
-          span: [15,20],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "dónri",
       },
     },
   ],

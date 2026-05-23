@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fi le lójbo témci sélsku císte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [14,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "temci",
-    span: [20,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsku",
-    span: [26,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciste",
-    span: [33,38],
-  },
+  Cmavo "fi",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "témci",
+  Lujvo "sélsku",
+  Gismu "císte",
 ]"""
 json = '[{"Bare":{"span":[8,10],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"temci","kind":"gismu"}},{"Bare":{"span":[26,32],"phonemes":"selsku","kind":"lujvo"}},{"Bare":{"span":[33,38],"phonemes":"ciste","kind":"gismu"}}]'
 
@@ -56,38 +32,14 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [8,10],
-      },
+      fa: Cmavo "fi",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [14,19],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "temci",
-            span: [20,25],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "selsku",
-            span: [26,32],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ciste",
-            span: [33,38],
-          },
+          Gismu "lójbo",
+          Gismu "témci",
+          Lujvo "sélsku",
+          Gismu "císte",
         },
       },
     },

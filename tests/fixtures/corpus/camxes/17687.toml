@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ze mu ce'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'i",
-    span: [9,13],
-  },
+  Cmavo "co'o",
+  Cmavo "ze",
+  Cmavo "mu",
+  Cmavo "ce'i",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ce'i","kind":"cmavo"}}]"""
 
@@ -47,30 +31,14 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
-        },
+        Cmavo "co'o",
       ],
     },
   ],
   Number {
-    Word {
-      kind: "cmavo",
-      phonemes: "ze",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mu",
-      span: [7,9],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ce'i",
-      span: [9,13],
-    },
+    Cmavo "ze",
+    Cmavo "mu",
+    Cmavo "ce'i",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}}}]}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"ze","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[7,9],"phonemes":"mu","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[9,13],"phonemes":"ce'i","kind":"cmavo"}}}]}}}}}}]}]}"""

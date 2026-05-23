@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na'e fárvi rínka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "farvi",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [11,16],
-  },
+  Cmavo "na'e",
+  Gismu "fárvi",
+  Gismu "rínka",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"farvi","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"rinka","kind":"gismu"}}]"""
 
@@ -40,21 +28,9 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Compound {
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "na'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "farvi",
-      span: [5,10],
-    },
+    nahe: Cmavo "na'e",
+    Gismu "fárvi",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "rinka",
-    span: [11,16],
-  },
+  Gismu "rínka",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"farvi","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"rinka","kind":"gismu"}}}}]}}}}}}}}]}]}"""

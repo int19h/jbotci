@@ -18,57 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ka ke'a pílno ce'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [14,18],
-  },
+  Cmavo "ka",
+  Cmavo "ke'a",
+  Gismu "pílno",
+  Cmavo "ce'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ke'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"ce'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [0,2],
-  },
+  nu: Cmavo "ka",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ke'a",
-        span: [3,7],
-      },
+      Cmavo "ke'a",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [8,13],
-      },
+      Gismu "pílno",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ce'u",
-          span: [14,18],
-        },
+        Cmavo "ce'u",
       ],
     },
   },

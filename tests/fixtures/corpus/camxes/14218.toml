@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do sánji py)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanji",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "py",
-    span: [12,14],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "sánji",
+  Cmavo "py",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"sanji","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"py","kind":"cmavo"}}]'
 
@@ -46,35 +30,19 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sanji",
-        span: [6,11],
-      },
+      Gismu "sánji",
       terms: [
         Letter {
           letter: [
-            Word {
-              kind: "cmavo",
-              phonemes: "py",
-              span: [12,14],
-            },
+            Cmavo "py",
           ],
         },
       ],

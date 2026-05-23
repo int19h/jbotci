@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ve cu'u la jbósnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu'u",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbosnu",
-    span: [10,16],
-  },
+  Cmavo "ve",
+  Cmavo "cu'u",
+  Cmavo "la",
+  Lujvo "jbósnu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"cu'u","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"jbosnu","kind":"lujvo"}}]"""
 
@@ -47,28 +31,12 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "ve",
-          span: [0,2],
-        },
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "cu'u",
-          span: [2,6],
-        },
+        se: Cmavo "ve",
+        bai: Cmavo "cu'u",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "jbosnu",
-          span: [10,16],
-        },
+        descriptor: Cmavo "la",
+        relation: Lujvo "jbósnu",
       },
     },
   ],

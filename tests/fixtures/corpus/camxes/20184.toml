@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i'a .i si'a mi na jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i'a",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [6,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [19,24],
-  },
+  Cmavo "i'a",
+  Cmavo "i",
+  Cmavo "si'a",
+  Cmavo "mi",
+  Cmavo "na",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"i'a","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"si'a","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -56,45 +32,21 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "i'a",
-        span: [1,4],
-      },
+      indicator: Cmavo "i'a",
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [6,7],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "si'a",
-        span: [8,12],
-      },
+      Cmavo "i",
+      indicator: Cmavo "si'a",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [13,15],
-        },
+        Cmavo "mi",
       ],
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [16,18],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jimpe",
-          span: [19,24],
-        },
+        na: Cmavo "na",
+        Gismu "jímpe",
       },
     },
   },

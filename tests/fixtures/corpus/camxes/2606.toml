@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i la .alis. ze'a pénsi pu le nu dánfu .i lu la jbofí'e cu go'i pe'i li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "alis",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'a",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "danfu",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [39,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [42,44],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbofi'e",
-    span: [45,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [53,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [56,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [61,65],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [66,70],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "alis",
+  Cmavo "ze'a",
+  Gismu "pénsi",
+  Cmavo "pu",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "dánfu",
+  Cmavo "i",
+  Cmavo "lu",
+  Cmavo "la",
+  Lujvo "jbofí'e",
+  Cmavo "cu",
+  Cmavo "go'i",
+  Cmavo "pe'i",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[11,15],"phonemes":"ze'a","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"danfu","kind":"gismu"}},{"Bare":{"span":[37,38],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[45,52],"phonemes":"jbofi'e","kind":"lujvo"}},{"Bare":{"span":[53,55],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[56,60],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[61,65],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[66,70],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -110,65 +42,29 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [3,5],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "alis",
-              span: [6,10],
-            },
+            Cmevla "alis",
           ],
         },
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ze'a",
-            span: [11,15],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "pensi",
-            span: [16,21],
-          },
+          tense_modal: Cmavo "ze'a",
+          Gismu "pénsi",
         },
         terms: [
           Tagged {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [22,24],
-            },
+            tense_modal: Cmavo "pu",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [25,27],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "nu",
-                  span: [28,30],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "danfu",
-                  span: [31,36],
-                },
+                nu: Cmavo "nu",
+                Gismu "dánfu",
               },
             },
           },
@@ -177,57 +73,25 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [37,38],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [39,41],
-          },
+          lu: Cmavo "lu",
           Predicate {
             leading_terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "la",
-                  span: [42,44],
-                },
-                relation: Word {
-                  kind: "lujvo",
-                  phonemes: "jbofi'e",
-                  span: [45,52],
-                },
+                descriptor: Cmavo "la",
+                relation: Lujvo "jbofí'e",
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [53,55],
-            },
+            cu: Cmavo "cu",
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "go'i",
-                span: [56,60],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "pe'i",
-                span: [61,65],
-              },
+              Cmavo "go'i",
+              indicator: Cmavo "pe'i",
             },
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [66,70],
-          },
+          lihu: Cmavo "li'u",
         },
       ],
     },

@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cítka nítcu .i ba zi xrúkla)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xrukla",
-    span: [20,26],
-  },
+  Gismu "cítka",
+  Gismu "nítcu",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "zi",
+  Lujvo "xrúkla",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"xrukla","kind":"lujvo"}}]'
 
@@ -55,41 +31,17 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"citka","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Paragraph {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "citka",
-      span: [0,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "nitcu",
-      span: [6,11],
-    },
+    Gismu "cítka",
+    Gismu "nítcu",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [13,14],
-    },
+    i: Cmavo "i",
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [15,17],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [17,19],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
-      Word {
-        kind: "lujvo",
-        phonemes: "xrukla",
-        span: [20,26],
-      },
+      Lujvo "xrúkla",
     },
   },
 }"""

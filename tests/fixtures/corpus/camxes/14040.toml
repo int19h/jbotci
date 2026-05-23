@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i mi zgána no da poĭ selspúda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgana",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selspuda",
-    span: [23,31],
-  },
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "zgána",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "poĭ",
+  Lujvo "selspúda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"zgana","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[23,31],"phonemes":"selspuda","kind":"lujvo"}}]"""
 
@@ -61,53 +33,25 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "ku'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "zgana",
-        span: [8,13],
-      },
+      Gismu "zgána",
       terms: [
         RelativeClause {
           base_argument: Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [14,16],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [16,18],
-            },
+            quantifier: Cmavo "no",
+            Cmavo "da",
           },
           relative_clauses: [
             Poi {
-              poi: Word {
-                kind: "cmavo",
-                phonemes: "poĭ",
-                span: [19,22],
-              },
-              Word {
-                kind: "lujvo",
-                phonemes: "selspuda",
-                span: [23,31],
-              },
+              poi: Cmavo "poĭ",
+              Lujvo "selspúda",
             },
           ],
         },

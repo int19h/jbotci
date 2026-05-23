@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a mi go'a ra'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "go'a",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra'o",
-    span: [13,17],
-  },
+  Cmavo "la'a",
+  Cmavo "mi",
+  Cmavo "go'a",
+  Cmavo "ra'o",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"go'a","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ra'o","kind":"cmavo"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [0,4],
-      },
+      indicator: Cmavo "la'a",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Goha {
-      goha: Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [8,12],
-      },
-      raho: Word {
-        kind: "cmavo",
-        phonemes: "ra'o",
-        span: [13,17],
-      },
+      goha: Cmavo "go'a",
+      raho: Cmavo "ra'o",
     },
   },
 }"""

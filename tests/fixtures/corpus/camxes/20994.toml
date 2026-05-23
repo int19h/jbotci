@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Wi
 brackets = "(.brb. ki'a saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "brb",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [8,11],
-  },
+  Cmevla "brb",
+  Cmavo "ki'a",
+  Cmavo "saĭ",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"brb","kind":"cmevla"}},{"Bare":{"span":[4,8],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"saĭ","kind":"cmavo"}}]"""
 
@@ -42,22 +30,10 @@ Text {
   leading_cmevla: [
     WithIndicator {
       WithIndicator {
-        Word {
-          kind: "cmevla",
-          phonemes: "brb",
-          span: [0,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ki'a",
-          span: [4,8],
-        },
+        Cmevla "brb",
+        indicator: Cmavo "ki'a",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "saĭ",
-        span: [8,11],
-      },
+      indicator: Cmavo "saĭ",
     },
   ],
 }"""

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ri poĭ tsáli jínme zgíke)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tsali",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinme",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zgike",
-    span: [19,24],
-  },
+  Cmavo "ri",
+  Cmavo "poĭ",
+  Gismu "tsáli",
+  Gismu "jínme",
+  Gismu "zgíke",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"jinme","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"zgike","kind":"gismu"}}]'
 
@@ -51,34 +31,14 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: Word {
-        kind: "cmavo",
-        phonemes: "ri",
-        span: [0,2],
-      },
+      base_argument: Cmavo "ri",
       relative_clauses: [
         Poi {
-          poi: Word {
-            kind: "cmavo",
-            phonemes: "poĭ",
-            span: [3,6],
-          },
+          poi: Cmavo "poĭ",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "tsali",
-              span: [7,12],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "jinme",
-              span: [13,18],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "zgike",
-              span: [19,24],
-            },
+            Gismu "tsáli",
+            Gismu "jínme",
+            Gismu "zgíke",
           },
         },
       ],

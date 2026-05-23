@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bu'a ceĭ mo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ceĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [9,11],
-  },
+  Cmavo "bu'a",
+  Cmavo "ceĭ",
+  Cmavo "mo",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"bu'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"ceĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mo","kind":"cmavo"}}]"""
 
@@ -40,25 +28,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"bu'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Cei {
   Goha {
-    goha: Word {
-      kind: "cmavo",
-      phonemes: "bu'a",
-      span: [0,4],
-    },
+    goha: Cmavo "bu'a",
   },
   assignments: [
     CeiAssignment {
-      cei: Word {
-        kind: "cmavo",
-        phonemes: "ceĭ",
-        span: [5,8],
-      },
+      cei: Cmavo "ceĭ",
       Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "mo",
-          span: [9,11],
-        },
+        goha: Cmavo "mo",
       },
     },
   ],

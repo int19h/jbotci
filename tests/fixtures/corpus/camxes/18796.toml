@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li xa pe'i ze)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze",
-    span: [11,13],
-  },
+  Cmavo "li",
+  Cmavo "xa",
+  Cmavo "pe'i",
+  Cmavo "ze",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ze","kind":"cmavo"}}]"""
 
@@ -46,29 +30,13 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       Number {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "xa",
-            span: [3,5],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "pe'i",
-            span: [6,10],
-          },
+          Cmavo "xa",
+          indicator: Cmavo "pe'i",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "ze",
-          span: [11,13],
-        },
+        Cmavo "ze",
       },
     },
   ],

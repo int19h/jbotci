@@ -19,41 +19,13 @@ brackets = "([lo'u co co zo le'u] co le'u)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [5,7],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [8,10],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [11,13],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [14,18],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "co",
+    Cmavo "co",
+    Cmavo "zo",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'u",
-    span: [22,26],
-  },
+  Cmavo "co",
+  Cmavo "le'u",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"co","kind":"cmavo"},{"span":[8,10],"phonemes":"co","kind":"cmavo"},{"span":[11,13],"phonemes":"zo","kind":"cmavo"}],"lehu":{"span":[14,18],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[19,21],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"le'u","kind":"cmavo"}}]"""

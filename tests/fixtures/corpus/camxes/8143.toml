@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le cábdeĭ mrílu cu cínri pe'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cabdeĭ",
-    span: [3,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mrilu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [25,29],
-  },
+  Cmavo "le",
+  Lujvo "cábdeĭ",
+  Gismu "mrílu",
+  Cmavo "cu",
+  Gismu "cínri",
+  Cmavo "pe'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"cabdeĭ","kind":"lujvo"}},{"Bare":{"span":[10,15],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[25,29],"phonemes":"pe'i","kind":"cmavo"}}]"""
 
@@ -56,41 +32,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "lujvo",
-          phonemes: "cabdeĭ",
-          span: [3,9],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mrilu",
-          span: [10,15],
-        },
+        Lujvo "cábdeĭ",
+        Gismu "mrílu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [16,18],
-  },
+  cu: Cmavo "cu",
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "cinri",
-      span: [19,24],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "pe'i",
-      span: [25,29],
-    },
+    Gismu "cínri",
+    indicator: Cmavo "pe'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,9],"phonemes":"cabdeĭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"mrilu","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"cinri","kind":"gismu"}}},"indicator":{"span":[25,29],"phonemes":"pe'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

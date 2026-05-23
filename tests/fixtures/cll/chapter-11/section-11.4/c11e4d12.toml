@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ka ce'u dúnda le xírma)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunda",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xirma",
-    span: [20,25],
-  },
+  Cmavo "le",
+  Cmavo "ka",
+  Cmavo "ce'u",
+  Gismu "dúnda",
+  Cmavo "le",
+  Gismu "xírma",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ce'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xirma","kind":"gismu"}}]"""
 
@@ -63,43 +39,19 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ka",
-          span: [3,5],
-        },
+        nu: Cmavo "ka",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ce'u",
-              span: [6,10],
-            },
+            Cmavo "ce'u",
           ],
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "dunda",
-              span: [11,16],
-            },
+            Gismu "dúnda",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [17,19],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "xirma",
-                  span: [20,25],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "xírma",
               },
             ],
           },

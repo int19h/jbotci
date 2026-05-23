@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro dráta bángu cu nándu zmádu vaŭ .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [18,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [30,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [35,38],
-  },
+  Cmavo "ro",
+  Gismu "dráta",
+  Gismu "bángu",
+  Cmavo "cu",
+  Gismu "nándu",
+  Gismu "zmádu",
+  Cmavo "vaŭ",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[30,33],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -67,55 +35,23 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [0,2],
-        },
+        Cmavo "ro",
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "drata",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "bangu",
-          span: [9,14],
-        },
+        Gismu "dráta",
+        Gismu "bángu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "nandu",
-        span: [18,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "zmadu",
-        span: [24,29],
-      },
+      Gismu "nándu",
+      Gismu "zmádu",
     },
     vau: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "vaŭ",
-        span: [30,33],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "u'i",
-        span: [35,38],
-      },
+      Cmavo "vaŭ",
+      indicator: Cmavo "u'i",
     },
   },
 }"""

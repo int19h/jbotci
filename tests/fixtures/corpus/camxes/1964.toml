@@ -18,64 +18,20 @@ error = { position = 1, allowed-next = [] }
 brackets = "(zaĭ xanlérfu by ly [.o bu] jy by [.a bu] ny)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zaĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xanlerfu",
-    span: [4,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ly",
-    span: [17,19],
-  },
+  Cmavo "zaĭ",
+  Lujvo "xanlérfu",
+  Cmavo "by",
+  Cmavo "ly",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "o",
-      span: [22,23],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [23,25],
-    },
+    Cmavo "o",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "jy",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [30,32],
-  },
+  Cmavo "jy",
+  Cmavo "by",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [35,36],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [36,38],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ny",
-    span: [39,41],
-  },
+  Cmavo "ny",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"zaĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"xanlerfu","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ly","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[22,23],"phonemes":"o","kind":"cmavo"}},"bu":{"span":[23,25],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"jy","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"by","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[35,36],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[36,38],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[39,41],"phonemes":"ny","kind":"cmavo"}}]'

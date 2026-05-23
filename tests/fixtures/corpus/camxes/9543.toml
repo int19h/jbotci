@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi me la .rlp. bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rlp",
-    span: [10,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [14,19],
-  },
+  Cmavo "ŭi",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "rlp",
+  Gismu "bróda",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[14,19],"phonemes":"broda","kind":"gismu"}}]'
 
@@ -51,40 +31,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   Compound {
     Me {
-      me: Word {
-        kind: "cmavo",
-        phonemes: "me",
-        span: [4,6],
-      },
+      me: Cmavo "me",
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [7,9],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "rlp",
-            span: [10,13],
-          },
+          Cmevla "rlp",
         ],
       },
     },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [14,19],
-    },
+    Gismu "bróda",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[4,6],"phonemes":"me","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[7,9],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[10,13],"phonemes":"rlp","kind":"cmevla"}}}]}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"broda","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}}}}]}'

@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma pe'a kévna by fy doĭ .clsn.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kevna",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "by",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fy",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [23,27],
-  },
+  Cmavo "ma",
+  Cmavo "pe'a",
+  Gismu "kévna",
+  Cmavo "by",
+  Cmavo "fy",
+  Cmavo "doĭ",
+  Cmevla "clsn",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kevna","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[19,22],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"clsn","kind":"cmevla"}}]"""
 
@@ -61,52 +33,24 @@ tree = """
 Predicate {
   leading_terms: [
     WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'a",
-        span: [3,7],
-      },
+      Cmavo "ma",
+      indicator: Cmavo "pe'a",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "kevna",
-      span: [8,13],
-    },
+    Gismu "kévna",
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "fy",
-            span: [16,18],
-          },
+          Cmavo "by",
+          Cmavo "fy",
         ],
         free_modifiers: [
           Vocative {
             vocative_markers: [
-              Word {
-                kind: "cmavo",
-                phonemes: "doĭ",
-                span: [19,22],
-              },
+              Cmavo "doĭ",
             ],
-            argument: Word {
-              kind: "cmevla",
-              phonemes: "clsn",
-              span: [23,27],
-            },
+            argument: Cmevla "clsn",
           },
         ],
       },

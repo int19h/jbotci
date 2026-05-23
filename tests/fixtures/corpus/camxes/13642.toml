@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pi ro le djédi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [8,13],
-  },
+  Cmavo "pi",
+  Cmavo "ro",
+  Cmavo "le",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"djedi","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [5,7],
-      },
+      descriptor: Cmavo "le",
       outer_quantifier: Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "pi",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [2,4],
-        },
+        Cmavo "pi",
+        Cmavo "ro",
       },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "djedi",
-        span: [8,13],
-      },
+      relation: Gismu "djédi",
     },
   ],
 }"""

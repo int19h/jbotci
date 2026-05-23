@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(skámi símxu gánsu dénpa)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simxu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gansu",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "símxu",
+  Gismu "gánsu",
+  Gismu "dénpa",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"simxu","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"gansu","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"denpa","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simxu",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gansu",
-    span: [12,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "denpa",
-    span: [18,23],
-  },
+  Gismu "skámi",
+  Gismu "símxu",
+  Gismu "gánsu",
+  Gismu "dénpa",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"simxu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"gansu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"denpa","kind":"gismu"}}}}]}}}}}}}}]}]}'

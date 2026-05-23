@@ -18,81 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(córtu va'o lo'e nu mi túnta)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'o",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tunta",
-    span: [21,26],
-  },
+  Gismu "córtu",
+  Cmavo "va'o",
+  Cmavo "lo'e",
+  Cmavo "nu",
+  Cmavo "mi",
+  Gismu "túnta",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tunta","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [0,5],
-  },
+  Gismu "córtu",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "va'o",
-          span: [6,10],
-        },
+        bai: Cmavo "va'o",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo'e",
-          span: [11,15],
-        },
+        descriptor: Cmavo "lo'e",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "nu",
-            span: [15,17],
-          },
+          nu: Cmavo "nu",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "mi",
-                span: [18,20],
-              },
+              Cmavo "mi",
             ],
-            Word {
-              kind: "gismu",
-              phonemes: "tunta",
-              span: [21,26],
-            },
+            Gismu "túnta",
           },
         },
       },

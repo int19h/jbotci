@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(da na xu .e naĭ xu de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [8,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [15,17],
-  },
+  Cmavo "da",
+  Cmavo "na",
+  Cmavo "xu",
+  Cmavo "e",
+  Cmavo "naĭ",
+  Cmavo "xu",
+  Cmavo "de",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"de","kind":"cmavo"}}]'
 
@@ -61,47 +33,19 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [0,2],
-      },
+      leading_argument: Cmavo "da",
       connective: Afterthought {
         na: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "na",
-            span: [3,5],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [5,7],
-          },
+          Cmavo "na",
+          indicator: Cmavo "xu",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "e",
-          span: [8,9],
-        },
+        Cmavo "e",
         nai: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "naĭ",
-            span: [9,12],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [12,14],
-          },
+          Cmavo "naĭ",
+          indicator: Cmavo "xu",
         },
       },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [15,17],
-      },
+      trailing_argument: Cmavo "de",
     },
   ],
 }"""

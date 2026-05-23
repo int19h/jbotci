@@ -18,133 +18,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i fríca fe le nu císka keĭ fe le nu bácru)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ciska",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [37,42],
-  },
+  Cmavo "i",
+  Gismu "fríca",
+  Cmavo "fe",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "císka",
+  Cmavo "keĭ",
+  Cmavo "fe",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "bácru",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"bacru","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "frica",
-      span: [3,8],
-    },
+    Gismu "fríca",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [9,11],
-        },
+        fa: Cmavo "fe",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [15,17],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "ciska",
-              span: [18,23],
-            },
-            kei: Word {
-              kind: "cmavo",
-              phonemes: "keĭ",
-              span: [24,27],
-            },
+            nu: Cmavo "nu",
+            Gismu "císka",
+            kei: Cmavo "keĭ",
           },
         },
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [28,30],
-        },
+        fa: Cmavo "fe",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [31,33],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [34,36],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "bacru",
-              span: [37,42],
-            },
+            nu: Cmavo "nu",
+            Gismu "bácru",
           },
         },
       },

@@ -18,39 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi [zo zo] .e [zo bródi])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
+  Cmavo "mi",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
+    zo: Cmavo "zo",
+    Cmavo "zo",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [10,11],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [45,47],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "brodi",
-      span: [48,53],
-    },
+    zo: Cmavo "zo",
+    Gismu "bródi",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,8],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[45,47],"phonemes":"zo","kind":"cmavo"},"word":{"span":[48,53],"phonemes":"brodi","kind":"gismu"}}}]'
@@ -59,40 +35,16 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZoQuote":{"zo"
 tree = """
 Term {
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
     Connected {
       leading_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [6,8],
-        },
+        zo: Cmavo "zo",
+        Cmavo "zo",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [10,11],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [45,47],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "brodi",
-          span: [48,53],
-        },
+        zo: Cmavo "zo",
+        Gismu "bródi",
       },
     },
   ],

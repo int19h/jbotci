@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa maĭ cpácu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "maĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [6,11],
-  },
+  Cmavo "pa",
+  Cmavo "maĭ",
+  Gismu "cpácu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cpacu","kind":"gismu"}}]'
 
@@ -42,23 +30,11 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [0,2],
-        },
+        Cmavo "pa",
       ],
-      mai: Word {
-        kind: "cmavo",
-        phonemes: "maĭ",
-        span: [2,5],
-      },
+      mai: Cmavo "maĭ",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [6,11],
-  },
+  Gismu "cpácu",
 }"""
 json = '{"leading_free_modifiers":[{"Mai":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}}],"mai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cpacu","kind":"gismu"}}}}}}}}}}}]}]}'

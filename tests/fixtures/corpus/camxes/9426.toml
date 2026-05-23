@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ti'e ky pílno loĭ rópno bángu .e le fráso po'o naĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ropno",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [32,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fraso",
-    span: [37,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'o",
-    span: [43,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [47,50],
-  },
+  Cmavo "ti'e",
+  Cmavo "ky",
+  Gismu "pílno",
+  Cmavo "loĭ",
+  Gismu "rópno",
+  Gismu "bángu",
+  Cmavo "e",
+  Cmavo "le",
+  Gismu "fráso",
+  Cmavo "po'o",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ti'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ky","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"ropno","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"bangu","kind":"gismu"}},{"Bare":{"span":[32,33],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"fraso","kind":"gismu"}},{"Bare":{"span":[43,47],"phonemes":"po'o","kind":"cmavo"}},{"Bare":{"span":[47,50],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
@@ -81,79 +37,35 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ti'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "ti'e",
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ky",
-            span: [5,7],
-          },
+          Cmavo "ky",
         ],
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "pilno",
-        span: [9,14],
-      },
+      Gismu "pílno",
       terms: [
         Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "loĭ",
-              span: [15,18],
-            },
+            descriptor: Cmavo "loĭ",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "ropno",
-                span: [19,24],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "bangu",
-                span: [25,30],
-              },
+              Gismu "rópno",
+              Gismu "bángu",
             },
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [32,33],
-          },
+          connective: Cmavo "e",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [34,36],
-            },
+            descriptor: Cmavo "le",
             relation: WithIndicator {
-              Word {
-                kind: "gismu",
-                phonemes: "fraso",
-                span: [37,42],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "po'o",
-                span: [43,47],
-              },
-              nai: Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [47,50],
-              },
+              Gismu "fráso",
+              indicator: Cmavo "po'o",
+              nai: Cmavo "naĭ",
             },
           },
         },

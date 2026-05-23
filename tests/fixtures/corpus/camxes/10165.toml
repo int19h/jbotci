@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu .eĭ cpácu je cítka lo cidjrpítsa .u'i)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "eĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [22,24],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [25,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u'i",
-    span: [37,40],
-  },
+  Cmavo "xu",
+  Cmavo "eĭ",
+  Gismu "cpácu",
+  Cmavo "je",
+  Gismu "cítka",
+  Cmavo "lo",
+  Fuhivla "cidjrpítsa",
+  Cmavo "u'i",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[25,35],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[37,40],"phonemes":"u'i","kind":"cmavo"}}]"""
 
@@ -67,55 +35,23 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "xu",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "eĭ",
-          span: [4,6],
-        },
+        Cmavo "xu",
+        indicator: Cmavo "eĭ",
       },
     },
   ],
   Relation {
     Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "cpacu",
-        span: [7,12],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [13,15],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [16,21],
-      },
+      leading_relation: Gismu "cpácu",
+      connective: Cmavo "je",
+      trailing_relation: Gismu "cítka",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [22,24],
-        },
+        descriptor: Cmavo "lo",
         relation: WithIndicator {
-          Word {
-            kind: "fu'ivla",
-            phonemes: "cidjrpitsa",
-            span: [25,35],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "u'i",
-            span: [37,40],
-          },
+          Fuhivla "cidjrpítsa",
+          indicator: Cmavo "u'i",
         },
       },
     ],

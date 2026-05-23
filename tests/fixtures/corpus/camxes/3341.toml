@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zmíku se vífnygaŭ ca ro djédi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zmiku",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "vifnygaŭ",
-    span: [9,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djedi",
-    span: [24,29],
-  },
+  Gismu "zmíku",
+  Cmavo "se",
+  Lujvo "vífnygaŭ",
+  Cmavo "ca",
+  Cmavo "ro",
+  Gismu "djédi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zmiku","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"vifnygaŭ","kind":"lujvo"}},{"Bare":{"span":[18,20],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"djedi","kind":"gismu"}}]'
 
@@ -55,44 +31,20 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"zmiku","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "zmiku",
-      span: [0,5],
-    },
+    Gismu "zmíku",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [6,8],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "vifnygaŭ",
-        span: [9,17],
-      },
+      se: Cmavo "se",
+      Lujvo "vífnygaŭ",
     },
   },
   terms: [
     Tagged {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [18,20],
-      },
+      tense_modal: Cmavo "ca",
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [21,23],
-          },
+          Cmavo "ro",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "djedi",
-          span: [24,29],
-        },
+        relation: Gismu "djédi",
       },
     },
   ],

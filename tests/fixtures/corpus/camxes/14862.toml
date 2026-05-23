@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pu távla tu'a le lójbo gírzu játna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "tu'a",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "girzu",
-    span: [23,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jatna",
-    span: [29,34],
-  },
+  Cmavo "pu",
+  Gismu "távla",
+  Cmavo "tu'a",
+  Cmavo "le",
+  Gismu "lójbo",
+  Gismu "gírzu",
+  Gismu "játna",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"jatna","kind":"gismu"}}]"""
 
@@ -60,46 +32,18 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Relation {
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "pu",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "tavla",
-      span: [3,8],
-    },
+    tense_modal: Cmavo "pu",
+    Gismu "távla",
   },
   terms: [
     Lahe {
-      lahe: Word {
-        kind: "cmavo",
-        phonemes: "tu'a",
-        span: [9,13],
-      },
+      lahe: Cmavo "tu'a",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [14,16],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "lojbo",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "girzu",
-            span: [23,28],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jatna",
-            span: [29,34],
-          },
+          Gismu "lójbo",
+          Gismu "gírzu",
+          Gismu "játna",
         },
       },
     },

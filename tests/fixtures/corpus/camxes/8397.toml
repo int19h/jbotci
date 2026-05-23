@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da cízra lójbo .i ku'i da lójbo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [22,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [25,30],
-  },
+  Cmavo "da",
+  Gismu "cízra",
+  Gismu "lójbo",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "da",
+  Gismu "lójbo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"lojbo","kind":"gismu"}}]"""
 
@@ -61,51 +33,23 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [0,2],
-      },
+      Cmavo "da",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cizra",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [9,14],
-      },
+      Gismu "cízra",
+      Gismu "lójbo",
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [15,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [17,21],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [22,24],
-        },
+        Cmavo "da",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [25,30],
-      },
+      Gismu "lójbo",
     },
   },
 }"""

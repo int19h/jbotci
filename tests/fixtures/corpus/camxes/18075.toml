@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le pa moĭ [zo gi] ki'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [5,8],
-  },
+  Cmavo "le",
+  Cmavo "pa",
+  Cmavo "moĭ",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [9,11],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [12,14],
-    },
+    zo: Cmavo "zo",
+    Cmavo "gi",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [15,19],
-  },
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"moĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}}},{"Bare":{"span":[15,19],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
@@ -58,44 +34,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [3,5],
-          },
+          Cmavo "pa",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "moĭ",
-          span: [5,8],
-        },
+        moi: Cmavo "moĭ",
       },
     },
     WithIndicator {
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [9,11],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "gi",
-          span: [12,14],
-        },
+        zo: Cmavo "zo",
+        Cmavo "gi",
       },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ki'a",
-        span: [15,19],
-      },
+      indicator: Cmavo "ki'a",
     },
   ],
 }"""

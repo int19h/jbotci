@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.oĭ .oĭ mi mútce xágji bínxo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [10,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xagji",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [22,27],
-  },
+  Cmavo "oĭ",
+  Cmavo "oĭ",
+  Cmavo "mi",
+  Gismu "mútce",
+  Gismu "xágji",
+  Gismu "bínxo",
 ]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"xagji","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"binxo","kind":"gismu"}}]'
 
@@ -57,43 +33,19 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [1,3],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [4,6],
-        },
+        Cmavo "oĭ",
+        indicator: Cmavo "oĭ",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [7,9],
-      },
+      Cmavo "mi",
     ],
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "mutce",
-        span: [10,15],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "xagji",
-        span: [16,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "binxo",
-        span: [22,27],
-      },
+      Gismu "mútce",
+      Gismu "xágji",
+      Gismu "bínxo",
     },
   },
 }"""

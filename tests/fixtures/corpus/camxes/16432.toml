@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ xy xu lo bánxa ca'o jíbri do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "banxa",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [20,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [25,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [31,33],
-  },
+  Cmavo "doĭ",
+  Cmavo "xy",
+  Cmavo "xu",
+  Cmavo "lo",
+  Gismu "bánxa",
+  Cmavo "ca'o",
+  Gismu "jíbri",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"banxa","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"jibri","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -67,25 +35,13 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Letter {
         letter: [
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "xy",
-              span: [4,6],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "xu",
-              span: [8,10],
-            },
+            Cmavo "xy",
+            indicator: Cmavo "xu",
           },
         ],
       },
@@ -94,37 +50,17 @@ Text {
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [11,13],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "banxa",
-          span: [14,19],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "bánxa",
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [20,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jibri",
-          span: [25,30],
-        },
+        tense_modal: Cmavo "ca'o",
+        Gismu "jíbri",
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [31,33],
-        },
+        Cmavo "do",
       ],
     },
   },

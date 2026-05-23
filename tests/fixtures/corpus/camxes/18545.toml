@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo dátni ka'e djíca le ka zífre du'o la .rodjer. .klark.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djica",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zifre",
-    span: [26,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'o",
-    span: [32,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [37,39],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "rodjer",
-    span: [40,46],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "klark",
-    span: [47,52],
-  },
+  Cmavo "lo",
+  Gismu "dátni",
+  Cmavo "ka'e",
+  Gismu "djíca",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "zífre",
+  Cmavo "du'o",
+  Cmavo "la",
+  Cmevla "rodjer",
+  Cmevla "klark",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"zifre","kind":"gismu"}},{"Bare":{"span":[32,36],"phonemes":"du'o","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,46],"phonemes":"rodjer","kind":"cmevla"}},{"Bare":{"span":[47,52],"phonemes":"klark","kind":"cmevla"}}]"""
 
@@ -81,76 +37,32 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "lo",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "datni",
-        span: [3,8],
-      },
+      descriptor: Cmavo "lo",
+      relation: Gismu "dátni",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ka'e",
-        span: [9,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "djica",
-        span: [14,19],
-      },
+      tense_modal: Cmavo "ka'e",
+      Gismu "djíca",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [23,25],
-          },
+          nu: Cmavo "ka",
           Relation {
-            Word {
-              kind: "gismu",
-              phonemes: "zifre",
-              span: [26,31],
-            },
+            Gismu "zífre",
             terms: [
               Tagged {
                 tense_modal: Simple {
-                  bai: Word {
-                    kind: "cmavo",
-                    phonemes: "du'o",
-                    span: [32,36],
-                  },
+                  bai: Cmavo "du'o",
                 },
                 Name {
-                  la: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [37,39],
-                  },
+                  la: Cmavo "la",
                   names: [
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "rodjer",
-                      span: [40,46],
-                    },
-                    Word {
-                      kind: "cmevla",
-                      phonemes: "klark",
-                      span: [47,52],
-                    },
+                    Cmevla "rodjer",
+                    Cmevla "klark",
                   ],
                 },
               },

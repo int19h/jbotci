@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(poĭ ca spéni mílxe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [7,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "milxe",
-    span: [13,18],
-  },
+  Cmavo "poĭ",
+  Cmavo "ca",
+  Gismu "spéni",
+  Gismu "mílxe",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"milxe","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [0,3],
-  },
+  poi: Cmavo "poĭ",
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca",
-      span: [4,6],
-    },
+    tense_modal: Cmavo "ca",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "speni",
-        span: [7,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "milxe",
-        span: [13,18],
-      },
+      Gismu "spéni",
+      Gismu "mílxe",
     },
   },
 }"""

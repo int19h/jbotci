@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu símsa la pe'a xúnre mápku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mapku",
-    span: [23,28],
-  },
+  Cmavo "xu",
+  Gismu "símsa",
+  Cmavo "la",
+  Cmavo "pe'a",
+  Gismu "xúnre",
+  Gismu "mápku",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"mapku","kind":"gismu"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "simsa",
-      span: [3,8],
-    },
+    Gismu "símsa",
     terms: [
       Descriptor {
         descriptor: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [9,11],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "pe'a",
-            span: [12,16],
-          },
+          Cmavo "la",
+          indicator: Cmavo "pe'a",
         },
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "xunre",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mapku",
-            span: [23,28],
-          },
+          Gismu "xúnre",
+          Gismu "mápku",
         },
       },
     ],

@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(se pínxe da .u do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pinxe",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "u",
-    span: [16,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
+  Cmavo "se",
+  Gismu "pínxe",
+  Cmavo "da",
+  Cmavo "u",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[16,17],"phonemes":"u","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -50,34 +30,14 @@ json = '[{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Relation {
   Se {
-    se: Word {
-      kind: "cmavo",
-      phonemes: "se",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pinxe",
-      span: [6,11],
-    },
+    se: Cmavo "se",
+    Gismu "pínxe",
   },
   terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [12,14],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "u",
-        span: [16,17],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [18,20],
-      },
+      leading_argument: Cmavo "da",
+      connective: Cmavo "u",
+      trailing_argument: Cmavo "do",
     },
   ],
 }"""

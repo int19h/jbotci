@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa no no .a le zmádu ni mi nalcí'o .i ku'i mi to'e ka'e djúno ri'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a",
-    span: [11,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [16,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [22,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [25,27],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalci'o",
-    span: [28,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [37,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [38,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [43,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [46,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka'e",
-    span: [50,54],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [55,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri'a",
-    span: [61,65],
-  },
+  Cmavo "li",
+  Cmavo "pa",
+  Cmavo "no",
+  Cmavo "no",
+  Cmavo "a",
+  Cmavo "le",
+  Gismu "zmádu",
+  Cmavo "ni",
+  Cmavo "mi",
+  Lujvo "nalcí'o",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Cmavo "to'e",
+  Cmavo "ka'e",
+  Gismu "djúno",
+  Cmavo "ri'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[28,35],"phonemes":"nalci'o","kind":"lujvo"}},{"Bare":{"span":[37,38],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[46,50],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[50,54],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[55,60],"phonemes":"djuno","kind":"gismu"}},{"Bare":{"span":[61,65],"phonemes":"ri'a","kind":"cmavo"}}]"""
 
@@ -113,65 +45,25 @@ Paragraph {
     terms: [
       Connected {
         leading_argument: MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [0,2],
-          },
+          li: Cmavo "li",
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [3,5],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [5,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [7,9],
-            },
+            Cmavo "pa",
+            Cmavo "no",
+            Cmavo "no",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "a",
-          span: [11,12],
-        },
+        connective: Cmavo "a",
         trailing_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [13,15],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "zmadu",
-              span: [16,21],
-            },
+            Gismu "zmádu",
             Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "ni",
-                span: [22,24],
-              },
+              nu: Cmavo "ni",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "mi",
-                    span: [25,27],
-                  },
+                  Cmavo "mi",
                 ],
-                Word {
-                  kind: "lujvo",
-                  phonemes: "nalci'o",
-                  span: [28,35],
-                },
+                Lujvo "nalcí'o",
               },
             },
           },
@@ -181,53 +73,25 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [37,38],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [38,42],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "mi",
-          span: [43,45],
-        },
+        Cmavo "mi",
       ],
       Relation {
         TenseModal {
           tense_modal: Composite {
-            Word {
-              kind: "cmavo",
-              phonemes: "to'e",
-              span: [46,50],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ka'e",
-              span: [50,54],
-            },
+            Cmavo "to'e",
+            Cmavo "ka'e",
           },
-          Word {
-            kind: "gismu",
-            phonemes: "djuno",
-            span: [55,60],
-          },
+          Gismu "djúno",
         },
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: Word {
-                kind: "cmavo",
-                phonemes: "ri'a",
-                span: [61,65],
-              },
+              bai: Cmavo "ri'a",
             },
             Zohe {},
           },

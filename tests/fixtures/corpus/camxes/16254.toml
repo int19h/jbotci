@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i xu le ca trukámni nuncásnu cu ba mo'u jdíce su'o da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "trukamni",
-    span: [12,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncasnu",
-    span: [21,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [33,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo'u",
-    span: [35,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [46,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [50,52],
-  },
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "le",
+  Cmavo "ca",
+  Lujvo "trukámni",
+  Lujvo "nuncásnu",
+  Cmavo "cu",
+  Cmavo "ba",
+  Cmavo "mo'u",
+  Gismu "jdíce",
+  Cmavo "su'o",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[12,20],"phonemes":"trukamni","kind":"lujvo"}},{"Bare":{"span":[21,29],"phonemes":"nuncasnu","kind":"lujvo"}},{"Bare":{"span":[30,32],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[46,50],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -85,83 +37,35 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [3,5],
-    },
+    Cmavo "i",
+    indicator: Cmavo "xu",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [6,8],
-        },
+        descriptor: Cmavo "le",
         relation: TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [9,11],
-          },
+          tense_modal: Cmavo "ca",
           Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "trukamni",
-              span: [12,20],
-            },
-            Word {
-              kind: "lujvo",
-              phonemes: "nuncasnu",
-              span: [21,29],
-            },
+            Lujvo "trukámni",
+            Lujvo "nuncásnu",
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [30,32],
-    },
+    cu: Cmavo "cu",
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "ba",
-            span: [33,35],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mo'u",
-            span: [35,39],
-          },
+          Cmavo "ba",
+          Cmavo "mo'u",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "jdice",
-          span: [40,45],
-        },
+        Gismu "jdíce",
       },
       terms: [
         Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "su'o",
-            span: [46,50],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "da",
-            span: [50,52],
-          },
+          quantifier: Cmavo "su'o",
+          Cmavo "da",
         },
       ],
     },

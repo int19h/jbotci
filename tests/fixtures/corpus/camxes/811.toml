@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .djeĭmyz. ce'e la .meris. pe'e .e la .djordj. ce'e la .martas. prámi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djeĭmyz",
-    span: [3,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "meris",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'e",
-    span: [28,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [34,35],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [36,38],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djordj",
-    span: [39,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ce'e",
-    span: [47,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [52,54],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "martas",
-    span: [55,61],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [63,68],
-  },
+  Cmavo "la",
+  Cmevla "djeĭmyz",
+  Cmavo "ce'e",
+  Cmavo "la",
+  Cmevla "meris",
+  Cmavo "pe'e",
+  Cmavo "e",
+  Cmavo "la",
+  Cmevla "djordj",
+  Cmavo "ce'e",
+  Cmavo "la",
+  Cmevla "martas",
+  Gismu "prámi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,10],"phonemes":"djeĭmyz","kind":"cmevla"}},{"Bare":{"span":[12,16],"phonemes":"ce'e","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"meris","kind":"cmevla"}},{"Bare":{"span":[28,32],"phonemes":"pe'e","kind":"cmavo"}},{"Bare":{"span":[34,35],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,45],"phonemes":"djordj","kind":"cmevla"}},{"Bare":{"span":[47,51],"phonemes":"ce'e","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[55,61],"phonemes":"martas","kind":"cmevla"}},{"Bare":{"span":[63,68],"phonemes":"prami","kind":"gismu"}}]"""
 
@@ -94,93 +42,41 @@ Predicate {
       leading_terms: [
         Connected {
           leading_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [0,2],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "djeĭmyz",
-                span: [3,10],
-              },
+              Cmevla "djeĭmyz",
             ],
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "ce'e",
-            span: [12,16],
-          },
+          connective: Cmavo "ce'e",
           trailing_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [17,19],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "meris",
-                span: [20,25],
-              },
+              Cmevla "meris",
             ],
           },
         },
       ],
-      pehe: Word {
-        kind: "cmavo",
-        phonemes: "pe'e",
-        span: [28,32],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [34,35],
-      },
+      pehe: Cmavo "pe'e",
+      connective: Cmavo "e",
       trailing_terms: [
         Connected {
           leading_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [36,38],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "djordj",
-                span: [39,45],
-              },
+              Cmevla "djordj",
             ],
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "ce'e",
-            span: [47,51],
-          },
+          connective: Cmavo "ce'e",
           trailing_argument: Name {
-            la: Word {
-              kind: "cmavo",
-              phonemes: "la",
-              span: [52,54],
-            },
+            la: Cmavo "la",
             names: [
-              Word {
-                kind: "cmevla",
-                phonemes: "martas",
-                span: [55,61],
-              },
+              Cmevla "martas",
             ],
           },
         },
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [63,68],
-  },
+  Gismu "prámi",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Pehe":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,10],"phonemes":"djeĭmyz","kind":"cmevla"}}}]}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[12,16],"phonemes":"ce'e","kind":"cmavo"}}}]}},"trailing_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[17,19],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[20,25],"phonemes":"meris","kind":"cmevla"}}}]}}}}}],"pehe":{"Bare":{"Bare":{"span":[28,32],"phonemes":"pe'e","kind":"cmavo"}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[34,35],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_terms":[{"Argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[39,45],"phonemes":"djordj","kind":"cmevla"}}}]}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[47,51],"phonemes":"ce'e","kind":"cmavo"}}}]}},"trailing_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[52,54],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[55,61],"phonemes":"martas","kind":"cmevla"}}}]}}}}}]}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[63,68],"phonemes":"prami","kind":"gismu"}}}}}}}}}}}]}]}"""

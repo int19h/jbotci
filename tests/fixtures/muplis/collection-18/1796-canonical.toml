@@ -22,33 +22,13 @@ brackets = "([zoĭ zoĭ lu ci fe ra zoĭ] cméne ra)"
 tree = """
 [
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [0,3],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [4,7],
-    },
-    quoted_text: [7,19],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [20,23],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "zoĭ",
+    quoted_text: Verbatim "lu ci fe ra",
+    closing_delimiter: Cmavo "zoĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [30,32],
-  },
+  Gismu "cméne",
+  Cmavo "ra",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,7],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[7,19],"closing_delimiter":{"span":[20,23],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[24,29],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -58,36 +38,16 @@ tree = """
 Predicate {
   leading_terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [0,3],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [4,7],
-      },
-      quoted_text: [7,19],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [20,23],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "zoĭ",
+      quoted_text: Verbatim "lu ci fe ra",
+      closing_delimiter: Cmavo "zoĭ",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cmene",
-      span: [24,29],
-    },
+    Gismu "cméne",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ra",
-        span: [30,32],
-      },
+      Cmavo "ra",
     ],
   },
 }"""

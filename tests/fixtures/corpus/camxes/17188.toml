@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ za'u re'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re'u",
-    span: [7,11],
-  },
+  Cmavo "oĭ",
+  Cmavo "za'u",
+  Cmavo "re'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"re'u","kind":"cmavo"}}]"""
 
@@ -41,27 +29,15 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [0,2],
-      },
+      indicator: Cmavo "oĭ",
     },
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [3,7],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re'u",
-            span: [7,11],
-          },
+          Cmavo "za'u",
+          Cmavo "re'u",
         },
         Zohe {},
       },

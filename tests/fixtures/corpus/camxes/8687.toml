@@ -19,56 +19,16 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(re ko sídju le xasymábru .i ko cpácu ro ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [2,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xasymabru",
-    span: [20,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [31,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cpacu",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [45,47],
-  },
+  Cmavo "re",
+  Cmavo "ko",
+  Gismu "sídju",
+  Cmavo "le",
+  Lujvo "xasymábru",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "cpácu",
+  Cmavo "ro",
+  Cmavo "ri",
 ]"""
 json = '[{"Bare":{"span":[2,3],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,29],"phonemes":"xasymabru","kind":"lujvo"}},{"Bare":{"span":[31,32],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"ri","kind":"cmavo"}}]'
 
@@ -78,72 +38,32 @@ Paragraph {
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [2,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [8,10],
-        },
+        quantifier: Cmavo "re",
+        Cmavo "ko",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [11,16],
-      },
+      Gismu "sídju",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [17,19],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "xasymabru",
-            span: [20,29],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "xasymábru",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [31,32],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [33,35],
-        },
+        Cmavo "ko",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "cpacu",
-          span: [36,41],
-        },
+        Gismu "cpácu",
         terms: [
           Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "ro",
-              span: [42,44],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [45,47],
-            },
+            quantifier: Cmavo "ro",
+            Cmavo "ri",
           },
         ],
       },

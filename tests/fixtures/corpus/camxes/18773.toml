@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ry lákne sípna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ry",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lakne",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [9,14],
-  },
+  Cmavo "ry",
+  Gismu "lákne",
+  Gismu "sípna",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lakne","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"sipna","kind":"gismu"}}]'
 
@@ -42,25 +30,13 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ry",
-          span: [0,2],
-        },
+        Cmavo "ry",
       ],
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "lakne",
-      span: [3,8],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sipna",
-      span: [9,14],
-    },
+    Gismu "lákne",
+    Gismu "sípna",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ry","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"lakne","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"sipna","kind":"gismu"}}}}]}}}}}}}}]}]}'

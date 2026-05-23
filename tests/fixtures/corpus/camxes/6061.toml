@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi tolnélci lo cítka pe ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "tolnelci",
-    span: [3,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [24,26],
-  },
+  Cmavo "mi",
+  Lujvo "tolnélci",
+  Cmavo "lo",
+  Gismu "cítka",
+  Cmavo "pe",
+  Cmavo "ri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"tolnelci","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"ri","kind":"cmavo"}}]'
 
@@ -55,42 +31,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "lujvo",
-      phonemes: "tolnelci",
-      span: [3,11],
-    },
+    Lujvo "tolnélci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [12,14],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "citka",
-          span: [15,20],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "cítka",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "pe",
-              span: [21,23],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "ri",
-              span: [24,26],
-            },
+            goi: Cmavo "pe",
+            Cmavo "ri",
           },
         ],
       },

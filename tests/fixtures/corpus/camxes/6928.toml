@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'o li'a slámi fésti ju nánba)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'a",
-    span: [4,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "slami",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "festi",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanba",
-    span: [24,29],
-  },
+  Cmavo "zo'o",
+  Cmavo "li'a",
+  Gismu "slámi",
+  Gismu "fésti",
+  Cmavo "ju",
+  Gismu "nánba",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"li'a","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"slami","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"festi","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"nanba","kind":"gismu"}}]"""
 
@@ -57,41 +33,17 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "li'a",
-          span: [4,8],
-        },
+        Cmavo "zo'o",
+        indicator: Cmavo "li'a",
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "slami",
-      span: [9,14],
-    },
+    Gismu "slámi",
     Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "festi",
-        span: [15,20],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "ju",
-        span: [21,23],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "nanba",
-        span: [24,29],
-      },
+      leading_unit: Gismu "fésti",
+      connective: Cmavo "ju",
+      trailing_unit: Gismu "nánba",
     },
   },
 }"""

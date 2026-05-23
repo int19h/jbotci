@@ -19,43 +19,15 @@ brackets = "([zo pa] na sútra zmádu [zo pa])"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pa",
-      span: [3,4],
-    },
+    zo: Cmavo "zo",
+    Cmavo "pa",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zmadu",
-    span: [14,19],
-  },
+  Cmavo "na",
+  Gismu "sútra",
+  Gismu "zmádu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [20,22],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "pa",
-      span: [23,25],
-    },
+    zo: Cmavo "zo",
+    Cmavo "pa",
   },
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,4],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"zmadu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[20,22],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,25],"phonemes":"pa","kind":"cmavo"}}}]'
@@ -65,50 +37,22 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "pa",
-        span: [3,4],
-      },
+      zo: Cmavo "zo",
+      Cmavo "pa",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
+      na: Cmavo "na",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zmadu",
-          span: [14,19],
-        },
+        Gismu "sútra",
+        Gismu "zmádu",
       },
     },
     terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [20,22],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [23,25],
-        },
+        zo: Cmavo "zo",
+        Cmavo "pa",
       },
     ],
   },

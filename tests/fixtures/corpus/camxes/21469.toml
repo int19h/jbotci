@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(re moĭ nuncípra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [2,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncipra",
-    span: [6,14],
-  },
+  Cmavo "re",
+  Cmavo "moĭ",
+  Lujvo "nuncípra",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"nuncipra","kind":"lujvo"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Compound {
   Moi {
     number: [
-      Word {
-        kind: "cmavo",
-        phonemes: "re",
-        span: [0,2],
-      },
+      Cmavo "re",
     ],
-    moi: Word {
-      kind: "cmavo",
-      phonemes: "moĭ",
-      span: [2,5],
-    },
+    moi: Cmavo "moĭ",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncipra",
-    span: [6,14],
-  },
+  Lujvo "nuncípra",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[2,5],"phonemes":"moĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[6,14],"phonemes":"nuncipra","kind":"lujvo"}}}}]}}}}}}}}]}]}'

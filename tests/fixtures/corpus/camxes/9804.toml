@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(smúni .i ju cméne)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [11,16],
-  },
+  Gismu "smúni",
+  Cmavo "i",
+  Cmavo "ju",
+  Gismu "cméne",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cmene","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [0,5],
-  },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "ju",
-    span: [8,10],
-  },
-  trailing_statement: Word {
-    kind: "gismu",
-    phonemes: "cmene",
-    span: [11,16],
-  },
+  leading_statement: Gismu "smúni",
+  i: Cmavo "i",
+  connective: Cmavo "ju",
+  trailing_statement: Gismu "cméne",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"smuni","kind":"gismu"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ju","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"cmene","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi nalylífri nélci xy)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nalylifri",
-    span: [3,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [19,21],
-  },
+  Cmavo "mi",
+  Lujvo "nalylífri",
+  Gismu "nélci",
+  Cmavo "xy",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"nalylifri","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"xy","kind":"cmavo"}}]'
 
@@ -45,33 +29,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "lujvo",
-        phonemes: "nalylifri",
-        span: [3,12],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [13,18],
-      },
+      Lujvo "nalylífri",
+      Gismu "nélci",
     },
     terms: [
       Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "xy",
-            span: [19,21],
-          },
+          Cmavo "xy",
         ],
       },
     ],

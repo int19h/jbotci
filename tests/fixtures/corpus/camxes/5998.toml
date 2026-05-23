@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a kélci la .zendos. .i xu do pu kélci ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "zendos",
-    span: [14,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [22,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [30,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [33,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [39,41],
-  },
+  Cmavo "mi'a",
+  Gismu "kélci",
+  Cmavo "la",
+  Cmevla "zendos",
+  Cmavo "i",
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "pu",
+  Gismu "kélci",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[14,20],"phonemes":"zendos","kind":"cmevla"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -76,31 +36,15 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi'a",
-        span: [0,4],
-      },
+      Cmavo "mi'a",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [5,10],
-      },
+      Gismu "kélci",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [11,13],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "zendos",
-              span: [14,20],
-            },
+            Cmevla "zendos",
           ],
         },
       ],
@@ -108,44 +52,20 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [22,23],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [24,26],
-      },
+      Cmavo "i",
+      indicator: Cmavo "xu",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [27,29],
-        },
+        Cmavo "do",
       ],
       Relation {
         TenseModal {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [30,32],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "kelci",
-            span: [33,38],
-          },
+          tense_modal: Cmavo "pu",
+          Gismu "kélci",
         },
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ri",
-            span: [39,41],
-          },
+          Cmavo "ri",
         ],
       },
     },

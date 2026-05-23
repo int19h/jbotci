@@ -19,41 +19,13 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le nu le srimakyvélveĭ cu se dáspo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "srimakyvelveĭ",
-    span: [12,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "daspo",
-    span: [32,37],
-  },
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "le",
+  Lujvo "srimakyvélveĭ",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "dáspo",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,25],"phonemes":"srimakyvelveĭ","kind":"lujvo"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"daspo","kind":"gismu"}}]'
 
@@ -62,48 +34,20 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [6,8],
-        },
+        nu: Cmavo "nu",
         Predicate {
           leading_terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [9,11],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "srimakyvelveĭ",
-                span: [12,25],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "srimakyvélveĭ",
             },
           ],
-          cu: Word {
-            kind: "cmavo",
-            phonemes: "cu",
-            span: [26,28],
-          },
+          cu: Cmavo "cu",
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [29,31],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "daspo",
-              span: [32,37],
-            },
+            se: Cmavo "se",
+            Gismu "dáspo",
           },
         },
       },

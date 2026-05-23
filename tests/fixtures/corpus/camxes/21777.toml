@@ -18,91 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ku'i le nu da'i do na sorpá'i nítcu cu stídi múkti le nu do na tróci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [2,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [13,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "sorpa'i",
-    span: [24,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nitcu",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [38,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stidi",
-    span: [41,46],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [47,52],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [53,55],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [56,58],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [59,61],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [62,64],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [65,70],
-  },
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "da'i",
+  Cmavo "do",
+  Cmavo "na",
+  Lujvo "sorpá'i",
+  Gismu "nítcu",
+  Cmavo "cu",
+  Gismu "stídi",
+  Gismu "múkti",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Cmavo "na",
+  Gismu "tróci",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[24,31],"phonemes":"sorpa'i","kind":"lujvo"}},{"Bare":{"span":[32,37],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"stidi","kind":"gismu"}},{"Bare":{"span":[47,52],"phonemes":"mukti","kind":"gismu"}},{"Bare":{"span":[53,55],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[56,58],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[59,61],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[62,64],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[65,70],"phonemes":"troci","kind":"gismu"}}]"""
 
@@ -110,119 +42,51 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ku'i",
   },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [7,9],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
           nu: WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [10,12],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "da'i",
-              span: [13,17],
-            },
+            Cmavo "nu",
+            indicator: Cmavo "da'i",
           },
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [18,20],
-              },
+              Cmavo "do",
             ],
             Na {
-              na: Word {
-                kind: "cmavo",
-                phonemes: "na",
-                span: [21,23],
-              },
+              na: Cmavo "na",
               Compound {
-                Word {
-                  kind: "lujvo",
-                  phonemes: "sorpa'i",
-                  span: [24,31],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "nitcu",
-                  span: [32,37],
-                },
+                Lujvo "sorpá'i",
+                Gismu "nítcu",
               },
             },
           },
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [38,40],
-    },
+    cu: Cmavo "cu",
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "stidi",
-          span: [41,46],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "mukti",
-          span: [47,52],
-        },
+        Gismu "stídi",
+        Gismu "múkti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [53,55],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [56,58],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [59,61],
-                },
+                Cmavo "do",
               ],
               Na {
-                na: Word {
-                  kind: "cmavo",
-                  phonemes: "na",
-                  span: [62,64],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "troci",
-                  span: [65,70],
-                },
+                na: Cmavo "na",
+                Gismu "tróci",
               },
             },
           },

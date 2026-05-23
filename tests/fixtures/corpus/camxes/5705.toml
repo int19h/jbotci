@@ -19,54 +19,18 @@ brackets = "([zo le] skícu .i ku'i [zo lo] jétnu cúsku)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "le",
-      span: [5,7],
-    },
+    zo: Cmavo "zo",
+    Cmavo "le",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "skicu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [15,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [16,20],
-  },
+  Gismu "skícu",
+  Cmavo "i",
+  Cmavo "ku'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "lo",
-      span: [24,26],
-    },
+    zo: Cmavo "zo",
+    Cmavo "lo",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "jetnu",
-    span: [27,32],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [33,38],
-  },
+  Gismu "jétnu",
+  Gismu "cúsku",
 ]"""
 json = """[{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,7],"phonemes":"le","kind":"cmavo"}}},{"Bare":{"span":[8,13],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ku'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,26],"phonemes":"lo","kind":"cmavo"}}},{"Bare":{"span":[27,32],"phonemes":"jetnu","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"cusku","kind":"gismu"}}]"""
 
@@ -76,63 +40,27 @@ Paragraph {
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [2,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [5,7],
-        },
+        zo: Cmavo "zo",
+        Cmavo "le",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "skicu",
-      span: [8,13],
-    },
+    Gismu "skícu",
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [15,16],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [16,20],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [21,23],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [24,26],
-          },
+          zo: Cmavo "zo",
+          Cmavo "lo",
         },
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jetnu",
-          span: [27,32],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [33,38],
-        },
+        Gismu "jétnu",
+        Gismu "cúsku",
       },
     },
   },

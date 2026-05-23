@@ -18,73 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to srúma le du'u do selsmúni [zo selcfípu] toĭ .ŭa .ŭu mi jímpe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sruma",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [16,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsmuni",
-    span: [19,27],
-  },
+  Cmavo "to",
+  Gismu "srúma",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "do",
+  Lujvo "selsmúni",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [28,30],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "selcfipu",
-      span: [31,39],
-    },
+    zo: Cmavo "zo",
+    Lujvo "selcfípu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [40,43],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭa",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭu",
-    span: [48,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [51,53],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jimpe",
-    span: [54,59],
-  },
+  Cmavo "toĭ",
+  Cmavo "ŭa",
+  Cmavo "ŭu",
+  Cmavo "mi",
+  Gismu "jímpe",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"sruma","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[19,27],"phonemes":"selsmuni","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[28,30],"phonemes":"zo","kind":"cmavo"},"word":{"span":[31,39],"phonemes":"selcfipu","kind":"lujvo"}}},{"Bare":{"span":[40,43],"phonemes":"toĭ","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[54,59],"phonemes":"jimpe","kind":"gismu"}}]"""
 
@@ -93,56 +41,24 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "sruma",
-          span: [3,8],
-        },
+        Gismu "srúma",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [9,11],
-            },
+            descriptor: Cmavo "le",
             relation: Abstraction {
-              nu: Word {
-                kind: "cmavo",
-                phonemes: "du'u",
-                span: [11,15],
-              },
+              nu: Cmavo "du'u",
               Predicate {
                 leading_terms: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "do",
-                    span: [16,18],
-                  },
+                  Cmavo "do",
                 ],
                 Relation {
-                  Word {
-                    kind: "lujvo",
-                    phonemes: "selsmuni",
-                    span: [19,27],
-                  },
+                  Lujvo "selsmúni",
                   terms: [
                     ZoQuote {
-                      zo: Word {
-                        kind: "cmavo",
-                        phonemes: "zo",
-                        span: [28,30],
-                      },
-                      Word {
-                        kind: "lujvo",
-                        phonemes: "selcfipu",
-                        span: [31,39],
-                      },
+                      zo: Cmavo "zo",
+                      Lujvo "selcfípu",
                     },
                   ],
                 },
@@ -153,38 +69,18 @@ Text {
       },
       toi: WithIndicator {
         WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "toĭ",
-            span: [40,43],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ŭa",
-            span: [45,47],
-          },
+          Cmavo "toĭ",
+          indicator: Cmavo "ŭa",
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭu",
-          span: [48,50],
-        },
+        indicator: Cmavo "ŭu",
       },
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [51,53],
-      },
+      Cmavo "mi",
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "jimpe",
-      span: [54,59],
-    },
+    Gismu "jímpe",
   },
 }"""
 json = """{"leading_free_modifiers":[{"To":{"to":{"Bare":{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}}},"text":{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"sruma","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[11,15],"phonemes":"du'u","kind":"cmavo"}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[16,18],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[19,27],"phonemes":"selsmuni","kind":"lujvo"}}}},"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[28,30],"phonemes":"zo","kind":"cmavo"},"word":{"span":[31,39],"phonemes":"selcfipu","kind":"lujvo"}}}}}}}]}}}}}}}}}}}}]}}}}}}}}]}]},"toi":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[40,43],"phonemes":"toĭ","kind":"cmavo"}}},"indicator":{"span":[45,47],"phonemes":"ŭa","kind":"cmavo"}}},"indicator":{"span":[48,50],"phonemes":"ŭu","kind":"cmavo"}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[51,53],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[54,59],"phonemes":"jimpe","kind":"gismu"}}}}}}}}}}}]}]}"""

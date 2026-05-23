@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi do zo'e la .lojban. távla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "lojban",
-    span: [14,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [21,26],
-  },
+  Cmavo "mi",
+  Cmavo "do",
+  Cmavo "zo'e",
+  Cmavo "la",
+  Cmevla "lojban",
+  Gismu "távla",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[14,20],"phonemes":"lojban","kind":"cmevla"}},{"Bare":{"span":[21,26],"phonemes":"tavla","kind":"gismu"}}]"""
 
@@ -55,40 +31,16 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [3,5],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "zo'e",
-      span: [6,10],
-    },
+    Cmavo "mi",
+    Cmavo "do",
+    Cmavo "zo'e",
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [11,13],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [14,20],
-        },
+        Cmevla "lojban",
       ],
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [21,26],
-  },
+  Gismu "távla",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,10],"phonemes":"zo'e","kind":"cmavo"}}}}},{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[11,13],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[14,20],"phonemes":"lojban","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"tavla","kind":"gismu"}}}}}}}}}}}]}]}"""

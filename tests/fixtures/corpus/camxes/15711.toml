@@ -18,47 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cmíni mi ki'e)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cmini",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [9,13],
-  },
+  Gismu "cmíni",
+  Cmavo "mi",
+  Cmavo "ki'e",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cmini","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ki'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cmini",
-    span: [0,5],
-  },
+  Gismu "cmíni",
   terms: [
     Koha {
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [6,8],
-      },
+      Cmavo "mi",
       free_modifiers: [
         Vocative {
           vocative_markers: [
-            Word {
-              kind: "cmavo",
-              phonemes: "ki'e",
-              span: [9,13],
-            },
+            Cmavo "ki'e",
           ],
         },
       ],

@@ -18,81 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i lo mlátu rálte ci túple)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [2,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [5,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ralte",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tuple",
-    span: [20,25],
-  },
+  Cmavo "i",
+  Cmavo "lo",
+  Gismu "mlátu",
+  Gismu "rálte",
+  Cmavo "ci",
+  Gismu "túple",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"ralte","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"tuple","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Term {
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [2,4],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "mlatu",
-            span: [5,10],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "ralte",
-            span: [11,16],
-          },
+          Gismu "mlátu",
+          Gismu "rálte",
         },
       },
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ci",
-            span: [17,19],
-          },
+          Cmavo "ci",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "tuple",
-          span: [20,25],
-        },
+        relation: Gismu "túple",
       },
     ],
   },

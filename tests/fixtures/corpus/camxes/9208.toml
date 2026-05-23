@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le sélsku na jaĭ gúnta su'o da)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsku",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [13,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gunta",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [27,29],
-  },
+  Cmavo "le",
+  Lujvo "sélsku",
+  Cmavo "na",
+  Cmavo "jaĭ",
+  Gismu "gúnta",
+  Cmavo "su'o",
+  Cmavo "da",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"selsku","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"gunta","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"da","kind":"cmavo"}}]"""
 
@@ -61,50 +33,22 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "selsku",
-        span: [3,9],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "sélsku",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [10,12],
-      },
+      na: Cmavo "na",
       Jai {
-        jai: Word {
-          kind: "cmavo",
-          phonemes: "jaĭ",
-          span: [13,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gunta",
-          span: [17,22],
-        },
+        jai: Cmavo "jaĭ",
+        Gismu "gúnta",
       },
     },
     terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "su'o",
-          span: [23,27],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [27,29],
-        },
+        quantifier: Cmavo "su'o",
+        Cmavo "da",
       },
     ],
   },

@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba'e na bróda)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [8,13],
-  },
+  Cmavo "ba'e",
+  Cmavo "na",
+  Gismu "bróda",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"broda","kind":"gismu"}}]"""
 
@@ -40,21 +28,9 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Na {
   na: Emphasized {
-    bahe: Word {
-      kind: "cmavo",
-      phonemes: "ba'e",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [5,7],
-    },
+    bahe: Cmavo "ba'e",
+    Cmavo "na",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [8,13],
-  },
+  Gismu "bróda",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Emphasized":{"bahe":{"span":[0,4],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"broda","kind":"gismu"}}}}}}}}}}}}}]}]}"""

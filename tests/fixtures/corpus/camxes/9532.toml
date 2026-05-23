@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'u bróda keĭ be lo sévzi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "su'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broda",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [11,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sevzi",
-    span: [21,26],
-  },
+  Cmavo "su'u",
+  Gismu "bróda",
+  Cmavo "keĭ",
+  Cmavo "be",
+  Cmavo "lo",
+  Gismu "sévzi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"su'u","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[11,14],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"sevzi","kind":"gismu"}}]"""
 
@@ -55,38 +31,14 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"su'u","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Be {
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "su'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [5,10],
-    },
-    kei: Word {
-      kind: "cmavo",
-      phonemes: "keĭ",
-      span: [11,14],
-    },
+    nu: Cmavo "su'u",
+    Gismu "bróda",
+    kei: Cmavo "keĭ",
   },
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [15,17],
-  },
+  be: Cmavo "be",
   first_argument: Descriptor {
-    descriptor: Word {
-      kind: "cmavo",
-      phonemes: "lo",
-      span: [18,20],
-    },
-    relation: Word {
-      kind: "gismu",
-      phonemes: "sevzi",
-      span: [21,26],
-    },
+    descriptor: Cmavo "lo",
+    relation: Gismu "sévzi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[0,4],"phonemes":"su'u","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"broda","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[11,14],"phonemes":"keĭ","kind":"cmavo"}}}}},"be":{"Bare":{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"sevzi","kind":"gismu"}}}}}}}}]}}}}}}}}]}]}"""

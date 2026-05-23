@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi se ke blánu zdáni ke'e ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [26,28],
-  },
+  Cmavo "mi",
+  Cmavo "se",
+  Cmavo "ke",
+  Gismu "blánu",
+  Gismu "zdáni",
+  Cmavo "ke'e",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -67,50 +39,22 @@ brackets = "(mi [{se (ke [blánu zdáni] ke'e)} ti])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [3,5],
-      },
+      se: Cmavo "se",
       Ke {
-        ke: Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [6,8],
-        },
+        ke: Cmavo "ke",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "blanu",
-            span: [9,14],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "zdani",
-            span: [15,20],
-          },
+          Gismu "blánu",
+          Gismu "zdáni",
         },
-        kehe: Word {
-          kind: "cmavo",
-          phonemes: "ke'e",
-          span: [21,25],
-        },
+        kehe: Cmavo "ke'e",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [26,28],
-      },
+      Cmavo "ti",
     ],
   },
 }"""

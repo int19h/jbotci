@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to mi pu jaĭ cáfne faĭ le nu lífri la'e de'u toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cafne",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "faĭ",
-    span: [19,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [26,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lifri",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'u",
-    span: [40,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [45,48],
-  },
+  Cmavo "to",
+  Cmavo "mi",
+  Cmavo "pu",
+  Cmavo "jaĭ",
+  Gismu "cáfne",
+  Cmavo "faĭ",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "lífri",
+  Cmavo "la'e",
+  Cmavo "de'u",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cafne","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"faĭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"lifri","kind":"gismu"}},{"Bare":{"span":[35,39],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"de'u","kind":"cmavo"}},{"Bare":{"span":[45,48],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -86,76 +38,32 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
         Relation {
           TenseModal {
-            tense_modal: Word {
-              kind: "cmavo",
-              phonemes: "pu",
-              span: [6,8],
-            },
+            tense_modal: Cmavo "pu",
             Jai {
-              jai: Word {
-                kind: "cmavo",
-                phonemes: "jaĭ",
-                span: [9,12],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cafne",
-                span: [13,18],
-              },
+              jai: Cmavo "jaĭ",
+              Gismu "cáfne",
             },
           },
           terms: [
             Fa {
-              fa: Word {
-                kind: "cmavo",
-                phonemes: "faĭ",
-                span: [19,22],
-              },
+              fa: Cmavo "faĭ",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [23,25],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "nu",
-                    span: [26,28],
-                  },
+                  nu: Cmavo "nu",
                   Relation {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "lifri",
-                      span: [29,34],
-                    },
+                    Gismu "lífri",
                     terms: [
                       Lahe {
-                        lahe: Word {
-                          kind: "cmavo",
-                          phonemes: "la'e",
-                          span: [35,39],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "de'u",
-                          span: [40,44],
-                        },
+                        lahe: Cmavo "la'e",
+                        Cmavo "de'u",
                       },
                     ],
                   },
@@ -165,11 +73,7 @@ Text {
           ],
         },
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [45,48],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

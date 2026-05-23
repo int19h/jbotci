@@ -24,22 +24,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zaĭ [.devanagar. bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zaĭ",
-    span: [0,3],
-  },
+  Cmavo "zaĭ",
   Letter {
-    Word {
-      kind: "cmevla",
-      phonemes: "devanagar",
-      span: [5,14],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [16,18],
-    },
+    Cmevla "devanagar",
+    bu: Cmavo "bu",
   },
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"zaĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[5,14],"phonemes":"devanagar","kind":"cmevla"}},"bu":{"span":[16,18],"phonemes":"bu","kind":"cmavo"}}}]'
@@ -51,22 +39,10 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "zaĭ",
-          span: [0,3],
-        },
+        Cmavo "zaĭ",
         Letter {
-          Word {
-            kind: "cmevla",
-            phonemes: "devanagar",
-            span: [5,14],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [16,18],
-          },
+          Cmevla "devanagar",
+          bu: Cmavo "bu",
         },
       ],
     },

@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ge kláma le zárci gi'e dzúkla le zdáni gi nélci la .djan.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ge",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zarci",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [21,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "dzukla",
-    span: [26,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [42,44],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [45,50],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [51,53],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djan",
-    span: [54,58],
-  },
+  Cmavo "mi",
+  Cmavo "ge",
+  Gismu "kláma",
+  Cmavo "le",
+  Gismu "zárci",
+  Cmavo "gi'e",
+  Lujvo "dzúkla",
+  Cmavo "le",
+  Gismu "zdáni",
+  Cmavo "gi",
+  Gismu "nélci",
+  Cmavo "la",
+  Cmevla "djan",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[26,32],"phonemes":"dzukla","kind":"lujvo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[51,53],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[54,58],"phonemes":"djan","kind":"cmevla"}}]"""
 
@@ -90,95 +38,43 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Pair {
-    gek: Word {
-      kind: "cmavo",
-      phonemes: "ge",
-      span: [3,5],
-    },
+    gek: Cmavo "ge",
     first: PredicateTail1 {
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "klama",
-          span: [6,11],
-        },
+        Gismu "kláma",
         terms: [
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [12,14],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "zarci",
-              span: [15,20],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "zárci",
           },
         ],
       },
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [21,25],
-          },
+          connective: Cmavo "gi'e",
           Relation {
-            Word {
-              kind: "lujvo",
-              phonemes: "dzukla",
-              span: [26,32],
-            },
+            Lujvo "dzúkla",
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [33,35],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "zdani",
-                  span: [36,41],
-                },
+                descriptor: Cmavo "le",
+                relation: Gismu "zdáni",
               },
             ],
           },
         },
       ],
     },
-    gik: Word {
-      kind: "cmavo",
-      phonemes: "gi",
-      span: [42,44],
-    },
+    gik: Cmavo "gi",
     second: Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [45,50],
-      },
+      Gismu "nélci",
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [51,53],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [54,58],
-            },
+            Cmevla "djan",
           ],
         },
       ],

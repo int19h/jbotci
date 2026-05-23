@@ -19,46 +19,14 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le ni gérku le ni gérku la .datsund.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerku",
-    span: [20,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "datsund",
-    span: [29,36],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "gérku",
+  Cmavo "le",
+  Cmavo "ni",
+  Gismu "gérku",
+  Cmavo "la",
+  Cmevla "datsund",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[29,36],"phonemes":"datsund","kind":"cmevla"}}]'
 
@@ -67,55 +35,23 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Relation {
-          Word {
-            kind: "gismu",
-            phonemes: "gerku",
-            span: [6,11],
-          },
+          Gismu "gérku",
           terms: [
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [14,16],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "ni",
-                  span: [17,19],
-                },
+                nu: Cmavo "ni",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "gerku",
-                    span: [20,25],
-                  },
+                  Gismu "gérku",
                   terms: [
                     Name {
-                      la: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [26,28],
-                      },
+                      la: Cmavo "la",
                       names: [
-                        Word {
-                          kind: "cmevla",
-                          phonemes: "datsund",
-                          span: [29,36],
-                        },
+                        Cmevla "datsund",
                       ],
                     },
                   ],

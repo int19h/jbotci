@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sy símsa le spófu ke crádi fónxa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sy",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cradi",
-    span: [22,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fonxa",
-    span: [28,33],
-  },
+  Cmavo "sy",
+  Gismu "símsa",
+  Cmavo "le",
+  Gismu "spófu",
+  Cmavo "ke",
+  Gismu "crádi",
+  Gismu "fónxa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"spofu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cradi","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"fonxa","kind":"gismu"}}]'
 
@@ -62,50 +34,22 @@ Predicate {
   leading_terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "sy",
-          span: [0,2],
-        },
+        Cmavo "sy",
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "simsa",
-      span: [4,9],
-    },
+    Gismu "símsa",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [10,12],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "spofu",
-            span: [13,18],
-          },
+          Gismu "spófu",
           Ke {
-            ke: Word {
-              kind: "cmavo",
-              phonemes: "ke",
-              span: [19,21],
-            },
+            ke: Cmavo "ke",
             Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "cradi",
-                span: [22,27],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "fonxa",
-                span: [28,33],
-              },
+              Gismu "crádi",
+              Gismu "fónxa",
             },
           },
         },

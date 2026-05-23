@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.it. bróke)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "it",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "broke",
-    span: [3,8],
-  },
+  Cmevla "it",
+  Gismu "bróke",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"it","kind":"cmevla"}},{"Bare":{"span":[3,8],"phonemes":"broke","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"it","kind":"cmevla"}},{"Bare":{"span"
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "it",
-      span: [0,2],
-    },
+    Cmevla "it",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "broke",
-    span: [3,8],
-  },
+  Gismu "bróke",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"it","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"broke","kind":"gismu"}}}}}}}}}}}]}]}'

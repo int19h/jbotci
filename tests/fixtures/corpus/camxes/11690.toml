@@ -18,137 +18,49 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zoĭ gy what's new gy] xe fánva le préti be fi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [7,9],
-    },
-    quoted_text: [11,21],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [24,26],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "what's new",
+    closing_delimiter: Cmavo "gy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "xe",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "preti",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [46,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [49,51],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [52,54],
-  },
+  Cmavo "xe",
+  Gismu "fánva",
+  Cmavo "le",
+  Gismu "préti",
+  Cmavo "be",
+  Cmavo "fi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,9],"phonemes":"gy","kind":"cmavo"},"quoted_text":[11,21],"closing_delimiter":{"span":[24,26],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[28,30],"phonemes":"xe","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"preti","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[49,51],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoiQuote {
-        zoi: Word {
-          kind: "cmavo",
-          phonemes: "zoĭ",
-          span: [3,6],
-        },
-        opening_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [7,9],
-        },
-        quoted_text: [11,21],
-        closing_delimiter: Word {
-          kind: "cmavo",
-          phonemes: "gy",
-          span: [24,26],
-        },
+        zoi: Cmavo "zoĭ",
+        opening_delimiter: Cmavo "gy",
+        quoted_text: Verbatim "what's new",
+        closing_delimiter: Cmavo "gy",
       },
     ],
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "xe",
-          span: [28,30],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "fanva",
-          span: [31,36],
-        },
+        se: Cmavo "xe",
+        Gismu "fánva",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [37,39],
-          },
+          descriptor: Cmavo "le",
           relation: Be {
-            Word {
-              kind: "gismu",
-              phonemes: "preti",
-              span: [40,45],
-            },
-            be: Word {
-              kind: "cmavo",
-              phonemes: "be",
-              span: [46,48],
-            },
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fi",
-              span: [49,51],
-            },
-            first_argument: Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [52,54],
-            },
+            Gismu "préti",
+            be: Cmavo "be",
+            fa: Cmavo "fi",
+            first_argument: Cmavo "mi",
           },
         },
       ],

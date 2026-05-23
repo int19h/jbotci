@@ -18,56 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(tádji ro da fa)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tadji",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [12,14],
-  },
+  Gismu "tádji",
+  Cmavo "ro",
+  Cmavo "da",
+  Cmavo "fa",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"tadji","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"fa","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "tadji",
-    span: [0,5],
-  },
+  Gismu "tádji",
   terms: [
     Quantified {
-      quantifier: Word {
-        kind: "cmavo",
-        phonemes: "ro",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "da",
-        span: [9,11],
-      },
+      quantifier: Cmavo "ro",
+      Cmavo "da",
     },
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fa",
-        span: [12,14],
-      },
+      fa: Cmavo "fa",
       Zohe {},
     },
   ],

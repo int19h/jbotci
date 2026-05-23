@@ -18,45 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(me su'o cmálu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "su'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmalu",
-    span: [8,13],
-  },
+  Cmavo "me",
+  Cmavo "su'o",
+  Gismu "cmálu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cmalu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Me {
-  me: Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
+  me: Cmavo "me",
   Descriptor {
     tail_elements: [
-      Word {
-        kind: "cmavo",
-        phonemes: "su'o",
-        span: [3,7],
-      },
+      Cmavo "su'o",
     ],
-    relation: Word {
-      kind: "gismu",
-      phonemes: "cmalu",
-      span: [8,13],
-    },
+    relation: Gismu "cmálu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}}},"argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"su'o","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"cmalu","kind":"gismu"}}}}}}}}]}}}}}}}}]}]}"""

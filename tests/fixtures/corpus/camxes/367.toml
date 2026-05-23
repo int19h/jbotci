@@ -19,21 +19,9 @@ brackets = "(.cerman. zeĭ xarnykárce)"
 tree = """
 [
   ZeiLujvo {
-    left: Word {
-      kind: "cmevla",
-      phonemes: "cerman",
-      span: [1,7],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [9,12],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "xarnykarce",
-      span: [13,23],
-    },
+    left: Cmevla "cerman",
+    zei: Cmavo "zeĭ",
+    Lujvo "xarnykárce",
   },
 ]"""
 json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[1,7],"phonemes":"cerman","kind":"cmevla"}},"zei":{"span":[9,12],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[13,23],"phonemes":"xarnykarce","kind":"lujvo"}}}]'
@@ -41,20 +29,8 @@ json = '[{"ZeiLujvo":{"left":{"Bare":{"span":[1,7],"phonemes":"cerman","kind":"c
 [expectations.output.gentufa]
 tree = """
 ZeiLujvo {
-  left: Word {
-    kind: "cmevla",
-    phonemes: "cerman",
-    span: [1,7],
-  },
-  zei: Word {
-    kind: "cmavo",
-    phonemes: "zeĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "xarnykarce",
-    span: [13,23],
-  },
+  left: Cmevla "cerman",
+  zei: Cmavo "zeĭ",
+  Lujvo "xarnykárce",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[1,7],"phonemes":"cerman","kind":"cmevla"}},"zei":{"span":[9,12],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[13,23],"phonemes":"xarnykarce","kind":"lujvo"}}}}}}}}}}}}]}]}'

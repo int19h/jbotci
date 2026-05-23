@@ -18,46 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i pe'i fríca cúntu fa le tármi válsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cuntu",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tarmi",
-    span: [26,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [32,37],
-  },
+  Cmavo "i",
+  Cmavo "pe'i",
+  Gismu "fríca",
+  Gismu "cúntu",
+  Cmavo "fa",
+  Cmavo "le",
+  Gismu "tármi",
+  Gismu "válsi",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"cuntu","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tarmi","kind":"gismu"}},{"Bare":{"span":[32,37],"phonemes":"valsi","kind":"gismu"}}]"""
 
@@ -65,54 +33,22 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "pe'i",
-      span: [3,7],
-    },
+    Cmavo "i",
+    indicator: Cmavo "pe'i",
   },
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "frica",
-        span: [8,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cuntu",
-        span: [14,19],
-      },
+      Gismu "fríca",
+      Gismu "cúntu",
     },
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [20,22],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "tarmi",
-              span: [26,31],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "valsi",
-              span: [32,37],
-            },
+            Gismu "tármi",
+            Gismu "válsi",
           },
         },
       },

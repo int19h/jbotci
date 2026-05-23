@@ -21,60 +21,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fánva [zoĭ py Tatoeba py] le lójbo le pónjo [zo mu'a])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [0,5],
-  },
+  Gismu "fánva",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [6,9],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "py",
-      span: [10,12],
-    },
-    quoted_text: [13,20],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "py",
-      span: [21,23],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "py",
+    quoted_text: Verbatim "Tatoeba",
+    closing_delimiter: Cmavo "py",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ponjo",
-    span: [37,42],
-  },
+  Cmavo "le",
+  Gismu "lójbo",
+  Cmavo "le",
+  Gismu "pónjo",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [43,45],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'a",
-      span: [46,50],
-    },
+    zo: Cmavo "zo",
+    Cmavo "mu'a",
   },
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"fanva","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[6,9],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[10,12],"phonemes":"py","kind":"cmavo"},"quoted_text":[13,20],"closing_delimiter":{"span":[21,23],"phonemes":"py","kind":"cmavo"}}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"ponjo","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[43,45],"phonemes":"zo","kind":"cmavo"},"word":{"span":[46,50],"phonemes":"mu'a","kind":"cmavo"}}}]"""
@@ -83,65 +43,25 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"fanva","kind":"gismu"}},{"ZoiQuote"
 brackets = "(fánva [{zoĭ py Tatoeba py} {le lójbo} {le pónjo} {zo mu'a}])"
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [0,5],
-  },
+  Gismu "fánva",
   terms: [
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [6,9],
-      },
-      opening_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "py",
-        span: [10,12],
-      },
-      quoted_text: [13,20],
-      closing_delimiter: Word {
-        kind: "cmavo",
-        phonemes: "py",
-        span: [21,23],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Cmavo "py",
+      quoted_text: Verbatim "Tatoeba",
+      closing_delimiter: Cmavo "py",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [25,27],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [28,33],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "lójbo",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [34,36],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "ponjo",
-        span: [37,42],
-      },
+      descriptor: Cmavo "le",
+      relation: Gismu "pónjo",
     },
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [43,45],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mu'a",
-        span: [46,50],
-      },
+      zo: Cmavo "zo",
+      Cmavo "mu'a",
     },
   ],
 }"""

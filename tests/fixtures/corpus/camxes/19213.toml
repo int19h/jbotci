@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(co'o le mi re brúna pe'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bruna",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'a",
-    span: [23,27],
-  },
+  Cmavo "co'o",
+  Cmavo "le",
+  Cmavo "mi",
+  Cmavo "re",
+  Gismu "brúna",
+  Cmavo "pe'a",
 ]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"pe'a","kind":"cmavo"}}]"""
 
@@ -58,41 +34,17 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [3,7],
-        },
+        Cmavo "co'o",
       ],
       argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [8,10],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [11,13],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [14,16],
-          },
+          Cmavo "mi",
+          Cmavo "re",
         ],
         relation: WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "bruna",
-            span: [17,22],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "pe'a",
-            span: [23,27],
-          },
+          Gismu "brúna",
+          indicator: Cmavo "pe'a",
         },
       },
     },

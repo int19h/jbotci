@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fi rókci le kábri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kabri",
-    span: [12,17],
-  },
+  Cmavo "fi",
+  Gismu "rókci",
+  Cmavo "le",
+  Gismu "kábri",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"rokci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"kabri","kind":"gismu"}}]'
 
@@ -46,32 +30,16 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: Word {
-        kind: "cmavo",
-        phonemes: "fi",
-        span: [0,2],
-      },
+      fa: Cmavo "fi",
       Zohe {},
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "rokci",
-      span: [3,8],
-    },
+    Gismu "rókci",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "kabri",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kábri",
       },
     ],
   },

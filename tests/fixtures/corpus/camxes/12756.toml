@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to [zo cúmki] ji'a cízra toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
+  Cmavo "to",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cumki",
-      span: [6,11],
-    },
+    zo: Cmavo "zo",
+    Gismu "cúmki",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "ji'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [23,26],
-  },
+  Cmavo "ji'a",
+  Gismu "cízra",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,11],"phonemes":"cumki","kind":"gismu"}}},{"Bare":{"span":[12,16],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -58,44 +34,20 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Predicate {
         leading_terms: [
           WithIndicator {
             ZoQuote {
-              zo: Word {
-                kind: "cmavo",
-                phonemes: "zo",
-                span: [3,5],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "cumki",
-                span: [6,11],
-              },
+              zo: Cmavo "zo",
+              Gismu "cúmki",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ji'a",
-              span: [12,16],
-            },
+            indicator: Cmavo "ji'a",
           },
         ],
-        Word {
-          kind: "gismu",
-          phonemes: "cizra",
-          span: [17,22],
-        },
+        Gismu "cízra",
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [23,26],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

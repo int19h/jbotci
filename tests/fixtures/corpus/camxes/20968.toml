@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le dráta prénu cu ba'e ca'a kátna le vo'a dégji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "drata",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [18,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "katna",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo'a",
-    span: [37,41],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "degji",
-    span: [42,47],
-  },
+  Cmavo "le",
+  Gismu "dráta",
+  Gismu "prénu",
+  Cmavo "cu",
+  Cmavo "ba'e",
+  Cmavo "ca'a",
+  Gismu "kátna",
+  Cmavo "le",
+  Cmavo "vo'a",
+  Gismu "dégji",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"drata","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"katna","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"vo'a","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"degji","kind":"gismu"}}]"""
 
@@ -76,69 +36,29 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "drata",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "prenu",
-          span: [9,14],
-        },
+        Gismu "dráta",
+        Gismu "prénu",
       },
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
+  cu: Cmavo "cu",
   Relation {
     TenseModal {
       tense_modal: Emphasized {
-        bahe: Word {
-          kind: "cmavo",
-          phonemes: "ba'e",
-          span: [18,22],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'a",
-          span: [23,27],
-        },
+        bahe: Cmavo "ba'e",
+        Cmavo "ca'a",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "katna",
-        span: [28,33],
-      },
+      Gismu "kátna",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [34,36],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "vo'a",
-            span: [37,41],
-          },
+          Cmavo "vo'a",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "degji",
-          span: [42,47],
-        },
+        relation: Gismu "dégji",
       },
     ],
   },

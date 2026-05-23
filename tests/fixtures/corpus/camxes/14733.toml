@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no le túrni)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "turni",
-    span: [6,11],
-  },
+  Cmavo "no",
+  Cmavo "le",
+  Gismu "túrni",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"turni","kind":"gismu"}}]'
 
@@ -41,21 +29,9 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [3,5],
-      },
-      outer_quantifier: Word {
-        kind: "cmavo",
-        phonemes: "no",
-        span: [0,2],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "turni",
-        span: [6,11],
-      },
+      descriptor: Cmavo "le",
+      outer_quantifier: Cmavo "no",
+      relation: Gismu "túrni",
     },
   ],
 }"""

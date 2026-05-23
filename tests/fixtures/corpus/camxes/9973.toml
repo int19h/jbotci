@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(nándu co tráji mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "nandu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
+  Gismu "nándu",
+  Cmavo "co",
+  Gismu "tráji",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -45,28 +29,12 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Relation {
   Co {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "nandu",
-      span: [0,5],
-    },
-    co: Word {
-      kind: "cmavo",
-      phonemes: "co",
-      span: [6,8],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "traji",
-      span: [9,14],
-    },
+    leading_relation: Gismu "nándu",
+    co: Cmavo "co",
+    trailing_relation: Gismu "tráji",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [15,17],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Co":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"nandu","kind":"gismu"}}}},"co":{"Bare":{"Bare":{"span":[6,8],"phonemes":"co","kind":"cmavo"}}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"traji","kind":"gismu"}}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

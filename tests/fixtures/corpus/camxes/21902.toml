@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(raĭ bratcána págbu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "raĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "bratcana",
-    span: [3,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pagbu",
-    span: [12,17],
-  },
+  Cmavo "raĭ",
+  Lujvo "bratcána",
+  Gismu "págbu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"raĭ","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"bratcana","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"pagbu","kind":"gismu"}}]'
 
@@ -40,23 +28,11 @@ json = '[{"Bare":{"span":[0,3],"phonemes":"raĭ","kind":"cmavo"}},{"Bare":{"span
 tree = """
 TenseModal {
   tense_modal: Simple {
-    bai: Word {
-      kind: "cmavo",
-      phonemes: "raĭ",
-      span: [0,3],
-    },
+    bai: Cmavo "raĭ",
   },
   Compound {
-    Word {
-      kind: "lujvo",
-      phonemes: "bratcana",
-      span: [3,11],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "pagbu",
-      span: [12,17],
-    },
+    Lujvo "bratcána",
+    Gismu "págbu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"raĭ","kind":"cmavo"}}}}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"bratcana","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"pagbu","kind":"gismu"}}}}]}}}}}}}}}}]}]}'

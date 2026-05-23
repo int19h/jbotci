@@ -19,27 +19,11 @@ brackets = "([lo'u mi le'u] kláma)"
 tree = """
 [
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [0,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [5,7],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [8,12],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "mi",
+    lehu: Cmavo "le'u",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [27,32],
-  },
+  Gismu "kláma",
 ]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[8,12],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[27,32],"phonemes":"klama","kind":"gismu"}}]"""
 
@@ -48,27 +32,11 @@ tree = """
 Predicate {
   leading_terms: [
     LohuQuote {
-      lohu: Word {
-        kind: "cmavo",
-        phonemes: "lo'u",
-        span: [0,4],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
-      lehu: Word {
-        kind: "cmavo",
-        phonemes: "le'u",
-        span: [8,12],
-      },
+      lohu: Cmavo "lo'u",
+      Cmavo "mi",
+      lehu: Cmavo "le'u",
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [27,32],
-  },
+  Gismu "kláma",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Lohu":{"Bare":{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[8,12],"phonemes":"le'u","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[27,32],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -18,16 +18,8 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(du'e fágri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "du'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fagri",
-    span: [5,10],
-  },
+  Cmavo "du'e",
+  Gismu "fágri",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"fagri","kind":"gismu"}}]"""
 
@@ -37,17 +29,9 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "du'e",
-          span: [0,4],
-        },
+        Cmavo "du'e",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "fagri",
-        span: [5,10],
-      },
+      relation: Gismu "fágri",
     },
   ],
 }"""

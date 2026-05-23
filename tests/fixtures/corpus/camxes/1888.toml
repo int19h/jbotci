@@ -18,41 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti na bárda prénu co mélbi mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "melbi",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [27,29],
-  },
+  Cmavo "ti",
+  Cmavo "na",
+  Gismu "bárda",
+  Gismu "prénu",
+  Cmavo "co",
+  Gismu "mélbi",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -60,50 +32,22 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [3,5],
-      },
+      na: Cmavo "na",
       Co {
         leading_relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "barda",
-            span: [6,11],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "prenu",
-            span: [12,17],
-          },
+          Gismu "bárda",
+          Gismu "prénu",
         },
-        co: Word {
-          kind: "cmavo",
-          phonemes: "co",
-          span: [18,20],
-        },
-        trailing_relation: Word {
-          kind: "gismu",
-          phonemes: "melbi",
-          span: [21,26],
-        },
+        co: Cmavo "co",
+        trailing_relation: Gismu "mélbi",
       },
     },
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [27,29],
-      },
+      Cmavo "mi",
     ],
   },
 }"""

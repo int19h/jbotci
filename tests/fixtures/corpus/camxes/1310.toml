@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ca sánli ke'i bi'i ga'o gi la .drezdn. gi la .frankfurt.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sanli",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'i",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi'i",
-    span: [17,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ga'o",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "drezdn",
-    span: [33,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [45,47],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frankfurt",
-    span: [48,57],
-  },
+  Cmavo "mi",
+  Cmavo "ca",
+  Gismu "sánli",
+  Cmavo "ke'i",
+  Cmavo "bi'i",
+  Cmavo "ga'o",
+  Cmavo "gi",
+  Cmavo "la",
+  Cmevla "drezdn",
+  Cmavo "gi",
+  Cmavo "la",
+  Cmevla "frankfurt",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"sanli","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"ke'i","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"bi'i","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[33,39],"phonemes":"drezdn","kind":"cmevla"}},{"Bare":{"span":[42,44],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[48,57],"phonemes":"frankfurt","kind":"cmevla"}}]"""
 
@@ -85,80 +37,32 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ca",
-        span: [3,5],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "sanli",
-        span: [6,11],
-      },
+      tense_modal: Cmavo "ca",
+      Gismu "sánli",
     },
     terms: [
       Gek {
         gek: Interval {
-          Word {
-            kind: "cmavo",
-            phonemes: "ke'i",
-            span: [12,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "bi'i",
-            span: [17,21],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ga'o",
-            span: [22,26],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "gi",
-            span: [27,29],
-          },
+          Cmavo "ke'i",
+          Cmavo "bi'i",
+          Cmavo "ga'o",
+          Cmavo "gi",
         },
         leading_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [30,32],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "drezdn",
-              span: [33,39],
-            },
+            Cmevla "drezdn",
           ],
         },
-        gik: Word {
-          kind: "cmavo",
-          phonemes: "gi",
-          span: [42,44],
-        },
+        gik: Cmavo "gi",
         trailing_argument: Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [45,47],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "frankfurt",
-              span: [48,57],
-            },
+            Cmevla "frankfurt",
           ],
         },
       },

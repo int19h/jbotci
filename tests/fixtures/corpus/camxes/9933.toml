@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko na'e kríci leĭ cévni se gásnu .i ku'i ko lácri ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "krici",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [33,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [40,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lacri",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [49,51],
-  },
+  Cmavo "ko",
+  Cmavo "na'e",
+  Gismu "kríci",
+  Cmavo "leĭ",
+  Gismu "cévni",
+  Cmavo "se",
+  Gismu "gásnu",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Cmavo "ko",
+  Gismu "lácri",
+  Cmavo "ra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"krici","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"lacri","kind":"gismu"}},{"Bare":{"span":[49,51],"phonemes":"ra","kind":"cmavo"}}]"""
 
@@ -86,49 +38,21 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ko",
-        span: [0,2],
-      },
+      Cmavo "ko",
     ],
     Relation {
       Nahe {
-        nahe: Word {
-          kind: "cmavo",
-          phonemes: "na'e",
-          span: [3,7],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "krici",
-          span: [8,13],
-        },
+        nahe: Cmavo "na'e",
+        Gismu "kríci",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [14,17],
-          },
+          descriptor: Cmavo "leĭ",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "cevni",
-              span: [18,23],
-            },
+            Gismu "cévni",
             Se {
-              se: Word {
-                kind: "cmavo",
-                phonemes: "se",
-                span: [24,26],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gasnu",
-                span: [27,32],
-              },
+              se: Cmavo "se",
+              Gismu "gásnu",
             },
           },
         },
@@ -137,37 +61,17 @@ Paragraph {
   },
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [33,34],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [35,39],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [40,42],
-        },
+        Cmavo "ko",
       ],
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "lacri",
-          span: [43,48],
-        },
+        Gismu "lácri",
         terms: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ra",
-            span: [49,51],
-          },
+          Cmavo "ra",
         ],
       },
     },

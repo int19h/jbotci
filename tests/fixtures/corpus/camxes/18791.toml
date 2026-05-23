@@ -18,46 +18,22 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'i ki'e .araĭzen.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'e",
-    span: [5,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "araĭzen",
-    span: [11,18],
-  },
+  Cmavo "go'i",
+  Cmavo "ki'e",
+  Cmevla "araĭzen",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[11,18],"phonemes":"araĭzen","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Goha {
-  goha: Word {
-    kind: "cmavo",
-    phonemes: "go'i",
-    span: [0,4],
-  },
+  goha: Cmavo "go'i",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [5,9],
-        },
+        Cmavo "ki'e",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "araĭzen",
-        span: [11,18],
-      },
+      argument: Cmevla "araĭzen",
     },
   ],
 }"""

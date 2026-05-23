@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xo jéftu cu dúnli pa gusnynánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xo",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jeftu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [15,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [21,23],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "gusnynanca",
-    span: [24,34],
-  },
+  Cmavo "xo",
+  Gismu "jéftu",
+  Cmavo "cu",
+  Gismu "dúnli",
+  Cmavo "pa",
+  Lujvo "gusnynánca",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jeftu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[24,34],"phonemes":"gusnynanca","kind":"lujvo"}}]'
 
@@ -57,44 +33,20 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        Word {
-          kind: "cmavo",
-          phonemes: "xo",
-          span: [3,5],
-        },
+        Cmavo "xo",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "jeftu",
-        span: [6,11],
-      },
+      relation: Gismu "jéftu",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [12,14],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "dunli",
-      span: [15,20],
-    },
+    Gismu "dúnli",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [21,23],
-          },
+          Cmavo "pa",
         ],
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "gusnynanca",
-          span: [24,34],
-        },
+        relation: Lujvo "gusnynánca",
       },
     ],
   },

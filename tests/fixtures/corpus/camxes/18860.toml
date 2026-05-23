@@ -18,44 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [zo su'i] bínxo da'i [zo súmji])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [2,4],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "su'i",
-      span: [5,9],
-    },
+    zo: Cmavo "zo",
+    Cmavo "su'i",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "binxo",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [16,20],
-  },
+  Gismu "bínxo",
+  Cmavo "da'i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [21,23],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "sumji",
-      span: [24,29],
-    },
+    zo: Cmavo "zo",
+    Gismu "súmji",
   },
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,9],"phonemes":"su'i","kind":"cmavo"}}},{"Bare":{"span":[10,15],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"da'i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[21,23],"phonemes":"zo","kind":"cmavo"},"word":{"span":[24,29],"phonemes":"sumji","kind":"gismu"}}}]"""
@@ -63,51 +35,23 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [2,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "su'i",
-          span: [5,9],
-        },
+        zo: Cmavo "zo",
+        Cmavo "su'i",
       },
     ],
     Relation {
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "binxo",
-          span: [10,15],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "da'i",
-          span: [16,20],
-        },
+        Gismu "bínxo",
+        indicator: Cmavo "da'i",
       },
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [21,23],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "sumji",
-            span: [24,29],
-          },
+          zo: Cmavo "zo",
+          Gismu "súmji",
         },
       ],
     },

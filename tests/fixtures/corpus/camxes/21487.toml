@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i mi nélci le sídbo po'u le du'u pílno la .vim.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nelci",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidbo",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [23,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [31,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "vim",
-    span: [45,48],
-  },
+  Cmavo "ku'i",
+  Cmavo "mi",
+  Gismu "nélci",
+  Cmavo "le",
+  Gismu "sídbo",
+  Cmavo "po'u",
+  Cmavo "le",
+  Cmavo "du'u",
+  Gismu "pílno",
+  Cmavo "la",
+  Cmevla "vim",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"sidbo","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[45,48],"phonemes":"vim","kind":"cmevla"}}]"""
 
@@ -81,77 +37,33 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "ku'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [5,7],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "nelci",
-        span: [8,13],
-      },
+      Gismu "nélci",
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [14,16],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "sidbo",
-            span: [17,22],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "sídbo",
           relative_clauses: [
             GoiRelativeClause {
-              goi: Word {
-                kind: "cmavo",
-                phonemes: "po'u",
-                span: [23,27],
-              },
+              goi: Cmavo "po'u",
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [28,30],
-                },
+                descriptor: Cmavo "le",
                 relation: Abstraction {
-                  nu: Word {
-                    kind: "cmavo",
-                    phonemes: "du'u",
-                    span: [31,35],
-                  },
+                  nu: Cmavo "du'u",
                   Relation {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "pilno",
-                      span: [36,41],
-                    },
+                    Gismu "pílno",
                     terms: [
                       Name {
-                        la: Word {
-                          kind: "cmavo",
-                          phonemes: "la",
-                          span: [42,44],
-                        },
+                        la: Cmavo "la",
                         names: [
-                          Word {
-                            kind: "cmevla",
-                            phonemes: "vim",
-                            span: [45,48],
-                          },
+                          Cmevla "vim",
                         ],
                       },
                     ],

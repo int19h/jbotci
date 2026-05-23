@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(seĭ ma smúni di'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [13,17],
-  },
+  Cmavo "seĭ",
+  Cmavo "ma",
+  Gismu "smúni",
+  Cmavo "di'e",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[13,17],"phonemes":"di'e","kind":"cmavo"}}]"""
 
@@ -46,32 +30,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
+      sei: Cmavo "seĭ",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ma",
-          span: [4,6],
-        },
+        Cmavo "ma",
       ],
-      relation: Word {
-        kind: "gismu",
-        phonemes: "smuni",
-        span: [7,12],
-      },
+      relation: Gismu "smúni",
     },
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "di'e",
-        span: [13,17],
-      },
+      Cmavo "di'e",
     ],
   },
 }"""

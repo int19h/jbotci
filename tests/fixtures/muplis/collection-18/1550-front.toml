@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a du laĭ .borg.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi'a",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "laĭ",
-    span: [8,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "borg",
-    span: [12,16],
-  },
+  Cmavo "mi'a",
+  Cmavo "du",
+  Cmavo "laĭ",
+  Cmevla "borg",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"borg","kind":"cmevla"}}]"""
 
@@ -49,31 +33,15 @@ brackets = "(mi'a [du {laĭ .borg.}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi'a",
-      span: [0,4],
-    },
+    Cmavo "mi'a",
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [5,7],
-    },
+    Cmavo "du",
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "laĭ",
-          span: [8,11],
-        },
+        la: Cmavo "laĭ",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "borg",
-            span: [12,16],
-          },
+          Cmevla "borg",
         ],
       },
     ],

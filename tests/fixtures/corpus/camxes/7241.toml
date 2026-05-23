@@ -18,71 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le za'i féngu cu múkti .i je le za'i bádri cu na terpílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fengu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mukti",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [28,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'i",
-    span: [31,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "badri",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [42,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [45,47],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terpilno",
-    span: [48,56],
-  },
+  Cmavo "le",
+  Cmavo "za'i",
+  Gismu "féngu",
+  Cmavo "cu",
+  Gismu "múkti",
+  Cmavo "i",
+  Cmavo "je",
+  Cmavo "le",
+  Cmavo "za'i",
+  Gismu "bádri",
+  Cmavo "cu",
+  Cmavo "na",
+  Lujvo "terpílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"fengu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"mukti","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"badri","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[48,56],"phonemes":"terpilno","kind":"lujvo"}}]"""
 
@@ -92,84 +40,32 @@ Connected {
   leading_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "za'i",
-            span: [3,7],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "fengu",
-            span: [8,13],
-          },
+          nu: Cmavo "za'i",
+          Gismu "féngu",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [14,16],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "mukti",
-      span: [17,22],
-    },
+    cu: Cmavo "cu",
+    Gismu "múkti",
   },
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [24,25],
-  },
-  connective: Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [25,27],
-  },
+  i: Cmavo "i",
+  connective: Cmavo "je",
   trailing_statement: Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [28,30],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "za'i",
-            span: [31,35],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "badri",
-            span: [36,41],
-          },
+          nu: Cmavo "za'i",
+          Gismu "bádri",
         },
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [42,44],
-    },
+    cu: Cmavo "cu",
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [45,47],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "terpilno",
-        span: [48,56],
-      },
+      na: Cmavo "na",
+      Lujvo "terpílno",
     },
   },
 }"""

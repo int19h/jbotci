@@ -18,41 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(kábri .a'u naĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "kabri",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "a'u",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [9,12],
-  },
+  Gismu "kábri",
+  Cmavo "a'u",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"kabri","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"a'u","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  Word {
-    kind: "gismu",
-    phonemes: "kabri",
-    span: [0,5],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "a'u",
-    span: [6,9],
-  },
-  nai: Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [9,12],
-  },
+  Gismu "kábri",
+  indicator: Cmavo "a'u",
+  nai: Cmavo "naĭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"kabri","kind":"gismu"}}},"indicator":{"span":[6,9],"phonemes":"a'u","kind":"cmavo"},"nai":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}}}}]}]}"""

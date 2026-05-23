@@ -18,16 +18,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.f. cízra)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "f",
-    span: [0,1],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [2,7],
-  },
+  Cmevla "f",
+  Gismu "cízra",
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"f","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"cizra","kind":"gismu"}}]'
 
@@ -35,16 +27,8 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"f","kind":"cmevla"}},{"Bare":{"span":
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "f",
-      span: [0,1],
-    },
+    Cmevla "f",
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [2,7],
-  },
+  Gismu "cízra",
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"f","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"cizra","kind":"gismu"}}}}}}}}}}}]}]}'

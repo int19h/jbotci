@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'u na glétu loĭ nínmu mabrsinómi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "je'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gletu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ninmu",
-    span: [18,23],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "mabrsinomi",
-    span: [24,34],
-  },
+  Cmavo "je'u",
+  Cmavo "na",
+  Gismu "glétu",
+  Cmavo "loĭ",
+  Gismu "nínmu",
+  Fuhivla "mabrsinómi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[24,34],"phonemes":"mabrsinomi","kind":"fu'ivla"}}]"""
 
@@ -56,44 +32,20 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "je'u",
-        span: [0,4],
-      },
+      indicator: Cmavo "je'u",
     },
   ],
   Relation {
     Na {
-      na: Word {
-        kind: "cmavo",
-        phonemes: "na",
-        span: [5,7],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "gletu",
-        span: [8,13],
-      },
+      na: Cmavo "na",
+      Gismu "glétu",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [14,17],
-        },
+        descriptor: Cmavo "loĭ",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "ninmu",
-            span: [18,23],
-          },
-          Word {
-            kind: "fu'ivla",
-            phonemes: "mabrsinomi",
-            span: [24,34],
-          },
+          Gismu "nínmu",
+          Fuhivla "mabrsinómi",
         },
       },
     ],

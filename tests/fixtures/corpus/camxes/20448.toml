@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma nu blóti zerlé'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bloti",
-    span: [6,11],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zerle'a",
-    span: [12,19],
-  },
+  Cmavo "ma",
+  Cmavo "nu",
+  Gismu "blóti",
+  Lujvo "zerlé'a",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"bloti","kind":"gismu"}},{"Bare":{"span":[12,19],"phonemes":"zerle'a","kind":"lujvo"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [3,5],
-    },
+    nu: Cmavo "nu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "bloti",
-        span: [6,11],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "zerle'a",
-        span: [12,19],
-      },
+      Gismu "blóti",
+      Lujvo "zerlé'a",
     },
   },
 }"""

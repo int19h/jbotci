@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xy goĭ le xrábo bángu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xy",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "goĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrabo",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bangu",
-    span: [17,22],
-  },
+  Cmavo "xy",
+  Cmavo "goĭ",
+  Cmavo "le",
+  Gismu "xrábo",
+  Gismu "bángu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"xrabo","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"bangu","kind":"gismu"}}]'
 
@@ -53,37 +33,17 @@ Term {
     RelativeClause {
       base_argument: Letter {
         letter: [
-          Word {
-            kind: "cmavo",
-            phonemes: "xy",
-            span: [0,2],
-          },
+          Cmavo "xy",
         ],
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: Word {
-            kind: "cmavo",
-            phonemes: "goĭ",
-            span: [4,7],
-          },
+          goi: Cmavo "goĭ",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [8,10],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "xrabo",
-                span: [11,16],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "bangu",
-                span: [17,22],
-              },
+              Gismu "xrábo",
+              Gismu "bángu",
             },
           },
         },

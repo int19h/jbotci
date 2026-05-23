@@ -21,26 +21,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ca'a se jénca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jenca",
-    span: [11,16],
-  },
+  Cmavo "do",
+  Cmavo "ca'a",
+  Cmavo "se",
+  Gismu "jénca",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ca'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"jenca","kind":"gismu"}}]"""
 
@@ -49,29 +33,13 @@ brackets = "(do [ca'a {se jénca}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   TenseModal {
-    tense_modal: Word {
-      kind: "cmavo",
-      phonemes: "ca'a",
-      span: [3,7],
-    },
+    tense_modal: Cmavo "ca'a",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [8,10],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jenca",
-        span: [11,16],
-      },
+      se: Cmavo "se",
+      Gismu "jénca",
     },
   },
 }"""

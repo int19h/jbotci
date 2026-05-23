@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zdáni be mi vórme)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zdani",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [12,17],
-  },
+  Gismu "zdáni",
+  Cmavo "be",
+  Cmavo "mi",
+  Gismu "vórme",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"vorme","kind":"gismu"}}]'
 
@@ -45,26 +29,10 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"spa
 tree = """
 Compound {
   Be {
-    Word {
-      kind: "gismu",
-      phonemes: "zdani",
-      span: [0,5],
-    },
-    be: Word {
-      kind: "cmavo",
-      phonemes: "be",
-      span: [6,8],
-    },
-    first_argument: Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [9,11],
-    },
+    Gismu "zdáni",
+    be: Cmavo "be",
+    first_argument: Cmavo "mi",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "vorme",
-    span: [12,17],
-  },
+  Gismu "vórme",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"zdani","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[6,8],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}}}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"vorme","kind":"gismu"}}}}]}}}}}}}}]}]}'

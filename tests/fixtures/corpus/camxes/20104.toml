@@ -19,55 +19,23 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(bénji le na'o sélsku)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'o",
-    span: [12,16],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "selsku",
-    span: [17,23],
-  },
+  Gismu "bénji",
+  Cmavo "le",
+  Cmavo "na'o",
+  Lujvo "sélsku",
 ]"""
 json = """[{"Bare":{"span":[3,8],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"selsku","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "benji",
-    span: [3,8],
-  },
+  Gismu "bénji",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [9,11],
-      },
+      descriptor: Cmavo "le",
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "na'o",
-          span: [12,16],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "selsku",
-          span: [17,23],
-        },
+        tense_modal: Cmavo "na'o",
+        Lujvo "sélsku",
       },
     },
   ],

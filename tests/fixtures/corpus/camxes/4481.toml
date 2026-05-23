@@ -19,59 +19,19 @@ brackets = "([zo doĭ] símlu [zoĭ xy ya xy] pe le xrábo zoĭ)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "doĭ",
-      span: [3,6],
-    },
+    zo: Cmavo "zo",
+    Cmavo "doĭ",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "simlu",
-    span: [7,12],
-  },
+  Gismu "símlu",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [13,16],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [17,19],
-    },
-    quoted_text: [21,23],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "xy",
-      span: [25,27],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "xy",
+    quoted_text: Verbatim "ya",
+    closing_delimiter: Cmavo "xy",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xrabo",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zoĭ",
-    span: [42,45],
-  },
+  Cmavo "pe",
+  Cmavo "le",
+  Gismu "xrábo",
+  Cmavo "zoĭ",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}},{"Bare":{"span":[7,12],"phonemes":"simlu","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[13,16],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[17,19],"phonemes":"xy","kind":"cmavo"},"quoted_text":[21,23],"closing_delimiter":{"span":[25,27],"phonemes":"xy","kind":"cmavo"}}},{"Bare":{"span":[29,31],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"xrabo","kind":"gismu"}},{"Bare":{"span":[42,45],"phonemes":"zoĭ","kind":"cmavo"}}]'

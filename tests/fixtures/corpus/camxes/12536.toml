@@ -18,39 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo bróva] símsa [zo bróda])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [1,3],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "brova",
-      span: [4,9],
-    },
+    zo: Cmavo "zo",
+    Gismu "bróva",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [10,15],
-  },
+  Gismu "símsa",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [16,18],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "broda",
-      span: [19,24],
-    },
+    zo: Cmavo "zo",
+    Gismu "bróda",
   },
 ]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[1,3],"phonemes":"zo","kind":"cmavo"},"word":{"span":[4,9],"phonemes":"brova","kind":"gismu"}}},{"Bare":{"span":[10,15],"phonemes":"simsa","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[19,24],"phonemes":"broda","kind":"gismu"}}}]'
@@ -58,44 +34,20 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [1,3],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "brova",
-          span: [4,9],
-        },
+        zo: Cmavo "zo",
+        Gismu "bróva",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "simsa",
-        span: [10,15],
-      },
+      Gismu "símsa",
       terms: [
         ZoQuote {
-          zo: Word {
-            kind: "cmavo",
-            phonemes: "zo",
-            span: [16,18],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "broda",
-            span: [19,24],
-          },
+          zo: Cmavo "zo",
+          Gismu "bróda",
         },
       ],
     },

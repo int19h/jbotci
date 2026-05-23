@@ -18,54 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mlátu ke jítro tútci)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jitro",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tutci",
-    span: [15,20],
-  },
+  Gismu "mlátu",
+  Cmavo "ke",
+  Gismu "jítro",
+  Gismu "tútci",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jitro","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"tutci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "mlatu",
-    span: [0,5],
-  },
+  Gismu "mlátu",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "jitro",
-        span: [9,14],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tutci",
-        span: [15,20],
-      },
+      Gismu "jítro",
+      Gismu "tútci",
     },
   },
 }"""

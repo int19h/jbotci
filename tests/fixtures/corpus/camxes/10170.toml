@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le ni mi cidjrpítsa cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ni",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [6,8],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "cidjrpitsa",
-    span: [9,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [20,25],
-  },
+  Cmavo "le",
+  Cmavo "ni",
+  Cmavo "mi",
+  Fuhivla "cidjrpítsa",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,19],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[20,25],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -51,36 +31,16 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "ni",
-          span: [3,5],
-        },
+        nu: Cmavo "ni",
         Predicate {
           leading_terms: [
-            Word {
-              kind: "cmavo",
-              phonemes: "mi",
-              span: [6,8],
-            },
+            Cmavo "mi",
           ],
           Compound {
-            Word {
-              kind: "fu'ivla",
-              phonemes: "cidjrpitsa",
-              span: [9,19],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "citka",
-              span: [20,25],
-            },
+            Fuhivla "cidjrpítsa",
+            Gismu "cítka",
           },
         },
       },

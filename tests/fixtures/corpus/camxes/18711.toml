@@ -18,157 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i fríca fa le nu cúsku se pi'o le glíco gérna .ĭe peĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [24,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pi'o",
-    span: [26,30],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [31,33],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [34,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gerna",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ĭe",
-    span: [47,49],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [49,52],
-  },
+  Cmavo "i",
+  Gismu "fríca",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Gismu "cúsku",
+  Cmavo "se",
+  Cmavo "pi'o",
+  Cmavo "le",
+  Gismu "glíco",
+  Gismu "gérna",
+  Cmavo "ĭe",
+  Cmavo "peĭ",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[40,45],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[47,49],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[49,52],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "frica",
-      span: [3,8],
-    },
+    Gismu "fríca",
     terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [9,11],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [12,14],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [15,17],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [18,23],
-              },
+              Gismu "cúsku",
               terms: [
                 Tagged {
                   tense_modal: Simple {
-                    se: Word {
-                      kind: "cmavo",
-                      phonemes: "se",
-                      span: [24,26],
-                    },
-                    bai: Word {
-                      kind: "cmavo",
-                      phonemes: "pi'o",
-                      span: [26,30],
-                    },
+                    se: Cmavo "se",
+                    bai: Cmavo "pi'o",
                   },
                   Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [31,33],
-                    },
+                    descriptor: Cmavo "le",
                     relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "glico",
-                        span: [34,39],
-                      },
+                      Gismu "glíco",
                       WithIndicator {
                         WithIndicator {
-                          Word {
-                            kind: "gismu",
-                            phonemes: "gerna",
-                            span: [40,45],
-                          },
-                          indicator: Word {
-                            kind: "cmavo",
-                            phonemes: "ĭe",
-                            span: [47,49],
-                          },
+                          Gismu "gérna",
+                          indicator: Cmavo "ĭe",
                         },
-                        indicator: Word {
-                          kind: "cmavo",
-                          phonemes: "peĭ",
-                          span: [49,52],
-                        },
+                        indicator: Cmavo "peĭ",
                       },
                     },
                   },

@@ -19,21 +19,9 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.bancus. na djúno)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "bancus",
-    span: [0,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "djuno",
-    span: [11,16],
-  },
+  Cmevla "bancus",
+  Cmavo "na",
+  Gismu "djúno",
 ]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"djuno","kind":"gismu"}}]'
 
@@ -41,23 +29,11 @@ json = '[{"Bare":{"span":[0,6],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"s
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "bancus",
-      span: [0,6],
-    },
+    Cmevla "bancus",
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [8,10],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "djuno",
-      span: [11,16],
-    },
+    na: Cmavo "na",
+    Gismu "djúno",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,6],"phonemes":"bancus","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"djuno","kind":"gismu"}}}}}}}}}}}}}]}]}'

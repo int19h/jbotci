@@ -24,36 +24,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .djonz. na pa moĭ cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "djonz",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [20,25],
-  },
+  Cmavo "la",
+  Cmevla "djonz",
+  Cmavo "na",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"djonz","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[16,19],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -63,46 +39,22 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "djonz",
-          span: [4,9],
-        },
+        Cmevla "djonz",
       ],
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [11,13],
-    },
+    na: Cmavo "na",
     Compound {
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "pa",
-            span: [14,16],
-          },
+          Cmavo "pa",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "moĭ",
-          span: [16,19],
-        },
+        moi: Cmavo "moĭ",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [20,25],
-      },
+      Gismu "cúsku",
     },
   },
 }"""

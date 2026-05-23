@@ -18,43 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'o nu sníme)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snime",
-    span: [8,13],
-  },
+  Cmavo "za'o",
+  Cmavo "nu",
+  Gismu "sníme",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"snime","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: Word {
-    kind: "cmavo",
-    phonemes: "za'o",
-    span: [0,4],
-  },
+  tense_modal: Cmavo "za'o",
   Abstraction {
-    nu: Word {
-      kind: "cmavo",
-      phonemes: "nu",
-      span: [5,7],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "snime",
-      span: [8,13],
-    },
+    nu: Cmavo "nu",
+    Gismu "sníme",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"za'o","kind":"cmavo"}}}}]}},"inner_relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[5,7],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"snime","kind":"gismu"}}}}}}}}}}}}}}}}}}}}}]}]}"""

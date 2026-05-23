@@ -18,51 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(sa'e caĭ fríca fi no da .i míntu jítfa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "sa'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "caĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frica",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fi",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mintu",
-    span: [25,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jitfa",
-    span: [31,36],
-  },
+  Cmavo "sa'e",
+  Cmavo "caĭ",
+  Gismu "fríca",
+  Cmavo "fi",
+  Cmavo "no",
+  Cmavo "da",
+  Cmavo "i",
+  Gismu "míntu",
+  Gismu "jítfa",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"sa'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"mintu","kind":"gismu"}},{"Bare":{"span":[31,36],"phonemes":"jitfa","kind":"gismu"}}]"""
 
@@ -72,65 +36,29 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "sa'e",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "caĭ",
-          span: [4,7],
-        },
+        Cmavo "sa'e",
+        indicator: Cmavo "caĭ",
       },
     },
   ],
   Paragraph {
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "frica",
-        span: [8,13],
-      },
+      Gismu "fríca",
       terms: [
         Fa {
-          fa: Word {
-            kind: "cmavo",
-            phonemes: "fi",
-            span: [14,16],
-          },
+          fa: Cmavo "fi",
           Quantified {
-            quantifier: Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [17,19],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [19,21],
-            },
+            quantifier: Cmavo "no",
+            Cmavo "da",
           },
         },
       ],
     },
     ParagraphStatement {
-      i: Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [23,24],
-      },
+      i: Cmavo "i",
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "mintu",
-          span: [25,30],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "jitfa",
-          span: [31,36],
-        },
+        Gismu "míntu",
+        Gismu "jítfa",
       },
     },
   },

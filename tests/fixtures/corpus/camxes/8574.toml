@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(seĭ cníno se cásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cnino",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "casnu",
-    span: [13,18],
-  },
+  Cmavo "seĭ",
+  Gismu "cníno",
+  Cmavo "se",
+  Gismu "cásnu",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"casnu","kind":"gismu"}}]'
 
@@ -46,28 +30,12 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
+      sei: Cmavo "seĭ",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "cnino",
-          span: [4,9],
-        },
+        Gismu "cníno",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [10,12],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "casnu",
-            span: [13,18],
-          },
+          se: Cmavo "se",
+          Gismu "cásnu",
         },
       },
     },

@@ -18,67 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xa xi xa xi xa)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xi",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [12,14],
-  },
+  Cmavo "xa",
+  Cmavo "xi",
+  Cmavo "xa",
+  Cmavo "xi",
+  Cmavo "xa",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"xa","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "xa",
-    span: [0,2],
-  },
+  Cmavo "xa",
   free_modifiers: [
     Xi {
-      xi: Word {
-        kind: "cmavo",
-        phonemes: "xi",
-        span: [3,5],
-      },
+      xi: Cmavo "xi",
       Number {
-        Word {
-          kind: "cmavo",
-          phonemes: "xa",
-          span: [6,8],
-        },
+        Cmavo "xa",
         free_modifiers: [
           Xi {
-            xi: Word {
-              kind: "cmavo",
-              phonemes: "xi",
-              span: [9,11],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "xa",
-              span: [12,14],
-            },
+            xi: Cmavo "xi",
+            Cmavo "xa",
           },
         ],
       },

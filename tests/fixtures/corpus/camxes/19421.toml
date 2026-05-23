@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le spéro xámgu ve távla mi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spero",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Cmavo "le",
+  Gismu "spéro",
+  Gismu "xámgu",
+  Cmavo "ve",
+  Gismu "távla",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"spero","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -56,41 +32,17 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "spero",
-          span: [3,8],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xamgu",
-          span: [9,14],
-        },
+        Gismu "spéro",
+        Gismu "xámgu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "ve",
-            span: [15,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tavla",
-            span: [18,23],
-          },
+          se: Cmavo "ve",
+          Gismu "távla",
         },
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [24,26],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"spero","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"xamgu","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[15,17],"phonemes":"ve","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}]}]}'

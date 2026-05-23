@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to púrci fa le nu do kárgaŭ le ga'ávro toĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "purci",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [17,19],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "kargaŭ",
-    span: [20,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [27,29],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "ga'avro",
-    span: [30,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "toĭ",
-    span: [38,41],
-  },
+  Cmavo "to",
+  Gismu "púrci",
+  Cmavo "fa",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Lujvo "kárgaŭ",
+  Cmavo "le",
+  Lujvo "ga'ávro",
+  Cmavo "toĭ",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"purci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,26],"phonemes":"kargaŭ","kind":"lujvo"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[30,37],"phonemes":"ga'avro","kind":"lujvo"}},{"Bare":{"span":[38,41],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
@@ -76,62 +36,26 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       Relation {
-        Word {
-          kind: "gismu",
-          phonemes: "purci",
-          span: [3,8],
-        },
+        Gismu "púrci",
         terms: [
           Fa {
-            fa: Word {
-              kind: "cmavo",
-              phonemes: "fa",
-              span: [9,11],
-            },
+            fa: Cmavo "fa",
             Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [12,14],
-              },
+              descriptor: Cmavo "le",
               relation: Abstraction {
-                nu: Word {
-                  kind: "cmavo",
-                  phonemes: "nu",
-                  span: [14,16],
-                },
+                nu: Cmavo "nu",
                 Predicate {
                   leading_terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "do",
-                      span: [17,19],
-                    },
+                    Cmavo "do",
                   ],
                   Relation {
-                    Word {
-                      kind: "lujvo",
-                      phonemes: "kargaŭ",
-                      span: [20,26],
-                    },
+                    Lujvo "kárgaŭ",
                     terms: [
                       Descriptor {
-                        descriptor: Word {
-                          kind: "cmavo",
-                          phonemes: "le",
-                          span: [27,29],
-                        },
-                        relation: Word {
-                          kind: "lujvo",
-                          phonemes: "ga'avro",
-                          span: [30,37],
-                        },
+                        descriptor: Cmavo "le",
+                        relation: Lujvo "ga'ávro",
                       },
                     ],
                   },
@@ -141,11 +65,7 @@ Text {
           },
         ],
       },
-      toi: Word {
-        kind: "cmavo",
-        phonemes: "toĭ",
-        span: [38,41],
-      },
+      toi: Cmavo "toĭ",
     },
   ],
 }"""

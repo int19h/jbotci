@@ -18,21 +18,9 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do jo'u ri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo'u",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ri",
-    span: [8,10],
-  },
+  Cmavo "do",
+  Cmavo "jo'u",
+  Cmavo "ri",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"jo'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ri","kind":"cmavo"}}]"""
 
@@ -41,21 +29,9 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [0,2],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "jo'u",
-        span: [3,7],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "ri",
-        span: [8,10],
-      },
+      leading_argument: Cmavo "do",
+      connective: Cmavo "jo'u",
+      trailing_argument: Cmavo "ri",
     },
   ],
 }"""

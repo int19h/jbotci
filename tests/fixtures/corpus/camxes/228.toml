@@ -18,38 +18,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'o do'a [naĭ zeĭ nalpátfu] prénu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'o",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do'a",
-    span: [5,9],
-  },
+  Cmavo "zo'o",
+  Cmavo "do'a",
   ZeiLujvo {
-    left: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [9,12],
-    },
-    zei: Word {
-      kind: "cmavo",
-      phonemes: "zeĭ",
-      span: [13,16],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "nalpatfu",
-      span: [17,25],
-    },
+    left: Cmavo "naĭ",
+    zei: Cmavo "zeĭ",
+    Lujvo "nalpátfu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [26,31],
-  },
+  Gismu "prénu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'a","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}},"zei":{"span":[13,16],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[17,25],"phonemes":"nalpatfu","kind":"lujvo"}}},{"Bare":{"span":[26,31],"phonemes":"prenu","kind":"gismu"}}]"""
 
@@ -59,42 +35,18 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "zo'o",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "do'a",
-          span: [5,9],
-        },
+        Cmavo "zo'o",
+        indicator: Cmavo "do'a",
       },
     },
   ],
   Compound {
     ZeiLujvo {
-      left: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [9,12],
-      },
-      zei: Word {
-        kind: "cmavo",
-        phonemes: "zeĭ",
-        span: [13,16],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "nalpatfu",
-        span: [17,25],
-      },
+      left: Cmavo "naĭ",
+      zei: Cmavo "zeĭ",
+      Lujvo "nalpátfu",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "prenu",
-      span: [26,31],
-    },
+    Gismu "prénu",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}},"zei":{"span":[13,16],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[17,25],"phonemes":"nalpatfu","kind":"lujvo"}}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"prenu","kind":"gismu"}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"do'a","kind":"cmavo"}}}}]}"""

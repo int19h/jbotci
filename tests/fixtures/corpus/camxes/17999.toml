@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(peĭ lu li vo li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [7,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [13,17],
-  },
+  Cmavo "peĭ",
+  Cmavo "lu",
+  Cmavo "li",
+  Cmavo "vo",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -51,42 +31,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "peĭ",
-        span: [0,3],
-      },
+      indicator: Cmavo "peĭ",
     },
   ],
   Term {
     terms: [
       Lu {
-        lu: Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [4,6],
-        },
+        lu: Cmavo "lu",
         Term {
           terms: [
             MathExpression {
-              li: Word {
-                kind: "cmavo",
-                phonemes: "li",
-                span: [7,9],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "vo",
-                span: [10,12],
-              },
+              li: Cmavo "li",
+              Cmavo "vo",
             },
           ],
         },
-        lihu: Word {
-          kind: "cmavo",
-          phonemes: "li'u",
-          span: [13,17],
-        },
+        lihu: Cmavo "li'u",
       },
     ],
   },

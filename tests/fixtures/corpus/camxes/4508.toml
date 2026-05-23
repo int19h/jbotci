@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(kaĭ ma do bácru doĭ .robin.)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "kaĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bacru",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [16,19],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [20,25],
-  },
+  Cmavo "kaĭ",
+  Cmavo "ma",
+  Cmavo "do",
+  Gismu "bácru",
+  Cmavo "doĭ",
+  Cmevla "robin",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"kaĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"robin","kind":"cmevla"}}]'
 
@@ -57,44 +33,20 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "kaĭ",
-          span: [0,3],
-        },
+        bai: Cmavo "kaĭ",
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [4,6],
-      },
+      Cmavo "ma",
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [7,9],
-    },
+    Cmavo "do",
   ],
   Word {
-    Word {
-      kind: "gismu",
-      phonemes: "bacru",
-      span: [10,15],
-    },
+    Gismu "bácru",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [16,19],
-          },
+          Cmavo "doĭ",
         ],
-        argument: Word {
-          kind: "cmevla",
-          phonemes: "robin",
-          span: [20,25],
-        },
+        argument: Cmevla "robin",
       },
     ],
   },

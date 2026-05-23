@@ -18,39 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ma [zoĭ cmávo romu'ei cmávo] smúni do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
+  Cmavo "ma",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [3,6],
-    },
-    opening_delimiter: Word {
-      kind: "gismu",
-      phonemes: "cmavo",
-      span: [7,12],
-    },
-    quoted_text: [12,20],
-    closing_delimiter: Word {
-      kind: "gismu",
-      phonemes: "cmavo",
-      span: [21,26],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Gismu "cmávo",
+    quoted_text: Verbatim "romu'ei",
+    closing_delimiter: Gismu "cmávo",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [33,35],
-  },
+  Gismu "smúni",
+  Cmavo "do",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[7,12],"phonemes":"cmavo","kind":"gismu"},"quoted_text":[12,20],"closing_delimiter":{"span":[21,26],"phonemes":"cmavo","kind":"gismu"}}},{"Bare":{"span":[27,32],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"do","kind":"cmavo"}}]'
 
@@ -58,42 +34,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"ZoiQuote":{"zo
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
     ZoiQuote {
-      zoi: Word {
-        kind: "cmavo",
-        phonemes: "zoĭ",
-        span: [3,6],
-      },
-      opening_delimiter: Word {
-        kind: "gismu",
-        phonemes: "cmavo",
-        span: [7,12],
-      },
-      quoted_text: [12,20],
-      closing_delimiter: Word {
-        kind: "gismu",
-        phonemes: "cmavo",
-        span: [21,26],
-      },
+      zoi: Cmavo "zoĭ",
+      opening_delimiter: Gismu "cmávo",
+      quoted_text: Verbatim "romu'ei",
+      closing_delimiter: Gismu "cmávo",
     },
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [27,32],
-    },
+    Gismu "smúni",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [33,35],
-      },
+      Cmavo "do",
     ],
   },
 }"""

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'e sréra se cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "di'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "srera",
-    span: [5,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [14,19],
-  },
+  Cmavo "di'e",
+  Gismu "sréra",
+  Cmavo "se",
+  Gismu "cúsku",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"srera","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cusku","kind":"gismu"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"di'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "di'e",
-      span: [0,4],
-    },
+    Cmavo "di'e",
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "srera",
-      span: [5,10],
-    },
+    Gismu "sréra",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "se",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "cusku",
-        span: [14,19],
-      },
+      se: Cmavo "se",
+      Gismu "cúsku",
     },
   },
 }"""

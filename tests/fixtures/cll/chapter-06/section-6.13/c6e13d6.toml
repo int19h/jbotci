@@ -24,41 +24,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi kláma la .frankfurt. zo'e zo'e zo'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "klama",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "frankfurt",
-    span: [13,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [29,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [34,38],
-  },
+  Cmavo "mi",
+  Gismu "kláma",
+  Cmavo "la",
+  Cmevla "frankfurt",
+  Cmavo "zo'e",
+  Cmavo "zo'e",
+  Cmavo "zo'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[13,22],"phonemes":"frankfurt","kind":"cmevla"}},{"Bare":{"span":[24,28],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[34,38],"phonemes":"zo'e","kind":"cmavo"}}]"""
 
@@ -67,48 +39,20 @@ brackets = "(mi [kláma {(la .frankfurt.) zo'e zo'e zo'e}])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "klama",
-      span: [3,8],
-    },
+    Gismu "kláma",
     terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [9,11],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "frankfurt",
-            span: [13,22],
-          },
+          Cmevla "frankfurt",
         ],
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [24,28],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [29,33],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [34,38],
-      },
+      Cmavo "zo'e",
+      Cmavo "zo'e",
+      Cmavo "zo'e",
     ],
   },
 }"""

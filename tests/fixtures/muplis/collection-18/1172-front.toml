@@ -21,16 +21,8 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(do latcríbe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "latcribe",
-    span: [3,11],
-  },
+  Cmavo "do",
+  Lujvo "latcríbe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"latcribe","kind":"lujvo"}}]'
 
@@ -39,16 +31,8 @@ brackets = "(do latcríbe)"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
-  Word {
-    kind: "lujvo",
-    phonemes: "latcribe",
-    span: [3,11],
-  },
+  Lujvo "latcríbe",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[3,11],"phonemes":"latcribe","kind":"lujvo"}}}}}}}}}}}]}]}'

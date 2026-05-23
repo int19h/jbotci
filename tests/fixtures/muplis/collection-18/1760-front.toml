@@ -21,61 +21,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i fe pa snúji fa leĭ za'u da ca ca'o cítka)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snuji",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fa",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "leĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca'o",
-    span: [33,37],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [38,43],
-  },
+  Cmavo "i",
+  Cmavo "fe",
+  Cmavo "pa",
+  Gismu "snúji",
+  Cmavo "fa",
+  Cmavo "leĭ",
+  Cmavo "za'u",
+  Cmavo "da",
+  Cmavo "ca",
+  Cmavo "ca'o",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"snuji","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[33,37],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[38,43],"phonemes":"citka","kind":"gismu"}}]"""
 
@@ -83,79 +39,35 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [{(fe [pa snúji]) (fa [leĭ {za'u da}])} {(ca ca'o) cítka}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fe",
-          span: [3,5],
-        },
+        fa: Cmavo "fe",
         Descriptor {
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "pa",
-              span: [6,8],
-            },
+            Cmavo "pa",
           ],
-          relation: Word {
-            kind: "gismu",
-            phonemes: "snuji",
-            span: [9,14],
-          },
+          relation: Gismu "snúji",
         },
       },
       Fa {
-        fa: Word {
-          kind: "cmavo",
-          phonemes: "fa",
-          span: [15,17],
-        },
+        fa: Cmavo "fa",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "leĭ",
-            span: [18,21],
-          },
+          descriptor: Cmavo "leĭ",
           tail_elements: [
-            Word {
-              kind: "cmavo",
-              phonemes: "za'u",
-              span: [22,26],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "da",
-              span: [27,29],
-            },
+            Cmavo "za'u",
+            Cmavo "da",
           ],
         },
       },
     ],
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [30,32],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ca'o",
-          span: [33,37],
-        },
+        Cmavo "ca",
+        Cmavo "ca'o",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [38,43],
-      },
+      Gismu "cítka",
     },
   },
 }"""

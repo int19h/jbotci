@@ -18,45 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xábju la .longmont.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "longmont",
-    span: [9,17],
-  },
+  Gismu "xábju",
+  Cmavo "la",
+  Cmevla "longmont",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"longmont","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [0,5],
-  },
+  Gismu "xábju",
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [6,8],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "longmont",
-          span: [9,17],
-        },
+        Cmevla "longmont",
       ],
     },
   ],

@@ -18,43 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i pe'i [.u bu] na'o na cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [4,8],
-  },
+  Cmavo "ku'i",
+  Cmavo "pe'i",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "u",
-      span: [9,10],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [10,12],
-    },
+    Cmavo "u",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'o",
-    span: [14,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [22,27],
-  },
+  Cmavo "na'o",
+  Cmavo "na",
+  Gismu "cúsku",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"pe'i","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[9,10],"phonemes":"u","kind":"cmavo"}},"bu":{"span":[10,12],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[14,18],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cusku","kind":"gismu"}}]"""
 
@@ -64,16 +36,8 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "pe'i",
-          span: [4,8],
-        },
+        Cmavo "ku'i",
+        indicator: Cmavo "pe'i",
       },
     },
   ],
@@ -82,37 +46,17 @@ Text {
       Letter {
         letter: [
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "u",
-              span: [9,10],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [10,12],
-            },
+            Cmavo "u",
+            bu: Cmavo "bu",
           },
         ],
       },
     ],
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "na'o",
-        span: [14,18],
-      },
+      tense_modal: Cmavo "na'o",
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [19,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "cusku",
-          span: [22,27],
-        },
+        na: Cmavo "na",
+        Gismu "cúsku",
       },
     },
   },

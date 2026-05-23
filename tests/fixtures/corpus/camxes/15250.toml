@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le mi pátfu .e mi cu pu cítka va lo kárgu zarcnresturánta)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "patfu",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [13,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [21,23],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [33,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kargu",
-    span: [36,41],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "zarcnresturanta",
-    span: [42,57],
-  },
+  Cmavo "le",
+  Cmavo "mi",
+  Gismu "pátfu",
+  Cmavo "e",
+  Cmavo "mi",
+  Cmavo "cu",
+  Cmavo "pu",
+  Gismu "cítka",
+  Cmavo "va",
+  Cmavo "lo",
+  Gismu "kárgu",
+  Fuhivla "zarcnresturánta",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"patfu","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"va","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"kargu","kind":"gismu"}},{"Bare":{"span":[42,57],"phonemes":"zarcnresturanta","kind":"fu'ivla"}}]"""
 
@@ -87,78 +39,30 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [3,5],
-          },
+          Cmavo "mi",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "patfu",
-          span: [6,11],
-        },
+        relation: Gismu "pátfu",
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [13,14],
-      },
-      trailing_argument: Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [15,17],
-      },
+      connective: Cmavo "e",
+      trailing_argument: Cmavo "mi",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [18,20],
-  },
+  cu: Cmavo "cu",
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "pu",
-        span: [21,23],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "citka",
-        span: [24,29],
-      },
+      tense_modal: Cmavo "pu",
+      Gismu "cítka",
     },
     terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "va",
-          span: [30,32],
-        },
+        tense_modal: Cmavo "va",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [33,35],
-          },
+          descriptor: Cmavo "lo",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "kargu",
-              span: [36,41],
-            },
-            Word {
-              kind: "fu'ivla",
-              phonemes: "zarcnresturanta",
-              span: [42,57],
-            },
+            Gismu "kárgu",
+            Fuhivla "zarcnresturánta",
           },
         },
       },

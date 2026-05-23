@@ -18,32 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma smúni [lo'u ke le'u])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smuni",
-    span: [3,8],
-  },
+  Cmavo "ma",
+  Gismu "smúni",
   LohuQuote {
-    lohu: Word {
-      kind: "cmavo",
-      phonemes: "lo'u",
-      span: [9,13],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [14,16],
-    },
-    lehu: Word {
-      kind: "cmavo",
-      phonemes: "le'u",
-      span: [17,21],
-    },
+    lohu: Cmavo "lo'u",
+    Cmavo "ke",
+    lehu: Cmavo "le'u",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"smuni","kind":"gismu"}},{"LohuQuote":{"lohu":{"span":[9,13],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[14,16],"phonemes":"ke","kind":"cmavo"}],"lehu":{"span":[17,21],"phonemes":"le'u","kind":"cmavo"}}}]"""
@@ -52,35 +32,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "smuni",
-      span: [3,8],
-    },
+    Gismu "smúni",
     terms: [
       LohuQuote {
-        lohu: Word {
-          kind: "cmavo",
-          phonemes: "lo'u",
-          span: [9,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "ke",
-          span: [14,16],
-        },
-        lehu: Word {
-          kind: "cmavo",
-          phonemes: "le'u",
-          span: [17,21],
-        },
+        lohu: Cmavo "lo'u",
+        Cmavo "ke",
+        lehu: Cmavo "le'u",
       },
     ],
   },

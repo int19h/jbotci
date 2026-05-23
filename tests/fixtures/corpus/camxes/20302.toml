@@ -18,65 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gláre cárvi la'a .ŭi naĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carvi",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'a",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [20,23],
-  },
+  Gismu "gláre",
+  Gismu "cárvi",
+  Cmavo "la'a",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"glare","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "glare",
-    span: [0,5],
-  },
+  Gismu "gláre",
   WithIndicator {
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "carvi",
-        span: [6,11],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "la'a",
-        span: [12,16],
-      },
+      Gismu "cárvi",
+      indicator: Cmavo "la'a",
     },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [18,20],
-    },
-    nai: Word {
-      kind: "cmavo",
-      phonemes: "naĭ",
-      span: [20,23],
-    },
+    indicator: Cmavo "ŭi",
+    nai: Cmavo "naĭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"glare","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"carvi","kind":"gismu"}}},"indicator":{"span":[12,16],"phonemes":"la'a","kind":"cmavo"}}},"indicator":{"span":[18,20],"phonemes":"ŭi","kind":"cmavo"},"nai":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}}}}]}}}}}}}}]}]}"""

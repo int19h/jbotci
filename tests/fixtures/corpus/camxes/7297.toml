@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'u ma le dátni sórcu mínji)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "a'u",
-    span: [1,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "datni",
-    span: [11,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sorcu",
-    span: [17,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [23,28],
-  },
+  Cmavo "a'u",
+  Cmavo "ma",
+  Cmavo "le",
+  Gismu "dátni",
+  Gismu "sórcu",
+  Gismu "mínji",
 ]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"a'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"sorcu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"minji","kind":"gismu"}}]"""
 
@@ -56,42 +32,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "a'u",
-        span: [1,4],
-      },
+      indicator: Cmavo "a'u",
     },
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ma",
-        span: [5,7],
-      },
+      Cmavo "ma",
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [8,10],
-        },
+        descriptor: Cmavo "le",
         relation: Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "datni",
-            span: [11,16],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "sorcu",
-            span: [17,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "minji",
-            span: [23,28],
-          },
+          Gismu "dátni",
+          Gismu "sórcu",
+          Gismu "mínji",
         },
       },
     ],

@@ -19,51 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi víska la'e lu le xúnre cmaxírma li'u lu'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "viska",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la'e",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [17,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [20,25],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "cmaxirma",
-    span: [26,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [35,39],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu'u",
-    span: [41,45],
-  },
+  Cmavo "mi",
+  Gismu "víska",
+  Cmavo "la'e",
+  Cmavo "lu",
+  Cmavo "le",
+  Gismu "xúnre",
+  Lujvo "cmaxírma",
+  Cmavo "li'u",
+  Cmavo "lu'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[26,34],"phonemes":"cmaxirma","kind":"lujvo"}},{"Bare":{"span":[35,39],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"lu'u","kind":"cmavo"}}]"""
 
@@ -71,65 +35,29 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "viska",
-      span: [3,8],
-    },
+    Gismu "víska",
     terms: [
       Lahe {
-        lahe: Word {
-          kind: "cmavo",
-          phonemes: "la'e",
-          span: [9,13],
-        },
+        lahe: Cmavo "la'e",
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [14,16],
-          },
+          lu: Cmavo "lu",
           Term {
             terms: [
               Descriptor {
-                descriptor: Word {
-                  kind: "cmavo",
-                  phonemes: "le",
-                  span: [17,19],
-                },
+                descriptor: Cmavo "le",
                 relation: Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "xunre",
-                    span: [20,25],
-                  },
-                  Word {
-                    kind: "lujvo",
-                    phonemes: "cmaxirma",
-                    span: [26,34],
-                  },
+                  Gismu "xúnre",
+                  Lujvo "cmaxírma",
                 },
               },
             ],
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [35,39],
-          },
+          lihu: Cmavo "li'u",
         },
-        luhu: Word {
-          kind: "cmavo",
-          phonemes: "lu'u",
-          span: [41,45],
-        },
+        luhu: Cmavo "lu'u",
       },
     ],
   },

@@ -18,63 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(sípna skámi bo pílno prénu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skami",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bo",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [21,26],
-  },
+  Gismu "sípna",
+  Gismu "skámi",
+  Cmavo "bo",
+  Gismu "pílno",
+  Gismu "prénu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"prenu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [0,5],
-  },
+  Gismu "sípna",
   Bo {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "skami",
-      span: [6,11],
-    },
-    bo: Word {
-      kind: "cmavo",
-      phonemes: "bo",
-      span: [12,14],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "pilno",
-      span: [15,20],
-    },
+    leading_unit: Gismu "skámi",
+    bo: Cmavo "bo",
+    trailing_unit: Gismu "pílno",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "prenu",
-    span: [21,26],
-  },
+  Gismu "prénu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"sipna","kind":"gismu"}}}},{"Bo":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"skami","kind":"gismu"}}}},"bo":{"Bare":{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"pilno","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"prenu","kind":"gismu"}}}}]}}}}}}}}]}]}'

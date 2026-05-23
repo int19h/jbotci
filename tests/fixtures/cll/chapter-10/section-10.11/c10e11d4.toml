@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(tu ve'a be'a fe'e co'a rókci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "tu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ve'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fe'e",
-    span: [12,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'a",
-    span: [17,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "rokci",
-    span: [22,27],
-  },
+  Cmavo "tu",
+  Cmavo "ve'a",
+  Cmavo "be'a",
+  Cmavo "fe'e",
+  Cmavo "co'a",
+  Gismu "rókci",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ve'a","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"be'a","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"fe'e","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"rokci","kind":"gismu"}}]"""
 
@@ -62,40 +38,16 @@ brackets = "(tu [{ve'a be'a fe'e co'a} rókci])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "tu",
-      span: [0,2],
-    },
+    Cmavo "tu",
   ],
   TenseModal {
     tense_modal: Composite {
-      Word {
-        kind: "cmavo",
-        phonemes: "ve'a",
-        span: [3,7],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "be'a",
-        span: [7,11],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "fe'e",
-        span: [12,16],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "co'a",
-        span: [17,21],
-      },
+      Cmavo "ve'a",
+      Cmavo "be'a",
+      Cmavo "fe'e",
+      Cmavo "co'a",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "rokci",
-      span: [22,27],
-    },
+    Gismu "rókci",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"tu","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ve'a","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[7,11],"phonemes":"be'a","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"fe'e","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[17,21],"phonemes":"co'a","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"rokci","kind":"gismu"}}}}}}}}}}}}}]}]}"""

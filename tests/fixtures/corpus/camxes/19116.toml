@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to be no ma de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [10,12],
-  },
+  Cmavo "to",
+  Cmavo "be",
+  Cmavo "no",
+  Cmavo "ma",
+  Cmavo "de",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"de","kind":"cmavo"}}]'
 
@@ -51,39 +31,19 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: Word {
-        kind: "cmavo",
-        phonemes: "to",
-        span: [0,2],
-      },
+      to: Cmavo "to",
       BeLink {
-        be: Word {
-          kind: "cmavo",
-          phonemes: "be",
-          span: [3,5],
-        },
+        be: Cmavo "be",
         first_argument: Quantified {
-          quantifier: Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [6,8],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ma",
-            span: [8,10],
-          },
+          quantifier: Cmavo "no",
+          Cmavo "ma",
         },
       },
     },
   ],
   Term {
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "de",
-        span: [10,12],
-      },
+      Cmavo "de",
     ],
   },
 }"""

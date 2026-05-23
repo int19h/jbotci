@@ -18,43 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(be le náxle)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "naxle",
-    span: [8,13],
-  },
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "náxle",
 ]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"naxle","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 BeLink {
-  be: Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [3,5],
-  },
+  be: Cmavo "be",
   first_argument: Descriptor {
-    descriptor: Word {
-      kind: "cmavo",
-      phonemes: "le",
-      span: [5,7],
-    },
-    relation: Word {
-      kind: "gismu",
-      phonemes: "naxle",
-      span: [8,13],
-    },
+    descriptor: Cmavo "le",
+    relation: Gismu "náxle",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeLink":{"be":{"Bare":{"Bare":{"span":[3,5],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"naxle","kind":"gismu"}}}}}}}}}}]}]}'

@@ -18,91 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pénsi le du'u ma kaŭ se cítka)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [13,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "kaŭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "citka",
-    span: [22,27],
-  },
+  Gismu "pénsi",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "ma",
+  Cmavo "kaŭ",
+  Cmavo "se",
+  Gismu "cítka",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"citka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "pensi",
-    span: [0,5],
-  },
+  Gismu "pénsi",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [6,8],
-      },
+      descriptor: Cmavo "le",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "du'u",
-          span: [8,12],
-        },
+        nu: Cmavo "du'u",
         Predicate {
           leading_terms: [
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "ma",
-                span: [13,15],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "kaŭ",
-                span: [15,18],
-              },
+              Cmavo "ma",
+              indicator: Cmavo "kaŭ",
             },
           ],
           Se {
-            se: Word {
-              kind: "cmavo",
-              phonemes: "se",
-              span: [19,21],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "citka",
-              span: [22,27],
-            },
+            se: Cmavo "se",
+            Gismu "cítka",
           },
         },
       },

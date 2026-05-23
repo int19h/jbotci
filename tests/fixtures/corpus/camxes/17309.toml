@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da jaĭ bu'a di po'u de)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bu'a",
-    span: [7,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "di",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "po'u",
-    span: [15,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de",
-    span: [20,22],
-  },
+  Cmavo "da",
+  Cmavo "jaĭ",
+  Cmavo "bu'a",
+  Cmavo "di",
+  Cmavo "po'u",
+  Cmavo "de",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"bu'a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"di","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"po'u","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"de","kind":"cmavo"}}]"""
 
@@ -55,46 +31,22 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "da",
-      span: [0,2],
-    },
+    Cmavo "da",
   ],
   Relation {
     Jai {
-      jai: Word {
-        kind: "cmavo",
-        phonemes: "jaĭ",
-        span: [3,6],
-      },
+      jai: Cmavo "jaĭ",
       Goha {
-        goha: Word {
-          kind: "cmavo",
-          phonemes: "bu'a",
-          span: [7,11],
-        },
+        goha: Cmavo "bu'a",
       },
     },
     terms: [
       RelativeClause {
-        base_argument: Word {
-          kind: "cmavo",
-          phonemes: "di",
-          span: [12,14],
-        },
+        base_argument: Cmavo "di",
         relative_clauses: [
           GoiRelativeClause {
-            goi: Word {
-              kind: "cmavo",
-              phonemes: "po'u",
-              span: [15,19],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "de",
-              span: [20,22],
-            },
+            goi: Cmavo "po'u",
+            Cmavo "de",
           },
         ],
       },

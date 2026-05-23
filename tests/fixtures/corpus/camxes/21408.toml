@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma cínmo válsi le si'o tátpi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinmo",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [23,28],
-  },
+  Cmavo "ma",
+  Gismu "cínmo",
+  Gismu "válsi",
+  Cmavo "le",
+  Cmavo "si'o",
+  Gismu "tátpi",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cinmo","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"tatpi","kind":"gismu"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "cinmo",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [9,14],
-      },
+      Gismu "cínmo",
+      Gismu "válsi",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "si'o",
-            span: [18,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "tatpi",
-            span: [23,28],
-          },
+          nu: Cmavo "si'o",
+          Gismu "tátpi",
         },
       },
     ],

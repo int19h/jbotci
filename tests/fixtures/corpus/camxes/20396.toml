@@ -18,21 +18,9 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(seĭ snáda saĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "seĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "snada",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [10,13],
-  },
+  Cmavo "seĭ",
+  Gismu "snáda",
+  Cmavo "saĭ",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"snada","kind":"gismu"}},{"Bare":{"span":[10,13],"phonemes":"saĭ","kind":"cmavo"}}]'
 
@@ -41,22 +29,10 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "seĭ",
-        span: [0,3],
-      },
+      sei: Cmavo "seĭ",
       relation: WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "snada",
-          span: [4,9],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "saĭ",
-          span: [10,13],
-        },
+        Gismu "snáda",
+        indicator: Cmavo "saĭ",
       },
     },
   ],

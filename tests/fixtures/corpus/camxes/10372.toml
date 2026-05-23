@@ -18,48 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu [zo mídju] dúnli lu vájni tráji li'u)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
+  Cmavo "xu",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "midju",
-      span: [6,11],
-    },
+    zo: Cmavo "zo",
+    Gismu "mídju",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "dunli",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lu",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vajni",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "traji",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li'u",
-    span: [33,37],
-  },
+  Gismu "dúnli",
+  Cmavo "lu",
+  Gismu "vájni",
+  Gismu "tráji",
+  Cmavo "li'u",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,11],"phonemes":"midju","kind":"gismu"}}},{"Bare":{"span":[12,17],"phonemes":"dunli","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"vajni","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[33,37],"phonemes":"li'u","kind":"cmavo"}}]"""
 
@@ -68,58 +36,26 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "midju",
-          span: [6,11],
-        },
+        zo: Cmavo "zo",
+        Gismu "mídju",
       },
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "dunli",
-        span: [12,17],
-      },
+      Gismu "dúnli",
       terms: [
         Lu {
-          lu: Word {
-            kind: "cmavo",
-            phonemes: "lu",
-            span: [18,20],
-          },
+          lu: Cmavo "lu",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "vajni",
-              span: [21,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "traji",
-              span: [27,32],
-            },
+            Gismu "vájni",
+            Gismu "tráji",
           },
-          lihu: Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [33,37],
-          },
+          lihu: Cmavo "li'u",
         },
       ],
     },

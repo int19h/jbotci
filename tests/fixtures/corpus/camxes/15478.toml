@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u da cértu .i ko súrla tróci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "so'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [14,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "surla",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "troci",
-    span: [25,30],
-  },
+  Cmavo "so'u",
+  Cmavo "da",
+  Gismu "cértu",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "súrla",
+  Gismu "tróci",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"troci","kind":"gismu"}}]"""
 
@@ -62,49 +34,21 @@ Paragraph {
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "so'u",
-          span: [0,4],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "da",
-          span: [4,6],
-        },
+        quantifier: Cmavo "so'u",
+        Cmavo "da",
       },
     ],
-    Word {
-      kind: "gismu",
-      phonemes: "certu",
-      span: [7,12],
-    },
+    Gismu "cértu",
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [14,15],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [16,18],
-        },
+        Cmavo "ko",
       ],
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "surla",
-          span: [19,24],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "troci",
-          span: [25,30],
-        },
+        Gismu "súrla",
+        Gismu "tróci",
       },
     },
   },

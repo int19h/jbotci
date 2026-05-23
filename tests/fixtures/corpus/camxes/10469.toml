@@ -19,37 +19,13 @@ brackets = "([zo dánti] cu zdíle je malselpénsi)"
 tree = """
 [
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [0,2],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "danti",
-      span: [3,8],
-    },
+    zo: Cmavo "zo",
+    Gismu "dánti",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [18,20],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malselpensi",
-    span: [21,32],
-  },
+  Cmavo "cu",
+  Gismu "zdíle",
+  Cmavo "je",
+  Lujvo "malselpénsi",
 ]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"danti","kind":"gismu"}}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[21,32],"phonemes":"malselpensi","kind":"lujvo"}}]'
 
@@ -58,39 +34,15 @@ tree = """
 Predicate {
   leading_terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [0,2],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "danti",
-        span: [3,8],
-      },
+      zo: Cmavo "zo",
+      Gismu "dánti",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [9,11],
-  },
+  cu: Cmavo "cu",
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "zdile",
-      span: [12,17],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [18,20],
-    },
-    trailing_relation: Word {
-      kind: "lujvo",
-      phonemes: "malselpensi",
-      span: [21,32],
-    },
+    leading_relation: Gismu "zdíle",
+    connective: Cmavo "je",
+    trailing_relation: Lujvo "malselpénsi",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"danti","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"zdile","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[21,32],"phonemes":"malselpensi","kind":"lujvo"}}}}}}}}}}}}}]}]}'

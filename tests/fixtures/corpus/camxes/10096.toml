@@ -18,41 +18,13 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ co'o .i ba zi júndi xrúti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [9,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zi",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jundi",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xruti",
-    span: [22,27],
-  },
+  Cmavo "coĭ",
+  Cmavo "co'o",
+  Cmavo "i",
+  Cmavo "ba",
+  Cmavo "zi",
+  Gismu "júndi",
+  Gismu "xrúti",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jundi","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"xruti","kind":"gismu"}}]"""
 
@@ -62,49 +34,21 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [3,7],
-        },
+        Cmavo "coĭ",
+        Cmavo "co'o",
       ],
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [9,10],
-    },
+    i: Cmavo "i",
     TenseModal {
       tense_modal: Composite {
-        Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [11,13],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "zi",
-          span: [13,15],
-        },
+        Cmavo "ba",
+        Cmavo "zi",
       },
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jundi",
-          span: [16,21],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "xruti",
-          span: [22,27],
-        },
+        Gismu "júndi",
+        Gismu "xrúti",
       },
     },
   },

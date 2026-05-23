@@ -18,31 +18,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(me la .turing. mínji xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "turing",
-    span: [6,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "minji",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [19,21],
-  },
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "turing",
+  Gismu "mínji",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,12],"phonemes":"turing","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"minji","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -50,37 +30,17 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Compound {
   Me {
-    me: Word {
-      kind: "cmavo",
-      phonemes: "me",
-      span: [0,2],
-    },
+    me: Cmavo "me",
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [3,5],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "turing",
-          span: [6,12],
-        },
+        Cmevla "turing",
       ],
     },
   },
   WithIndicator {
-    Word {
-      kind: "gismu",
-      phonemes: "minji",
-      span: [13,18],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [19,21],
-    },
+    Gismu "mínji",
+    indicator: Cmavo "xu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[0,2],"phonemes":"me","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[6,12],"phonemes":"turing","kind":"cmevla"}}}]}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"minji","kind":"gismu"}}},"indicator":{"span":[19,21],"phonemes":"xu","kind":"cmavo"}}}}]}}}}}}}}]}]}'

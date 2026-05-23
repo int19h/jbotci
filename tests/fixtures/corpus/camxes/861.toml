@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .prim. .palvr. pa moĭ cúsku)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "prim",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "palvr",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [22,27],
-  },
+  Cmavo "la",
+  Cmevla "prim",
+  Cmevla "palvr",
+  Cmavo "pa",
+  Cmavo "moĭ",
+  Gismu "cúsku",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"prim","kind":"cmevla"}},{"Bare":{"span":[9,14],"phonemes":"palvr","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cusku","kind":"gismu"}}]'
 
@@ -56,45 +32,21 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "prim",
-          span: [3,7],
-        },
-        Word {
-          kind: "cmevla",
-          phonemes: "palvr",
-          span: [9,14],
-        },
+        Cmevla "prim",
+        Cmevla "palvr",
       ],
     },
   ],
   Compound {
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [16,18],
-        },
+        Cmavo "pa",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "moĭ",
-        span: [18,21],
-      },
+      moi: Cmavo "moĭ",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "cusku",
-      span: [22,27],
-    },
+    Gismu "cúsku",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"prim","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[9,14],"phonemes":"palvr","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[16,18],"phonemes":"pa","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[18,21],"phonemes":"moĭ","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"cusku","kind":"gismu"}}}}]}}}}}}}}]}]}'

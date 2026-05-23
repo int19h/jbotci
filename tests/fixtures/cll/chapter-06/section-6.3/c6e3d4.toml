@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(loĭ glípre cu xábju le fi'ortú'a)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "glipre",
-    span: [4,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [14,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "fi'ortu'a",
-    span: [23,32],
-  },
+  Cmavo "loĭ",
+  Lujvo "glípre",
+  Cmavo "cu",
+  Gismu "xábju",
+  Cmavo "le",
+  Lujvo "fi'ortú'a",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"glipre","kind":"lujvo"}},{"Bare":{"span":[11,13],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,32],"phonemes":"fi'ortu'a","kind":"lujvo"}}]"""
 
@@ -63,41 +39,17 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [0,3],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "glipre",
-        span: [4,10],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Lujvo "glípre",
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [11,13],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "xabju",
-      span: [14,19],
-    },
+    Gismu "xábju",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [20,22],
-        },
-        relation: Word {
-          kind: "lujvo",
-          phonemes: "fi'ortu'a",
-          span: [23,32],
-        },
+        descriptor: Cmavo "le",
+        relation: Lujvo "fi'ortú'a",
       },
     ],
   },

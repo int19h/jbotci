@@ -19,36 +19,12 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi cu vécnu ti ta zo'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [4,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vecnu",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ta",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "zo'e",
-    span: [20,24],
-  },
+  Cmavo "mi",
+  Cmavo "cu",
+  Gismu "vécnu",
+  Cmavo "ti",
+  Cmavo "ta",
+  Cmavo "zo'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"zo'e","kind":"cmavo"}}]"""
 
@@ -56,39 +32,15 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [4,6],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "vecnu",
-      span: [8,13],
-    },
+    Gismu "vécnu",
     terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "ti",
-        span: [14,16],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "ta",
-        span: [17,19],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "zo'e",
-        span: [20,24],
-      },
+      Cmavo "ti",
+      Cmavo "ta",
+      Cmavo "zo'e",
     ],
   },
 }"""

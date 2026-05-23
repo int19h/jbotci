@@ -24,26 +24,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xámgu jo tórdu nuntávla)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tordu",
-    span: [9,14],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuntavla",
-    span: [15,23],
-  },
+  Gismu "xámgu",
+  Cmavo "jo",
+  Gismu "tórdu",
+  Lujvo "nuntávla",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"tordu","kind":"gismu"}},{"Bare":{"span":[15,23],"phonemes":"nuntavla","kind":"lujvo"}}]'
 
@@ -52,26 +36,10 @@ brackets = "([xámgu jo tórdu] nuntávla)"
 tree = """
 Compound {
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "xamgu",
-      span: [0,5],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "jo",
-      span: [6,8],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "tordu",
-      span: [9,14],
-    },
+    leading_unit: Gismu "xámgu",
+    connective: Cmavo "jo",
+    trailing_unit: Gismu "tórdu",
   },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuntavla",
-    span: [15,23],
-  },
+  Lujvo "nuntávla",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"jo","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"tordu","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,23],"phonemes":"nuntavla","kind":"lujvo"}}}}]}}}}}}}}]}]}'

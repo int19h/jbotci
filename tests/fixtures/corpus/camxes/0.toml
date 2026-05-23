@@ -18,56 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li fu'a bi boĭ ci boĭ geĭ du li vo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu'a",
-    span: [49,53],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "bi",
-    span: [54,56],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [57,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ci",
-    span: [61,63],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "boĭ",
-    span: [64,67],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "geĭ",
-    span: [68,71],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [72,74],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [75,77],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vo",
-    span: [78,80],
-  },
+  Cmavo "li",
+  Cmavo "fu'a",
+  Cmavo "bi",
+  Cmavo "boĭ",
+  Cmavo "ci",
+  Cmavo "boĭ",
+  Cmavo "geĭ",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "vo",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[49,53],"phonemes":"fu'a","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"bi","kind":"cmavo"}},{"Bare":{"span":[57,60],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[61,63],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[64,67],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[68,71],"phonemes":"geĭ","kind":"cmavo"}},{"Bare":{"span":[72,74],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[75,77],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[78,80],"phonemes":"vo","kind":"cmavo"}}]"""
 
@@ -76,71 +36,31 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: Word {
-        kind: "cmavo",
-        phonemes: "li",
-        span: [0,2],
-      },
+      li: Cmavo "li",
       ReversePolish {
-        fuha: Word {
-          kind: "cmavo",
-          phonemes: "fu'a",
-          span: [49,53],
-        },
+        fuha: Cmavo "fu'a",
         operands: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "bi",
-              span: [54,56],
-            },
-            boi: Word {
-              kind: "cmavo",
-              phonemes: "boĭ",
-              span: [57,60],
-            },
+            Cmavo "bi",
+            boi: Cmavo "boĭ",
           },
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "ci",
-              span: [61,63],
-            },
-            boi: Word {
-              kind: "cmavo",
-              phonemes: "boĭ",
-              span: [64,67],
-            },
+            Cmavo "ci",
+            boi: Cmavo "boĭ",
           },
         ],
         operators: [
-          Word {
-            kind: "cmavo",
-            phonemes: "geĭ",
-            span: [68,71],
-          },
+          Cmavo "geĭ",
         ],
       },
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [72,74],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [75,77],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "vo",
-          span: [78,80],
-        },
+        li: Cmavo "li",
+        Cmavo "vo",
       },
     ],
   },

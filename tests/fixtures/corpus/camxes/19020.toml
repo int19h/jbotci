@@ -18,96 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'u naĭ le da'i du'u do ze'u kánsa keĭ loĭ nánca ba símsa le ka méntu keĭ do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [8,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [21,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ze'u",
-    span: [24,28],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kansa",
-    span: [29,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [35,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [39,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [43,48],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [49,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "simsa",
-    span: [52,57],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [58,60],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ka",
-    span: [60,62],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mentu",
-    span: [63,68],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "keĭ",
-    span: [69,72],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [73,75],
-  },
+  Cmavo "ki'u",
+  Cmavo "naĭ",
+  Cmavo "le",
+  Cmavo "da'i",
+  Cmavo "du'u",
+  Cmavo "do",
+  Cmavo "ze'u",
+  Gismu "kánsa",
+  Cmavo "keĭ",
+  Cmavo "loĭ",
+  Gismu "nánca",
+  Cmavo "ba",
+  Gismu "símsa",
+  Cmavo "le",
+  Cmavo "ka",
+  Gismu "méntu",
+  Cmavo "keĭ",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ki'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ze'u","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[35,38],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"nanca","kind":"gismu"}},{"Bare":{"span":[49,51],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[58,60],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[60,62],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[63,68],"phonemes":"mentu","kind":"gismu"}},{"Bare":{"span":[69,72],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[73,75],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -117,121 +45,49 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ki'u",
-          span: [0,4],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [4,7],
-        },
+        bai: Cmavo "ki'u",
+        nai: Cmavo "naĭ",
       },
       Descriptor {
         descriptor: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [8,10],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "da'i",
-            span: [11,15],
-          },
+          Cmavo "le",
+          indicator: Cmavo "da'i",
         },
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [16,20],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
-              Word {
-                kind: "cmavo",
-                phonemes: "do",
-                span: [21,23],
-              },
+              Cmavo "do",
             ],
             TenseModal {
-              tense_modal: Word {
-                kind: "cmavo",
-                phonemes: "ze'u",
-                span: [24,28],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "kansa",
-                span: [29,34],
-              },
+              tense_modal: Cmavo "ze'u",
+              Gismu "kánsa",
             },
           },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [35,38],
-          },
+          kei: Cmavo "keĭ",
         },
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [39,42],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "nanca",
-        span: [43,48],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "nánca",
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [49,51],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "simsa",
-        span: [52,57],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "símsa",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [58,60],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "ka",
-            span: [60,62],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "mentu",
-            span: [63,68],
-          },
-          kei: Word {
-            kind: "cmavo",
-            phonemes: "keĭ",
-            span: [69,72],
-          },
+          nu: Cmavo "ka",
+          Gismu "méntu",
+          kei: Cmavo "keĭ",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [73,75],
-      },
+      Cmavo "do",
     ],
   },
 }"""

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ma glíco válsi le si'o fálnyske)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ma",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "glico",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "si'o",
-    span: [18,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "falnyske",
-    span: [23,31],
-  },
+  Cmavo "ma",
+  Gismu "glíco",
+  Gismu "válsi",
+  Cmavo "le",
+  Cmavo "si'o",
+  Lujvo "fálnyske",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[23,31],"phonemes":"falnyske","kind":"lujvo"}}]"""
 
@@ -55,43 +31,19 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ma",
-      span: [0,2],
-    },
+    Cmavo "ma",
   ],
   Relation {
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "glico",
-        span: [3,8],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "valsi",
-        span: [9,14],
-      },
+      Gismu "glíco",
+      Gismu "válsi",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [15,17],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "si'o",
-            span: [18,22],
-          },
-          Word {
-            kind: "lujvo",
-            phonemes: "falnyske",
-            span: [23,31],
-          },
+          nu: Cmavo "si'o",
+          Lujvo "fálnyske",
         },
       },
     ],

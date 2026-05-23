@@ -24,39 +24,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ky [.o bu] y'y [.a bu])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ky",
-    span: [0,2],
-  },
+  Cmavo "ky",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "o",
-      span: [5,6],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [6,8],
-    },
+    Cmavo "o",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "y'y",
-    span: [10,13],
-  },
+  Cmavo "y'y",
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "a",
-      span: [16,17],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [17,19],
-    },
+    Cmavo "a",
+    bu: Cmavo "bu",
   },
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ky","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[5,6],"phonemes":"o","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[10,13],"phonemes":"y'y","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[16,17],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[17,19],"phonemes":"bu","kind":"cmavo"}}}]"""
@@ -68,39 +44,15 @@ Term {
   terms: [
     Letter {
       letter: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ky",
-          span: [0,2],
-        },
+        Cmavo "ky",
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "o",
-            span: [5,6],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [6,8],
-          },
+          Cmavo "o",
+          bu: Cmavo "bu",
         },
-        Word {
-          kind: "cmavo",
-          phonemes: "y'y",
-          span: [10,13],
-        },
+        Cmavo "y'y",
         Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "a",
-            span: [16,17],
-          },
-          bu: Word {
-            kind: "cmavo",
-            phonemes: "bu",
-            span: [17,19],
-          },
+          Cmavo "a",
+          bu: Cmavo "bu",
         },
       ],
     },

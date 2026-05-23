@@ -18,19 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "pipybánfi"
 tree = """
 [
-  Word {
-    kind: "lujvo",
-    phonemes: "pipybanfi",
-    span: [0,9],
-  },
+  Lujvo "pipybánfi",
 ]"""
 json = '[{"Bare":{"span":[0,9],"phonemes":"pipybanfi","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
-tree = """
-Word {
-  kind: "lujvo",
-  phonemes: "pipybanfi",
-  span: [0,9],
-}"""
+tree = 'Lujvo "pipybánfi"'
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,9],"phonemes":"pipybanfi","kind":"lujvo"}}}}}}}}}}}]}]}'

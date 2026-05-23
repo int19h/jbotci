@@ -18,31 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(jecrnu'amcíra ki'a)"
 tree = """
 [
-  Word {
-    kind: "fu'ivla",
-    phonemes: "jecrnu'amcira",
-    span: [0,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [14,18],
-  },
+  Fuhivla "jecrnu'amcíra",
+  Cmavo "ki'a",
 ]"""
 json = """[{"Bare":{"span":[0,13],"phonemes":"jecrnu'amcira","kind":"fu'ivla"}},{"Bare":{"span":[14,18],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  Word {
-    kind: "fu'ivla",
-    phonemes: "jecrnu'amcira",
-    span: [0,13],
-  },
-  indicator: Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [14,18],
-  },
+  Fuhivla "jecrnu'amcíra",
+  indicator: Cmavo "ki'a",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,13],"phonemes":"jecrnu'amcira","kind":"fu'ivla"}}},"indicator":{"span":[14,18],"phonemes":"ki'a","kind":"cmavo"}}}}}}}}}}}]}]}"""

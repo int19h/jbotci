@@ -21,51 +21,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mi cu da'i no roĭ fétsi spéni do)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "da'i",
-    span: [9,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "roĭ",
-    span: [17,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fetsi",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "speni",
-    span: [27,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [33,35],
-  },
+  Cmavo "i",
+  Cmavo "mi",
+  Cmavo "cu",
+  Cmavo "da'i",
+  Cmavo "no",
+  Cmavo "roĭ",
+  Gismu "fétsi",
+  Gismu "spéni",
+  Cmavo "do",
 ]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"da'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"fetsi","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"speni","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"do","kind":"cmavo"}}]"""
 
@@ -73,64 +37,28 @@ json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 brackets = "(.i [mi {cu da'i} {([no roĭ] [fétsi spéni]) do}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [3,5],
-      },
+      Cmavo "mi",
     ],
     cu: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "cu",
-        span: [6,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "da'i",
-        span: [9,13],
-      },
+      Cmavo "cu",
+      indicator: Cmavo "da'i",
     },
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "no",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "roĭ",
-            span: [17,20],
-          },
+          Cmavo "no",
+          Cmavo "roĭ",
         },
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "fetsi",
-            span: [21,26],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "speni",
-            span: [27,32],
-          },
+          Gismu "fétsi",
+          Gismu "spéni",
         },
       },
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "do",
-          span: [33,35],
-        },
+        Cmavo "do",
       ],
     },
   },

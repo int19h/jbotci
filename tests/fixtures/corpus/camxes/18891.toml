@@ -18,41 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cmávo pórsi .álso)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porsi",
-    span: [6,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "also",
-    span: [12,16],
-  },
+  Gismu "cmávo",
+  Gismu "pórsi",
+  Fuhivla "álso",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cmavo","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"porsi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"also","kind":"fu'ivla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "porsi",
-    span: [6,11],
-  },
-  Word {
-    kind: "fu'ivla",
-    phonemes: "also",
-    span: [12,16],
-  },
+  Gismu "cmávo",
+  Gismu "pórsi",
+  Fuhivla "álso",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cmavo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"porsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"also","kind":"fu'ivla"}}}}]}}}}}}}}]}]}"""

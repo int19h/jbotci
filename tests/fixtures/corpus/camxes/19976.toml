@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le ki'a lójbo pílno)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ki'a",
-    span: [3,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [8,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "pilno",
-    span: [14,19],
-  },
+  Cmavo "le",
+  Cmavo "ki'a",
+  Gismu "lójbo",
+  Gismu "pílno",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"pilno","kind":"gismu"}}]"""
 
@@ -47,28 +31,12 @@ Term {
   terms: [
     Descriptor {
       descriptor: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [0,2],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ki'a",
-          span: [3,7],
-        },
+        Cmavo "le",
+        indicator: Cmavo "ki'a",
       },
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "lojbo",
-          span: [8,13],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "pilno",
-          span: [14,19],
-        },
+        Gismu "lójbo",
+        Gismu "pílno",
       },
     },
   ],

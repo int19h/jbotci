@@ -18,61 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ le ro prámi be le jbóbaŭ ku poĭ zváti ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "coĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "prami",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbobaŭ",
-    span: [22,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "poĭ",
-    span: [32,35],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zvati",
-    span: [36,41],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [42,44],
-  },
+  Cmavo "coĭ",
+  Cmavo "le",
+  Cmavo "ro",
+  Gismu "prámi",
+  Cmavo "be",
+  Cmavo "le",
+  Lujvo "jbóbaŭ",
+  Cmavo "ku",
+  Cmavo "poĭ",
+  Gismu "zváti",
+  Cmavo "ti",
 ]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,28],"phonemes":"jbobaŭ","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[42,44],"phonemes":"ti","kind":"cmavo"}}]'
 
@@ -82,73 +38,29 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [0,3],
-        },
+        Cmavo "coĭ",
       ],
       argument: Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [4,6],
-        },
+        descriptor: Cmavo "le",
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "ro",
-            span: [7,9],
-          },
+          Cmavo "ro",
         ],
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "prami",
-            span: [10,15],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [16,18],
-          },
+          Gismu "prámi",
+          be: Cmavo "be",
           first_argument: RelativeClause {
             base_argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [19,21],
-              },
-              relation: Word {
-                kind: "lujvo",
-                phonemes: "jbobaŭ",
-                span: [22,28],
-              },
-              ku: Word {
-                kind: "cmavo",
-                phonemes: "ku",
-                span: [29,31],
-              },
+              descriptor: Cmavo "le",
+              relation: Lujvo "jbóbaŭ",
+              ku: Cmavo "ku",
             },
             relative_clauses: [
               Poi {
-                poi: Word {
-                  kind: "cmavo",
-                  phonemes: "poĭ",
-                  span: [32,35],
-                },
+                poi: Cmavo "poĭ",
                 Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "zvati",
-                    span: [36,41],
-                  },
+                  Gismu "zváti",
                   terms: [
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "ti",
-                      span: [42,44],
-                    },
+                    Cmavo "ti",
                   ],
                 },
               },

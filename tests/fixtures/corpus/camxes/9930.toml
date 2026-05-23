@@ -18,51 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(dráni cúsku clíra lárcu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clira",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "larcu",
-    span: [21,26],
-  },
+  Gismu "dráni",
+  Gismu "cúsku",
+  Gismu "clíra",
+  Gismu "lárcu",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"clira","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"larcu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "drani",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cusku",
-    span: [9,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "clira",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "larcu",
-    span: [21,26],
-  },
+  Gismu "dráni",
+  Gismu "cúsku",
+  Gismu "clíra",
+  Gismu "lárcu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"drani","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cusku","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"clira","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"larcu","kind":"gismu"}}}}]}}}}}}}}]}]}'

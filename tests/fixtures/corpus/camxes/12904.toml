@@ -18,46 +18,22 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(rínsa doĭ .xod.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "rinsa",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [6,9],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "xod",
-    span: [10,13],
-  },
+  Gismu "rínsa",
+  Cmavo "doĭ",
+  Cmevla "xod",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"rinsa","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"xod","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Word {
-  Word {
-    kind: "gismu",
-    phonemes: "rinsa",
-    span: [0,5],
-  },
+  Gismu "rínsa",
   free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [6,9],
-        },
+        Cmavo "doĭ",
       ],
-      argument: Word {
-        kind: "cmevla",
-        phonemes: "xod",
-        span: [10,13],
-      },
+      argument: Cmevla "xod",
     },
   ],
 }"""

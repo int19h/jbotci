@@ -18,80 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(térpa ke me la .flac. skína)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [12,14],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "flac",
-    span: [15,19],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "skina",
-    span: [20,25],
-  },
+  Gismu "térpa",
+  Cmavo "ke",
+  Cmavo "me",
+  Cmavo "la",
+  Cmevla "flac",
+  Gismu "skína",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"terpa","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"flac","kind":"cmevla"}},{"Bare":{"span":[20,25],"phonemes":"skina","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "terpa",
-    span: [0,5],
-  },
+  Gismu "térpa",
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [6,8],
-    },
+    ke: Cmavo "ke",
     Compound {
       Me {
-        me: Word {
-          kind: "cmavo",
-          phonemes: "me",
-          span: [9,11],
-        },
+        me: Cmavo "me",
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [12,14],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "flac",
-              span: [15,19],
-            },
+            Cmevla "flac",
           ],
         },
       },
-      Word {
-        kind: "gismu",
-        phonemes: "skina",
-        span: [20,25],
-      },
+      Gismu "skína",
     },
   },
 }"""

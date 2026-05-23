@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le li mu jdíce se bénde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jdice",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bende",
-    span: [18,23],
-  },
+  Cmavo "le",
+  Cmavo "li",
+  Cmavo "mu",
+  Gismu "jdíce",
+  Cmavo "se",
+  Gismu "bénde",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"bende","kind":"gismu"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       tail_elements: [
         MathExpression {
-          li: Word {
-            kind: "cmavo",
-            phonemes: "li",
-            span: [3,5],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "mu",
-            span: [6,8],
-          },
+          li: Cmavo "li",
+          Cmavo "mu",
         },
       ],
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "jdice",
-          span: [9,14],
-        },
+        Gismu "jdíce",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "se",
-            span: [15,17],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "bende",
-            span: [18,23],
-          },
+          se: Cmavo "se",
+          Gismu "bénde",
         },
       },
     },

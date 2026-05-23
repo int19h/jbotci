@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ti'e loĭ ctíle cu se tísna la .atlantik. vi le spáno gúgde)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [5,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctile",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [15,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "se",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tisna",
-    span: [21,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [27,29],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "atlantik",
-    span: [30,38],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [40,42],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [43,45],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spano",
-    span: [46,51],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gugde",
-    span: [52,57],
-  },
+  Cmavo "ti'e",
+  Cmavo "loĭ",
+  Gismu "ctíle",
+  Cmavo "cu",
+  Cmavo "se",
+  Gismu "tísna",
+  Cmavo "la",
+  Cmevla "atlantik",
+  Cmavo "vi",
+  Cmavo "le",
+  Gismu "spáno",
+  Gismu "gúgde",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ti'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"ctile","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"tisna","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[30,38],"phonemes":"atlantik","kind":"cmevla"}},{"Bare":{"span":[40,42],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"spano","kind":"gismu"}},{"Bare":{"span":[52,57],"phonemes":"gugde","kind":"gismu"}}]"""
 
@@ -86,84 +38,36 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ti'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "ti'e",
     },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "loĭ",
-          span: [5,8],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "ctile",
-          span: [9,14],
-        },
+        descriptor: Cmavo "loĭ",
+        relation: Gismu "ctíle",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [15,17],
-    },
+    cu: Cmavo "cu",
     Relation {
       Se {
-        se: Word {
-          kind: "cmavo",
-          phonemes: "se",
-          span: [18,20],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "tisna",
-          span: [21,26],
-        },
+        se: Cmavo "se",
+        Gismu "tísna",
       },
       terms: [
         Name {
-          la: Word {
-            kind: "cmavo",
-            phonemes: "la",
-            span: [27,29],
-          },
+          la: Cmavo "la",
           names: [
-            Word {
-              kind: "cmevla",
-              phonemes: "atlantik",
-              span: [30,38],
-            },
+            Cmevla "atlantik",
           ],
         },
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "vi",
-            span: [40,42],
-          },
+          tense_modal: Cmavo "vi",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [43,45],
-            },
+            descriptor: Cmavo "le",
             relation: Compound {
-              Word {
-                kind: "gismu",
-                phonemes: "spano",
-                span: [46,51],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "gugde",
-                span: [52,57],
-              },
+              Gismu "spáno",
+              Gismu "gúgde",
             },
           },
         },

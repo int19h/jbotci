@@ -18,31 +18,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ku'i ju'a jítro jo fúzme)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ju'a",
-    span: [5,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jitro",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jo",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fuzme",
-    span: [19,24],
-  },
+  Cmavo "ku'i",
+  Cmavo "ju'a",
+  Gismu "jítro",
+  Cmavo "jo",
+  Gismu "fúzme",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ju'a","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"jitro","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"fuzme","kind":"gismu"}}]"""
 
@@ -52,35 +32,15 @@ Text {
   leading_indicators: [
     Indicator {
       indicator: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [0,4],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ju'a",
-          span: [5,9],
-        },
+        Cmavo "ku'i",
+        indicator: Cmavo "ju'a",
       },
     },
   ],
   Connected {
-    leading_relation: Word {
-      kind: "gismu",
-      phonemes: "jitro",
-      span: [10,15],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "jo",
-      span: [16,18],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "fuzme",
-      span: [19,24],
-    },
+    leading_relation: Gismu "jítro",
+    connective: Cmavo "jo",
+    trailing_relation: Gismu "fúzme",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"jitro","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[16,18],"phonemes":"jo","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"fuzme","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"ju'a","kind":"cmavo"}}}}]}"""

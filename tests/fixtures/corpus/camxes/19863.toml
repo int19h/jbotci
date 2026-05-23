@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(jaĭ cípra le samxarmú'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "jaĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cipra",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [10,12],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samxarmu'e",
-    span: [13,23],
-  },
+  Cmavo "jaĭ",
+  Gismu "cípra",
+  Cmavo "le",
+  Lujvo "samxarmú'e",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cipra","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,23],"phonemes":"samxarmu'e","kind":"lujvo"}}]"""
 
@@ -45,29 +29,13 @@ json = """[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Relation {
   Jai {
-    jai: Word {
-      kind: "cmavo",
-      phonemes: "jaĭ",
-      span: [0,3],
-    },
-    Word {
-      kind: "gismu",
-      phonemes: "cipra",
-      span: [4,9],
-    },
+    jai: Cmavo "jaĭ",
+    Gismu "cípra",
   },
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [10,12],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "samxarmu'e",
-        span: [13,23],
-      },
+      descriptor: Cmavo "le",
+      relation: Lujvo "samxarmú'e",
     },
   ],
 }"""

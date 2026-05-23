@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le re no moĭ cácra xu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cacra",
-    span: [11,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [17,19],
-  },
+  Cmavo "le",
+  Cmavo "re",
+  Cmavo "no",
+  Cmavo "moĭ",
+  Gismu "cácra",
+  Cmavo "xu",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cacra","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"xu","kind":"cmavo"}}]'
 
@@ -56,42 +32,18 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le",
-        span: [0,2],
-      },
+      descriptor: Cmavo "le",
       relation: Compound {
         Moi {
           number: [
-            Word {
-              kind: "cmavo",
-              phonemes: "re",
-              span: [3,5],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [5,7],
-            },
+            Cmavo "re",
+            Cmavo "no",
           ],
-          moi: Word {
-            kind: "cmavo",
-            phonemes: "moĭ",
-            span: [7,10],
-          },
+          moi: Cmavo "moĭ",
         },
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "cacra",
-            span: [11,16],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [17,19],
-          },
+          Gismu "cácra",
+          indicator: Cmavo "xu",
         },
       },
     },

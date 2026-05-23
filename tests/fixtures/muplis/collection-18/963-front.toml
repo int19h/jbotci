@@ -21,46 +21,14 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'i mi na zárcpa lo nu posydú'a ti)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "e'i",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [7,9],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "zarcpa",
-    span: [10,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [17,19],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [20,22],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "posydu'a",
-    span: [23,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [32,34],
-  },
+  Cmavo "e'i",
+  Cmavo "mi",
+  Cmavo "na",
+  Lujvo "zárcpa",
+  Cmavo "lo",
+  Cmavo "nu",
+  Lujvo "posydú'a",
+  Cmavo "ti",
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"e'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"zarcpa","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,31],"phonemes":"posydu'a","kind":"lujvo"}},{"Bare":{"span":[32,34],"phonemes":"ti","kind":"cmavo"}}]"""
 
@@ -70,59 +38,27 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "e'i",
-        span: [0,3],
-      },
+      indicator: Cmavo "e'i",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [4,6],
-      },
+      Cmavo "mi",
     ],
     Relation {
       Na {
-        na: Word {
-          kind: "cmavo",
-          phonemes: "na",
-          span: [7,9],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "zarcpa",
-          span: [10,16],
-        },
+        na: Cmavo "na",
+        Lujvo "zárcpa",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "lo",
-            span: [17,19],
-          },
+          descriptor: Cmavo "lo",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [20,22],
-            },
+            nu: Cmavo "nu",
             Relation {
-              Word {
-                kind: "lujvo",
-                phonemes: "posydu'a",
-                span: [23,31],
-              },
+              Lujvo "posydú'a",
               terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ti",
-                  span: [32,34],
-                },
+                Cmavo "ti",
               ],
             },
           },

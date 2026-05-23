@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ti'e mu no nánca)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti'e",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mu",
-    span: [5,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "no",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanca",
-    span: [10,15],
-  },
+  Cmavo "ti'e",
+  Cmavo "mu",
+  Cmavo "no",
+  Gismu "nánca",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ti'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nanca","kind":"gismu"}}]"""
 
@@ -46,11 +30,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ti'e",
-        span: [0,4],
-      },
+      indicator: Cmavo "ti'e",
     },
   ],
   Term {
@@ -58,23 +38,11 @@ Text {
       Descriptor {
         tail_elements: [
           Number {
-            Word {
-              kind: "cmavo",
-              phonemes: "mu",
-              span: [5,7],
-            },
-            Word {
-              kind: "cmavo",
-              phonemes: "no",
-              span: [7,9],
-            },
+            Cmavo "mu",
+            Cmavo "no",
           },
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "nanca",
-          span: [10,15],
-        },
+        relation: Gismu "nánca",
       },
     ],
   },

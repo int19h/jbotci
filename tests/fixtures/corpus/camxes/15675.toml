@@ -19,31 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(tátpi cmóni)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmoni",
-    span: [9,14],
-  },
+  Gismu "tátpi",
+  Gismu "cmóni",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cmoni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [3,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cmoni",
-    span: [9,14],
-  },
+  Gismu "tátpi",
+  Gismu "cmóni",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"tatpi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cmoni","kind":"gismu"}}}}]}}}}}}}}]}]}'

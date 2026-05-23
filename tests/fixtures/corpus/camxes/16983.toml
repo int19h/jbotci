@@ -18,26 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 brackets = "(.makes. mo re sénse)"
 tree = """
 [
-  Word {
-    kind: "cmevla",
-    phonemes: "makes",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mo",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [8,10],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sense",
-    span: [11,16],
-  },
+  Cmevla "makes",
+  Cmavo "mo",
+  Cmavo "re",
+  Gismu "sénse",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"span":[6,8],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"sense","kind":"gismu"}}]'
 
@@ -45,32 +29,16 @@ json = '[{"Bare":{"span":[0,5],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"sp
 tree = """
 Text {
   leading_cmevla: [
-    Word {
-      kind: "cmevla",
-      phonemes: "makes",
-      span: [0,5],
-    },
+    Cmevla "makes",
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [6,8],
-    },
+    Cmavo "mo",
     terms: [
       Descriptor {
         tail_elements: [
-          Word {
-            kind: "cmavo",
-            phonemes: "re",
-            span: [8,10],
-          },
+          Cmavo "re",
         ],
-        relation: Word {
-          kind: "gismu",
-          phonemes: "sense",
-          span: [11,16],
-        },
+        relation: Gismu "sénse",
       },
     ],
   },

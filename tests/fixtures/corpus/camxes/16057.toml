@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭi .i to'e spófu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [1,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [5,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "spofu",
-    span: [12,17],
-  },
+  Cmavo "ŭi",
+  Cmavo "i",
+  Cmavo "to'e",
+  Gismu "spófu",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"spofu","kind":"gismu"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [1,3],
-      },
+      indicator: Cmavo "ŭi",
     },
   ],
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [5,6],
-    },
+    i: Cmavo "i",
     Nahe {
-      nahe: Word {
-        kind: "cmavo",
-        phonemes: "to'e",
-        span: [7,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "spofu",
-        span: [12,17],
-      },
+      nahe: Cmavo "to'e",
+      Gismu "spófu",
     },
   },
 }"""

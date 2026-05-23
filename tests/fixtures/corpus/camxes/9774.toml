@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xámgu je cínri je zdíle mi)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [6,8],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cinri",
-    span: [9,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "je",
-    span: [15,17],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zdile",
-    span: [18,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [24,26],
-  },
+  Gismu "xámgu",
+  Cmavo "je",
+  Gismu "cínri",
+  Cmavo "je",
+  Gismu "zdíle",
+  Cmavo "mi",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cinri","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zdile","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]'
 
@@ -56,39 +32,15 @@ tree = """
 Relation {
   Connected {
     leading_relation: Connected {
-      leading_relation: Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [0,5],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "je",
-        span: [6,8],
-      },
-      trailing_relation: Word {
-        kind: "gismu",
-        phonemes: "cinri",
-        span: [9,14],
-      },
+      leading_relation: Gismu "xámgu",
+      connective: Cmavo "je",
+      trailing_relation: Gismu "cínri",
     },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "je",
-      span: [15,17],
-    },
-    trailing_relation: Word {
-      kind: "gismu",
-      phonemes: "zdile",
-      span: [18,23],
-    },
+    connective: Cmavo "je",
+    trailing_relation: Gismu "zdíle",
   },
   terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [24,26],
-    },
+    Cmavo "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Connected":{"leading_relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[6,8],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cinri","kind":"gismu"}}}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[15,17],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"zdile","kind":"gismu"}}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

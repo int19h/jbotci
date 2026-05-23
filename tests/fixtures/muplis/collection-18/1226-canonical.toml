@@ -21,31 +21,11 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ke zábna tádni ke'e)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zabna",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tadni",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke'e",
-    span: [18,22],
-  },
+  Cmavo "do",
+  Cmavo "ke",
+  Gismu "zábna",
+  Gismu "tádni",
+  Cmavo "ke'e",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zabna","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"tadni","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
@@ -54,35 +34,15 @@ brackets = "(do [ke {zábna tádni} ke'e])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "do",
-      span: [0,2],
-    },
+    Cmavo "do",
   ],
   Ke {
-    ke: Word {
-      kind: "cmavo",
-      phonemes: "ke",
-      span: [3,5],
-    },
+    ke: Cmavo "ke",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "zabna",
-        span: [6,11],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "tadni",
-        span: [12,17],
-      },
+      Gismu "zábna",
+      Gismu "tádni",
     },
-    kehe: Word {
-      kind: "cmavo",
-      phonemes: "ke'e",
-      span: [18,22],
-    },
+    kehe: Cmavo "ke'e",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Ke":{"ke":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zabna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"tadni","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}}}]}]}"""

@@ -19,39 +19,15 @@ brackets = "([y bu] .e [zo cu] válsi)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "y",
-      span: [3,4],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [6,8],
-    },
+    Cmavo "y",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "e",
-    span: [14,15],
-  },
+  Cmavo "e",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [16,18],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [23,25],
-    },
+    zo: Cmavo "zo",
+    Cmavo "cu",
   },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [30,35],
-  },
+  Gismu "válsi",
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},{"Bare":{"span":[30,35],"phonemes":"valsi","kind":"gismu"}}]'
 
@@ -63,42 +39,18 @@ Predicate {
       leading_argument: Letter {
         letter: [
           Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "y",
-              span: [3,4],
-            },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [6,8],
-            },
+            Cmavo "y",
+            bu: Cmavo "bu",
           },
         ],
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "e",
-        span: [14,15],
-      },
+      connective: Cmavo "e",
       trailing_argument: ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [16,18],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "cu",
-          span: [23,25],
-        },
+        zo: Cmavo "zo",
+        Cmavo "cu",
       },
     },
   ],
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [30,35],
-  },
+  Gismu "válsi",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[30,35],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}]}]}'

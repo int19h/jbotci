@@ -18,80 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zo pávdeĭ] cu jétfu détri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  Cmavo "i",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [3,5],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "pavdeĭ",
-      span: [6,12],
-    },
+    zo: Cmavo "zo",
+    Lujvo "pávdeĭ",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jetfu",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "detri",
-    span: [22,27],
-  },
+  Cmavo "cu",
+  Gismu "jétfu",
+  Gismu "détri",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,12],"phonemes":"pavdeĭ","kind":"lujvo"}}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jetfu","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"detri","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       ZoQuote {
-        zo: Word {
-          kind: "cmavo",
-          phonemes: "zo",
-          span: [3,5],
-        },
-        Word {
-          kind: "lujvo",
-          phonemes: "pavdeĭ",
-          span: [6,12],
-        },
+        zo: Cmavo "zo",
+        Lujvo "pávdeĭ",
       },
     ],
-    cu: Word {
-      kind: "cmavo",
-      phonemes: "cu",
-      span: [13,15],
-    },
+    cu: Cmavo "cu",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "jetfu",
-        span: [16,21],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "detri",
-        span: [22,27],
-      },
+      Gismu "jétfu",
+      Gismu "détri",
     },
   },
 }"""

@@ -18,22 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(cmávo [zo fa'a])"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [0,5],
-  },
+  Gismu "cmávo",
   ZoQuote {
-    zo: Word {
-      kind: "cmavo",
-      phonemes: "zo",
-      span: [6,8],
-    },
-    Word {
-      kind: "cmavo",
-      phonemes: "fa'a",
-      span: [9,13],
-    },
+    zo: Cmavo "zo",
+    Cmavo "fa'a",
   },
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cmavo","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,13],"phonemes":"fa'a","kind":"cmavo"}}}]"""
@@ -41,23 +29,11 @@ json = """[{"Bare":{"span":[0,5],"phonemes":"cmavo","kind":"gismu"}},{"ZoQuote":
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "cmavo",
-    span: [0,5],
-  },
+  Gismu "cmávo",
   terms: [
     ZoQuote {
-      zo: Word {
-        kind: "cmavo",
-        phonemes: "zo",
-        span: [6,8],
-      },
-      Word {
-        kind: "cmavo",
-        phonemes: "fa'a",
-        span: [9,13],
-      },
+      zo: Cmavo "zo",
+      Cmavo "fa'a",
     },
   ],
 }"""

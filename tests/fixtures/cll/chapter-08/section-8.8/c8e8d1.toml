@@ -24,36 +24,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li paĭ noĭ na'e frínu námcu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "paĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "noĭ",
-    span: [7,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "frinu",
-    span: [16,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "namcu",
-    span: [22,27],
-  },
+  Cmavo "li",
+  Cmavo "paĭ",
+  Cmavo "noĭ",
+  Cmavo "na'e",
+  Gismu "frínu",
+  Gismu "námcu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"paĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"frinu","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"namcu","kind":"gismu"}}]"""
 
@@ -64,42 +40,18 @@ Term {
   terms: [
     RelativeClause {
       base_argument: MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [0,2],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "paĭ",
-          span: [3,6],
-        },
+        li: Cmavo "li",
+        Cmavo "paĭ",
       },
       relative_clauses: [
         Noi {
-          noi: Word {
-            kind: "cmavo",
-            phonemes: "noĭ",
-            span: [7,10],
-          },
+          noi: Cmavo "noĭ",
           Compound {
             Nahe {
-              nahe: Word {
-                kind: "cmavo",
-                phonemes: "na'e",
-                span: [11,15],
-              },
-              Word {
-                kind: "gismu",
-                phonemes: "frinu",
-                span: [16,21],
-              },
+              nahe: Cmavo "na'e",
+              Gismu "frínu",
             },
-            Word {
-              kind: "gismu",
-              phonemes: "namcu",
-              span: [22,27],
-            },
+            Gismu "námcu",
           },
         },
       ],

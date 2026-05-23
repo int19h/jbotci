@@ -19,57 +19,17 @@ brackets = "([yyyyy bu] fu'e .ŭi naĭ saĭ ro'i du li pa)"
 tree = """
 [
   Letter {
-    Word {
-      kind: "cmavo",
-      phonemes: "yyyyy",
-      span: [1,6],
-    },
-    bu: Word {
-      kind: "cmavo",
-      phonemes: "bu",
-      span: [8,10],
-    },
+    Cmavo "yyyyy",
+    bu: Cmavo "bu",
   },
-  Word {
-    kind: "cmavo",
-    phonemes: "fu'e",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "naĭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "saĭ",
-    span: [21,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro'i",
-    span: [24,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [29,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "li",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pa",
-    span: [35,37],
-  },
+  Cmavo "fu'e",
+  Cmavo "ŭi",
+  Cmavo "naĭ",
+  Cmavo "saĭ",
+  Cmavo "ro'i",
+  Cmavo "du",
+  Cmavo "li",
+  Cmavo "pa",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[1,6],"phonemes":"yyyyy","kind":"cmavo"}},"bu":{"span":[8,10],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[11,15],"phonemes":"fu'e","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ro'i","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"pa","kind":"cmavo"}}]"""
 
@@ -84,67 +44,27 @@ Predicate {
             WithIndicator {
               WithIndicator {
                 Letter {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "yyyyy",
-                    span: [1,6],
-                  },
-                  bu: Word {
-                    kind: "cmavo",
-                    phonemes: "bu",
-                    span: [8,10],
-                  },
+                  Cmavo "yyyyy",
+                  bu: Cmavo "bu",
                 },
-                indicator: Word {
-                  kind: "cmavo",
-                  phonemes: "fu'e",
-                  span: [11,15],
-                },
+                indicator: Cmavo "fu'e",
               },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "ŭi",
-                span: [16,18],
-              },
-              nai: Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [18,21],
-              },
+              indicator: Cmavo "ŭi",
+              nai: Cmavo "naĭ",
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "saĭ",
-              span: [21,24],
-            },
+            indicator: Cmavo "saĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ro'i",
-            span: [24,28],
-          },
+          indicator: Cmavo "ro'i",
         },
       ],
     },
   ],
   Relation {
-    Word {
-      kind: "cmavo",
-      phonemes: "du",
-      span: [29,31],
-    },
+    Cmavo "du",
     terms: [
       MathExpression {
-        li: Word {
-          kind: "cmavo",
-          phonemes: "li",
-          span: [32,34],
-        },
-        Word {
-          kind: "cmavo",
-          phonemes: "pa",
-          span: [35,37],
-        },
+        li: Cmavo "li",
+        Cmavo "pa",
       },
     ],
   },

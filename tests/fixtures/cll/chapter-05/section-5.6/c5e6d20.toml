@@ -24,31 +24,11 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti blánu joĭ xúnre bólci)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "ti",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "blanu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xunre",
-    span: [13,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bolci",
-    span: [19,24],
-  },
+  Cmavo "ti",
+  Gismu "blánu",
+  Cmavo "joĭ",
+  Gismu "xúnre",
+  Gismu "bólci",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"bolci","kind":"gismu"}}]'
 
@@ -57,35 +37,15 @@ brackets = "(ti [{blánu joĭ xúnre} bólci])"
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ti",
-      span: [0,2],
-    },
+    Cmavo "ti",
   ],
   Compound {
     Connected {
-      leading_unit: Word {
-        kind: "gismu",
-        phonemes: "blanu",
-        span: [3,8],
-      },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "joĭ",
-        span: [9,12],
-      },
-      trailing_unit: Word {
-        kind: "gismu",
-        phonemes: "xunre",
-        span: [13,18],
-      },
+      leading_unit: Gismu "blánu",
+      connective: Cmavo "joĭ",
+      trailing_unit: Gismu "xúnre",
     },
-    Word {
-      kind: "gismu",
-      phonemes: "bolci",
-      span: [19,24],
-    },
+    Gismu "bólci",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"blanu","kind":"gismu"}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[9,12],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[13,18],"phonemes":"xunre","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[19,24],"phonemes":"bolci","kind":"gismu"}}}}]}}}}}}}}]}]}'

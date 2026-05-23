@@ -18,69 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mámta malglétu doĭ samrú'e fínti)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [0,5],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "malgletu",
-    span: [6,14],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [15,18],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "samru'e",
-    span: [19,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [27,32],
-  },
+  Gismu "mámta",
+  Lujvo "malglétu",
+  Cmavo "doĭ",
+  Lujvo "samrú'e",
+  Gismu "fínti",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"malgletu","kind":"lujvo"}},{"Bare":{"span":[15,18],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[19,26],"phonemes":"samru'e","kind":"lujvo"}},{"Bare":{"span":[27,32],"phonemes":"finti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
+  Gismu "mámta",
   Word {
-    kind: "gismu",
-    phonemes: "mamta",
-    span: [0,5],
-  },
-  Word {
-    Word {
-      kind: "lujvo",
-      phonemes: "malgletu",
-      span: [6,14],
-    },
+    Lujvo "malglétu",
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "doĭ",
-            span: [15,18],
-          },
+          Cmavo "doĭ",
         ],
         argument: RelationVocative {
           relation: Compound {
-            Word {
-              kind: "lujvo",
-              phonemes: "samru'e",
-              span: [19,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "finti",
-              span: [27,32],
-            },
+            Lujvo "samrú'e",
+            Gismu "fínti",
           },
         },
       },

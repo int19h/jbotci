@@ -18,57 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fésti gaŭ lo sútra)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "festi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gaŭ",
-    span: [9,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sutra",
-    span: [16,21],
-  },
+  Gismu "fésti",
+  Cmavo "gaŭ",
+  Cmavo "lo",
+  Gismu "sútra",
 ]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"festi","kind":"gismu"}},{"Bare":{"span":[9,12],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"sutra","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "festi",
-    span: [3,8],
-  },
+  Gismu "fésti",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "gaŭ",
-          span: [9,12],
-        },
+        bai: Cmavo "gaŭ",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [13,15],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "sutra",
-          span: [16,21],
-        },
+        descriptor: Cmavo "lo",
+        relation: Gismu "sútra",
       },
     },
   ],

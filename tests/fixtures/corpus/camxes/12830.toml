@@ -18,58 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(xu do kákne fínti le xámgu válsi [zoĭ gy simulate gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kakne",
-    span: [6,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "finti",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [18,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [21,26],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [27,32],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Gismu "kákne",
+  Gismu "fínti",
+  Cmavo "le",
+  Gismu "xámgu",
+  Gismu "válsi",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "zoĭ",
-      span: [33,36],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [37,39],
-    },
-    quoted_text: [41,49],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [50,52],
-    },
+    zoi: Cmavo "zoĭ",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "simulate",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"valsi","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[33,36],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"},"quoted_text":[41,49],"closing_delimiter":{"span":[50,52],"phonemes":"gy","kind":"cmavo"}}}]'
@@ -79,71 +39,31 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Relation {
       Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "kakne",
-          span: [6,11],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "finti",
-          span: [12,17],
-        },
+        Gismu "kákne",
+        Gismu "fínti",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [18,20],
-          },
+          descriptor: Cmavo "le",
           relation: Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "xamgu",
-              span: [21,26],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "valsi",
-              span: [27,32],
-            },
+            Gismu "xámgu",
+            Gismu "válsi",
           },
         },
         ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [33,36],
-          },
-          opening_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [37,39],
-          },
-          quoted_text: [41,49],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "gy",
-            span: [50,52],
-          },
+          zoi: Cmavo "zoĭ",
+          opening_delimiter: Cmavo "gy",
+          quoted_text: Verbatim "simulate",
+          closing_delimiter: Cmavo "gy",
         },
       ],
     },

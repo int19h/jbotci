@@ -18,88 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ ro do .aĭ peĭ ba kélci la brádi be le ctíno to [la'o gy Shadowbane gy])"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "doĭ",
-    span: [0,3],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ro",
-    span: [4,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [10,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "peĭ",
-    span: [12,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [16,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kelci",
-    span: [19,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [25,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bradi",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "be",
-    span: [34,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [37,39],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "ctino",
-    span: [40,45],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "to",
-    span: [46,48],
-  },
+  Cmavo "doĭ",
+  Cmavo "ro",
+  Cmavo "do",
+  Cmavo "aĭ",
+  Cmavo "peĭ",
+  Cmavo "ba",
+  Gismu "kélci",
+  Cmavo "la",
+  Gismu "brádi",
+  Cmavo "be",
+  Cmavo "le",
+  Gismu "ctíno",
+  Cmavo "to",
   ZoiQuote {
-    zoi: Word {
-      kind: "cmavo",
-      phonemes: "la'o",
-      span: [49,53],
-    },
-    opening_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [54,56],
-    },
-    quoted_text: [58,68],
-    closing_delimiter: Word {
-      kind: "cmavo",
-      phonemes: "gy",
-      span: [70,72],
-    },
+    zoi: Cmavo "la'o",
+    opening_delimiter: Cmavo "gy",
+    quoted_text: Verbatim "Shadowbane",
+    closing_delimiter: Cmavo "gy",
   },
 ]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"bradi","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"ctino","kind":"gismu"}},{"Bare":{"span":[46,48],"phonemes":"to","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[49,53],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[54,56],"phonemes":"gy","kind":"cmavo"},"quoted_text":[58,68],"closing_delimiter":{"span":[70,72],"phonemes":"gy","kind":"cmavo"}}}]"""
@@ -110,109 +46,45 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: [
-        Word {
-          kind: "cmavo",
-          phonemes: "doĭ",
-          span: [0,3],
-        },
+        Cmavo "doĭ",
       ],
       argument: Quantified {
-        quantifier: Word {
-          kind: "cmavo",
-          phonemes: "ro",
-          span: [4,6],
-        },
+        quantifier: Cmavo "ro",
         WithIndicator {
           WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "do",
-              span: [6,8],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "aĭ",
-              span: [10,12],
-            },
+            Cmavo "do",
+            indicator: Cmavo "aĭ",
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "peĭ",
-            span: [12,15],
-          },
+          indicator: Cmavo "peĭ",
         },
       },
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: Word {
-        kind: "cmavo",
-        phonemes: "ba",
-        span: [16,18],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "kelci",
-        span: [19,24],
-      },
+      tense_modal: Cmavo "ba",
+      Gismu "kélci",
     },
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [25,27],
-        },
+        descriptor: Cmavo "la",
         relation: Be {
-          Word {
-            kind: "gismu",
-            phonemes: "bradi",
-            span: [28,33],
-          },
-          be: Word {
-            kind: "cmavo",
-            phonemes: "be",
-            span: [34,36],
-          },
+          Gismu "brádi",
+          be: Cmavo "be",
           first_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [37,39],
-            },
+            descriptor: Cmavo "le",
             relation: Word {
-              Word {
-                kind: "gismu",
-                phonemes: "ctino",
-                span: [40,45],
-              },
+              Gismu "ctíno",
               free_modifiers: [
                 To {
-                  to: Word {
-                    kind: "cmavo",
-                    phonemes: "to",
-                    span: [46,48],
-                  },
+                  to: Cmavo "to",
                   Term {
                     terms: [
                       ZoiQuote {
-                        zoi: Word {
-                          kind: "cmavo",
-                          phonemes: "la'o",
-                          span: [49,53],
-                        },
-                        opening_delimiter: Word {
-                          kind: "cmavo",
-                          phonemes: "gy",
-                          span: [54,56],
-                        },
-                        quoted_text: [58,68],
-                        closing_delimiter: Word {
-                          kind: "cmavo",
-                          phonemes: "gy",
-                          span: [70,72],
-                        },
+                        zoi: Cmavo "la'o",
+                        opening_delimiter: Cmavo "gy",
+                        quoted_text: Verbatim "Shadowbane",
+                        closing_delimiter: Cmavo "gy",
                       },
                     ],
                   },

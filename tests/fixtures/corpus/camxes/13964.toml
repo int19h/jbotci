@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .jegvon. cu cévni le xríso joĭ le xébro joĭ le múslo)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "jegvon",
-    span: [3,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cevni",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xriso",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [32,34],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xebro",
-    span: [35,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [41,44],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [45,47],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "muslo",
-    span: [48,53],
-  },
+  Cmavo "la",
+  Cmevla "jegvon",
+  Cmavo "cu",
+  Gismu "cévni",
+  Cmavo "le",
+  Gismu "xríso",
+  Cmavo "joĭ",
+  Cmavo "le",
+  Gismu "xébro",
+  Cmavo "joĭ",
+  Cmavo "le",
+  Gismu "múslo",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"jegvon","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"xriso","kind":"gismu"}},{"Bare":{"span":[28,31],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"xebro","kind":"gismu"}},{"Bare":{"span":[41,44],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"muslo","kind":"gismu"}}]'
 
@@ -86,80 +38,32 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [0,2],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "jegvon",
-          span: [3,9],
-        },
+        Cmevla "jegvon",
       ],
     },
   ],
-  cu: Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [10,12],
-  },
+  cu: Cmavo "cu",
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cevni",
-      span: [13,18],
-    },
+    Gismu "cévni",
     terms: [
       Connected {
         leading_argument: Connected {
           leading_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [19,21],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "xriso",
-              span: [22,27],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "xríso",
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [28,31],
-          },
+          connective: Cmavo "joĭ",
           trailing_argument: Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [32,34],
-            },
-            relation: Word {
-              kind: "gismu",
-              phonemes: "xebro",
-              span: [35,40],
-            },
+            descriptor: Cmavo "le",
+            relation: Gismu "xébro",
           },
         },
-        connective: Word {
-          kind: "cmavo",
-          phonemes: "joĭ",
-          span: [41,44],
-        },
+        connective: Cmavo "joĭ",
         trailing_argument: Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [45,47],
-          },
-          relation: Word {
-            kind: "gismu",
-            phonemes: "muslo",
-            span: [48,53],
-          },
+          descriptor: Cmavo "le",
+          relation: Gismu "múslo",
         },
       },
     ],

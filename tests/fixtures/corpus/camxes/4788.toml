@@ -18,61 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi jínvi le du'u my cu ba'e xámgu ke mútce cízra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jinvi",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'u",
-    span: [11,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "my",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "cu",
-    span: [20,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba'e",
-    span: [23,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [28,33],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ke",
-    span: [34,36],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "mutce",
-    span: [37,42],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cizra",
-    span: [43,48],
-  },
+  Cmavo "mi",
+  Gismu "jínvi",
+  Cmavo "le",
+  Cmavo "du'u",
+  Cmavo "my",
+  Cmavo "cu",
+  Cmavo "ba'e",
+  Gismu "xámgu",
+  Cmavo "ke",
+  Gismu "mútce",
+  Gismu "cízra",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"my","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[43,48],"phonemes":"cizra","kind":"gismu"}}]"""
 
@@ -80,78 +36,34 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "jinvi",
-      span: [3,8],
-    },
+    Gismu "jínvi",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
+        descriptor: Cmavo "le",
         relation: Abstraction {
-          nu: Word {
-            kind: "cmavo",
-            phonemes: "du'u",
-            span: [11,15],
-          },
+          nu: Cmavo "du'u",
           Predicate {
             leading_terms: [
               Letter {
                 letter: [
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "my",
-                    span: [16,18],
-                  },
+                  Cmavo "my",
                 ],
               },
             ],
-            cu: Word {
-              kind: "cmavo",
-              phonemes: "cu",
-              span: [20,22],
-            },
+            cu: Cmavo "cu",
             Compound {
               Emphasized {
-                bahe: Word {
-                  kind: "cmavo",
-                  phonemes: "ba'e",
-                  span: [23,27],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "xamgu",
-                  span: [28,33],
-                },
+                bahe: Cmavo "ba'e",
+                Gismu "xámgu",
               },
               Ke {
-                ke: Word {
-                  kind: "cmavo",
-                  phonemes: "ke",
-                  span: [34,36],
-                },
+                ke: Cmavo "ke",
                 Compound {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "mutce",
-                    span: [37,42],
-                  },
-                  Word {
-                    kind: "gismu",
-                    phonemes: "cizra",
-                    span: [43,48],
-                  },
+                  Gismu "mútce",
+                  Gismu "cízra",
                 },
               },
             },

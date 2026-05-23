@@ -18,55 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(za'u xoĭ távla .ŭi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "xoĭ",
-    span: [4,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tavla",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭi",
-    span: [15,17],
-  },
+  Cmavo "za'u",
+  Cmavo "xoĭ",
+  Gismu "távla",
+  Cmavo "ŭi",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xoĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Number {
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [0,4],
-  },
+  Cmavo "za'u",
   free_modifiers: [
     Sei {
-      sei: Word {
-        kind: "cmavo",
-        phonemes: "xoĭ",
-        span: [4,7],
-      },
+      sei: Cmavo "xoĭ",
       relation: WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "tavla",
-          span: [8,13],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ŭi",
-          span: [15,17],
-        },
+        Gismu "távla",
+        indicator: Cmavo "ŭi",
       },
     },
   ],

@@ -18,66 +18,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi du'e va'e tátpi .oĭ .i pu de'a sípna ca le puvlámcte)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du'e",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [7,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "tatpi",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [19,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [23,24],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pu",
-    span: [25,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "de'a",
-    span: [27,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sipna",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [38,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [41,43],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "puvlamcte",
-    span: [44,53],
-  },
+  Cmavo "mi",
+  Cmavo "du'e",
+  Cmavo "va'e",
+  Gismu "tátpi",
+  Cmavo "oĭ",
+  Cmavo "i",
+  Cmavo "pu",
+  Cmavo "de'a",
+  Gismu "sípna",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "puvlámcte",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"va'e","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[23,24],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"de'a","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[38,40],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[44,53],"phonemes":"puvlamcte","kind":"lujvo"}}]"""
 
@@ -86,85 +38,37 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [0,2],
-      },
+      Cmavo "mi",
     ],
     Compound {
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "du'e",
-            span: [3,7],
-          },
+          Cmavo "du'e",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "va'e",
-          span: [7,11],
-        },
+        moi: Cmavo "va'e",
       },
       WithIndicator {
-        Word {
-          kind: "gismu",
-          phonemes: "tatpi",
-          span: [12,17],
-        },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "oĭ",
-          span: [19,21],
-        },
+        Gismu "tátpi",
+        indicator: Cmavo "oĭ",
       },
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [23,24],
-    },
+    i: Cmavo "i",
     Relation {
       TenseModal {
         tense_modal: Composite {
-          Word {
-            kind: "cmavo",
-            phonemes: "pu",
-            span: [25,27],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "de'a",
-            span: [27,31],
-          },
+          Cmavo "pu",
+          Cmavo "de'a",
         },
-        Word {
-          kind: "gismu",
-          phonemes: "sipna",
-          span: [32,37],
-        },
+        Gismu "sípna",
       },
       terms: [
         Tagged {
-          tense_modal: Word {
-            kind: "cmavo",
-            phonemes: "ca",
-            span: [38,40],
-          },
+          tense_modal: Cmavo "ca",
           Descriptor {
-            descriptor: Word {
-              kind: "cmavo",
-              phonemes: "le",
-              span: [41,43],
-            },
-            relation: Word {
-              kind: "lujvo",
-              phonemes: "puvlamcte",
-              span: [44,53],
-            },
+            descriptor: Cmavo "le",
+            relation: Lujvo "puvlámcte",
           },
         },
       ],

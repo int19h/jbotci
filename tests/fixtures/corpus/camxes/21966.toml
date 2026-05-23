@@ -18,53 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(víkmi kúmfa ja stízu)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "vikmi",
-    span: [0,5],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kumfa",
-    span: [6,11],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ja",
-    span: [12,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "stizu",
-    span: [15,20],
-  },
+  Gismu "víkmi",
+  Gismu "kúmfa",
+  Cmavo "ja",
+  Gismu "stízu",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vikmi","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"kumfa","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"stizu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  Word {
-    kind: "gismu",
-    phonemes: "vikmi",
-    span: [0,5],
-  },
+  Gismu "víkmi",
   Connected {
-    leading_unit: Word {
-      kind: "gismu",
-      phonemes: "kumfa",
-      span: [6,11],
-    },
-    connective: Word {
-      kind: "cmavo",
-      phonemes: "ja",
-      span: [12,14],
-    },
-    trailing_unit: Word {
-      kind: "gismu",
-      phonemes: "stizu",
-      span: [15,20],
-    },
+    leading_unit: Gismu "kúmfa",
+    connective: Cmavo "ja",
+    trailing_unit: Gismu "stízu",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"vikmi","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"kumfa","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"ja","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"stizu","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu do za'u va'e lójbo cértu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "xu",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "za'u",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "va'e",
-    span: [10,14],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lojbo",
-    span: [15,20],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "certu",
-    span: [21,26],
-  },
+  Cmavo "xu",
+  Cmavo "do",
+  Cmavo "za'u",
+  Cmavo "va'e",
+  Gismu "lójbo",
+  Gismu "cértu",
 ]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"va'e","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"certu","kind":"gismu"}}]"""
 
@@ -56,46 +32,22 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
+      indicator: Cmavo "xu",
     },
   ],
   Predicate {
     leading_terms: [
-      Word {
-        kind: "cmavo",
-        phonemes: "do",
-        span: [3,5],
-      },
+      Cmavo "do",
     ],
     Compound {
       Moi {
         number: [
-          Word {
-            kind: "cmavo",
-            phonemes: "za'u",
-            span: [6,10],
-          },
+          Cmavo "za'u",
         ],
-        moi: Word {
-          kind: "cmavo",
-          phonemes: "va'e",
-          span: [10,14],
-        },
+        moi: Cmavo "va'e",
       },
-      Word {
-        kind: "gismu",
-        phonemes: "lojbo",
-        span: [15,20],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "certu",
-        span: [21,26],
-      },
+      Gismu "lójbo",
+      Gismu "cértu",
     },
   },
 }"""

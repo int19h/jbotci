@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.aĭ xábju .ŭo co'o)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "aĭ",
-    span: [1,3],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xabju",
-    span: [4,9],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ŭo",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "co'o",
-    span: [14,18],
-  },
+  Cmavo "aĭ",
+  Gismu "xábju",
+  Cmavo "ŭo",
+  Cmavo "co'o",
 ]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"xabju","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"ŭo","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'o","kind":"cmavo"}}]"""
 
@@ -46,34 +30,18 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [1,3],
-      },
+      indicator: Cmavo "aĭ",
     },
   ],
   Word {
     WithIndicator {
-      Word {
-        kind: "gismu",
-        phonemes: "xabju",
-        span: [4,9],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭo",
-        span: [11,13],
-      },
+      Gismu "xábju",
+      indicator: Cmavo "ŭo",
     },
     free_modifiers: [
       Vocative {
         vocative_markers: [
-          Word {
-            kind: "cmavo",
-            phonemes: "co'o",
-            span: [14,18],
-          },
+          Cmavo "co'o",
         ],
       },
     ],

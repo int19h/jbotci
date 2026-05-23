@@ -19,26 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(mi na'e te jíbri)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na'e",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [11,13],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jibri",
-    span: [14,19],
-  },
+  Cmavo "mi",
+  Cmavo "na'e",
+  Cmavo "te",
+  Gismu "jíbri",
 ]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jibri","kind":"gismu"}}]"""
 
@@ -46,29 +30,13 @@ json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [3,5],
-    },
+    Cmavo "mi",
   ],
   Nahe {
-    nahe: Word {
-      kind: "cmavo",
-      phonemes: "na'e",
-      span: [6,10],
-    },
+    nahe: Cmavo "na'e",
     Se {
-      se: Word {
-        kind: "cmavo",
-        phonemes: "te",
-        span: [11,13],
-      },
-      Word {
-        kind: "gismu",
-        phonemes: "jibri",
-        span: [14,19],
-      },
+      se: Cmavo "te",
+      Gismu "jíbri",
     },
   },
 }"""

@@ -24,46 +24,14 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .anis. joĭ la .asun. brúna re meĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "anis",
-    span: [4,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [10,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "asun",
-    span: [18,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "bruna",
-    span: [24,29],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "re",
-    span: [30,32],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "meĭ",
-    span: [32,35],
-  },
+  Cmavo "la",
+  Cmevla "anis",
+  Cmavo "joĭ",
+  Cmavo "la",
+  Cmevla "asun",
+  Gismu "brúna",
+  Cmavo "re",
+  Cmavo "meĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"anis","kind":"cmevla"}},{"Bare":{"span":[10,13],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"asun","kind":"cmevla"}},{"Bare":{"span":[24,29],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"meĭ","kind":"cmavo"}}]'
 
@@ -74,59 +42,27 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "anis",
-            span: [4,8],
-          },
+          Cmevla "anis",
         ],
       },
-      connective: Word {
-        kind: "cmavo",
-        phonemes: "joĭ",
-        span: [10,13],
-      },
+      connective: Cmavo "joĭ",
       trailing_argument: Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [14,16],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "asun",
-            span: [18,22],
-          },
+          Cmevla "asun",
         ],
       },
     },
   ],
   Compound {
-    Word {
-      kind: "gismu",
-      phonemes: "bruna",
-      span: [24,29],
-    },
+    Gismu "brúna",
     Moi {
       number: [
-        Word {
-          kind: "cmavo",
-          phonemes: "re",
-          span: [30,32],
-        },
+        Cmavo "re",
       ],
-      moi: Word {
-        kind: "cmavo",
-        phonemes: "meĭ",
-        span: [32,35],
-      },
+      moi: Cmavo "meĭ",
     },
   },
 }"""

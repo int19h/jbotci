@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(loĭ ca nánmu du la cláxu te jórne loĭ smáni loĭ rémna)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [3,6],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [7,9],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "nanmu",
-    span: [10,15],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "du",
-    span: [16,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "claxu",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "te",
-    span: [28,30],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "jorne",
-    span: [31,36],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [37,40],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "smani",
-    span: [41,46],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "loĭ",
-    span: [47,50],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "remna",
-    span: [51,56],
-  },
+  Cmavo "loĭ",
+  Cmavo "ca",
+  Gismu "nánmu",
+  Cmavo "du",
+  Cmavo "la",
+  Gismu "cláxu",
+  Cmavo "te",
+  Gismu "jórne",
+  Cmavo "loĭ",
+  Gismu "smáni",
+  Cmavo "loĭ",
+  Gismu "rémna",
 ]"""
 json = '[{"Bare":{"span":[3,6],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"claxu","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"jorne","kind":"gismu"}},{"Bare":{"span":[37,40],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"smani","kind":"gismu"}},{"Bare":{"span":[47,50],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[51,56],"phonemes":"remna","kind":"gismu"}}]'
 
@@ -86,80 +38,32 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [3,6],
-      },
+      descriptor: Cmavo "loĭ",
       relation: TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [7,9],
-        },
+        tense_modal: Cmavo "ca",
         Compound {
-          Word {
-            kind: "gismu",
-            phonemes: "nanmu",
-            span: [10,15],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "du",
-            span: [16,18],
-          },
+          Gismu "nánmu",
+          Cmavo "du",
         },
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [19,21],
-      },
+      descriptor: Cmavo "la",
       relation: Compound {
-        Word {
-          kind: "gismu",
-          phonemes: "claxu",
-          span: [22,27],
-        },
+        Gismu "cláxu",
         Se {
-          se: Word {
-            kind: "cmavo",
-            phonemes: "te",
-            span: [28,30],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "jorne",
-            span: [31,36],
-          },
+          se: Cmavo "te",
+          Gismu "jórne",
         },
       },
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [37,40],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "smani",
-        span: [41,46],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "smáni",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "loĭ",
-        span: [47,50],
-      },
-      relation: Word {
-        kind: "gismu",
-        phonemes: "remna",
-        span: [51,56],
-      },
+      descriptor: Cmavo "loĭ",
+      relation: Gismu "rémna",
     },
   ],
 }"""

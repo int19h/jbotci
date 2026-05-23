@@ -18,77 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fáncu le'i terzá'i le'i jeĭ zásti)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "terza'i",
-    span: [11,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le'i",
-    span: [19,23],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "jeĭ",
-    span: [24,27],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "zasti",
-    span: [28,33],
-  },
+  Gismu "fáncu",
+  Cmavo "le'i",
+  Lujvo "terzá'i",
+  Cmavo "le'i",
+  Cmavo "jeĭ",
+  Gismu "zásti",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"fancu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"le'i","kind":"cmavo"}},{"Bare":{"span":[11,18],"phonemes":"terza'i","kind":"lujvo"}},{"Bare":{"span":[19,23],"phonemes":"le'i","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"zasti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "fancu",
-    span: [0,5],
-  },
+  Gismu "fáncu",
   terms: [
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le'i",
-        span: [6,10],
-      },
-      relation: Word {
-        kind: "lujvo",
-        phonemes: "terza'i",
-        span: [11,18],
-      },
+      descriptor: Cmavo "le'i",
+      relation: Lujvo "terzá'i",
     },
     Descriptor {
-      descriptor: Word {
-        kind: "cmavo",
-        phonemes: "le'i",
-        span: [19,23],
-      },
+      descriptor: Cmavo "le'i",
       relation: Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "jeĭ",
-          span: [24,27],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "zasti",
-          span: [28,33],
-        },
+        nu: Cmavo "jeĭ",
+        Gismu "zásti",
       },
     },
   ],

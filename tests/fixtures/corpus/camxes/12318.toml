@@ -18,36 +18,12 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi córtu le kérlo vaŭ .oĭ)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [0,2],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "cortu",
-    span: [3,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [9,11],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "kerlo",
-    span: [12,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vaŭ",
-    span: [18,21],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "oĭ",
-    span: [23,25],
-  },
+  Cmavo "mi",
+  Gismu "córtu",
+  Cmavo "le",
+  Gismu "kérlo",
+  Cmavo "vaŭ",
+  Cmavo "oĭ",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"kerlo","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"oĭ","kind":"cmavo"}}]'
 
@@ -55,43 +31,19 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":
 tree = """
 Predicate {
   leading_terms: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mi",
-      span: [0,2],
-    },
+    Cmavo "mi",
   ],
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "cortu",
-      span: [3,8],
-    },
+    Gismu "córtu",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [9,11],
-        },
-        relation: Word {
-          kind: "gismu",
-          phonemes: "kerlo",
-          span: [12,17],
-        },
+        descriptor: Cmavo "le",
+        relation: Gismu "kérlo",
       },
     ],
     vau: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "vaŭ",
-        span: [18,21],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "oĭ",
-        span: [23,25],
-      },
+      Cmavo "vaŭ",
+      indicator: Cmavo "oĭ",
     },
   },
 }"""

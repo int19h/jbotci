@@ -21,41 +21,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i ca le prulémdeĭ mi sídju ra)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ca",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [6,8],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "prulemdeĭ",
-    span: [9,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sidju",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ra",
-    span: [28,30],
-  },
+  Cmavo "i",
+  Cmavo "ca",
+  Cmavo "le",
+  Lujvo "prulémdeĭ",
+  Cmavo "mi",
+  Gismu "sídju",
+  Cmavo "ra",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,18],"phonemes":"prulemdeĭ","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"ra","kind":"cmavo"}}]'
 
@@ -63,50 +35,22 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 brackets = "(.i [{(ca [le prulémdeĭ]) mi} {sídju ra}])"
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ca",
-          span: [3,5],
-        },
+        tense_modal: Cmavo "ca",
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [6,8],
-          },
-          relation: Word {
-            kind: "lujvo",
-            phonemes: "prulemdeĭ",
-            span: [9,18],
-          },
+          descriptor: Cmavo "le",
+          relation: Lujvo "prulémdeĭ",
         },
       },
-      Word {
-        kind: "cmavo",
-        phonemes: "mi",
-        span: [19,21],
-      },
+      Cmavo "mi",
     ],
     Relation {
-      Word {
-        kind: "gismu",
-        phonemes: "sidju",
-        span: [22,27],
-      },
+      Gismu "sídju",
       terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ra",
-          span: [28,30],
-        },
+        Cmavo "ra",
       ],
     },
   },

@@ -18,56 +18,16 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i la .robin. joĭ la .clsn. joĭ mi .i jbósla)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [1,2],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [3,5],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "robin",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [14,17],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [18,20],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "clsn",
-    span: [22,26],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "joĭ",
-    span: [28,31],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "mi",
-    span: [32,34],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [36,37],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "jbosla",
-    span: [38,44],
-  },
+  Cmavo "i",
+  Cmavo "la",
+  Cmevla "robin",
+  Cmavo "joĭ",
+  Cmavo "la",
+  Cmevla "clsn",
+  Cmavo "joĭ",
+  Cmavo "mi",
+  Cmavo "i",
+  Lujvo "jbósla",
 ]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"robin","kind":"cmevla"}},{"Bare":{"span":[14,17],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[22,26],"phonemes":"clsn","kind":"cmevla"}},{"Bare":{"span":[28,31],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[38,44],"phonemes":"jbosla","kind":"lujvo"}}]'
 
@@ -75,74 +35,34 @@ json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[
 tree = """
 Paragraph {
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [1,2],
-    },
+    i: Cmavo "i",
     Term {
       terms: [
         Connected {
           leading_argument: Connected {
             leading_argument: Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [3,5],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "robin",
-                  span: [7,12],
-                },
+                Cmevla "robin",
               ],
             },
-            connective: Word {
-              kind: "cmavo",
-              phonemes: "joĭ",
-              span: [14,17],
-            },
+            connective: Cmavo "joĭ",
             trailing_argument: Name {
-              la: Word {
-                kind: "cmavo",
-                phonemes: "la",
-                span: [18,20],
-              },
+              la: Cmavo "la",
               names: [
-                Word {
-                  kind: "cmevla",
-                  phonemes: "clsn",
-                  span: [22,26],
-                },
+                Cmevla "clsn",
               ],
             },
           },
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "joĭ",
-            span: [28,31],
-          },
-          trailing_argument: Word {
-            kind: "cmavo",
-            phonemes: "mi",
-            span: [32,34],
-          },
+          connective: Cmavo "joĭ",
+          trailing_argument: Cmavo "mi",
         },
       ],
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [36,37],
-    },
-    Word {
-      kind: "lujvo",
-      phonemes: "jbosla",
-      span: [38,44],
-    },
+    i: Cmavo "i",
+    Lujvo "jbósla",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Connected":{"leading_argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[7,12],"phonemes":"robin","kind":"cmevla"}}}]}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[14,17],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_argument":{"Name":{"la":{"Bare":{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[22,26],"phonemes":"clsn","kind":"cmevla"}}}]}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[28,31],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_argument":{"Koha":{"Bare":{"Bare":{"span":[32,34],"phonemes":"mi","kind":"cmavo"}}}}}}}]}}}},{"i":{"Bare":{"Bare":{"span":[36,37],"phonemes":"i","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[38,44],"phonemes":"jbosla","kind":"lujvo"}}}}}}}}}}}]}]}'

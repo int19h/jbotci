@@ -18,78 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(bárda ma'i le me ko'a moĭ)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ma'i",
-    span: [6,10],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [11,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "me",
-    span: [14,16],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko'a",
-    span: [16,20],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "moĭ",
-    span: [20,23],
-  },
+  Gismu "bárda",
+  Cmavo "ma'i",
+  Cmavo "le",
+  Cmavo "me",
+  Cmavo "ko'a",
+  Cmavo "moĭ",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ma'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"moĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "barda",
-    span: [0,5],
-  },
+  Gismu "bárda",
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: Word {
-          kind: "cmavo",
-          phonemes: "ma'i",
-          span: [6,10],
-        },
+        bai: Cmavo "ma'i",
       },
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "le",
-          span: [11,13],
-        },
+        descriptor: Cmavo "le",
         relation: Me {
-          me: Word {
-            kind: "cmavo",
-            phonemes: "me",
-            span: [14,16],
-          },
-          Word {
-            kind: "cmavo",
-            phonemes: "ko'a",
-            span: [16,20],
-          },
-          moi_marker: Word {
-            kind: "cmavo",
-            phonemes: "moĭ",
-            span: [20,23],
-          },
+          me: Cmavo "me",
+          Cmavo "ko'a",
+          moi_marker: Cmavo "moĭ",
         },
       },
     },

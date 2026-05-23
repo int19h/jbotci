@@ -18,88 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fánva .i ku'i xámgu nu fánva pe'i)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [7,8],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku'i",
-    span: [8,12],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "xamgu",
-    span: [13,18],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [19,21],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [22,27],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [28,32],
-  },
+  Gismu "fánva",
+  Cmavo "i",
+  Cmavo "ku'i",
+  Gismu "xámgu",
+  Cmavo "nu",
+  Gismu "fánva",
+  Cmavo "pe'i",
 ]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"fanva","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"pe'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  Word {
-    kind: "gismu",
-    phonemes: "fanva",
-    span: [0,5],
-  },
+  Gismu "fánva",
   ParagraphStatement {
     i: WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "i",
-        span: [7,8],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ku'i",
-        span: [8,12],
-      },
+      Cmavo "i",
+      indicator: Cmavo "ku'i",
     },
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "xamgu",
-        span: [13,18],
-      },
+      Gismu "xámgu",
       Abstraction {
-        nu: Word {
-          kind: "cmavo",
-          phonemes: "nu",
-          span: [19,21],
-        },
+        nu: Cmavo "nu",
         WithIndicator {
-          Word {
-            kind: "gismu",
-            phonemes: "fanva",
-            span: [22,27],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "pe'i",
-            span: [28,32],
-          },
+          Gismu "fánva",
+          indicator: Cmavo "pe'i",
         },
       },
     },

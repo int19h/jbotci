@@ -18,45 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zbásu la .debin.)"
 tree = """
 [
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [0,5],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [6,8],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "debin",
-    span: [9,15],
-  },
+  Gismu "zbásu",
+  Cmavo "la",
+  Cmevla "debin",
 ]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"debin","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  Word {
-    kind: "gismu",
-    phonemes: "zbasu",
-    span: [0,5],
-  },
+  Gismu "zbásu",
   terms: [
     Name {
-      la: Word {
-        kind: "cmavo",
-        phonemes: "la",
-        span: [6,8],
-      },
+      la: Cmavo "la",
       names: [
-        Word {
-          kind: "cmevla",
-          phonemes: "debin",
-          span: [9,15],
-        },
+        Cmevla "debin",
       ],
     },
   ],

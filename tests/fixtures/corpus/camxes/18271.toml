@@ -18,36 +18,12 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ru'a sítna lo náljbo válsi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ru'a",
-    span: [2,6],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "sitna",
-    span: [7,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "lo",
-    span: [13,15],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "naljbo",
-    span: [16,22],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "valsi",
-    span: [23,28],
-  },
+  Cmavo "i",
+  Cmavo "ru'a",
+  Gismu "sítna",
+  Cmavo "lo",
+  Lujvo "náljbo",
+  Gismu "válsi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"sitna","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"naljbo","kind":"lujvo"}},{"Bare":{"span":[23,28],"phonemes":"valsi","kind":"gismu"}}]"""
 
@@ -55,41 +31,17 @@ json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [0,1],
-    },
-    indicator: Word {
-      kind: "cmavo",
-      phonemes: "ru'a",
-      span: [2,6],
-    },
+    Cmavo "i",
+    indicator: Cmavo "ru'a",
   },
   Relation {
-    Word {
-      kind: "gismu",
-      phonemes: "sitna",
-      span: [7,12],
-    },
+    Gismu "sítna",
     terms: [
       Descriptor {
-        descriptor: Word {
-          kind: "cmavo",
-          phonemes: "lo",
-          span: [13,15],
-        },
+        descriptor: Cmavo "lo",
         relation: Compound {
-          Word {
-            kind: "lujvo",
-            phonemes: "naljbo",
-            span: [16,22],
-          },
-          Word {
-            kind: "gismu",
-            phonemes: "valsi",
-            span: [23,28],
-          },
+          Lujvo "náljbo",
+          Gismu "válsi",
         },
       },
     ],

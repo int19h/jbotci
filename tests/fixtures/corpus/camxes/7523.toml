@@ -18,93 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i vi ku lénku gi'e brífe cármi)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "vi",
-    span: [2,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ku",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "lenku",
-    span: [8,13],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "gi'e",
-    span: [14,18],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "brife",
-    span: [19,24],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "carmi",
-    span: [25,30],
-  },
+  Cmavo "i",
+  Cmavo "vi",
+  Cmavo "ku",
+  Gismu "lénku",
+  Cmavo "gi'e",
+  Gismu "brífe",
+  Gismu "cármi",
 ]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"lenku","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"brife","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"carmi","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [0,1],
-  },
+  i: Cmavo "i",
   Predicate {
     leading_terms: [
       Tagged {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "vi",
-          span: [2,4],
-        },
+        tense_modal: Cmavo "vi",
         Zohe {
-          maybe_ku: Word {
-            kind: "cmavo",
-            phonemes: "ku",
-            span: [5,7],
-          },
+          maybe_ku: Cmavo "ku",
         },
       },
     ],
     PredicateTail1 {
-      Word {
-        kind: "gismu",
-        phonemes: "lenku",
-        span: [8,13],
-      },
+      Gismu "lénku",
       continuations: [
         PredicateTailContinuation {
-          connective: Word {
-            kind: "cmavo",
-            phonemes: "gi'e",
-            span: [14,18],
-          },
+          connective: Cmavo "gi'e",
           Compound {
-            Word {
-              kind: "gismu",
-              phonemes: "brife",
-              span: [19,24],
-            },
-            Word {
-              kind: "gismu",
-              phonemes: "carmi",
-              span: [25,30],
-            },
+            Gismu "brífe",
+            Gismu "cármi",
           },
         },
       ],

@@ -18,26 +18,10 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i na vlíle nuncásnu)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "pe'i",
-    span: [0,4],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "na",
-    span: [5,7],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "vlile",
-    span: [8,13],
-  },
-  Word {
-    kind: "lujvo",
-    phonemes: "nuncasnu",
-    span: [14,22],
-  },
+  Cmavo "pe'i",
+  Cmavo "na",
+  Gismu "vlíle",
+  Lujvo "nuncásnu",
 ]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vlile","kind":"gismu"}},{"Bare":{"span":[14,22],"phonemes":"nuncasnu","kind":"lujvo"}}]"""
 
@@ -46,30 +30,14 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "pe'i",
-        span: [0,4],
-      },
+      indicator: Cmavo "pe'i",
     },
   ],
   Na {
-    na: Word {
-      kind: "cmavo",
-      phonemes: "na",
-      span: [5,7],
-    },
+    na: Cmavo "na",
     Compound {
-      Word {
-        kind: "gismu",
-        phonemes: "vlile",
-        span: [8,13],
-      },
-      Word {
-        kind: "lujvo",
-        phonemes: "nuncasnu",
-        span: [14,22],
-      },
+      Gismu "vlíle",
+      Lujvo "nuncásnu",
     },
   },
 }"""

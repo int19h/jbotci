@@ -18,66 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .kris. .kros. ba gásnu le nu do plípe .i ko plípe)"
 tree = """
 [
-  Word {
-    kind: "cmavo",
-    phonemes: "la",
-    span: [0,2],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kris",
-    span: [3,7],
-  },
-  Word {
-    kind: "cmevla",
-    phonemes: "kros",
-    span: [8,12],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ba",
-    span: [14,16],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "gasnu",
-    span: [17,22],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "le",
-    span: [23,25],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "nu",
-    span: [26,28],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "do",
-    span: [29,31],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plipe",
-    span: [32,37],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "i",
-    span: [39,40],
-  },
-  Word {
-    kind: "cmavo",
-    phonemes: "ko",
-    span: [41,43],
-  },
-  Word {
-    kind: "gismu",
-    phonemes: "plipe",
-    span: [44,49],
-  },
+  Cmavo "la",
+  Cmevla "kris",
+  Cmevla "kros",
+  Cmavo "ba",
+  Gismu "gásnu",
+  Cmavo "le",
+  Cmavo "nu",
+  Cmavo "do",
+  Gismu "plípe",
+  Cmavo "i",
+  Cmavo "ko",
+  Gismu "plípe",
 ]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"kris","kind":"cmevla"}},{"Bare":{"span":[8,12],"phonemes":"kros","kind":"cmevla"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"gasnu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"plipe","kind":"gismu"}},{"Bare":{"span":[39,40],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"plipe","kind":"gismu"}}]'
 
@@ -87,64 +39,28 @@ Paragraph {
   Predicate {
     leading_terms: [
       Name {
-        la: Word {
-          kind: "cmavo",
-          phonemes: "la",
-          span: [0,2],
-        },
+        la: Cmavo "la",
         names: [
-          Word {
-            kind: "cmevla",
-            phonemes: "kris",
-            span: [3,7],
-          },
-          Word {
-            kind: "cmevla",
-            phonemes: "kros",
-            span: [8,12],
-          },
+          Cmevla "kris",
+          Cmevla "kros",
         ],
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: Word {
-          kind: "cmavo",
-          phonemes: "ba",
-          span: [14,16],
-        },
-        Word {
-          kind: "gismu",
-          phonemes: "gasnu",
-          span: [17,22],
-        },
+        tense_modal: Cmavo "ba",
+        Gismu "gásnu",
       },
       terms: [
         Descriptor {
-          descriptor: Word {
-            kind: "cmavo",
-            phonemes: "le",
-            span: [23,25],
-          },
+          descriptor: Cmavo "le",
           relation: Abstraction {
-            nu: Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [26,28],
-            },
+            nu: Cmavo "nu",
             Predicate {
               leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "do",
-                  span: [29,31],
-                },
+                Cmavo "do",
               ],
-              Word {
-                kind: "gismu",
-                phonemes: "plipe",
-                span: [32,37],
-              },
+              Gismu "plípe",
             },
           },
         },
@@ -152,24 +68,12 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: Word {
-      kind: "cmavo",
-      phonemes: "i",
-      span: [39,40],
-    },
+    i: Cmavo "i",
     Predicate {
       leading_terms: [
-        Word {
-          kind: "cmavo",
-          phonemes: "ko",
-          span: [41,43],
-        },
+        Cmavo "ko",
       ],
-      Word {
-        kind: "gismu",
-        phonemes: "plipe",
-        span: [44,49],
-      },
+      Gismu "plípe",
     },
   },
 }"""
