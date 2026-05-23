@@ -701,11 +701,7 @@ fn colorize_json(text: &str, enabled: bool) -> String {
     let mut index = 0;
     while index < chars.len() {
         match chars[index] {
-            '{' | '}' | '[' | ']' => {
-                output.push_str(&chars[index].to_string().cyan().to_string());
-                index += 1;
-            }
-            ':' | ',' => {
+            '{' | '}' | '[' | ']' | '(' | ')' | '@' | ':' | ',' => {
                 output.push_str(&chars[index].to_string().bright_black().to_string());
                 index += 1;
             }
@@ -1520,6 +1516,9 @@ mod tests {
         assert!(output.contains("\x1b[32m\"key\"\x1b[39m"));
         assert!(output.contains("\x1b[33m\"value\"\x1b[39m"));
         assert!(output.contains("\x1b[94m\"Predicate\"\x1b[39m"));
+        assert!(output.contains("\x1b[90m{\x1b[39m"));
+        assert!(output.contains("\x1b[90m}\x1b[39m"));
+        assert!(!output.contains("\x1b[36m"));
     }
 
     #[test]

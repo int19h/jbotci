@@ -554,9 +554,9 @@ impl TreeRenderer {
     #[requires(true)]
     #[ensures(true)]
     fn render_collection(&mut self, items: &[TreeValue], indent: usize) {
-        self.output.push_str(&self.array_bracket_token("["));
+        self.output.push_str(&self.punctuation_token("["));
         if items.is_empty() {
-            self.output.push_str(&self.array_bracket_token("]"));
+            self.output.push_str(&self.punctuation_token("]"));
             return;
         }
         if self.indent_step == 0 {
@@ -566,7 +566,7 @@ impl TreeRenderer {
                 }
                 self.render_value(item, 0);
             }
-            self.output.push_str(&self.array_bracket_token("]"));
+            self.output.push_str(&self.punctuation_token("]"));
             return;
         }
         let child_indent = indent + self.indent_step;
@@ -578,7 +578,7 @@ impl TreeRenderer {
         }
         self.output.push('\n');
         self.push_indent(indent);
-        self.output.push_str(&self.array_bracket_token("]"));
+        self.output.push_str(&self.punctuation_token("]"));
     }
 
     #[requires(true)]
@@ -598,11 +598,11 @@ impl TreeRenderer {
     #[ensures(!ret.is_empty())]
     fn span_literal(&self, char_start: usize, char_end: usize) -> String {
         let mut output = String::new();
-        output.push_str(&self.array_bracket_token("["));
+        output.push_str(&self.punctuation_token("["));
         output.push_str(&self.number_token(char_start));
         output.push_str(&self.punctuation_token(","));
         output.push_str(&self.number_token(char_end));
-        output.push_str(&self.array_bracket_token("]"));
+        output.push_str(&self.punctuation_token("]"));
         output
     }
 
@@ -624,11 +624,11 @@ impl TreeRenderer {
     fn span_marker(&self, char_start: usize, char_end: usize) -> String {
         let mut output = String::new();
         output.push_str(&self.punctuation_token("@"));
-        output.push_str(&self.array_bracket_token("["));
-        output.push_str(&self.number_token(char_start));
+        output.push_str(&self.punctuation_token("["));
+        output.push_str(&self.span_number_token(char_start));
         output.push_str(&self.punctuation_token("‥"));
-        output.push_str(&self.number_token(char_end));
-        output.push_str(&self.array_bracket_token(")"));
+        output.push_str(&self.span_number_token(char_end));
+        output.push_str(&self.punctuation_token(")"));
         output
     }
 
@@ -650,16 +650,16 @@ impl TreeRenderer {
         self.color_token(text, ColorRole::Punctuation)
     }
 
-    #[requires(matches!(text, "[" | "]" | ")"))]
-    #[ensures(!ret.is_empty())]
-    fn array_bracket_token(&self, text: &str) -> String {
-        self.color_token(text, ColorRole::ArrayBracket)
-    }
-
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn number_token(&self, value: usize) -> String {
         self.color_token(&value.to_string(), ColorRole::Number)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn span_number_token(&self, value: usize) -> String {
+        self.color_token(&value.to_string(), ColorRole::SpanNumber)
     }
 
     #[requires(true)]
@@ -1026,8 +1026,8 @@ enum ColorRole {
     Constructor,
     Field,
     Punctuation,
-    ArrayBracket,
     Number,
+    SpanNumber,
     String,
 }
 
@@ -1039,8 +1039,8 @@ impl ColorRole {
             Self::Constructor => "\x1b[94m",
             Self::Field => "\x1b[32m",
             Self::Punctuation => "\x1b[90m",
-            Self::ArrayBracket => "\x1b[36m",
             Self::Number => "\x1b[35m",
+            Self::SpanNumber => "\x1b[37m",
             Self::String => "\x1b[33m",
         }
     }
@@ -1075,8 +1075,31 @@ mod tests {
         assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
         assert!(output.contains("\x1b[90m{\x1b[39m"));
-        assert!(output.contains("\x1b[36m[\x1b[39m"));
-        assert!(output.contains("\x1b[36m]\x1b[39m"));
+        assert!(output.contains("\x1b[90m[\x1b[39m"));
+        assert!(output.contains("\x1b[90m]\x1b[39m"));
+        assert!(!output.contains("\x1b[36m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colorizes_visible_span_markers_with_white_offsets() {
+        let words = segment_words_with_modifiers("mi klama").expect("morphology");
+        let parsed = parse_syntax_tree(&words).expect("syntax");
+        let output = pretty_tree_with_options(
+            &parsed.parse_tree,
+            "mi klama",
+            TreeRenderOptions {
+                color: true,
+                show_spans: true,
+                ..TreeRenderOptions::default()
+            },
+        )
+        .expect("tree render");
+
+        assert!(output.contains(
+            "\x1b[90m@\x1b[39m\x1b[90m[\x1b[39m\x1b[37m0\x1b[39m\x1b[90m‥\x1b[39m\x1b[37m8\x1b[39m\x1b[90m)\x1b[39m"
+        ));
     }
 
     #[test]
