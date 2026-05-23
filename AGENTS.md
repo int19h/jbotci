@@ -246,6 +246,8 @@ All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` fro
 
 In all cases, when updating expectations, be VERY careful and do not blindly assume that new output is correct. Ideally expectations need to be updated manually rather than taking the output of the parser. When that is infeasible (e.g. you have more than a few hundred expectations that need updating), you need to definitively ascertain that the change is purely surface representation before doing any kind of automatic expectation update whatsoever. That is, if the change is predictable and mechanical, write a script that validates this while comparing the old and the new expectations, and only for those entries where such a script confirms that it is indeed only that mechanical change that is the difference, it is okay to update with new output; any cases that get flagged as more than that need careful *manual* review individually, one by one.
 
+Prefer to run tests on release builds - the test suite is large and parser performance is degraded substantially in debug builds, so even with the cost of rebuild, release builds are still several times faster. Use debug builds only when it is necessary to debug test behavior.
+
 
 # CLL Errata: Commas and Glides
 
