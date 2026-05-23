@@ -233,7 +233,7 @@ fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordL
 #[requires(true)]
 #[ensures(true)]
 fn is_bahe_word(word: &WithIndicators<WordLike>) -> bool {
-    modifier_word(word).is_some_and(|word| word.is_cmavo_text("ba'e") || word.is_cmavo_text("za'e"))
+    modifier_word(word).is_some_and(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe]))
 }
 
 #[requires(true)]
@@ -247,7 +247,7 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
             let nai = if iter
                 .peek()
                 .and_then(modifier_word)
-                .is_some_and(|next| next.is_cmavo_text("nai"))
+                .is_some_and(|next| next.is_cmavo(Cmavo::Nai))
             {
                 iter.next().and_then(|next| modifier_word(&next))
             } else {
@@ -255,7 +255,7 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
             };
             if let (Some(prev), Some(indicator)) = (out.pop(), indicator) {
                 let prev_is_leading_indicator_nai = modifier_word(&prev)
-                    .is_some_and(|word| word.is_cmavo_text("nai"))
+                    .is_some_and(|word| word.is_cmavo(Cmavo::Nai))
                     && out
                         .last()
                         .and_then(modifier_word)

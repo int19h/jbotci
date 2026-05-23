@@ -44,7 +44,7 @@ impl<T> WithIndicators<T> {
         WithIndicators::Bare(word_like)
     }
 
-    #[requires(bahe.selmaho() == Some("BAhE"))]
+    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
     #[ensures(true)]
     pub fn emphasized(bahe: Word, word_like: T) -> Self {
         WithIndicators::Emphasized {
@@ -54,7 +54,7 @@ impl<T> WithIndicators<T> {
     }
 
     #[requires(crate::is_indicator_word(&indicator))]
-    #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
+    #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
     #[ensures(true)]
     pub fn with_indicator(base: WithIndicators<T>, indicator: Word, nai: Option<Word>) -> Self {
         WithIndicators::WithIndicator {
@@ -251,7 +251,7 @@ pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
 pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
 
 #[invariant(indicator.visible_word().is_some_and(crate::is_indicator_word))]
-#[invariant(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
+#[invariant(nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Indicator {
     pub indicator: WithIndicators<WordLike>,
@@ -1044,17 +1044,17 @@ pub struct BeiLinkSyntax {
 }
 
 #[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
-#[invariant(fa.as_ref().is_none_or(|fa| fa.value.visible_word().is_some_and(|word| word.selmaho() == Some("FA"))))]
+#[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub argument: Option<Box<ArgumentSyntax>>,
 }
 
-#[invariant(be.value.visible_word().is_some_and(|word| word.is_cmavo_text("be")))]
+#[invariant(be.is_cmavo(Cmavo::Be))]
 #[invariant(fa.is_none() || first_argument.is_some(), "lifted FA link tags must have an argument")]
-#[invariant(fa.as_ref().is_none_or(|fa| fa.value.visible_word().is_some_and(|word| word.selmaho() == Some("FA"))))]
-#[invariant(beho.as_ref().is_none_or(|beho| beho.value.visible_word().is_some_and(|word| word.is_cmavo_text("be'o"))))]
+#[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
+#[invariant(beho.is_absent_or_cmavo(Cmavo::Beho))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
     pub be: WithFreeModifiers<WithIndicators<WordLike>>,

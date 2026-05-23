@@ -6,14 +6,14 @@ use jbotci_tree::tree_model;
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
-use crate::Phonemes;
+use crate::{Cmavo, Phonemes, Selmaho};
 
 tree_model! {
-    #[invariant(::Cmavo => !phonemes.as_str().is_empty())]
-    #[invariant(::Gismu => !phonemes.as_str().is_empty())]
-    #[invariant(::Lujvo => !parts.is_empty())]
-    #[invariant(::Fuhivla => !phonemes.as_str().is_empty())]
-    #[invariant(::Cmevla => !phonemes.as_str().is_empty())]
+    #[invariant(::Cmavo => span.char_len() > 0)]
+    #[invariant(::Gismu => span.char_len() > 0)]
+    #[invariant(::Lujvo => span.char_len() > 0)]
+    #[invariant(::Fuhivla => span.char_len() > 0)]
+    #[invariant(::Cmevla => span.char_len() > 0)]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Word {
         Cmavo {
@@ -39,7 +39,6 @@ tree_model! {
         },
     }
 
-    #[invariant(true)]
     #[invariant(::Rafsi(_) => true)]
     #[invariant(::Hyphen(_) => true)]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,14 +55,14 @@ tree_model! {
     }
 
     #[invariant(::Bare(_) => true)]
-    #[invariant(::ZoQuote => zo.is_cmavo_text("zo"))]
-    #[invariant(::ZoiQuote => zoi.selmaho() == Some("ZOI")
+    #[invariant(::ZoQuote => zo.is_cmavo(Cmavo::Zo))]
+    #[invariant(::ZoiQuote => zoi.is_selmaho(Selmaho::Zoi)
         && opening_delimiter.span().byte_end <= quoted_text.span.byte_start
         && quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
-    #[invariant(::LohuQuote => lohu.is_cmavo_text("lo'u") && lehu.is_cmavo_text("le'u"))]
+    #[invariant(::LohuQuote => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]
     #[invariant(::SingleWordQuote => super::is_single_word_quote_marker(marker))]
-    #[invariant(::Letter => bu.is_cmavo_text("bu"))]
-    #[invariant(::ZeiLujvo => zei.is_cmavo_text("zei"))]
+    #[invariant(::Letter => bu.is_cmavo(Cmavo::Bu))]
+    #[invariant(::ZeiLujvo => zei.is_cmavo(Cmavo::Zei))]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
     pub enum WordLike {
         Bare(#[tree_child(primary)] Word),

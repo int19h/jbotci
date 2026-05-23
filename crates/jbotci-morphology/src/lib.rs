@@ -443,13 +443,13 @@ impl WordLike {
         new!(WordLike::Bare(word))
     }
 
-    #[requires(zo.is_cmavo_text("zo"))]
+    #[requires(zo.is_cmavo(Cmavo::Zo))]
     #[ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
         new!(WordLike::ZoQuote { zo: zo, word: word })
     }
 
-    #[requires(zoi.selmaho() == Some("ZOI"))]
+    #[requires(zoi.is_selmaho(Selmaho::Zoi))]
     #[requires(opening_delimiter.span().byte_end <= quoted_text.span.byte_start)]
     #[requires(quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
     #[ensures(true)]
@@ -467,8 +467,8 @@ impl WordLike {
         })
     }
 
-    #[requires(lohu.is_cmavo_text("lo'u"))]
-    #[requires(lehu.is_cmavo_text("le'u"))]
+    #[requires(lohu.is_cmavo(Cmavo::Lohu))]
+    #[requires(lehu.is_cmavo(Cmavo::Lehu))]
     #[ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
         new!(WordLike::LohuQuote {
@@ -487,7 +487,7 @@ impl WordLike {
         })
     }
 
-    #[requires(bu.is_cmavo_text("bu"))]
+    #[requires(bu.is_cmavo(Cmavo::Bu))]
     #[ensures(true)]
     pub fn letter(base: WordLike, bu: Word) -> Self {
         new!(WordLike::Letter {
@@ -496,7 +496,7 @@ impl WordLike {
         })
     }
 
-    #[requires(zei.is_cmavo_text("zei"))]
+    #[requires(zei.is_cmavo(Cmavo::Zei))]
     #[ensures(true)]
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
         new!(WordLike::ZeiLujvo {
@@ -903,12 +903,13 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 #[requires(true)]
 #[ensures(true)]
 fn is_single_word_quote_marker(word: &Word) -> bool {
-    let phonemes = word.phonemes();
-    canonical_text_eq(phonemes.as_str(), "zo'oi")
-        || canonical_text_eq(phonemes.as_str(), "la'oi")
-        || canonical_text_eq(phonemes.as_str(), "ra'oi")
-        || canonical_text_eq(phonemes.as_str(), "me'oi")
-        || canonical_text_eq(phonemes.as_str(), "go'oi")
+    word.is_one_of_cmavo(&[
+        Cmavo::Zohoi,
+        Cmavo::Lahoi,
+        Cmavo::Rahoi,
+        Cmavo::Mehoi,
+        Cmavo::Gohoi,
+    ])
 }
 
 #[requires(true)]
@@ -1518,7 +1519,7 @@ mod tests {
         let data!(WordLike::ZoQuote { zo, word }) = word_like.as_data() else {
             panic!("expected zo quote");
         };
-        assert!(zo.is_cmavo_text("zo"));
+        assert!(zo.is_cmavo(Cmavo::Zo));
         assert_eq!(word.phonemes().as_str(), "coi");
         assert_eq!(word.span().char_start, 3);
         assert_eq!(word.span().char_end, 6);
