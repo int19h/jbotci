@@ -249,7 +249,6 @@ pub struct SyntaxParse {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
     ExperimentalZohOiQuote,

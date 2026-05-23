@@ -30,7 +30,6 @@ pub struct CllExample {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub enum CllError {
     #[error("CLL loading is not implemented yet")]
     NotImplemented,

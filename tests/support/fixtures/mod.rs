@@ -279,7 +279,6 @@ impl Provenance {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum MuplisForm {
     Front,
     Canonical,
@@ -485,7 +484,6 @@ pub struct TextExpectation {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum ExpectationStatus {
     Success,
     Failure,
@@ -495,7 +493,6 @@ pub enum ExpectationStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum Facet {
     Morphology,
     Syntax,

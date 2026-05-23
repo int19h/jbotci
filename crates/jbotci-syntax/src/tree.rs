@@ -597,7 +597,6 @@ pub enum TermSyntax {
     },
 }
 
-#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TermWrapperKindSyntax {
     Lahe,
@@ -962,7 +961,6 @@ pub struct BeLinkSyntax {
     pub beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ConnectiveKind {
     Afterthought,

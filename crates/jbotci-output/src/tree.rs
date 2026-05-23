@@ -1034,7 +1034,6 @@ fn source_span_value(span: &SourceSpan) -> TreeValue {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 enum ColorRole {
     Constructor,
     Field,

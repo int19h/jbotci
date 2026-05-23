@@ -74,7 +74,6 @@ impl MorphologyOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
 pub enum WordKind {
     #[serde(rename = "cmavo")]
     Cmavo,
@@ -90,7 +89,6 @@ pub enum WordKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum StressMark {
     None,
     Acute,
@@ -99,7 +97,6 @@ pub enum StressMark {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum GlideMark {
     None,
     Breve,

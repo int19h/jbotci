@@ -24,7 +24,6 @@ pub struct LujvoSource {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub enum JvozbaError {
     #[error("jvozba is not implemented yet")]
     NotImplemented,

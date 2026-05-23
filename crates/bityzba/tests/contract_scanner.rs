@@ -32,10 +32,10 @@ fn missing_contracts_report_separate_diagnostics() {
     assert!(
         output.contains("src/lib.rs:1: missing bityzba type invariant on struct `MissingType`")
     );
-    assert!(output.contains("src/lib.rs:5: missing bityzba type invariant on enum `MissingEnum`"));
     assert!(output.contains(
         "src/lib.rs:12: missing bityzba invariant on data-carrying enum variant `MissingVariantInvariant::Present`"
     ));
+    assert!(!output.contains("missing bityzba type invariant on enum `MissingEnum`"));
     assert!(
         output.contains("src/lib.rs:15: missing bityzba contract_trait on trait `MissingTrait`")
     );

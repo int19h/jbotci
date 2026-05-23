@@ -31,7 +31,6 @@ pub struct SemanticStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum StatementContent {
     Empty,
     Placeholder,
@@ -44,7 +43,6 @@ pub struct ScopedModifier {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub enum SemanticsError {
     #[error("semantic analysis is not implemented yet")]
     NotImplemented,

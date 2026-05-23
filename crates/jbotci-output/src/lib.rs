@@ -16,7 +16,6 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum OutputBase {
     Compact,
     Ipa,
@@ -35,7 +34,6 @@ pub enum OutputBase {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum OutputFeature {
     WordKind,
     Definitions,

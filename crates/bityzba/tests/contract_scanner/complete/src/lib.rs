@@ -3,7 +3,6 @@ struct Marker {
     value: usize,
 }
 
-#[expensive_invariant(true)]
 enum Choice {
     Present,
 }

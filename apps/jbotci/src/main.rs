@@ -61,7 +61,6 @@ enum Command {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[invariant(true)]
 enum GentufaFormat {
     Brackets,
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
@@ -72,7 +71,6 @@ enum GentufaFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[invariant(true)]
 enum VlaseiFormat {
     Plain,
     Brackets,
@@ -83,7 +81,6 @@ enum VlaseiFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[invariant(true)]
 enum CliStressMark {
     None,
     Acute,
@@ -103,7 +100,6 @@ impl From<CliStressMark> for StressMark {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[invariant(true)]
 enum CliGlideMark {
     None,
     Breve,

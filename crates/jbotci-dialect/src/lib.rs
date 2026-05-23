@@ -32,7 +32,6 @@ impl DialectError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum DialectFeature {
     Cbm,
     Gadganzu,
@@ -189,7 +188,6 @@ enum DialectDefinitionEntry {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 enum DialectFeatureToggle {
     Enable,
     Disable,

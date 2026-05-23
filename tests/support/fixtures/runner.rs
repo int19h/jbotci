@@ -69,7 +69,6 @@ impl FacetResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 pub enum FacetStatus {
     Passed,
     Failed,

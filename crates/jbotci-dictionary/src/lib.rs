@@ -184,7 +184,6 @@ pub struct DictionaryEntry<'a> {
 
 /// Lensisku dictionary word type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
 pub enum WordType {
     #[serde(rename = "gismu")]
     Gismu,
@@ -354,7 +353,6 @@ pub struct RafsiIndexTarget {
 
 /// Source of a rafsi lookup match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[invariant(true)]
 pub enum RafsiSource {
     Listed,
     UniversalShort,

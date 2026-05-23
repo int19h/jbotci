@@ -247,7 +247,12 @@ impl FileScanner {
     }
 
     fn scan_enum(&mut self, item: &ItemEnum) {
-        if !has_type_invariant(&item.attrs) {
+        let has_data_variants = item
+            .variants
+            .iter()
+            .any(|variant| !matches!(variant.fields, Fields::Unit));
+
+        if has_data_variants && !has_type_invariant(&item.attrs) {
             self.diagnostics.push(Diagnostic::new(
                 self.path.clone(),
                 item.ident.span().start().line,
