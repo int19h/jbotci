@@ -14,6 +14,8 @@ struct LeadingIStatementSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Pehe => true)]
+#[invariant(::Connected => true)]
 enum TermContinuationSyntax {
     Pehe {
         tails: Vec<(
@@ -6892,6 +6894,8 @@ fn combine_connected_tense_modals(
 fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
     #[invariant(true)]
+    #[invariant(::Distance(..) => true)]
+    #[invariant(::Caha(..) => true)]
     enum PuTail {
         Distance(WithIndicators<WordLike>),
         Caha(WithIndicators<WordLike>),

@@ -60,20 +60,10 @@ impl Indicator {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn indicator_data_is_valid(indicator: &IndicatorData) -> bool {
-    indicator
-        .indicator
-        .visible_word()
-        .is_some_and(is_indicator_word)
-        && indicator
-            .nai
-            .as_deref()
-            .is_none_or(|nai| nai.is_cmavo_text("nai"))
-}
-
 #[invariant(true)]
+#[invariant(::Bare(_) => true)]
+#[invariant(::Emphasized => true)]
+#[invariant(::WithIndicator => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WithIndicators<T> {
     Bare(Box<T>),
@@ -295,6 +285,7 @@ pub struct ParagraphStatement {
 }
 
 #[invariant(true)]
+#[invariant(::Fragment(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "fragment", rename_all = "kebab-case")]
 pub enum Statement {
@@ -317,6 +308,7 @@ impl Statement {
 }
 
 #[invariant(true)]
+#[invariant(::Other(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum Fragment {
@@ -332,6 +324,7 @@ impl Fragment {
 }
 
 #[invariant(true)]
+#[invariant(::Words(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum FreeModifier {
@@ -347,6 +340,7 @@ impl FreeModifier {
 }
 
 #[invariant(true)]
+#[invariant(::Words(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum Connective {
@@ -363,6 +357,7 @@ impl Connective {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Parse => true)]
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
@@ -385,8 +380,22 @@ pub fn parse_raw_text(
     grammar::parse_raw_text(words, options)
 }
 
-#[invariant(syntax_parse_data_is_valid(self.as_data()))]
-#[expensive_invariant(syntax_parse_source_spans_are_ordered(self.as_data()))]
+#[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
+#[expensive_invariant({
+    let mut last_end = None;
+    let mut ordered = true;
+    parse_tree.visit_source_spans(&mut |span| {
+        if !ordered {
+            return;
+        }
+        if last_end.is_some_and(|end| end > span.byte_start) {
+            ordered = false;
+            return;
+        }
+        last_end = Some(span.byte_end);
+    });
+    ordered
+})]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
     pub parse_tree: TextSyntax,
@@ -566,7 +575,7 @@ impl ExperimentalConstruct {
     }
 }
 
-#[invariant(syntax_warning_data_is_valid(self.as_data()))]
+#[invariant(!anchor.source_spans().is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxWarning {
     pub kind: ExperimentalConstruct,
@@ -596,7 +605,11 @@ impl SyntaxWarning {
     }
 }
 
-#[invariant(syntax_warning_display_data_is_valid(self.as_data()))]
+#[invariant(!source_label.is_empty())]
+#[invariant(!message.is_empty())]
+#[invariant(*line > 0)]
+#[invariant(*column > 0)]
+#[invariant(!context.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxWarningDisplay {
     pub source_label: String,
@@ -756,56 +769,4 @@ pub fn parse_syntax_tree_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_syntax_tree_with_source(words, Some(source), options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
-    data.warnings
-        .iter()
-        .all(|warning| syntax_warning_data_is_valid(warning.as_data()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_parse_source_spans_are_ordered(data: &SyntaxParseData) -> bool {
-    let data!(SyntaxParse { parse_tree, .. }) = data;
-    let mut last_end = None;
-    let mut ordered = true;
-    parse_tree.visit_source_spans(&mut |span| {
-        if !ordered {
-            return;
-        }
-        if last_end.is_some_and(|end| end > span.byte_start) {
-            ordered = false;
-            return;
-        }
-        last_end = Some(span.byte_end);
-    });
-    ordered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
-    let data!(SyntaxWarning { anchor, .. }) = data;
-    !anchor.source_spans().is_empty()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_warning_display_data_is_valid(data: &SyntaxWarningDisplayData) -> bool {
-    let data!(SyntaxWarningDisplay {
-        source_label,
-        message,
-        line,
-        column,
-        context,
-        ..
-    }) = data;
-    !source_label.is_empty()
-        && !message.is_empty()
-        && *line > 0
-        && *column > 0
-        && !context.is_empty()
 }

@@ -22,7 +22,8 @@ jbotci_tree::tree_model! {
 pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
 pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
 
-#[invariant(crate::indicator_data_is_valid(self.as_data()))]
+#[invariant(indicator.visible_word().is_some_and(crate::is_indicator_word))]
+#[invariant(nai.as_deref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Indicator {
     pub indicator: Box<WithIndicators<WordLike>>,
@@ -106,6 +107,8 @@ pub struct BoPredicateTailSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Relation => true)]
+#[invariant(::GekSentence(..) => true)]
 pub enum PredicateTail3Syntax {
     Relation {
         #[tree_child(primary)]
@@ -119,6 +122,9 @@ pub enum PredicateTail3Syntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Pair => true)]
+#[invariant(::Ke => true)]
+#[invariant(::Na => true)]
 pub enum GekSentenceSyntax {
     Pair {
         gek: ConnectiveSyntax,
@@ -146,6 +152,8 @@ pub enum GekSentenceSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Plain(..) => true)]
+#[invariant(::Prenex => true)]
 pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
     Prenex {
@@ -190,6 +198,13 @@ pub struct ParagraphStatementSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Sei => true)]
+#[invariant(::To => true)]
+#[invariant(::Xi => true)]
+#[invariant(::Mai => true)]
+#[invariant(::Soi => true)]
+#[invariant(::Vocative => true)]
+#[invariant(::Replacement => true)]
 pub enum FreeModifierSyntax {
     Sei {
         sei: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -235,6 +250,14 @@ pub enum FreeModifierSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Tuhe => true)]
+#[invariant(::Prenex => true)]
+#[invariant(::Predicate(..) => true)]
+#[invariant(::Connected => true)]
+#[invariant(::PreIConnected => true)]
+#[invariant(::Iau => true)]
+#[invariant(::ExperimentalPredicateContinuation => true)]
+#[invariant(::Fragment(..) => true)]
 pub enum StatementSyntax {
     Tuhe {
         tense_modal: Option<TenseModalSyntax>,
@@ -286,6 +309,8 @@ pub struct PredicateStatementContinuationSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Bo(..) => true)]
+#[invariant(::Ke => true)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo(WithFreeModifiers<WithIndicators<WordLike>>),
     Ke {
@@ -296,6 +321,17 @@ pub enum PredicateStatementContinuationMarkerSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Ek(..) => true)]
+#[invariant(::Gihek(..) => true)]
+#[invariant(::Other(..) => true)]
+#[invariant(::Ijek => true)]
+#[invariant(::Prenex => true)]
+#[invariant(::BeLink => true)]
+#[invariant(::BeiLink(..) => true)]
+#[invariant(::RelativeClause(..) => true)]
+#[invariant(::MathExpression(..) => true)]
+#[invariant(::Term => true)]
+#[invariant(::Relation(..) => true)]
 pub enum FragmentSyntax {
     Ek(ConnectiveSyntax),
     Gihek(ConnectiveSyntax),
@@ -327,6 +363,22 @@ pub enum FragmentSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::NuhiTermset => true)]
+#[invariant(::GekNuhiTermset => true)]
+#[invariant(::Cehe => true)]
+#[invariant(::Pehe => true)]
+#[invariant(::Argument(..) => true)]
+#[invariant(::Fa => true)]
+#[invariant(::NaKu => true)]
+#[invariant(::BareNa(..) => true)]
+#[invariant(::NoihaAdverbial => true)]
+#[invariant(::PoihaBrigahi => true)]
+#[invariant(::FihoiAdverbial => true)]
+#[invariant(::SoiAdverbial => true)]
+#[invariant(::JaiTagged => true)]
+#[invariant(::Tagged => true)]
+#[invariant(::Connected => true)]
+#[invariant(::BoConnected => true)]
 pub enum TermSyntax {
     NuhiTermset {
         nuhi: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -427,6 +479,8 @@ pub enum TermWrapperKindSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::TenseModal(..) => true)]
+#[invariant(::Fa(..) => true)]
 pub enum ArgumentTagSyntax {
     TenseModal(TenseModalSyntax),
     Fa(WithFreeModifiers<WithIndicators<WordLike>>),
@@ -442,6 +496,30 @@ pub struct ArgumentConnectionSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Quote(..) => true)]
+#[invariant(::MathExpression => true)]
+#[invariant(::Letter => true)]
+#[invariant(::Quantified => true)]
+#[invariant(::RelativeClause => true)]
+#[invariant(::Vuho => true)]
+#[invariant(::BridiDescription => true)]
+#[invariant(::NaKu => true)]
+#[invariant(::Tagged => true)]
+#[invariant(::NaheBo => true)]
+#[invariant(::Nahe => true)]
+#[invariant(::TermWrapped => true)]
+#[invariant(::Koha(..) => true)]
+#[invariant(::Zohe => true)]
+#[invariant(::Lahe => true)]
+#[invariant(::Connected => true)]
+#[invariant(::Ke => true)]
+#[invariant(::Bo => true)]
+#[invariant(::Gek => true)]
+#[invariant(::Descriptor(..) => true)]
+#[invariant(::ConnectedDescriptor(..) => true)]
+#[invariant(::Name => true)]
+#[invariant(::Cmevla(..) => true)]
+#[invariant(::RelationVocative => true)]
 pub enum ArgumentSyntax {
     Quote(QuoteSyntax),
     MathExpression {
@@ -560,6 +638,11 @@ pub enum ArgumentSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Goi(..) => true)]
+#[invariant(::Noi => true)]
+#[invariant(::Poi => true)]
+#[invariant(::Zihe => true)]
+#[invariant(::Connected => true)]
 pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
@@ -606,6 +689,11 @@ pub struct SelbriRelativeClauseSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Lu => true)]
+#[invariant(::Zo(..) => true)]
+#[invariant(::ZohOi(..) => true)]
+#[invariant(::Zoi(..) => true)]
+#[invariant(::Lohu(..) => true)]
 pub enum QuoteSyntax {
     Lu {
         lu: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -650,6 +738,12 @@ pub struct ConnectedDescriptorSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Afterthought => true)]
+#[invariant(::Relation => true)]
+#[invariant(::PredicateTail => true)]
+#[invariant(::Forethought => true)]
+#[invariant(::NonLogical => true)]
+#[invariant(::Interval => true)]
 pub enum ConnectiveSyntax {
     Afterthought {
         se: Option<WithIndicators<WordLike>>,
@@ -709,14 +803,18 @@ pub struct BeiLinkSyntax {
     pub argument: Option<ArgumentSyntax>,
 }
 
-#[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.as_ref().is_none_or(|fa| fa.value.visible_word().is_some_and(|word| word.selmaho() == Some("FA"))))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub argument: Option<ArgumentSyntax>,
 }
 
-#[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(be.value.visible_word().is_some_and(|word| word.is_cmavo_text("be")))]
+#[invariant(fa.is_none() || first_argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.as_ref().is_none_or(|fa| fa.value.visible_word().is_some_and(|word| word.selmaho() == Some("FA"))))]
+#[invariant(beho.as_ref().is_none_or(|beho| beho.value.visible_word().is_some_and(|word| word.is_cmavo_text("be'o"))))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
     pub be: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -739,6 +837,9 @@ pub enum ConnectiveKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Argument(..) => true)]
+#[invariant(::RelativeClauses(..) => true)]
+#[invariant(::Quantifier(..) => true)]
 pub enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
     RelativeClauses(Vec<RelativeClauseSyntax>),
@@ -747,6 +848,8 @@ pub enum ArgumentTailElementSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Number => true)]
+#[invariant(::Vei => true)]
 pub enum QuantifierSyntax {
     Number {
         #[tree_child(primary)]
@@ -763,6 +866,19 @@ pub enum QuantifierSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Number(..) => true)]
+#[invariant(::Letter => true)]
+#[invariant(::Vei => true)]
+#[invariant(::Gek => true)]
+#[invariant(::Forethought => true)]
+#[invariant(::ReversePolish => true)]
+#[invariant(::Nihe => true)]
+#[invariant(::Mohe => true)]
+#[invariant(::Johi => true)]
+#[invariant(::Lahe => true)]
+#[invariant(::Connected => true)]
+#[invariant(::Binary => true)]
+#[invariant(::Bihe => true)]
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
@@ -837,6 +953,14 @@ pub enum MathExpressionSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Vuhu(..) => true)]
+#[invariant(::Maho => true)]
+#[invariant(::Se => true)]
+#[invariant(::Nahe => true)]
+#[invariant(::Nahu => true)]
+#[invariant(::Ke => true)]
+#[invariant(::Bo => true)]
+#[invariant(::Connected => true)]
 pub enum MathOperatorSyntax {
     Vuhu(WithFreeModifiers<WithIndicators<WordLike>>),
     Maho {
@@ -882,6 +1006,17 @@ pub enum MathOperatorSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Connected => true)]
+#[invariant(::Co => true)]
+#[invariant(::Bo => true)]
+#[invariant(::Na => true)]
+#[invariant(::Base(..) => true)]
+#[invariant(::Se => true)]
+#[invariant(::Ke => true)]
+#[invariant(::TenseModal => true)]
+#[invariant(::Guha => true)]
+#[invariant(::Abstraction(..) => true)]
+#[invariant(::Compound(..) => true)]
 pub enum RelationSyntax {
     Connected {
         leading_relation: Box<RelationSyntax>,
@@ -984,6 +1119,8 @@ pub struct FihoModalSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Word(..) => true)]
+#[invariant(::Fiho(..) => true)]
 pub enum CompositeTenseModalPartSyntax {
     Word(WithIndicators<WordLike>),
     Fiho(FihoModalSyntax),
@@ -991,6 +1128,20 @@ pub enum CompositeTenseModalPartSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Composite => true)]
+#[invariant(::Pu(..) => true)]
+#[invariant(::PuDistance => true)]
+#[invariant(::TimeInterval(..) => true)]
+#[invariant(::PuCaha => true)]
+#[invariant(::SpaceDistance(..) => true)]
+#[invariant(::SpaceDirection(..) => true)]
+#[invariant(::SpaceMovement => true)]
+#[invariant(::Simple => true)]
+#[invariant(::Ki(..) => true)]
+#[invariant(::Fiho => true)]
+#[invariant(::Caha(..) => true)]
+#[invariant(::Zaho(..) => true)]
+#[invariant(::Interval => true)]
 pub enum TenseModalSyntax {
     Composite {
         #[tree_child(primary)]
@@ -1057,6 +1208,28 @@ pub struct AdditionalNuSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+#[invariant(::Word(..) => true)]
+#[invariant(::Goha => true)]
+#[invariant(::Se => true)]
+#[invariant(::Ke => true)]
+#[invariant(::Nahe => true)]
+#[invariant(::Bo => true)]
+#[invariant(::Connected => true)]
+#[invariant(::SelbriRelativeClause => true)]
+#[invariant(::Wrapped(..) => true)]
+#[invariant(::Jai => true)]
+#[invariant(::Be => true)]
+#[invariant(::PreposedBe => true)]
+#[invariant(::Abstraction(..) => true)]
+#[invariant(::Me => true)]
+#[invariant(::Mehoi(..) => true)]
+#[invariant(::Gohoi(..) => true)]
+#[invariant(::Muhoi(..) => true)]
+#[invariant(::Luhei => true)]
+#[invariant(::Moi => true)]
+#[invariant(::Nuha => true)]
+#[invariant(::Xohi => true)]
+#[invariant(::Cei => true)]
 pub enum RelationUnitSyntax {
     Word(WithFreeModifiers<WithIndicators<WordLike>>),
     Goha {
