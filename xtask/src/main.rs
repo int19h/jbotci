@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus};
@@ -109,6 +110,8 @@ struct FixtureRunArgs {
     jobs: Option<usize>,
     #[arg(long, default_value_t = 0, value_name = "N")]
     failure_samples: usize,
+    #[arg(long, hide = true)]
+    chunk_worker: bool,
 }
 
 #[derive(Debug, Args)]
@@ -420,6 +423,80 @@ fn format_debug_value<T: std::fmt::Debug>(value: &T) -> String {
 
 #[requires(true)]
 #[ensures(true)]
+fn debug_value_matches<T: std::fmt::Debug>(value: &T, expected: &str) -> bool {
+    let mut writer = DebugMatchWriter {
+        expected,
+        offset: 0,
+    };
+    if fmt::write(&mut writer, format_args!("{value:?}")).is_err() {
+        return false;
+    }
+    writer.offset == expected.len()
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct DebugMatchWriter<'expected> {
+    expected: &'expected str,
+    offset: usize,
+}
+
+impl fmt::Write for DebugMatchWriter<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        let end = self.offset.saturating_add(text.len());
+        if self.expected.get(self.offset..end) == Some(text) {
+            self.offset = end;
+            Ok(())
+        } else {
+            Err(fmt::Error)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_debug_prefix<T: std::fmt::Debug>(value: &T) -> String {
+    let mut writer = DebugPrefixWriter {
+        output: String::new(),
+        truncated: false,
+    };
+    let _ = fmt::write(&mut writer, format_args!("{value:?}"));
+    if writer.truncated {
+        writer.output.push_str("...");
+    }
+    writer.output
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct DebugPrefixWriter {
+    output: String,
+    truncated: bool,
+}
+
+impl fmt::Write for DebugPrefixWriter {
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        if self.truncated {
+            return Err(fmt::Error);
+        }
+        let remaining = DEBUG_MISMATCH_LIMIT.saturating_sub(self.output.chars().count());
+        let mut chars = text.chars();
+        self.output.extend(chars.by_ref().take(remaining));
+        if chars.next().is_some() {
+            self.truncated = true;
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> bool {
     match syntax.status {
         ExpectationStatus::Success => syntax
@@ -439,26 +516,37 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
     let backend = NotImplementedBackend;
-    let paths = fixture_paths(&args.root)
+    let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(args.jobs.unwrap_or_else(default_fixture_jobs))
-        .stack_size(FIXTURE_WORKER_STACK_SIZE)
-        .build()
-        .context("creating fixture-test thread pool")?;
+    let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
+    if !args.chunk_worker && should_spawn_fixture_test_chunks(&profile) {
+        return fixture_test_subprocess_chunks(&args, &profile, &paths, jobs);
+    }
+    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
     let failure_counter = AtomicUsize::new(0);
-    let mut summary = pool
-        .install(|| {
-            run_fixture_test_jobs(
-                &args.root,
-                &profile,
-                &backend,
-                &paths,
-                args.failure_samples,
-                &failure_counter,
-            )
-        })
-        .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+    let mut summary = RunSummary::default();
+    for chunk in paths.chunks(FIXTURE_TEST_CHUNK_SIZE) {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(jobs)
+            .stack_size(FIXTURE_WORKER_STACK_SIZE)
+            .build()
+            .context("creating fixture-test thread pool")?;
+        let chunk_summary = pool
+            .install(|| {
+                run_fixture_test_jobs(
+                    &args.root,
+                    &profile,
+                    &backend,
+                    chunk,
+                    args.failure_samples,
+                    &failure_counter,
+                )
+            })
+            .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+        summary.merge(chunk_summary);
+        drop(pool);
+        trim_fixture_worker_heap();
+    }
     summary.selected_facets = profile.facets.len();
     println!(
         "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
@@ -473,6 +561,163 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
     Ok(())
+}
+
+#[requires(profile.is_valid())]
+#[ensures(true)]
+fn should_spawn_fixture_test_chunks(profile: &FixtureProfile) -> bool {
+    profile
+        .facets
+        .iter()
+        .any(|facet| matches!(facet, Facet::Syntax | Facet::VlaseiTree | Facet::GentufaTree))
+}
+
+#[requires(profile.is_valid())]
+#[ensures(true)]
+fn fixture_test_subprocess_chunks(
+    args: &FixtureRunArgs,
+    profile: &FixtureProfile,
+    paths: &[PathBuf],
+    jobs: usize,
+) -> Result<()> {
+    let exe = std::env::current_exe().context("resolving xtask executable")?;
+    let selected_paths = paths
+        .iter()
+        .filter(|path| path_matches_prefix_selector(&args.root, path, &profile.selector))
+        .collect::<Vec<_>>();
+    let mut summary = RunSummary::default();
+    for chunk in selected_paths.chunks(FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE) {
+        let output = fixture_test_chunk_output(&exe, args, profile, chunk, jobs)?;
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let chunk_summary = parse_fixture_test_summary(&stdout)?;
+        let child_failed_without_fixture_failures = !output.status.success() && chunk_summary.failed == 0;
+        summary.merge(chunk_summary);
+        if child_failed_without_fixture_failures {
+            bail!(
+                "fixture-test worker failed with status {}; stdout: {}",
+                output.status,
+                stdout.trim()
+            );
+        }
+    }
+    summary.selected_facets = profile.facets.len();
+    println!(
+        "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
+        summary.selected_fixtures,
+        summary.selected_facets,
+        summary.passed,
+        summary.xfailed,
+        summary.failed,
+        summary.skipped
+    );
+    if summary.failed > 0 {
+        bail!("fixture-test failed {} facet(s)", summary.failed);
+    }
+    Ok(())
+}
+
+#[requires(profile.is_valid())]
+#[requires(jobs > 0)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
+fn fixture_test_chunk_output(
+    exe: &Path,
+    args: &FixtureRunArgs,
+    profile: &FixtureProfile,
+    chunk: &[&PathBuf],
+    jobs: usize,
+) -> Result<std::process::Output> {
+    let mut command = ProcessCommand::new(exe);
+    command
+        .arg("fixture-test")
+        .arg("--root")
+        .arg(&args.root)
+        .arg("--jobs")
+        .arg(jobs.to_string())
+        .arg("--failure-samples")
+        .arg(args.failure_samples.to_string())
+        .arg("--chunk-worker");
+    for facet in &profile.facets {
+        command.arg("--facet").arg(facet.to_string());
+    }
+    append_selector_args(&mut command, &profile.selector);
+    for path in chunk {
+        let path = *path;
+        let relative = path.strip_prefix(&args.root).unwrap_or(path);
+        command
+            .arg("--path-prefix")
+            .arg(relative.to_string_lossy().to_string());
+    }
+    command.output().context("running fixture-test worker")
+}
+
+#[requires(selector.is_valid())]
+#[ensures(true)]
+fn append_selector_args(command: &mut ProcessCommand, selector: &FixtureSelector) {
+    for value in &selector.provenance {
+        command.arg("--provenance").arg(value);
+    }
+    for value in &selector.tags {
+        command.arg("--tag").arg(value);
+    }
+    for value in &selector.ids {
+        command.arg("--id").arg(value);
+    }
+    if let Some(cll) = &selector.cll {
+        if let Some(chapter) = cll.chapter {
+            command.arg("--cll-chapter").arg(chapter.to_string());
+        }
+        if let Some(section) = &cll.section_number {
+            command.arg("--cll-section").arg(section);
+        }
+        if let Some(example) = &cll.example_id {
+            command.arg("--cll-example").arg(example);
+        } else if let Some(example) = &cll.example_number {
+            command.arg("--cll-example").arg(example);
+        }
+    }
+    if let Some(muplis) = &selector.muplis {
+        if let Some(collection) = &muplis.collection_id {
+            command.arg("--muplis-collection").arg(collection);
+        }
+        if let Some(item) = &muplis.item_id {
+            command.arg("--muplis-item").arg(item);
+        }
+        if let Some(form) = &muplis.form {
+            command.arg("--muplis-form").arg(form.to_string());
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.passed + summary.failed + summary.skipped + summary.xfailed) || ret.is_err())]
+fn parse_fixture_test_summary(stdout: &str) -> Result<RunSummary> {
+    let line = stdout
+        .lines()
+        .rev()
+        .find(|line| line.starts_with("fixtures="))
+        .ok_or_else(|| anyhow::anyhow!("fixture-test worker did not print a summary"))?;
+    let mut summary = RunSummary::default();
+    for part in line.split(", ") {
+        let Some((key, value)) = part.split_once('=') else {
+            continue;
+        };
+        let value = value
+            .parse::<usize>()
+            .with_context(|| format!("parsing fixture-test summary value `{value}`"))?;
+        match key {
+            "fixtures" => summary.selected_fixtures = value,
+            "facets" => summary.selected_facets = value,
+            "passed" => summary.passed = value,
+            "xfailed" => summary.xfailed = value,
+            "failed" => summary.failed = value,
+            "skipped" => summary.skipped = value,
+            _ => {}
+        }
+    }
+    Ok(summary)
 }
 
 #[derive(Debug, Default)]
@@ -782,6 +1027,8 @@ fn default_fixture_jobs() -> usize {
 // TOML fixtures can contain deeply nested exported syntax trees, and serde's
 // TOML decoder needs more stack than Rayon workers get by default.
 const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
+const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
+const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
@@ -1203,13 +1450,14 @@ fn format_text_mismatch(label: &str, expected: &str, actual: &str) -> String {
 #[requires(true)]
 #[ensures(ret.len() <= text.len() + 3)]
 fn truncate_for_mismatch(text: &str) -> String {
-    const LIMIT: usize = 512;
-    let mut output = text.chars().take(LIMIT).collect::<String>();
+    let mut output = text.chars().take(DEBUG_MISMATCH_LIMIT).collect::<String>();
     if output.len() < text.len() {
         output.push_str("...");
     }
     output
 }
+
+const DEBUG_MISMATCH_LIMIT: usize = 512;
 
 #[requires(true)]
 #[ensures(true)]
@@ -1307,8 +1555,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 let Some(expected_raw) = &expectation.raw else {
                     return FacetResult::failed("syntax success expectation has no raw tree");
                 };
-                let actual_raw = format_debug_value(&parsed.parse_tree);
-                if expected_raw.text == actual_raw {
+                if debug_value_matches(&parsed.parse_tree, &expected_raw.text) {
                     syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                         .unwrap_or_else(FacetResult::passed)
                 } else if expectation.xfail.is_some()
@@ -1322,7 +1569,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     FacetResult::failed(format_text_mismatch(
                         "syntax raw",
                         &expected_raw.text,
-                        &actual_raw,
+                        &format_debug_prefix(&parsed.parse_tree),
                     ))
                 }
             }
@@ -1335,8 +1582,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     let Some(expected_raw) = &expectation.raw else {
                         return FacetResult::failed("syntax success xfail has no raw tree");
                     };
-                    let actual_raw = format_debug_value(&parsed.parse_tree);
-                    if expected_raw.text == actual_raw {
+                    if debug_value_matches(&parsed.parse_tree, &expected_raw.text) {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(|| {
                                 FacetResult::failed(
@@ -1346,7 +1592,11 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     } else {
                         FacetResult::failed(format!(
                             "syntax xfail accepted success, but {}",
-                            format_text_mismatch("syntax raw", &expected_raw.text, &actual_raw)
+                            format_text_mismatch(
+                                "syntax raw",
+                                &expected_raw.text,
+                                &format_debug_prefix(&parsed.parse_tree),
+                            )
                         ))
                     }
                 } else {
@@ -1509,7 +1759,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     if expectation
                         .raw
                         .as_ref()
-                        .is_some_and(|raw| raw.text == format_debug_value(&actual)) =>
+                        .is_some_and(|raw| debug_value_matches(&actual, &raw.text)) =>
                 {
                     FacetResult::passed()
                 }
@@ -1520,7 +1770,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         .as_ref()
                         .map(|raw| raw.text.as_str())
                         .unwrap_or_default(),
-                    &format_debug_value(&actual),
+                    &format_debug_prefix(&actual),
                 )),
                 Err(error) => FacetResult::failed(format!("morphology error: {error}")),
             }
