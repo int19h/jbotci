@@ -111,6 +111,8 @@ impl fmt::Display for DialectFeature {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 #[invariant(true)]
+#[invariant(::Swap => true)]
+#[invariant(::Expansion => true)]
 pub enum CmavoDialectEntry {
     Swap {
         left: String,
@@ -177,6 +179,8 @@ pub struct BuiltinDialect {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Cmavo(_) => true)]
+#[invariant(::Feature(_, _) => true)]
 enum DialectDefinitionEntry {
     Cmavo(CmavoDialectEntry),
     Feature(DialectFeatureToggle, DialectFeature),
@@ -191,6 +195,7 @@ enum DialectFeatureToggle {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Atom(_) => true)]
 enum DialectToken {
     OpenParen,
     CloseParen,

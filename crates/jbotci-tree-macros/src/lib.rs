@@ -5,6 +5,7 @@ extern crate proc_macro;
 use std::collections::{BTreeMap, BTreeSet};
 
 use proc_macro::TokenStream;
+use proc_macro2::{Spacing, TokenTree};
 use quote::{format_ident, quote};
 use syn::{
     Attribute, Fields, GenericArgument, Ident, Item, ItemEnum, ItemStruct, ItemType, PathArguments,
@@ -649,13 +650,42 @@ fn enum_uses_data_patterns(item: &ItemEnum) -> bool {
         .filter(|attr| {
             attr.path().is_ident("invariant") || attr.path().is_ident("expensive_invariant")
         })
-        .any(|attr| !attr_is_true_contract(attr))
+        .any(|attr| !attr_is_true_contract_marker(attr))
 }
 
-fn attr_is_true_contract(attr: &Attribute) -> bool {
-    let Ok(expr) = attr.parse_args::<syn::Expr>() else {
+fn attr_is_true_contract_marker(attr: &Attribute) -> bool {
+    let syn::Meta::List(list) = &attr.meta else {
         return false;
     };
+    attribute_segments(list.tokens.clone())
+        .into_iter()
+        .all(segment_is_true_contract_marker)
+}
+
+fn segment_is_true_contract_marker(segment: proc_macro2::TokenStream) -> bool {
+    if let Some(expr) = variant_contract_expr(segment.clone()) {
+        return expr_is_true_literal(&expr);
+    }
+    let Ok(expr) = syn::parse2::<syn::Expr>(segment) else {
+        return false;
+    };
+    expr_is_true_literal(&expr)
+}
+
+fn variant_contract_expr(segment: proc_macro2::TokenStream) -> Option<syn::Expr> {
+    let tokens = segment.into_iter().collect::<Vec<_>>();
+    if !starts_with_double_colon(&tokens) {
+        return None;
+    }
+    let arrow_index = top_level_fat_arrow_index(&tokens)?;
+    let expr_tokens = tokens
+        .into_iter()
+        .skip(arrow_index + 2)
+        .collect::<proc_macro2::TokenStream>();
+    syn::parse2::<syn::Expr>(expr_tokens).ok()
+}
+
+fn expr_is_true_literal(expr: &syn::Expr) -> bool {
     matches!(
         expr,
         syn::Expr::Lit(syn::ExprLit {
@@ -663,6 +693,50 @@ fn attr_is_true_contract(attr: &Attribute) -> bool {
             ..
         }) if lit.value
     )
+}
+
+fn attribute_segments(tokens: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
+    let mut segments = Vec::new();
+    let mut segment = Vec::new();
+    for token in tokens {
+        match token {
+            TokenTree::Punct(punct)
+                if punct.as_char() == ',' && punct.spacing() == Spacing::Alone =>
+            {
+                if !segment.is_empty() {
+                    segments.push(segment.into_iter().collect());
+                    segment = Vec::new();
+                }
+            }
+            token => segment.push(token),
+        }
+    }
+    if !segment.is_empty() {
+        segments.push(segment.into_iter().collect());
+    }
+    segments
+}
+
+fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
+    matches!(
+        (tokens.first(), tokens.get(1)),
+        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
+            if first.as_char() == ':'
+                && first.spacing() == Spacing::Joint
+                && second.as_char() == ':'
+    )
+}
+
+fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
+    tokens.windows(2).position(|window| {
+        matches!(
+            (&window[0], &window[1]),
+            (TokenTree::Punct(first), TokenTree::Punct(second))
+                if first.as_char() == '='
+                    && first.spacing() == Spacing::Joint
+                    && second.as_char() == '>'
+        )
+    })
 }
 
 fn field_visits<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>

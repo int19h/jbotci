@@ -6,10 +6,14 @@ use jbotci_tree::tree_model;
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
-use crate::{Phonemes, word_data_is_valid};
+use crate::Phonemes;
 
 tree_model! {
-    #[invariant(word_data_is_valid(self.as_data()))]
+    #[invariant(::Cmavo => !phonemes.as_str().is_empty())]
+    #[invariant(::Gismu => !phonemes.as_str().is_empty())]
+    #[invariant(::Lujvo => !parts.is_empty())]
+    #[invariant(::Fuhivla => !phonemes.as_str().is_empty())]
+    #[invariant(::Cmevla => !phonemes.as_str().is_empty())]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Word {
         Cmavo {
@@ -36,6 +40,8 @@ tree_model! {
     }
 
     #[invariant(true)]
+    #[invariant(::Rafsi(_) => true)]
+    #[invariant(::Hyphen(_) => true)]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Jvopau {
         Rafsi(Phonemes),
@@ -49,7 +55,15 @@ tree_model! {
         pub text: String,
     }
 
-    #[invariant(super::word_like_data_is_valid(self.as_data()))]
+    #[invariant(::Bare(_) => true)]
+    #[invariant(::ZoQuote => zo.is_cmavo_text("zo"))]
+    #[invariant(::ZoiQuote => zoi.selmaho() == Some("ZOI")
+        && opening_delimiter.span().byte_end <= quoted_text.span.byte_start
+        && quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
+    #[invariant(::LohuQuote => lohu.is_cmavo_text("lo'u") && lehu.is_cmavo_text("le'u"))]
+    #[invariant(::SingleWordQuote => super::is_single_word_quote_marker(marker))]
+    #[invariant(::Letter => bu.is_cmavo_text("bu"))]
+    #[invariant(::ZeiLujvo => zei.is_cmavo_text("zei"))]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
     pub enum WordLike {
         Bare(#[tree_child(primary)] Word),

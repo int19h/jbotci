@@ -733,6 +733,10 @@ where
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Unsupported => true)]
+#[invariant(::Invalid => true)]
+#[invariant(::UnterminatedZoiQuote => true)]
+#[invariant(::SourceSpan(_) => true)]
 pub enum MorphologyError {
     #[error("unsupported morphology at character {char_offset}: `{word}` ({reason})")]
     Unsupported {
@@ -837,47 +841,6 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers_raw(input, options, source_id)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn word_data_is_valid(word: &WordData) -> bool {
-    match word {
-        data!(Word::Cmavo { phonemes, .. })
-        | data!(Word::Gismu { phonemes, .. })
-        | data!(Word::Fuhivla { phonemes, .. })
-        | data!(Word::Cmevla { phonemes, .. }) => !phonemes.as_str().is_empty(),
-        data!(Word::Lujvo { parts, .. }) => !parts.is_empty(),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
-    match word_like {
-        data!(WordLike::Bare(..)) => true,
-        data!(WordLike::ZoQuote { zo, .. }) => zo.is_cmavo_text("zo"),
-        data!(WordLike::ZoiQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => {
-            zoi.selmaho() == Some("ZOI")
-                && opening_delimiter.span().byte_end <= quoted_text.span.byte_start
-                && quoted_text.span.byte_end <= closing_delimiter.span().byte_start
-        }
-        data!(WordLike::LohuQuote { lohu, lehu, .. }) => {
-            lohu.is_cmavo_text("lo'u") && lehu.is_cmavo_text("le'u")
-        }
-        data!(WordLike::SingleWordQuote { marker, .. }) => is_single_word_quote_marker(marker),
-        data!(WordLike::Letter { base, bu }) => {
-            word_like_data_is_valid(base.as_data()) && bu.is_cmavo_text("bu")
-        }
-        data!(WordLike::ZeiLujvo { left, zei, .. }) => {
-            word_like_data_is_valid(left.as_data()) && zei.is_cmavo_text("zei")
-        }
-    }
 }
 
 #[requires(true)]

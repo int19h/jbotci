@@ -11,8 +11,8 @@ use thiserror::Error;
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.
-#[invariant(self.line > 0, "line numbers are one-indexed and cannot be zero")]
-#[invariant(self.column > 0, "column numbers are one-indexed and cannot be zero")]
+#[invariant(*line > 0, "line numbers are one-indexed and cannot be zero")]
+#[invariant(*column > 0, "column numbers are one-indexed and cannot be zero")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LineColumn {
     pub line: usize,
@@ -39,8 +39,8 @@ impl LineColumn {
 /// byte-indexed, while user-facing diagnostics and the v0 corpus use character
 /// offsets. Constructors validate only internal range consistency; callers are
 /// responsible for deriving offsets from the same source text.
-#[invariant(self.byte_start <= self.byte_end, "byte range start must not exceed end")]
-#[invariant(self.char_start <= self.char_end, "character range start must not exceed end")]
+#[invariant(byte_start <= byte_end, "byte range start must not exceed end")]
+#[invariant(char_start <= char_end, "character range start must not exceed end")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
@@ -166,6 +166,8 @@ pub struct Spanned<T> {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::ByteRangeInverted => true)]
+#[invariant(::CharRangeInverted => true)]
 pub enum SourceLocationError {
     #[error("line numbers are one-indexed and cannot be zero")]
     ZeroLine,

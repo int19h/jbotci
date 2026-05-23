@@ -991,6 +991,7 @@ struct CmavoPrefix {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Selmaho(_) => true)]
 enum SAMatchTag<'a> {
     Selmaho(&'a str),
     Brivla,

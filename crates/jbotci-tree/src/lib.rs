@@ -91,6 +91,8 @@ mod tests {
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #[invariant(true)]
+        #[invariant(::Tuple(_) => true)]
+        #[invariant(::Named => true)]
         pub enum WrappedNode {
             Tuple(LeafNode),
             Named {
