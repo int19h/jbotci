@@ -1,0 +1,27 @@
+[package]
+name = "jbotci-dictionary-data"
+description = "Embedded Lensisku dictionary data for jbotci."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+expensive_contracts = []
+
+[dependencies]
+bityzba.workspace = true
+jbotci-dictionary.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+jbotci-dictionary = { workspace = true, features = ["import"] }
+prettyplease.workspace = true
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+[lints]
+workspace = true

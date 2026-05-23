@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand};
+use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -20,6 +21,8 @@ use jbotci_output::{
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[path = "../../tests/support/fixtures/mod.rs"]
 mod fixtures;
@@ -59,6 +62,7 @@ enum Command {
     FixtureRewrite(FixtureRewriteArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
+    VendorDictionary(VendorDictionaryArgs),
 }
 
 #[derive(Debug, Args)]
@@ -133,6 +137,45 @@ struct FixtureVectorStatsArgs {
     min_count: usize,
 }
 
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct VendorDictionaryArgs {
+    #[arg(long, default_value = "https://lensisku.lojban.org")]
+    base_url: String,
+    #[arg(long, default_value = "en")]
+    language: String,
+    #[arg(long, default_value = "json")]
+    format: String,
+    #[arg(long, default_value = "vendor/lensisku")]
+    output: PathBuf,
+    #[arg(long)]
+    check: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[invariant(true)]
+struct CachedExport {
+    language_tag: String,
+    language_realname: String,
+    format: String,
+    filename: String,
+    created_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[invariant(true)]
+struct DictionaryMetadata<'a> {
+    language_tag: &'a str,
+    language_realname: &'a str,
+    format: &'a str,
+    filename: &'a str,
+    metadata_url: &'a str,
+    download_url: &'a str,
+    lensisku_created_at: &'a str,
+    sha256: &'a str,
+    entry_count: usize,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn main() -> Result<()> {
@@ -186,6 +229,7 @@ fn main() -> Result<()> {
         Command::FixtureRewrite(args) => fixture_rewrite(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
+        Command::VendorDictionary(args) => vendor_dictionary(args),
     }
 }
 
@@ -205,6 +249,106 @@ fn fixture_import(args: FixtureImportArgs) -> Result<()> {
     })?;
     println!("imported {} fixture(s)", summary.written);
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
+    let base_url = args.base_url.trim_end_matches('/').to_owned();
+    let metadata_url = format!("{base_url}/api/export/cached");
+    let exports_text = fetch_text(&metadata_url)
+        .with_context(|| format!("fetching Lensisku export metadata from `{metadata_url}`"))?;
+    let exports = serde_json::from_str::<Vec<CachedExport>>(&exports_text)
+        .with_context(|| format!("parsing Lensisku export metadata from `{metadata_url}`"))?;
+    let export = exports
+        .iter()
+        .find(|export| export.language_tag == args.language && export.format == args.format)
+        .cloned()
+        .with_context(|| {
+            format!(
+                "finding cached Lensisku export for language `{}` and format `{}`",
+                args.language, args.format
+            )
+        })?;
+
+    let download_url = format!(
+        "{base_url}/api/export/cached/{}/{}",
+        export.language_tag, export.format
+    );
+    let dictionary_text = fetch_text(&download_url)
+        .with_context(|| format!("fetching Lensisku dictionary from `{download_url}`"))?;
+    let imported = parse_lensisku_json(&dictionary_text)
+        .with_context(|| format!("validating Lensisku dictionary from `{download_url}`"))?;
+    let pretty_json = pretty_json(&dictionary_text)
+        .with_context(|| format!("pretty-printing Lensisku dictionary from `{download_url}`"))?;
+    let sha256 = sha256_hex(pretty_json.as_bytes());
+    let metadata = DictionaryMetadata {
+        language_tag: &export.language_tag,
+        language_realname: &export.language_realname,
+        format: &export.format,
+        filename: &export.filename,
+        metadata_url: &metadata_url,
+        download_url: &download_url,
+        lensisku_created_at: &export.created_at,
+        sha256: &sha256,
+        entry_count: imported.entries.len(),
+    };
+    let metadata_text =
+        toml::to_string_pretty(&metadata).context("rendering dictionary metadata")?;
+
+    if args.check {
+        println!(
+            "validated {} Lensisku entries from {} created at {}",
+            imported.entries.len(),
+            download_url,
+            export.created_at
+        );
+        return Ok(());
+    }
+
+    fs::create_dir_all(&args.output)
+        .with_context(|| format!("creating `{}`", args.output.display()))?;
+    let dictionary_path = args.output.join(&export.filename);
+    let metadata_path = args.output.join("dictionary-en.metadata.toml");
+    fs::write(&dictionary_path, pretty_json)
+        .with_context(|| format!("writing `{}`", dictionary_path.display()))?;
+    fs::write(&metadata_path, metadata_text)
+        .with_context(|| format!("writing `{}`", metadata_path.display()))?;
+    println!(
+        "vendored {} Lensisku entries into `{}`",
+        imported.entries.len(),
+        dictionary_path.display()
+    );
+    Ok(())
+}
+
+#[requires(!url.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+fn fetch_text(url: &str) -> Result<String> {
+    let text = ureq::get(url)
+        .call()
+        .with_context(|| format!("GET `{url}`"))?
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024 * 1024)
+        .read_to_string()
+        .with_context(|| format!("reading response body from `{url}`"))?;
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.ends_with('\n')))]
+fn pretty_json(input: &str) -> Result<String> {
+    let value = serde_json::from_str::<serde_json::Value>(input)?;
+    let mut text = serde_json::to_string_pretty(&value)?;
+    text.push('\n');
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 64)]
+fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 #[requires(true)]

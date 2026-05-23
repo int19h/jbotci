@@ -8,6 +8,7 @@ members = [
     "crates/bityzba-macros",
     "crates/jbotci-dialect",
     "crates/jbotci-dictionary",
+    "crates/jbotci-dictionary-data",
     "crates/jbotci-jvozba",
     "crates/jbotci-morphology",
     "crates/jbotci-output",
@@ -54,10 +55,16 @@ owo-colors = { version = "4", features = ["supports-colors"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
 serde_stacker = "0.1"
+sha2 = "0.10"
 smallvec = { version = "1", features = ["serde"] }
+proc-macro2 = "1"
+prettyplease = "0.2"
+quote = "1"
 rayon = "1"
+syn = { version = "2", features = ["full", "extra-traits"] }
 thiserror = "2"
 toml = { version = "0.9", features = ["unbounded"] }
+ureq = "3"
 vec1 = { version = "1.12.1", features = ["serde", "smallvec-v1"] }
 walkdir = "2"
 
@@ -66,6 +73,7 @@ bityzba = { path = "crates/bityzba" }
 bityzba-macros = { path = "crates/bityzba-macros" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
+jbotci-dictionary-data = { path = "crates/jbotci-dictionary-data" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
 jbotci-morphology = { path = "crates/jbotci-morphology" }
 jbotci-output = { path = "crates/jbotci-output" }

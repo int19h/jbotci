@@ -10,12 +10,13 @@ repository.workspace = true
 
 [features]
 expensive_contracts = []
+import = ["serde_json"]
 
 [dependencies]
 bityzba.workspace = true
 serde.workspace = true
+serde_json = { workspace = true, optional = true }
 thiserror.workspace = true
-jbotci-morphology.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
