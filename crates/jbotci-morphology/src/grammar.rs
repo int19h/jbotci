@@ -1022,7 +1022,7 @@ fn bare_word_ref(word: &WordLike) -> Option<&Word> {
 #[ensures(true)]
 fn into_bare_word(word: WordLike) -> Option<Word> {
     match word.into_data() {
-        data!(WordLike::Bare(word)) => Some(*word),
+        data!(WordLike::Bare(word)) => Some(word),
         _ => None,
     }
 }

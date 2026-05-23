@@ -282,7 +282,7 @@ fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
     match word {
         WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             match word_like.as_data() {
-                data!(WordLike::Bare(word)) => Some((**word).clone()),
+                data!(WordLike::Bare(word)) => Some(word.clone()),
                 _ => None,
             }
         }

@@ -52,39 +52,39 @@ tree_model! {
     #[invariant(super::word_like_data_is_valid(self.as_data()))]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
     pub enum WordLike {
-        Bare(#[tree_child(primary)] Box<Word>),
+        Bare(#[tree_child(primary)] Word),
         ZoQuote {
-            zo: Box<Word>,
+            zo: Word,
             #[tree_child(primary)]
-            word: Box<Word>,
+            word: Word,
         },
         ZoiQuote {
-            zoi: Box<Word>,
-            opening_delimiter: Box<Word>,
+            zoi: Word,
+            opening_delimiter: Word,
             quoted_text: Verbatim,
-            closing_delimiter: Box<Word>,
+            closing_delimiter: Word,
         },
         LohuQuote {
-            lohu: Box<Word>,
+            lohu: Word,
             #[tree_child(primary)]
             quoted_words: Vec<Word>,
-            lehu: Box<Word>,
+            lehu: Word,
         },
         SingleWordQuote {
-            marker: Box<Word>,
+            marker: Word,
             #[tree_child(primary)]
             quoted_text: Verbatim,
         },
         Letter {
             #[tree_child(primary)]
             base: Box<WordLike>,
-            bu: Box<Word>,
+            bu: Word,
         },
         ZeiLujvo {
             left: Box<WordLike>,
-            zei: Box<Word>,
+            zei: Word,
             #[tree_child(primary)]
-            right: Box<Word>,
+            right: Word,
         },
     }
 }

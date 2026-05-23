@@ -410,16 +410,13 @@ impl WordLike {
     #[requires(true)]
     #[ensures(true)]
     pub fn bare(word: Word) -> Self {
-        new!(WordLike::Bare(Box::new(word)))
+        new!(WordLike::Bare(word))
     }
 
     #[requires(zo.is_cmavo_text("zo"))]
     #[ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
-        new!(WordLike::ZoQuote {
-            zo: Box::new(zo),
-            word: Box::new(word),
-        })
+        new!(WordLike::ZoQuote { zo: zo, word: word })
     }
 
     #[requires(zoi.selmaho() == Some("ZOI"))]
@@ -433,10 +430,10 @@ impl WordLike {
         closing_delimiter: Word,
     ) -> Self {
         new!(WordLike::ZoiQuote {
-            zoi: Box::new(zoi),
-            opening_delimiter: Box::new(opening_delimiter),
+            zoi: zoi,
+            opening_delimiter: opening_delimiter,
             quoted_text: quoted_text,
-            closing_delimiter: Box::new(closing_delimiter),
+            closing_delimiter: closing_delimiter,
         })
     }
 
@@ -445,9 +442,9 @@ impl WordLike {
     #[ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
         new!(WordLike::LohuQuote {
-            lohu: Box::new(lohu),
+            lohu: lohu,
             quoted_words: quoted_words,
-            lehu: Box::new(lehu),
+            lehu: lehu,
         })
     }
 
@@ -455,7 +452,7 @@ impl WordLike {
     #[ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: Verbatim) -> Self {
         new!(WordLike::SingleWordQuote {
-            marker: Box::new(marker),
+            marker: marker,
             quoted_text: quoted_text,
         })
     }
@@ -465,7 +462,7 @@ impl WordLike {
     pub fn letter(base: WordLike, bu: Word) -> Self {
         new!(WordLike::Letter {
             base: Box::new(base),
-            bu: Box::new(bu),
+            bu: bu,
         })
     }
 
@@ -474,8 +471,8 @@ impl WordLike {
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
         new!(WordLike::ZeiLujvo {
             left: Box::new(left),
-            zei: Box::new(zei),
-            right: Box::new(right),
+            zei: zei,
+            right: right,
         })
     }
 
@@ -647,10 +644,10 @@ where
     F: Fn(SourceSpan) -> Result<SourceSpan, String>,
 {
     Ok(match word_like.into_data() {
-        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans(*word, map_span)?),
+        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans(word, map_span)?),
         data!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
-            map_word_spans(*zo, map_span)?,
-            map_word_spans(*word, map_span)?,
+            map_word_spans(zo, map_span)?,
+            map_word_spans(word, map_span)?,
         ),
         data!(WordLike::ZoiQuote {
             zoi,
@@ -658,38 +655,38 @@ where
             quoted_text,
             closing_delimiter,
         }) => WordLike::zoi_quote(
-            map_word_spans(*zoi, map_span)?,
-            map_word_spans(*opening_delimiter, map_span)?,
+            map_word_spans(zoi, map_span)?,
+            map_word_spans(opening_delimiter, map_span)?,
             map_verbatim_span(quoted_text, map_span)?,
-            map_word_spans(*closing_delimiter, map_span)?,
+            map_word_spans(closing_delimiter, map_span)?,
         ),
         data!(WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
         }) => WordLike::lohu_quote(
-            map_word_spans(*lohu, map_span)?,
+            map_word_spans(lohu, map_span)?,
             quoted_words
                 .into_iter()
                 .map(|word| map_word_spans(word, map_span))
                 .collect::<Result<Vec<_>, _>>()?,
-            map_word_spans(*lehu, map_span)?,
+            map_word_spans(lehu, map_span)?,
         ),
         data!(WordLike::SingleWordQuote {
             marker,
             quoted_text,
         }) => WordLike::single_word_quote(
-            map_word_spans(*marker, map_span)?,
+            map_word_spans(marker, map_span)?,
             map_verbatim_span(quoted_text, map_span)?,
         ),
         data!(WordLike::Letter { base, bu }) => WordLike::letter(
             map_word_like_spans(*base, map_span)?,
-            map_word_spans(*bu, map_span)?,
+            map_word_spans(bu, map_span)?,
         ),
         data!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
             map_word_like_spans(*left, map_span)?,
-            map_word_spans(*zei, map_span)?,
-            map_word_spans(*right, map_span)?,
+            map_word_spans(zei, map_span)?,
+            map_word_spans(right, map_span)?,
         ),
     })
 }
@@ -1435,7 +1432,7 @@ mod tests {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
         let word = match right[0].as_data() {
-            data!(WordLike::Bare(word)) => (**word).clone(),
+            data!(WordLike::Bare(word)) => word.clone(),
             _ => panic!("expected bare word"),
         };
         right[0] = WordLike::bare(Word::from_kind(
