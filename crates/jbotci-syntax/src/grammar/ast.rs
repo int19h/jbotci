@@ -2,7 +2,6 @@
 
 pub use crate::tree::*;
 
-use crate::WithIndicators;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, new, requires};
 use jbotci_morphology::WordLike;
@@ -2578,7 +2577,7 @@ impl TermSyntax {
                 fihau,
             }) => {
                 let mut words = fihoi.words();
-                words.extend(subsentence.words());
+                words.extend((*subsentence).words());
                 if let Some(fihau) = fihau {
                     words.extend(fihau.words());
                 }
@@ -2590,7 +2589,7 @@ impl TermSyntax {
                 sehu,
             }) => {
                 let mut words = soi.words();
-                words.extend(subsentence.words());
+                words.extend((*subsentence).words());
                 if let Some(sehu) = sehu {
                     words.extend(sehu.words());
                 }
@@ -2610,7 +2609,7 @@ impl TermSyntax {
             }) => {
                 let mut words = tense_modal
                     .into_iter()
-                    .flat_map(TenseModalSyntax::words)
+                    .flat_map(|tense_modal| tense_modal.words())
                     .collect::<Vec<_>>();
                 words.extend(argument.words());
                 words
@@ -2962,7 +2961,7 @@ impl ArgumentSyntax {
             }) => {
                 let mut words = tag
                     .into_iter()
-                    .flat_map(ArgumentTagSyntax::words)
+                    .flat_map(|tag| tag.words())
                     .collect::<Vec<_>>();
                 if let Some(ku) = maybe_ku {
                     words.extend(ku.words());
@@ -3189,7 +3188,7 @@ impl DescriptorSyntax {
         }) = self.into_data();
         let mut words = outer_quantifier
             .into_iter()
-            .flat_map(QuantifierSyntax::words)
+            .flat_map(|quantifier| quantifier.words())
             .collect::<Vec<_>>();
         if let Some(descriptor) = descriptor {
             words.extend(descriptor.words());

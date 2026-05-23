@@ -200,15 +200,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Phonemes owns canonical non-empty phoneme validity",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:WithIndicators::Bare",
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Bare",
         "generic wrapper delegates word validity to the payload type",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:WithIndicators::Emphasized",
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Emphasized",
         "constructor contracts enforce BAhE while generic payload owns word validity",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:WithIndicators::WithIndicator",
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::WithIndicator",
         "constructor contracts enforce UI/CAI/Y and NAI marker shape",
     ),
     (

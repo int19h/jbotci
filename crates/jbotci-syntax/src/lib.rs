@@ -1,7 +1,9 @@
 //! Lojban syntax model and parser facade.
 
-mod grammar;
 pub mod tree;
+pub use tree::WithIndicators;
+
+mod grammar;
 
 extern crate self as jbotci_syntax;
 
@@ -22,139 +24,6 @@ use ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
 };
 pub use ast::{Indicator, IndicatorData};
-
-impl Indicator {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn new(indicator: WithIndicators<WordLike>, nai: Option<Word>) -> Self {
-        new!(Indicator {
-            indicator: Box::new(indicator),
-            nai: nai.map(Box::new),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn words(&self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![(*self.indicator).clone()];
-        if let Some(nai) = &self.nai {
-            words.push(WithIndicators::bare(WordLike::bare((**nai).clone())));
-        }
-        words
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        visitor(&self.indicator);
-        if let Some(nai) = &self.nai {
-            let nai = WithIndicators::bare(WordLike::bare((**nai).clone()));
-            visitor(&nai);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret >= 1)]
-    pub fn word_count(&self) -> usize {
-        1 + usize::from(self.nai.is_some())
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Bare(_) => true)]
-#[invariant(::Emphasized => true)]
-#[invariant(::WithIndicator => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WithIndicators<T> {
-    Bare(Box<T>),
-    Emphasized {
-        bahe: Box<Word>,
-        word_like: Box<T>,
-    },
-    WithIndicator {
-        base: Box<WithIndicators<T>>,
-        indicator: Box<Word>,
-        nai: Option<Box<Word>>,
-    },
-}
-
-impl<T> WithIndicators<T> {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn bare(word_like: T) -> Self {
-        WithIndicators::Bare(Box::new(word_like))
-    }
-
-    #[requires(bahe.selmaho() == Some("BAhE"))]
-    #[ensures(true)]
-    pub fn emphasized(bahe: Word, word_like: T) -> Self {
-        WithIndicators::Emphasized {
-            bahe: Box::new(bahe),
-            word_like: Box::new(word_like),
-        }
-    }
-
-    #[requires(is_indicator_word(&indicator))]
-    #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
-    #[ensures(true)]
-    pub fn with_indicator(base: WithIndicators<T>, indicator: Word, nai: Option<Word>) -> Self {
-        WithIndicators::WithIndicator {
-            base: Box::new(base),
-            indicator: Box::new(indicator),
-            nai: nai.map(Box::new),
-        }
-    }
-}
-
-impl WithIndicators<WordLike> {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn word_like(&self) -> Option<&WordLike> {
-        match self {
-            WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-                Some(word_like)
-            }
-            WithIndicators::WithIndicator { base, .. } => base.word_like(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn visible_word(&self) -> Option<&Word> {
-        self.word_like().and_then(WordLike::visible_base_word)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn source_spans(&self) -> Vec<&jbotci_source::SourceSpan> {
-        let mut spans = Vec::new();
-        self.source_spans_into(&mut spans);
-        spans
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
-        match self {
-            WithIndicators::Bare(word_like) => word_like.source_spans_into(out),
-            WithIndicators::Emphasized { bahe, word_like } => {
-                out.push(bahe.span());
-                word_like.source_spans_into(out);
-            }
-            WithIndicators::WithIndicator {
-                base,
-                indicator,
-                nai,
-            } => {
-                base.source_spans_into(out);
-                out.push(indicator.span());
-                if let Some(nai) = nai {
-                    out.push(nai.span());
-                }
-            }
-        }
-    }
-}
 
 impl TextSyntax {
     #[requires(true)]
@@ -194,30 +63,6 @@ impl<'tree> TreeVisitor<'tree> for SourceSpanVisitor<'_> {
                 }
             }
             SyntaxAtomRef::Word(word) => (self.visitor)(word.span()),
-        }
-    }
-}
-
-impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WithIndicators::Bare(word_like) => write!(f, "{word_like}"),
-            WithIndicators::Emphasized { bahe, word_like } => {
-                write!(f, "{bahe}-{word_like}")
-            }
-            WithIndicators::WithIndicator {
-                base,
-                indicator,
-                nai,
-            } => {
-                write!(f, "{base}-{indicator}")?;
-                if let Some(nai) = nai {
-                    write!(f, "-{nai}")?;
-                }
-                Ok(())
-            }
         }
     }
 }
@@ -398,7 +243,7 @@ pub fn parse_raw_text(
 })]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
-    pub parse_tree: TextSyntax,
+    pub parse_tree: Box<TextSyntax>,
     #[serde(default)]
     pub warnings: Vec<SyntaxWarning>,
 }

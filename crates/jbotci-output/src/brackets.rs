@@ -1682,7 +1682,7 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             relation_unit(base, source),
             be,
             fa.as_ref(),
-            first_argument.as_ref(),
+            first_argument.as_deref(),
             bei_links,
             beho.as_ref(),
             source,
@@ -1699,7 +1699,7 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             relation_unit(base, source),
             be,
             fa.as_ref(),
-            first_argument.as_ref(),
+            first_argument.as_deref(),
             bei_links,
             beho.as_ref(),
             source,
@@ -2193,7 +2193,7 @@ fn indicator(value: &Indicator, source: &BracketContext<'_>) -> sexpr::SExpr {
         rendered.push('-');
         rendered.push_str(&normalize_attached_surface(
             surface::format_with_indicators_with_options(
-                &WithIndicators::bare(WordLike::bare((**nai).clone())),
+                &WithIndicators::bare(WordLike::bare(nai.clone())),
                 source.source,
                 source.options.phonemes,
             ),

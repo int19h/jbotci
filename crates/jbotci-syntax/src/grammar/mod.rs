@@ -154,7 +154,7 @@ pub(crate) fn parse_syntax_tree_with_source(
     let tokens = syntax_tokens(words);
     let parsed = parser::parse_statement(&tokens, source, options)?;
     Ok(new!(SyntaxParse {
-        parse_tree: parsed.text,
+        parse_tree: Box::new(parsed.text),
         warnings: parsed.warnings,
     }))
 }
@@ -187,7 +187,7 @@ pub(crate) fn parse_text(
             .into_iter()
             .map(public_free_modifier)
             .collect(),
-        leading_connective: leading_connective.map(public_connective),
+        leading_connective: leading_connective.map(|connective| public_connective(*connective)),
         paragraphs,
     })
 }
@@ -340,12 +340,12 @@ fn public_paragraph_statement(statement: ParagraphStatementSyntax) -> ParagraphS
     }) = statement.into_data();
     ParagraphStatement {
         i,
-        connective: connective.map(public_connective),
+        connective: connective.map(|connective| public_connective(*connective)),
         free_modifiers: free_modifiers
             .into_iter()
             .map(public_free_modifier)
             .collect(),
-        statement: statement.map(public_statement),
+        statement: statement.map(|statement| public_statement(*statement)),
     }
 }
 
@@ -738,7 +738,7 @@ mod tests {
                     connective: connective.clone(),
                     tense_modal: None,
                     ke: free_word("ke"),
-                    predicate_tail: Box::new(predicate_tail.clone()),
+                    predicate_tail: predicate_tail.clone(),
                     kehe: Some(free_word("ku")),
                     tail_terms: Vec::new(),
                     vau: None,
@@ -752,7 +752,7 @@ mod tests {
                     tense_modal: None,
                     bo: free_word("boi"),
                     cu: None,
-                    predicate_tail: Box::new(predicate_tail2),
+                    predicate_tail: predicate_tail2,
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -886,7 +886,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sample_predicate_tail2() -> PredicateTail2Syntax {
-        sample_predicate_tail().first.first
+        let predicate_tail = sample_predicate_tail();
+        predicate_tail.first.first
     }
 
     #[requires(true)]

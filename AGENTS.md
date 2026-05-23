@@ -239,6 +239,16 @@ let word = Word::from_data(data!(Word {
 
 Use cheap contracts for local scalar checks, shape checks already needed by callers, and invariants that are constant-time or close to it. Use expensive contracts for corpus-wide validation, deep tree walks, normalization cross-checks, semantic equivalence checks, and any contract that allocates, traverses large collections, calls parsers, or performs work that would be inappropriate in normal builds.
 
+Avoid an anti-pattern where the entire contract is tucked away in a separately declared function. Contracts should be preferentially attached directly to the function or type that they constrain, so that when you scan the code you immediately see the gist of the contract. For example, this contract is opaque since one needs to find and read `is_valid_phonemes_text` to understand what it does:
+```
+#[invariant(is_valid_phonemes_text(&self.text), "phonemes must be canonical Lojban phoneme text")]
+```
+a better way to write it is:
+```
+#[invariant(!text.is_empty() && text.chars().all(|phoneme| { ... })]
+```
+Here it is immediately clear when looking at the definition of the struct that the text is never empty and what values it can take. Helper functions that exist *solely* to be called from a single contract assertion are thus a code smell. It is okay to define such helper functions only when they are reused, when they need to recurse, or when the function is so complex that its definition would span more than several dozen lines. 
+
 All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` from `build.rs` with the `contract_scanner` feature enabled. The scanner is syntactic: it checks explicit source attributes under `src`, `tests`, `benches`, `examples`, and `build.rs`; it does not inspect macro expansions and does not count contracts hidden inside `cfg_attr`.
 
 

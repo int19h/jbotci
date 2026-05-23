@@ -4,9 +4,10 @@
 // Boxing only for enum-size symmetry would obscure that shape during the port.
 #![allow(clippy::large_enum_variant)]
 
-use crate::WithIndicators;
+use std::fmt;
+
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use jbotci_morphology::{Word, WordKind, WordLike};
 use serde::{Deserialize, Serialize};
 use vec1::{Vec1, smallvec_v1::SmallVec1};
@@ -18,16 +19,136 @@ pub struct WithFreeModifiers<T> {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
+#[invariant(true)]
+#[invariant(::Bare(_) => true)]
+#[invariant(::Emphasized => true)]
+#[invariant(::WithIndicator => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WithIndicators<T> {
+    Bare(T),
+    Emphasized {
+        bahe: Word,
+        word_like: T,
+    },
+    WithIndicator {
+        base: Box<WithIndicators<T>>,
+        indicator: Word,
+        nai: Option<Word>,
+    },
+}
+
+impl<T> WithIndicators<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn bare(word_like: T) -> Self {
+        WithIndicators::Bare(word_like)
+    }
+
+    #[requires(bahe.selmaho() == Some("BAhE"))]
+    #[ensures(true)]
+    pub fn emphasized(bahe: Word, word_like: T) -> Self {
+        WithIndicators::Emphasized {
+            bahe: bahe,
+            word_like: word_like,
+        }
+    }
+
+    #[requires(crate::is_indicator_word(&indicator))]
+    #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
+    #[ensures(true)]
+    pub fn with_indicator(base: WithIndicators<T>, indicator: Word, nai: Option<Word>) -> Self {
+        WithIndicators::WithIndicator {
+            base: Box::new(base),
+            indicator: indicator,
+            nai: nai,
+        }
+    }
+}
+
+impl WithIndicators<WordLike> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_like(&self) -> Option<&WordLike> {
+        match self {
+            WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+                Some(word_like)
+            }
+            WithIndicators::WithIndicator { base, .. } => base.word_like(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visible_word(&self) -> Option<&Word> {
+        self.word_like().and_then(WordLike::visible_base_word)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans(&self) -> Vec<&jbotci_source::SourceSpan> {
+        let mut spans = Vec::new();
+        self.source_spans_into(&mut spans);
+        spans
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
+        match self {
+            WithIndicators::Bare(word_like) => word_like.source_spans_into(out),
+            WithIndicators::Emphasized { bahe, word_like } => {
+                out.push(bahe.span());
+                word_like.source_spans_into(out);
+            }
+            WithIndicators::WithIndicator {
+                base,
+                indicator,
+                nai,
+            } => {
+                base.source_spans_into(out);
+                out.push(indicator.span());
+                if let Some(nai) = nai {
+                    out.push(nai.span());
+                }
+            }
+        }
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WithIndicators::Bare(word_like) => write!(f, "{word_like}"),
+            WithIndicators::Emphasized { bahe, word_like } => {
+                write!(f, "{bahe}-{word_like}")
+            }
+            WithIndicators::WithIndicator {
+                base,
+                indicator,
+                nai,
+            } => {
+                write!(f, "{base}-{indicator}")?;
+                if let Some(nai) = nai {
+                    write!(f, "-{nai}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
 jbotci_tree::tree_model! {
 pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
 pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
 
 #[invariant(indicator.visible_word().is_some_and(crate::is_indicator_word))]
-#[invariant(nai.as_deref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
+#[invariant(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Indicator {
-    pub indicator: Box<WithIndicators<WordLike>>,
-    pub nai: Option<Box<Word>>,
+    pub indicator: WithIndicators<WordLike>,
+    pub nai: Option<Word>,
 }
 
 #[invariant(crate::tree::opt_free_cmavo_text(cu, "cu"))]
@@ -45,7 +166,7 @@ pub struct PredicateSyntax {
 pub struct PredicateTailSyntax {
     #[tree_child(primary)]
     pub first: PredicateTail1Syntax,
-    pub ke_continuation: Option<KePredicateTailSyntax>,
+    pub ke_continuation: Option<Box<KePredicateTailSyntax>>,
 }
 
 #[invariant(crate::tree::free_cmavo_text(ke, "ke"))]
@@ -54,10 +175,10 @@ pub struct PredicateTailSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
-    pub tense_modal: Option<TenseModalSyntax>,
+    pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub ke: WithFreeModifiers<WithIndicators<WordLike>>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTailSyntax>,
+    pub predicate_tail: PredicateTailSyntax,
     pub kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -77,7 +198,7 @@ pub struct PredicateTail1Syntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
-    pub tense_modal: Option<TenseModalSyntax>,
+    pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     #[tree_child(primary)]
     pub predicate_tail: PredicateTail2Syntax,
@@ -91,7 +212,7 @@ pub struct PredicateTailContinuationSyntax {
 pub struct PredicateTail2Syntax {
     #[tree_child(primary)]
     pub first: PredicateTail3Syntax,
-    pub bo_continuation: Option<BoPredicateTailSyntax>,
+    pub bo_continuation: Option<Box<BoPredicateTailSyntax>>,
 }
 
 #[invariant(crate::tree::free_cmavo_text(bo, "bo"))]
@@ -100,11 +221,11 @@ pub struct PredicateTail2Syntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
-    pub tense_modal: Option<TenseModalSyntax>,
+    pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub bo: WithFreeModifiers<WithIndicators<WordLike>>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTail2Syntax>,
+    pub predicate_tail: PredicateTail2Syntax,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
@@ -142,7 +263,7 @@ pub enum GekSentenceSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
-        tense_modal: Option<TenseModalSyntax>,
+        tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
         #[tree_child(primary)]
         inner: Box<GekSentenceSyntax>,
@@ -177,7 +298,7 @@ pub struct TextSyntax {
     pub leading_cmevla: Vec<WithIndicators<WordLike>>,
     pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
-    pub leading_connective: Option<ConnectiveSyntax>,
+    pub leading_connective: Option<Box<ConnectiveSyntax>>,
     #[tree_child(primary)]
     pub paragraphs: Vec<ParagraphSyntax>,
 }
@@ -197,10 +318,10 @@ pub struct ParagraphSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParagraphStatementSyntax {
     pub i: Option<WithIndicators<WordLike>>,
-    pub connective: Option<ConnectiveSyntax>,
+    pub connective: Option<Box<ConnectiveSyntax>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
     #[tree_child(primary)]
-    pub statement: Option<StatementSyntax>,
+    pub statement: Option<Box<StatementSyntax>>,
 }
 
 #[invariant(true)]
@@ -243,7 +364,7 @@ pub enum FreeModifierSyntax {
     },
     Vocative {
         vocative_markers: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        argument: Option<ArgumentSyntax>,
+        argument: Option<Box<ArgumentSyntax>>,
         dohu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Replacement {
@@ -267,7 +388,7 @@ pub enum FreeModifierSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum StatementSyntax {
     Tuhe {
-        tense_modal: Option<TenseModalSyntax>,
+        tense_modal: Option<Box<TenseModalSyntax>>,
         tuhe: WithFreeModifiers<WithIndicators<WordLike>>,
         #[tree_child(primary)]
         text: Box<TextSyntax>,
@@ -309,7 +430,7 @@ pub enum StatementSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PredicateStatementContinuationSyntax {
     pub connective: ConnectiveSyntax,
-    pub tense_modal: Option<TenseModalSyntax>,
+    pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub marker: PredicateStatementContinuationMarkerSyntax,
     pub trailing_subsentence: SubsentenceSyntax,
 }
@@ -354,7 +475,7 @@ pub enum FragmentSyntax {
     BeLink {
         be: WithFreeModifiers<WithIndicators<WordLike>>,
         fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        first_argument: Option<ArgumentSyntax>,
+        first_argument: Option<Box<ArgumentSyntax>>,
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -428,14 +549,14 @@ pub enum TermSyntax {
     NoihaAdverbial {
         noiha: WithFreeModifiers<WithIndicators<WordLike>>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
-        relation: Option<RelationSyntax>,
+        relation: Option<Box<RelationSyntax>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     PoihaBrigahi {
         poiha: WithFreeModifiers<WithIndicators<WordLike>>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
-        relation: Option<RelationSyntax>,
+        relation: Option<Box<RelationSyntax>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         brigahi_ku: WithFreeModifiers<WithIndicators<WordLike>>,
     },
@@ -453,12 +574,12 @@ pub enum TermSyntax {
     },
     JaiTagged {
         jai: WithFreeModifiers<WithIndicators<WordLike>>,
-        tag: Option<TenseModalSyntax>,
+        tag: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
         argument: ArgumentSyntax,
     },
     Tagged {
-        tense_modal: Option<TenseModalSyntax>,
+        tense_modal: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
         argument: ArgumentSyntax,
     },
@@ -469,8 +590,8 @@ pub enum TermSyntax {
     },
     BoConnected {
         leading_terms: Vec<TermSyntax>,
-        bo_connective: Option<ConnectiveSyntax>,
-        tense_modal: Option<TenseModalSyntax>,
+        bo_connective: Option<Box<ConnectiveSyntax>>,
+        tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_term: Box<TermSyntax>,
     },
@@ -553,7 +674,7 @@ pub enum ArgumentSyntax {
         base_argument: Box<ArgumentSyntax>,
         vuho_marker: WithFreeModifiers<WithIndicators<WordLike>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        connected_argument: Option<ArgumentConnectionSyntax>,
+        connected_argument: Option<Box<ArgumentConnectionSyntax>>,
     },
     BridiDescription {
         lohoi: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -593,7 +714,7 @@ pub enum ArgumentSyntax {
     },
     Koha(WithFreeModifiers<WithIndicators<WordLike>>),
     Zohe {
-        tag: Option<ArgumentTagSyntax>,
+        tag: Option<Box<ArgumentTagSyntax>>,
         maybe_ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
@@ -617,8 +738,8 @@ pub enum ArgumentSyntax {
     },
     Bo {
         leading_argument: Box<ArgumentSyntax>,
-        bo_connective: Option<ConnectiveSyntax>,
-        bo_tense_modal: Option<TenseModalSyntax>,
+        bo_connective: Option<Box<ConnectiveSyntax>>,
+        bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_argument: Box<ArgumentSyntax>,
     },
@@ -726,9 +847,9 @@ pub enum QuoteSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DescriptorSyntax {
     pub descriptor: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    pub outer_quantifier: Option<QuantifierSyntax>,
+    pub outer_quantifier: Option<Box<QuantifierSyntax>>,
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub relation: Option<RelationSyntax>,
+    pub relation: Option<Box<RelationSyntax>>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
     pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
@@ -746,7 +867,7 @@ pub struct ConnectedDescriptorSyntax {
     pub connective: ConnectiveSyntax,
     pub trailing_descriptor_head: DescriptorHeadSyntax,
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub relation: Option<RelationSyntax>,
+    pub relation: Option<Box<RelationSyntax>>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
     pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
@@ -817,7 +938,7 @@ pub enum ConnectiveSyntax {
 pub struct BeiLinkSyntax {
     pub bei: WithFreeModifiers<WithIndicators<WordLike>>,
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    pub argument: Option<ArgumentSyntax>,
+    pub argument: Option<Box<ArgumentSyntax>>,
 }
 
 #[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
@@ -825,7 +946,7 @@ pub struct BeiLinkSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    pub argument: Option<ArgumentSyntax>,
+    pub argument: Option<Box<ArgumentSyntax>>,
 }
 
 #[invariant(be.value.visible_word().is_some_and(|word| word.is_cmavo_text("be")))]
@@ -836,7 +957,7 @@ pub struct LinkArgumentSyntax {
 pub struct BeLinkSyntax {
     pub be: WithFreeModifiers<WithIndicators<WordLike>>,
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    pub first_argument: Option<ArgumentSyntax>,
+    pub first_argument: Option<Box<ArgumentSyntax>>,
     pub bei_links: Vec<BeiLinkSyntax>,
     pub beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
@@ -1047,8 +1168,8 @@ pub enum RelationSyntax {
     },
     Bo {
         leading_relation: Box<RelationSyntax>,
-        bo_connective: Option<ConnectiveSyntax>,
-        bo_tense_modal: Option<TenseModalSyntax>,
+        bo_connective: Option<Box<ConnectiveSyntax>>,
+        bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_relation: Box<RelationSyntax>,
     },
@@ -1064,7 +1185,7 @@ pub enum RelationSyntax {
         inner_relation: Box<RelationSyntax>,
     },
     Ke {
-        ke_tense_modal: Option<TenseModalSyntax>,
+        ke_tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
         #[tree_child(primary)]
         relation: Box<RelationSyntax>,
@@ -1278,7 +1399,7 @@ pub enum RelationUnitSyntax {
         inner_unit: Box<RelationUnitSyntax>,
     },
     Ke {
-        ke_tense_modal: Option<TenseModalSyntax>,
+        ke_tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
         #[tree_child(primary)]
         relation: RelationSyntax,
@@ -1291,8 +1412,8 @@ pub enum RelationUnitSyntax {
     },
     Bo {
         leading_unit: Box<RelationUnitSyntax>,
-        bo_connective: Option<ConnectiveSyntax>,
-        bo_tense_modal: Option<TenseModalSyntax>,
+        bo_connective: Option<Box<ConnectiveSyntax>>,
+        bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_unit: Box<RelationUnitSyntax>,
     },
@@ -1309,7 +1430,7 @@ pub enum RelationUnitSyntax {
     Wrapped(RelationSyntax),
     Jai {
         jai: WithFreeModifiers<WithIndicators<WordLike>>,
-        tense_modal: Option<TenseModalSyntax>,
+        tense_modal: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
         inner_unit: Box<RelationUnitSyntax>,
     },
@@ -1318,14 +1439,14 @@ pub enum RelationUnitSyntax {
         base: Box<RelationUnitSyntax>,
         be: WithFreeModifiers<WithIndicators<WordLike>>,
         fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        first_argument: Option<ArgumentSyntax>,
+        first_argument: Option<Box<ArgumentSyntax>>,
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     PreposedBe {
         be: WithFreeModifiers<WithIndicators<WordLike>>,
         fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        first_argument: Option<ArgumentSyntax>,
+        first_argument: Option<Box<ArgumentSyntax>>,
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         #[tree_child(primary)]
@@ -1791,5 +1912,42 @@ impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {
             self.free_modifiers.visit_in_order(visitor);
             visitor.exit_field(field_ref);
         }
+    }
+}
+
+impl Indicator {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn new(indicator: WithIndicators<WordLike>, nai: Option<Word>) -> Self {
+        new!(Indicator {
+            indicator: indicator,
+            nai: nai,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(&self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = vec![self.indicator.clone()];
+        if let Some(nai) = &self.nai {
+            words.push(WithIndicators::bare(WordLike::bare(nai.clone())));
+        }
+        words
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        visitor(&self.indicator);
+        if let Some(nai) = &self.nai {
+            let nai = WithIndicators::bare(WordLike::bare(nai.clone()));
+            visitor(&nai);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= 1)]
+    pub fn word_count(&self) -> usize {
+        1 + usize::from(self.nai.is_some())
     }
 }
