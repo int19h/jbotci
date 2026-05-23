@@ -56,10 +56,7 @@ enum Command {
     },
     FixtureImport(FixtureImportArgs),
     FixtureList(FixtureRunArgs),
-    FixtureRewrite {
-        #[arg(default_value = "tests/fixtures")]
-        roots: Vec<PathBuf>,
-    },
+    FixtureRewrite(FixtureRewriteArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
 }
@@ -112,6 +109,17 @@ struct FixtureRunArgs {
     failure_samples: usize,
     #[arg(long, hide = true)]
     chunk_worker: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct FixtureRewriteArgs {
+    #[arg(default_value = "tests/fixtures")]
+    roots: Vec<PathBuf>,
+    #[arg(long, hide = true)]
+    chunk_worker: bool,
+    #[arg(long = "path", hide = true)]
+    paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -175,7 +183,7 @@ fn main() -> Result<()> {
         }
         Command::FixtureImport(args) => fixture_import(args),
         Command::FixtureList(args) => fixture_list(args),
-        Command::FixtureRewrite { roots } => fixture_rewrite(roots),
+        Command::FixtureRewrite(args) => fixture_rewrite(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
     }
@@ -226,10 +234,10 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
 
 #[requires(true)]
 #[ensures(true)]
-fn fixture_rewrite(roots: Vec<PathBuf>) -> Result<()> {
+fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
     let handle = std::thread::Builder::new()
         .stack_size(FIXTURE_WORKER_STACK_SIZE)
-        .spawn(move || fixture_rewrite_inner(roots))
+        .spawn(move || fixture_rewrite_inner(args))
         .context("spawning fixture-rewrite worker")?;
     match handle.join() {
         Ok(result) => result,
@@ -239,8 +247,21 @@ fn fixture_rewrite(roots: Vec<PathBuf>) -> Result<()> {
 
 #[requires(true)]
 #[ensures(true)]
-fn fixture_rewrite_inner(roots: Vec<PathBuf>) -> Result<()> {
-    let mut rewritten = 0usize;
+fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
+    if args.chunk_worker {
+        let summary = fixture_rewrite_paths(args.paths, false)?;
+        println!(
+            "fixtures={}, rewritten={}",
+            summary.processed, summary.rewritten
+        );
+        return Ok(());
+    }
+    fixture_rewrite_subprocess_chunks(args.roots)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fixture_rewrite_subprocess_chunks(roots: Vec<PathBuf>) -> Result<()> {
     let mut paths = Vec::new();
     for root in &roots {
         paths.extend(
@@ -249,9 +270,95 @@ fn fixture_rewrite_inner(roots: Vec<PathBuf>) -> Result<()> {
         );
     }
     let total = paths.len();
+    let exe = std::env::current_exe().context("resolving xtask executable")?;
+    let mut summary = RewriteSummary::default();
+    for chunk in paths.chunks(FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE) {
+        let output = fixture_rewrite_chunk_output(&exe, chunk)?;
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let chunk_summary = parse_fixture_rewrite_summary(&stdout)?;
+        summary.merge(chunk_summary);
+        if !output.status.success() {
+            bail!(
+                "fixture-rewrite worker failed with status {}; stdout: {}",
+                output.status,
+                stdout.trim()
+            );
+        }
+        if total > 0 && should_report_fixture_rewrite_progress(summary.processed, total) {
+            eprintln!(
+                "fixture-rewrite: {}/{} processed, {} changed",
+                summary.processed, total, summary.rewritten
+            );
+        }
+    }
+    println!("rewrote {} fixture(s)", summary.rewritten);
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
+fn fixture_rewrite_chunk_output(exe: &Path, chunk: &[PathBuf]) -> Result<std::process::Output> {
+    let mut command = ProcessCommand::new(exe);
+    command.arg("fixture-rewrite").arg("--chunk-worker");
+    for path in chunk {
+        command.arg("--path").arg(path);
+    }
+    command.output().context("running fixture-rewrite worker")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
+fn parse_fixture_rewrite_summary(stdout: &str) -> Result<RewriteSummary> {
+    let line = stdout
+        .lines()
+        .rev()
+        .find(|line| line.starts_with("fixtures="))
+        .ok_or_else(|| anyhow::anyhow!("fixture-rewrite worker did not print a summary"))?;
+    let mut summary = RewriteSummary::default();
+    for part in line.split(", ") {
+        let Some((key, value)) = part.split_once('=') else {
+            continue;
+        };
+        let value = value
+            .parse::<usize>()
+            .with_context(|| format!("parsing fixture-rewrite summary value `{value}`"))?;
+        match key {
+            "fixtures" => summary.processed = value,
+            "rewritten" => summary.rewritten = value,
+            _ => {}
+        }
+    }
+    Ok(summary)
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+#[invariant(true)]
+struct RewriteSummary {
+    processed: usize,
+    rewritten: usize,
+}
+
+impl RewriteSummary {
+    #[requires(other.processed >= other.rewritten)]
+    #[ensures(self.processed >= self.rewritten)]
+    fn merge(&mut self, other: Self) {
+        self.processed += other.processed;
+        self.rewritten += other.rewritten;
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
+fn fixture_rewrite_paths(paths: Vec<PathBuf>, report_progress: bool) -> Result<RewriteSummary> {
+    let mut rewritten = 0usize;
+    let total = paths.len();
     for (index, path) in paths.into_iter().enumerate() {
         let processed = index + 1;
-        if total > 0 && should_report_fixture_rewrite_progress(processed, total) {
+        if report_progress && total > 0 && should_report_fixture_rewrite_progress(processed, total)
+        {
             eprintln!("fixture-rewrite: {processed}/{total} processed, {rewritten} changed");
         }
         let before = fs::read_to_string(&path)
@@ -268,8 +375,10 @@ fn fixture_rewrite_inner(roots: Vec<PathBuf>) -> Result<()> {
             rewritten += 1;
         }
     }
-    println!("rewrote {rewritten} fixture(s)");
-    Ok(())
+    Ok(RewriteSummary {
+        processed: total,
+        rewritten,
+    })
 }
 
 #[requires(total > 0)]
@@ -1029,6 +1138,7 @@ fn default_fixture_jobs() -> usize {
 const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
+const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
