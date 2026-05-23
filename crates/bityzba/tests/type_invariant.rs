@@ -201,11 +201,24 @@ fn enum_variant_invariants_accept_explicit_patterns_and_unit_variants() {
         _ => panic!("wrong variant"),
     }
 
-    let expensive = new!(PatternChoice::Expensive { value: 0 });
-    assert!(matches!(
-        expensive.as_data(),
-        data!(PatternChoice::Expensive { value }) if *value == 0
-    ));
+    #[cfg(not(feature = "expensive_contracts"))]
+    {
+        let expensive = new!(PatternChoice::Expensive { value: 0 });
+        assert!(matches!(
+            expensive.as_data(),
+            data!(PatternChoice::Expensive { value }) if *value == 0
+        ));
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    {
+        assert!(try_new!(PatternChoice::Expensive { value: 0 }).is_err());
+        let expensive = new!(PatternChoice::Expensive { value: 1 });
+        assert!(matches!(
+            expensive.as_data(),
+            data!(PatternChoice::Expensive { value }) if *value == 1
+        ));
+    }
 }
 
 #[test]
