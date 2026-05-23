@@ -8,11 +8,11 @@ entry-id = "1685"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(no no)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "no",
   Cmavo "no",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[3,5]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ Number {
   Cmavo "no",
   Cmavo "no",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}}}]}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[3,5]}}}}]}}}}}}]}]}'

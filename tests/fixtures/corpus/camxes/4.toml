@@ -8,11 +8,11 @@ entry-id = "4"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ce'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "di" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ce'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "di" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(ce'e di)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "ce'e",
   Cmavo "di",
 ]"""
-json = """[{"Bare":{"span":[47,51],"phonemes":"ce'e","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"di","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"ce'e","span":[47,51]}}},{"Bare":{"Cmavo":{"phonemes":"di","span":[52,54]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -33,4 +33,4 @@ Text {
     ],
   },
 }"""
-json = """{"leading_connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[47,51],"phonemes":"ce'e","kind":"cmavo"}}}]}},"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[52,54],"phonemes":"di","kind":"cmavo"}}}}}]}}}}]}]}"""
+json = """{"leading_connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ce'e","span":[47,51]}}}}]}},"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"di","span":[52,54]}}}}}}]}}}}]}]}"""

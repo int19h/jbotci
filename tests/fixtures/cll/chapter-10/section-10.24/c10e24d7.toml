@@ -14,11 +14,11 @@ source-path = "vendor/cll/chapters/10.xml"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "pu'o"
@@ -26,7 +26,7 @@ tree = """
 [
   Cmavo "pu'o",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"pu'o","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"pu'o","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "pu'o"
@@ -39,4 +39,4 @@ Term {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"pu'o","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu'o","span":[0,4]}}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}"""

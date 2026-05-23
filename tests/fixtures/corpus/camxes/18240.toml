@@ -8,7 +8,7 @@ entry-id = "18240"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ín", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "ín" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ca" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ve" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo "ca",
   Cmavo "ve",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"ín","kind":"cmevla"}},{"Bare":{"span":[3,4],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ve","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"ín","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ve","span":[7,9]}}}]'

@@ -8,11 +8,11 @@ entry-id = "17056"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "camgusmis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "camgusmis" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "camgusmis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "camgusmis" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
 brackets = "(co'o la .camgusmis.)"
@@ -22,7 +22,7 @@ tree = """
   Cmavo "la",
   Cmevla "camgusmis",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[8,17],"phonemes":"camgusmis","kind":"cmevla"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"Bare":{"Cmevla":{"phonemes":"camgusmis","span":[8,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -41,4 +41,4 @@ Text {
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}}}],"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[8,17],"phonemes":"camgusmis","kind":"cmevla"}}}]}}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}],"argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"camgusmis","span":[8,17]}}}}]}}}}]}"""

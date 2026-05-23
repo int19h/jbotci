@@ -8,11 +8,11 @@ entry-id = "22370"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "je" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), free_modifiers: [], statement: None }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "je" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.i je)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "i",
   Cmavo "je",
 ]"""
-json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"je","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[3,5]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ ParagraphStatement {
   i: Cmavo "i",
   connective: Cmavo "je",
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"je","kind":"cmavo"}}}]}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[3,5]}}}}]}}}]}]}'

@@ -1,7 +1,7 @@
 //! Lujvo composition and decomposition.
 
 use bityzba::{invariant, requires};
-use jbotci_morphology::LujvoSegment;
+use jbotci_morphology::Jvopau;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -9,7 +9,7 @@ use thiserror::Error;
 #[invariant(true)]
 pub struct LujvoPlan {
     pub sources: Vec<LujvoSource>,
-    pub segments: Vec<LujvoSegment>,
+    pub parts: Vec<Jvopau>,
     pub output: String,
 }
 

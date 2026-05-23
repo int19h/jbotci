@@ -14,11 +14,11 @@ source-path = "vendor/cll/chapters/15.xml"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "go'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "go'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "go'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "na'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "go'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(go'i na'i)"
@@ -27,7 +27,7 @@ tree = """
   Cmavo "go'i",
   Cmavo "na'i",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"na'i","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"go'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"na'i","span":[5,9]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(go'i na'i)"
@@ -36,4 +36,4 @@ WithIndicator {
   Cmavo "go'i",
   indicator: Cmavo "na'i",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"na'i","kind":"cmavo"}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"na'i","span":[5,9]}}}}}}}}}}}}]}]}"""

@@ -8,7 +8,7 @@ entry-id = "10977"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "cod", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "xoĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "cod" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -21,4 +21,4 @@ tree = """
   Cmavo "xoĭ",
   Cmevla "cod",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"xoĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"cod","kind":"cmevla"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"xoĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"cod","span":[4,7]}}}]'

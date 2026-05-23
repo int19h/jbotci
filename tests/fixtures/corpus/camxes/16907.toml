@@ -8,11 +8,11 @@ entry-id = "16907"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "or", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "or", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.or. pu ba)"
@@ -22,7 +22,7 @@ tree = """
   Cmavo "pu",
   Cmavo "ba",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"ba","span":[6,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -42,4 +42,4 @@ Text {
     ],
   },
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ba","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[3,5]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ba","span":[6,8]}}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}'

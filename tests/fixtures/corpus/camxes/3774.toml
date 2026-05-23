@@ -8,11 +8,11 @@ entry-id = "3774"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "to" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "oĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }), nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "to" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "oĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }), nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: None }], leading_connective: None, paragraphs: [] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -22,7 +22,7 @@ tree = """
   Cmavo "to",
   Cmavo "oĭ",
 ]"""
-json = '[{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"oĭ","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"oĭ","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -37,4 +37,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"To":{"to":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}}},"indicator":{"span":[7,9],"phonemes":"oĭ","kind":"cmavo"}}},"text":{}}}]}'
+json = '{"leading_free_modifiers":[{"To":{"to":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[7,9]}}}},"text":{}}}]}'

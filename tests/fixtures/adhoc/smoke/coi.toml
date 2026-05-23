@@ -10,7 +10,7 @@ description = "Small fixture used to validate the v1 test-case file format."
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "not-applicable"
@@ -21,7 +21,7 @@ tree = """
 [
   Cmavo "coĭ",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}]'
 
 [expectations.output.gentufa]
 tree = """

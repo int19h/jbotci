@@ -8,7 +8,7 @@ entry-id = "3869"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Fuhivla, phonemes: "natrmerko", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "m", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "natrmerko" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "goĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "m" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo "goĭ",
   Cmevla "m",
 ]"""
-json = """[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"natrmerko","kind":"fu'ivla"}},{"Bare":{"span":[13,16],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[17,18],"phonemes":"m","kind":"cmevla"}}]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"Bare":{"Fuhivla":{"phonemes":"natrmerko","span":[3,12]}}},{"Bare":{"Cmavo":{"phonemes":"goĭ","span":[13,16]}}},{"Bare":{"Cmevla":{"phonemes":"m","span":[17,18]}}}]'

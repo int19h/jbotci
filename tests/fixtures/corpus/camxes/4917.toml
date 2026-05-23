@@ -8,11 +8,11 @@ entry-id = "4917"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selbenji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "benji" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selbenji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "benji" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(pu selbénji)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "pu",
   Lujvo "selbénji",
 ]"""
-json = '[{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"selbenji","kind":"lujvo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"pu","span":[3,5]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"benji"}],"span":[6,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ TenseModal {
   tense_modal: Cmavo "pu",
   Lujvo "selbénji",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,14],"phonemes":"selbenji","kind":"lujvo"}}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[3,5]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"benji"}],"span":[6,14]}}}}}}}}}}}}}}]}]}'

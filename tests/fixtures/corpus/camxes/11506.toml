@@ -8,11 +8,11 @@ entry-id = "11506"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "re"
@@ -20,8 +20,8 @@ tree = """
 [
   Cmavo "re",
 ]"""
-json = '[{"Bare":{"span":[7,9],"phonemes":"re","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmavo "re"'
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[7,9],"phonemes":"re","kind":"cmavo"}}}]}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}}}]}}}}}}]}]}'

@@ -8,11 +8,11 @@ entry-id = "19813"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "porno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "porno" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "porno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "porno" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(lo'e pórno)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "lo'e",
   Gismu "pórno",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"porno","kind":"gismu"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"lo'e","span":[0,4]}}},{"Bare":{"Gismu":{"phonemes":"porno","span":[5,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -33,4 +33,4 @@ Term {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,4],"phonemes":"lo'e","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"porno","kind":"gismu"}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo'e","span":[0,4]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"porno","span":[5,10]}}}}}}}}]}}}}]}]}"""

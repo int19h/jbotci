@@ -8,11 +8,11 @@ entry-id = "8"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "broda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "broda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -22,7 +22,7 @@ tree = """
   Cmavo "lo",
   Gismu "bróda",
 ]"""
-json = '[{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"broda","kind":"gismu"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[18,20]}}},{"Bare":{"Gismu":{"phonemes":"broda","span":[21,26]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -34,4 +34,4 @@ Term {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"broda","kind":"gismu"}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[18,20]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"broda","span":[21,26]}}}}}}}}]}}}}]}]}'

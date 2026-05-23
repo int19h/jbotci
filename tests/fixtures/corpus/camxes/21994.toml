@@ -8,7 +8,7 @@ entry-id = "21994"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "xacyce'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Fuhivla, phonemes: "ninsula", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 32, char_start: 25, char_end: 32, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xac" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "ce'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pe" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "ninsula" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 32, char_start: 25, char_end: 32, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmavo "pe",
   Fuhivla "ninsúla",
 ]"""
-json = """[{"Bare":{"span":[0,8],"phonemes":"xacyce'a","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[25,32],"phonemes":"ninsula","kind":"fu'ivla"}}]"""
+json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xac"},{"Hyphen":"y"},{"Rafsi":"ce'a"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"pe","span":[23,25]}}},{"Bare":{"Fuhivla":{"phonemes":"ninsula","span":[25,32]}}}]"""

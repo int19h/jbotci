@@ -8,7 +8,7 @@ entry-id = "13289"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cable", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "internet", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cable" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "internet" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -21,4 +21,4 @@ tree = """
   Gismu "cáble",
   Cmevla "internet",
 ]"""
-json = '[{"Bare":{"span":[0,5],"phonemes":"cable","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"internet","kind":"cmevla"}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"cable","span":[0,5]}}},{"Bare":{"Cmevla":{"phonemes":"internet","span":[6,14]}}}]'

@@ -4,16 +4,49 @@ use bityzba::invariant;
 use jbotci_source::SourceSpan;
 use jbotci_tree::tree_model;
 use serde::{Deserialize, Serialize};
+use vec1::Vec1;
 
-use crate::WordKind;
+use crate::{Phonemes, word_data_is_valid};
 
 tree_model! {
-    #[invariant(!self.phonemes.is_empty(), "word phoneme text must not be empty")]
+    #[invariant(word_data_is_valid(self.as_data()))]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Word {
-        pub kind: WordKind,
-        pub phonemes: String,
+    pub enum Word {
+        Cmavo {
+            phonemes: Phonemes,
+            span: SourceSpan,
+        },
+        Gismu {
+            phonemes: Phonemes,
+            span: SourceSpan,
+        },
+        Lujvo {
+            #[tree_child(primary)]
+            parts: Vec1<Jvopau>,
+            span: SourceSpan,
+        },
+        Fuhivla {
+            phonemes: Phonemes,
+            span: SourceSpan,
+        },
+        Cmevla {
+            phonemes: Phonemes,
+            span: SourceSpan,
+        },
+    }
+
+    #[invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum Jvopau {
+        Rafsi(Phonemes),
+        Hyphen(Phonemes),
+    }
+
+    #[invariant(self.span.char_len() == self.text.chars().count(), "verbatim text must match span length")]
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Verbatim {
         pub span: SourceSpan,
+        pub text: String,
     }
 
     #[invariant(super::word_like_data_is_valid(self.as_data()))]
@@ -28,7 +61,7 @@ tree_model! {
         ZoiQuote {
             zoi: Box<Word>,
             opening_delimiter: Box<Word>,
-            quoted_text: SourceSpan,
+            quoted_text: Verbatim,
             closing_delimiter: Box<Word>,
         },
         LohuQuote {
@@ -40,7 +73,7 @@ tree_model! {
         SingleWordQuote {
             marker: Box<Word>,
             #[tree_child(primary)]
-            quoted_text: SourceSpan,
+            quoted_text: Verbatim,
         },
         Letter {
             #[tree_child(primary)]

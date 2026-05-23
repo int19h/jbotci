@@ -8,11 +8,11 @@ entry-id = "18884"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "oĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "u'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "saĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "oĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "u'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), nai: None }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "saĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
 brackets = "(.oĭ .u'i saĭ)"
@@ -22,7 +22,7 @@ tree = """
   Cmavo "u'i",
   Cmavo "saĭ",
 ]"""
-json = """[{"Bare":{"span":[0,2],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"saĭ","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"oĭ","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"u'i","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[6,9]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -39,4 +39,4 @@ Text {
     },
   ],
 }"""
-json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"u'i","kind":"cmavo"}}},"indicator":{"span":[6,9],"phonemes":"saĭ","kind":"cmavo"}}}}]}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"oĭ","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[3,6]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[6,9]}}}}}]}"""

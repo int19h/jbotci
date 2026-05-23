@@ -8,7 +8,7 @@ entry-id = "20234"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xoĭ'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "flalu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rinju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "xoĭ'a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "flalu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rinju" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Gismu "flálu",
   Gismu "rínju",
 ]"""
-json = """[{"Bare":{"span":[0,5],"phonemes":"xoĭ'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"rinju","kind":"gismu"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"xoĭ'a","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"Bare":{"Gismu":{"phonemes":"flalu","span":[9,14]}}},{"Bare":{"Gismu":{"phonemes":"rinju","span":[15,20]}}}]"""

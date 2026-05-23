@@ -8,11 +8,11 @@ entry-id = "9046"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "fracture", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "fra" })), Rafsi(Phonemes(PhonemesData { text: "cture" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "fracture", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "fra" })), Rafsi(Phonemes(PhonemesData { text: "cture" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(coĭ coĭ fractúre)"
@@ -22,7 +22,7 @@ tree = """
   Cmavo "coĭ",
   Lujvo "fractúre",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"fracture","kind":"lujvo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[4,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"cture"}],"span":[8,16]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -39,4 +39,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,7],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"span":[8,16],"phonemes":"fracture","kind":"lujvo"}}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[4,7]}}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"cture"}],"span":[8,16]}}}}}}}}}]}'

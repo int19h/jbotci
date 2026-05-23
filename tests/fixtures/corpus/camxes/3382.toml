@@ -8,7 +8,7 @@ entry-id = "3382"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "semselpla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "li" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sem" })), Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "pla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 17, char_start: 8, char_end: 17, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmavo "ki'a",
   Lujvo "semsélpla",
 ]"""
-json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[8,17],"phonemes":"semselpla","kind":"lujvo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sem"},{"Rafsi":"sel"},{"Rafsi":"pla"}],"span":[8,17]}}}]"""

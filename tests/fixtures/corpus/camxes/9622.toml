@@ -8,11 +8,11 @@ entry-id = "9622"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "lojbab", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "doĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "lojbab" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "lojbab", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "doĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "lojbab" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -22,7 +22,7 @@ tree = """
   Cmavo "doĭ",
   Cmevla "lojbab",
 ]"""
-json = '[{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"lojbab","kind":"cmevla"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}},{"Bare":{"Cmevla":{"phonemes":"lojbab","span":[7,13]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -36,4 +36,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[7,13],"phonemes":"lojbab","kind":"cmevla"}}}]}}}]}'
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"lojbab","span":[7,13]}}}}]}}}]}'

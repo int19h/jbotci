@@ -8,11 +8,11 @@ entry-id = "14751"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sudga", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "poĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sudga" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sudga", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }]))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "poĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sudga" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }]))) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(poĭ súdga)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "poĭ",
   Gismu "súdga",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"sudga","kind":"gismu"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"sudga","span":[4,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ Poi {
   poi: Cmavo "poĭ",
   Gismu "súdga",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"sudga","kind":"gismu"}}}}}}}}}}}}]}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"sudga","span":[4,9]}}}}}}}}}}}}}]}}}]}]}'

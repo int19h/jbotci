@@ -14,11 +14,11 @@ source-path = "vendor/cll/chapters/17.xml"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "iván", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "iván" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "iván", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "iván" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = ".ivan."
@@ -26,7 +26,7 @@ tree = """
 [
   Cmevla "ivan",
 ]"""
-json = '[{"Bare":{"span":[1,5],"phonemes":"iván","kind":"cmevla"}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}]'
 
 [expectations.output.gentufa]
 brackets = ".ivan."
@@ -36,4 +36,4 @@ Text {
     Cmevla "ivan",
   ],
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,5],"phonemes":"iván","kind":"cmevla"}}}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}}]}'

@@ -8,11 +8,11 @@ entry-id = "7378"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ja" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ja" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "ja"
@@ -20,11 +20,11 @@ tree = """
 [
   Cmavo "ja",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"ja","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"ja","span":[0,2]}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_connective: Cmavo "ja",
 }"""
-json = '{"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ja","kind":"cmavo"}}}]}}}'
+json = '{"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ja","span":[0,2]}}}}]}}}'

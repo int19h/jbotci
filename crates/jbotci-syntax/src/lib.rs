@@ -148,7 +148,7 @@ impl WithIndicators<WordLike> {
         match self {
             WithIndicators::Bare(word_like) => word_like.source_spans_into(out),
             WithIndicators::Emphasized { bahe, word_like } => {
-                out.push(&bahe.span);
+                out.push(bahe.span());
                 word_like.source_spans_into(out);
             }
             WithIndicators::WithIndicator {
@@ -157,9 +157,9 @@ impl WithIndicators<WordLike> {
                 nai,
             } => {
                 base.source_spans_into(out);
-                out.push(&indicator.span);
+                out.push(indicator.span());
                 if let Some(nai) = nai {
-                    out.push(&nai.span);
+                    out.push(nai.span());
                 }
             }
         }
@@ -203,7 +203,7 @@ impl<'tree> TreeVisitor<'tree> for SourceSpanVisitor<'_> {
                     (self.visitor)(span);
                 }
             }
-            SyntaxAtomRef::Word(word) => (self.visitor)(&word.span),
+            SyntaxAtomRef::Word(word) => (self.visitor)(word.span()),
         }
     }
 }
@@ -236,7 +236,7 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
 #[ensures(true)]
 fn is_indicator_word(word: &Word) -> bool {
     let canonical = word.canonical_phonemes();
-    word.kind == jbotci_morphology::WordKind::Cmavo
+    word.kind() == jbotci_morphology::WordKind::Cmavo
         && (crate::grammar::tokens::UI_WORDS.contains(&canonical.as_str())
             || crate::grammar::tokens::CAI_WORDS.contains(&canonical.as_str())
             || canonical == "y")

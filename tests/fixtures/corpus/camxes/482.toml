@@ -8,11 +8,11 @@ entry-id = "482"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "barda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bloti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "barda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bloti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "barda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bloti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "barda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bloti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(bárda blóti)"
@@ -21,7 +21,7 @@ tree = """
   Gismu "bárda",
   Gismu "blóti",
 ]"""
-json = '[{"Bare":{"span":[0,5],"phonemes":"barda","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"bloti","kind":"gismu"}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"barda","span":[0,5]}}},{"Bare":{"Gismu":{"phonemes":"bloti","span":[6,11]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ Compound {
   Gismu "bárda",
   Gismu "blóti",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"barda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"bloti","kind":"gismu"}}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"barda","span":[0,5]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bloti","span":[6,11]}}}}}]}}}}}}}}]}]}'

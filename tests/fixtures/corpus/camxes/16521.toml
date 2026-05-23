@@ -8,11 +8,11 @@ entry-id = "16521"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ni'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ni'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ni'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ni'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))], free_modifiers: [], statements: [] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))], free_modifiers: [], statements: [] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(ni'o ni'o)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "ni'o",
   Cmavo "ni'o",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"ni'o","span":[4,8]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -31,4 +31,4 @@ Paragraph {
     Cmavo "ni'o",
   ],
 }"""
-json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ni'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,8],"phonemes":"ni'o","kind":"cmavo"}}}]}]}"""
+json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ni'o","span":[4,8]}}}}]}]}"""

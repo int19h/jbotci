@@ -1,6 +1,7 @@
 use bityzba::{ensures, requires};
+use vec1::Vec1;
 
-use crate::{MorphologyOptions, WordKind};
+use crate::{Jvopau, MorphologyOptions, Phonemes, WordKind};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
@@ -146,6 +147,16 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
         .chars()
         .filter(|value| *value != ',')
         .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<Jvopau>> {
+    let chars = text_chars(word);
+    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
+        return None;
+    }
+    Vec1::try_from_vec(lujvo_parts_from(&chars, 0, false)?).ok()
 }
 
 #[requires(true)]
@@ -677,11 +688,7 @@ fn is_gismu(word: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_lujvo(word: &str) -> bool {
-    let chars = text_chars(word);
-    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
-        return false;
-    }
-    lujvo_from(&chars, 0, false)
+    parse_lujvo_parts(word).is_some()
 }
 
 #[requires(index <= chars.len())]
@@ -699,6 +706,71 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
     initial_rafsi_ends(chars, index)
         .into_iter()
         .any(|end| end > index && lujvo_from(chars, end, true))
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+fn lujvo_parts_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> Option<Vec<Jvopau>> {
+    if index >= chars.len() {
+        return None;
+    }
+    if has_initial_rafsi && is_lujvo_core(chars, index) {
+        return Some(vec![rafsi_part(chars, index, chars.len())?]);
+    }
+    if !has_initial_rafsi && is_lujvo_final_rafsi_alone(chars, index) {
+        return Some(vec![rafsi_part(chars, index, chars.len())?]);
+    }
+    for end in initial_rafsi_ends(chars, index) {
+        if end <= index {
+            continue;
+        }
+        let Some(mut rest) = lujvo_parts_from(chars, end, true) else {
+            continue;
+        };
+        let mut parts = initial_rafsi_parts(chars, index, end)?;
+        parts.append(&mut rest);
+        return Some(parts);
+    }
+    None
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+fn initial_rafsi_parts(chars: &[char], start: usize, end: usize) -> Option<Vec<Jvopau>> {
+    if let Some(hyphen_start) = (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
+    {
+        return Some(vec![
+            rafsi_part(chars, start, hyphen_start)?,
+            hyphen_part(chars, hyphen_start, end)?,
+        ]);
+    }
+    Some(vec![rafsi_part(chars, start, end)?])
+}
+
+#[requires(index < chars.len())]
+#[ensures(true)]
+fn is_rafsi_hyphen_start(chars: &[char], index: usize) -> bool {
+    chars.get(index).is_some_and(|value| is_y(*value))
+        || (chars.get(index) == Some(&'\'')
+            && chars.get(index + 1).is_some_and(|value| is_y(*value)))
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(true)]
+fn rafsi_part(chars: &[char], start: usize, end: usize) -> Option<Jvopau> {
+    phonemes_part(chars, start, end).map(Jvopau::rafsi)
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(true)]
+fn hyphen_part(chars: &[char], start: usize, end: usize) -> Option<Jvopau> {
+    phonemes_part(chars, start, end).map(Jvopau::hyphen)
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.as_str().is_empty()))]
+fn phonemes_part(chars: &[char], start: usize, end: usize) -> Option<Phonemes> {
+    Phonemes::from_canonical(chars[start..end].iter().collect()).ok()
 }
 
 #[requires(index <= chars.len())]

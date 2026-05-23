@@ -8,11 +8,11 @@ entry-id = "3868"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "besna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "porpi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "besna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "porpi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "besna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "porpi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [] })]), sehu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "besna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "porpi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [] })]), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(seĭ bésna pórpi)"
@@ -22,7 +22,7 @@ tree = """
   Gismu "bésna",
   Gismu "pórpi",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"besna","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"porpi","kind":"gismu"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"besna","span":[4,9]}}},{"Bare":{"Gismu":{"phonemes":"porpi","span":[10,15]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -37,4 +37,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[4,9],"phonemes":"besna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"porpi","kind":"gismu"}}}}]}}}]}'
+json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"besna","span":[4,9]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"porpi","span":[10,15]}}}}}]}}}]}'

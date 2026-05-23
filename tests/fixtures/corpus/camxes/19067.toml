@@ -8,7 +8,7 @@ entry-id = "19067"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "kervi'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "go", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "terbi'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 21, char_start: 14, char_end: 21, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ker" })), Rafsi(Phonemes(PhonemesData { text: "vi'i" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "go" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ter" })), Rafsi(Phonemes(PhonemesData { text: "bi'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 21, char_start: 14, char_end: 21, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo "naĭ",
   Lujvo "terbí'a",
 ]"""
-json = """[{"Bare":{"span":[0,7],"phonemes":"kervi'i","kind":"lujvo"}},{"Bare":{"span":[8,10],"phonemes":"go","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[14,21],"phonemes":"terbi'a","kind":"lujvo"}}]"""
+json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ker"},{"Rafsi":"vi'i"}],"span":[0,7]}}},{"Bare":{"Cmavo":{"phonemes":"go","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"bi'a"}],"span":[14,21]}}}]"""

@@ -8,11 +8,11 @@ entry-id = "214"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brodo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "brodo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] })), Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brodo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] })), Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "brodo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -23,7 +23,7 @@ tree = """
   Cmavo "la",
   Gismu "bródo",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"brodo","kind":"gismu"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[21,23]}}},{"Bare":{"Gismu":{"phonemes":"brodo","span":[24,29]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -36,4 +36,4 @@ Term {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[21,23],"phonemes":"la","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[24,29],"phonemes":"brodo","kind":"gismu"}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[21,23]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"brodo","span":[24,29]}}}}}}}}]}}}}]}]}'

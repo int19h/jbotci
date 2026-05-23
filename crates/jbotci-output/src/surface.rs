@@ -1,5 +1,5 @@
 use bityzba::{data, invariant, requires};
-use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
+use jbotci_morphology::{Phonemes, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
 
@@ -79,10 +79,7 @@ fn flatten_word_like_surface(word_like: &WordLike, source: &str) -> Vec<SurfaceC
         }) => vec![
             SurfaceChunk::Word(render_word(zoi)),
             SurfaceChunk::Word(render_word_without_pause(opening_delimiter)),
-            SurfaceChunk::QuotedText(drop_leading_zoi_separator(source_slice(
-                source,
-                quoted_text,
-            ))),
+            SurfaceChunk::QuotedText(drop_leading_zoi_separator(quoted_text.text.clone())),
             SurfaceChunk::Word(render_word_without_pause(closing_delimiter)),
         ],
         data!(WordLike::LohuQuote {
@@ -99,7 +96,7 @@ fn flatten_word_like_surface(word_like: &WordLike, source: &str) -> Vec<SurfaceC
             quoted_text,
         }) => vec![
             SurfaceChunk::Word(render_word(marker)),
-            SurfaceChunk::QuotedText(source_slice(source, quoted_text)),
+            SurfaceChunk::QuotedText(quoted_text.text.clone()),
         ],
         data!(WordLike::Letter { base, bu }) => {
             let mut chunks = flatten_word_like_surface(base, source);
@@ -192,12 +189,13 @@ fn render_word(word: &Word) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn render_word_without_pause(word: &Word) -> String {
-    render_word_phonemes_without_pause(word.kind, &word.phonemes)
+    render_word_phonemes_without_pause(word.kind(), &word.phonemes())
 }
 
-#[requires(!phonemes.is_empty())]
+#[requires(!phonemes.as_str().is_empty())]
 #[ensures(true)]
-pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &str) -> String {
+pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &Phonemes) -> String {
+    let phonemes = phonemes.as_str();
     match kind {
         WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(phonemes)),
         WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(phonemes),
@@ -207,17 +205,18 @@ pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &str)
 #[requires(true)]
 #[ensures(true)]
 fn render_visible_word_surface(word: &Word) -> String {
-    let mut rendered = match word.kind {
+    let phonemes = word.phonemes();
+    let mut rendered = match word.kind() {
         WordKind::Cmavo => {
-            mark_falling_diphthong_glides(&strip_stress_accents(&add_diacritics(&word.phonemes)))
+            mark_falling_diphthong_glides(&strip_stress_accents(&add_diacritics(phonemes.as_str())))
         }
-        WordKind::Cmevla => strip_stress_accents(&add_diacritics(&word.phonemes)),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(&word.phonemes),
+        WordKind::Cmevla => strip_stress_accents(&add_diacritics(phonemes.as_str())),
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(phonemes.as_str()),
     };
     if needs_leading_pause(word) {
         rendered.insert(0, '.');
     }
-    if word.kind == WordKind::Cmevla {
+    if word.kind() == WordKind::Cmevla {
         rendered.push('.');
     }
     rendered
@@ -226,8 +225,8 @@ fn render_visible_word_surface(word: &Word) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn needs_leading_pause(word: &Word) -> bool {
-    word.kind == WordKind::Cmevla
-        || strip_diacritics(&word.phonemes)
+    word.kind() == WordKind::Cmevla
+        || strip_diacritics(word.phonemes().as_str())
             .chars()
             .next()
             .is_some_and(|ch| matches!(ch, 'a' | 'e' | 'i' | 'o' | 'u'))

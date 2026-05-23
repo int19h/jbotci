@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
+use jbotci_morphology::{Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{
@@ -709,12 +709,14 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
         else {
             panic!("morphology tree walker exited a node without entering it");
         };
-        self.push_value(word_node_value(constructor, &entries).unwrap_or_else(|| {
-            TreeValue::Node(TreeNode {
-                constructor,
-                entries,
-            })
-        }));
+        self.push_value(
+            morphology_node_value(constructor, &entries).unwrap_or_else(|| {
+                TreeValue::Node(TreeNode {
+                    constructor,
+                    entries,
+                })
+            }),
+        );
     }
 
     #[requires(true)]
@@ -758,12 +760,7 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
                 }
             }
         } else {
-            let value = if name == Some("quoted_text") && values.len() == 1 {
-                quoted_text_value(
-                    values.into_iter().next().expect("length checked"),
-                    self.source,
-                )
-            } else if values.len() == 1 {
+            let value = if values.len() == 1 {
                 values.into_iter().next().expect("length checked")
             } else {
                 TreeValue::Collection(values)
@@ -776,7 +773,9 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            jbotci_morphology::AtomRef::WordKind(kind) => word_kind_value(kind),
+            jbotci_morphology::AtomRef::Phonemes(phonemes) => {
+                TreeValue::Text(phonemes.as_str().to_owned())
+            }
             jbotci_morphology::AtomRef::String(text) => TreeValue::Text(text.clone()),
             jbotci_morphology::AtomRef::SourceSpan(span) => source_span_value(span),
         });
@@ -785,81 +784,98 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
 
 #[requires(true)]
 #[ensures(true)]
+fn morphology_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Option<TreeValue> {
+    word_node_value(constructor, entries)
+        .or_else(|| jvopau_node_value(constructor, entries))
+        .or_else(|| verbatim_node_value(constructor, entries))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn word_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Option<TreeValue> {
-    if constructor != "Word" {
-        return None;
-    }
-    let mut kind = None;
-    let mut phonemes = None;
-    for entry in entries {
-        match (entry.label, &entry.value) {
-            (Some("kind"), TreeValue::Text(text)) => kind = Some(text.as_str()),
-            (Some("phonemes"), TreeValue::Text(text)) => phonemes = Some(text.as_str()),
-            _ => {}
-        }
-    }
-    let kind = word_kind_constructor(kind?)?;
-    let phonemes =
-        surface::render_word_phonemes_without_pause(word_kind_from_constructor(kind), phonemes?);
+    let kind = word_kind_from_constructor(constructor)?;
+    let phonemes = if kind == WordKind::Lujvo {
+        lujvo_phonemes_from_entries(entries)?
+    } else {
+        phonemes_from_labelled_entries(entries)?
+    };
+    let rendered = surface::render_word_phonemes_without_pause(kind, &phonemes);
     Some(TreeValue::Word {
-        constructor: kind,
-        phonemes,
+        constructor,
+        phonemes: rendered,
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word_kind_constructor(kind: &str) -> Option<&'static str> {
-    match kind {
-        "cmavo" => Some("Cmavo"),
-        "gismu" => Some("Gismu"),
-        "lujvo" => Some("Lujvo"),
-        "fu'ivla" => Some("Fuhivla"),
-        "cmevla" => Some("Cmevla"),
-        _ => None,
+fn jvopau_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Option<TreeValue> {
+    if !matches!(constructor, "Rafsi" | "Hyphen") {
+        return None;
     }
+    Some(TreeValue::Text(
+        phonemes_from_labelled_entries(entries)?.into_string(),
+    ))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word_kind_from_constructor(constructor: &str) -> WordKind {
-    match constructor {
+fn verbatim_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Option<TreeValue> {
+    if constructor != "Verbatim" {
+        return None;
+    }
+    for entry in entries {
+        match (entry.label, &entry.value) {
+            (Some("text"), TreeValue::Text(text)) => {
+                return Some(TreeValue::Verbatim(text.trim().to_owned()));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn phonemes_from_labelled_entries(entries: &[TreeEntry]) -> Option<Phonemes> {
+    for entry in entries {
+        if let (Some("phonemes") | None, TreeValue::Text(text)) = (entry.label, &entry.value) {
+            return Phonemes::from_canonical(text.clone()).ok();
+        }
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_phonemes_from_entries(entries: &[TreeEntry]) -> Option<Phonemes> {
+    let mut text = String::new();
+    for entry in entries {
+        match &entry.value {
+            TreeValue::Text(part) => text.push_str(part),
+            TreeValue::Collection(parts) => {
+                for part in parts {
+                    if let TreeValue::Text(part) = part {
+                        text.push_str(part);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Phonemes::from_canonical(text).ok()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_kind_from_constructor(constructor: &str) -> Option<WordKind> {
+    Some(match constructor {
         "Cmavo" => WordKind::Cmavo,
         "Gismu" => WordKind::Gismu,
         "Lujvo" => WordKind::Lujvo,
         "Fuhivla" => WordKind::Fuhivla,
         "Cmevla" => WordKind::Cmevla,
-        _ => unreachable!("word kind constructor was produced locally"),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn quoted_text_value(value: TreeValue, source: &str) -> TreeValue {
-    match value {
-        TreeValue::Span {
-            byte_start,
-            byte_end,
-            ..
-        } => TreeValue::Verbatim(
-            source
-                .get(byte_start..byte_end)
-                .unwrap_or_default()
-                .trim()
-                .to_owned(),
-        ),
-        TreeValue::Node(..)
-        | TreeValue::Collection(..)
-        | TreeValue::Word { .. }
-        | TreeValue::Verbatim(..)
-        | TreeValue::Text(..) => value,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn word_kind_value(kind: &WordKind) -> TreeValue {
-    TreeValue::Text(kind.to_string())
+        _ => return None,
+    })
 }
 
 #[requires(span.char_start <= span.char_end)]

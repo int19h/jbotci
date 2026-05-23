@@ -8,11 +8,11 @@ entry-id = "19839"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "elrond", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "elrond" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "elrond", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "elrond" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = ".elrond."
@@ -20,7 +20,7 @@ tree = """
 [
   Cmevla "elrond",
 ]"""
-json = '[{"Bare":{"span":[4,10],"phonemes":"elrond","kind":"cmevla"}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"elrond","span":[4,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -29,4 +29,4 @@ Text {
     Cmevla "elrond",
   ],
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[4,10],"phonemes":"elrond","kind":"cmevla"}}}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"elrond","span":[4,10]}}}}]}'

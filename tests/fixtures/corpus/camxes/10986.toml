@@ -8,7 +8,7 @@ entry-id = "10986"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -20,4 +20,4 @@ tree = """
 [
   Cmavo "za'i",
 ]"""
-json = """[{"Bare":{"span":[7,11],"phonemes":"za'i","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"za'i","span":[7,11]}}}]"""

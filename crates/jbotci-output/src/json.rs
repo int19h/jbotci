@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
+use jbotci_morphology::{TreeNode as MorphologyTreeNode, Word, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{
@@ -173,7 +173,9 @@ impl<'tree> TreeVisitor<'tree> for MorphologyJsonBuilder {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            jbotci_morphology::AtomRef::WordKind(kind) => word_kind_value(kind),
+            jbotci_morphology::AtomRef::Phonemes(phonemes) => {
+                Value::String(phonemes.as_str().to_owned())
+            }
             jbotci_morphology::AtomRef::String(text) => Value::String(text.clone()),
             jbotci_morphology::AtomRef::SourceSpan(span) => span_value(span),
         });
@@ -502,12 +504,6 @@ fn with_indicators_value(word: &WithIndicators<WordLike>) -> Value {
             constructor_value("WithIndicator", Value::Object(payload))
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn word_kind_value(kind: &WordKind) -> Value {
-    Value::String(kind.to_string())
 }
 
 #[requires(span.char_start <= span.char_end)]

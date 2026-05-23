@@ -8,7 +8,7 @@ entry-id = "7497"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "verse", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "order", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "verse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "order" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Gismu "vérse",
   Cmevla "order",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,7],"phonemes":"verse","kind":"gismu"}},{"Bare":{"span":[8,13],"phonemes":"order","kind":"cmevla"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"verse","span":[2,7]}}},{"Bare":{"Cmevla":{"phonemes":"order","span":[8,13]}}}]'

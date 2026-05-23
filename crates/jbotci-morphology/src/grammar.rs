@@ -1,12 +1,12 @@
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, canonical_text_eq,
-    canonical_text_is_all, canonicalize_text, visible_selmaho,
+    MorphologyError, MorphologyOptions, Phonemes, Verbatim, Word, WordKind, WordLike, WordLikeData,
+    canonical_text_eq, canonical_text_is_all, canonicalize_text, visible_selmaho,
 };
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
@@ -303,7 +303,7 @@ impl<'a> Segmenter<'a> {
         let opening_delimiter = into_bare_word(opening_word_with_modifiers).ok_or_else(|| {
             self.invalid_at(self.index, "", "ZOI delimiter must be a single word")
         })?;
-        if is_y_word_text(&opening_delimiter.phonemes) {
+        if is_y_word_text(opening_delimiter.phonemes().as_str()) {
             self.index = after_marker;
             return Ok(vec![zoi_word_with_modifiers]);
         }
@@ -318,7 +318,7 @@ impl<'a> Segmenter<'a> {
         else {
             return Err(MorphologyError::UnterminatedZoiQuote {
                 char_offset: quoted_start,
-                delimiter: opening_delimiter.phonemes.clone(),
+                delimiter: opening_delimiter.phonemes().into_string(),
             });
         };
         self.index = close_start;
@@ -329,7 +329,7 @@ impl<'a> Segmenter<'a> {
         Ok(vec![base_word_like(WordLike::zoi_quote(
             zoi,
             opening_delimiter,
-            self.source_span(quoted_start, quoted_end)?,
+            self.verbatim(quoted_start, quoted_end)?,
             closing_delimiter,
         ))])
     }
@@ -354,7 +354,7 @@ impl<'a> Segmenter<'a> {
         })?;
         Ok(vec![base_word_like(WordLike::single_word_quote(
             marker,
-            self.source_span(start, end)?,
+            self.verbatim(start, end)?,
         ))])
     }
 
@@ -540,7 +540,7 @@ impl<'a> Segmenter<'a> {
         &mut self,
         opening_delimiter: &Word,
     ) -> Result<Option<(usize, Word, usize)>, MorphologyError> {
-        let opening_delimiter_canonical = canonicalize_text(&opening_delimiter.phonemes);
+        let opening_delimiter_canonical = canonicalize_text(opening_delimiter.phonemes().as_str());
         let mut cursor = self.index;
         while cursor < self.chars.len() {
             let pause_start = cursor;
@@ -557,7 +557,10 @@ impl<'a> Segmenter<'a> {
                 self.index = saved;
                 if let Ok(word_with_modifiers) = maybe_word
                     && let Some(closing_word) = extract_word(&word_with_modifiers)
-                    && canonical_text_eq(&closing_word.phonemes, &opening_delimiter_canonical)
+                    && canonical_text_eq(
+                        closing_word.phonemes().as_str(),
+                        &opening_delimiter_canonical,
+                    )
                 {
                     return Ok(Some((
                         trim_trailing_separator_indices(&self.chars, self.index, pause_start),
@@ -777,11 +780,17 @@ impl<'a> Segmenter<'a> {
         phonemes: String,
     ) -> Result<WordLike, MorphologyError> {
         let span = self.source_span(start, end)?;
-        Ok(base_word_like(WordLike::bare(new!(Word {
-            kind: kind,
-            phonemes: phonemes,
-            span: span,
-        }))))
+        let phonemes = Phonemes::from_canonical(phonemes)
+            .map_err(|error| self.invalid_at(start, self.slice(start, end), &error))?;
+        let word = if kind == WordKind::Lujvo {
+            let parts = crate::segment::parse_lujvo_parts(phonemes.as_str()).ok_or_else(|| {
+                self.invalid_at(start, self.slice(start, end), "invalid lujvo decomposition")
+            })?;
+            Word::lujvo(parts, span)
+        } else {
+            Word::from_kind(kind, phonemes, span)
+        };
+        Ok(base_word_like(WordLike::bare(word)))
     }
 
     #[requires(true)]
@@ -875,6 +884,15 @@ impl<'a> Segmenter<'a> {
             end,
         )
         .map_err(MorphologyError::SourceSpan)
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|verbatim| verbatim.span.char_start == start && verbatim.span.char_end == end))]
+    fn verbatim(&self, start: usize, end: usize) -> Result<Verbatim, MorphologyError> {
+        Ok(Verbatim::new(
+            self.source_span(start, end)?,
+            self.slice(start, end).to_owned(),
+        ))
     }
 
     #[requires(start <= end && end <= self.chars.len())]
@@ -1018,8 +1036,9 @@ fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_y_word(word: &WordLike) -> bool {
-    bare_word_ref(word)
-        .is_some_and(|word| word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes))
+    bare_word_ref(word).is_some_and(|word| {
+        word.kind() == WordKind::Cmavo && is_y_word_text(word.phonemes().as_str())
+    })
 }
 
 #[requires(true)]
@@ -1081,7 +1100,7 @@ fn su_boundary_index(acc: &[WordLike]) -> usize {
 #[ensures(true)]
 fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<SAMatchTag<'a>> {
     match bare_word_ref(word) {
-        Some(word) => match word.kind {
+        Some(word) => match word.kind() {
             WordKind::Cmavo => word.selmaho().map(SAMatchTag::Selmaho),
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
@@ -1310,8 +1329,8 @@ mod tests {
         let data!(WordLike::ZoQuote { zo, word }) = words[0].as_data() else {
             panic!("expected ZO quote");
         };
-        assert_eq!(zo.phonemes, "zo");
-        assert_eq!(word.phonemes, "si");
+        assert_eq!(zo.phonemes().as_str(), "zo");
+        assert_eq!(word.phonemes().as_str(), "si");
     }
 
     #[test]
@@ -1332,15 +1351,15 @@ mod tests {
         else {
             panic!("expected ZOI quote");
         };
-        assert_eq!(zoi.phonemes, "zoĭ");
-        assert_eq!(opening_delimiter.phonemes, "gy");
-        assert_eq!(opening_delimiter.span.byte_start, 4);
-        assert_eq!(opening_delimiter.span.byte_end, 6);
-        assert_eq!(quoted_text.byte_start, 6);
-        assert_eq!(quoted_text.byte_end, 12);
-        assert_eq!(closing_delimiter.phonemes, "gy");
-        assert_eq!(closing_delimiter.span.byte_start, 13);
-        assert_eq!(closing_delimiter.span.byte_end, 15);
+        assert_eq!(zoi.phonemes().as_str(), "zoĭ");
+        assert_eq!(opening_delimiter.phonemes().as_str(), "gy");
+        assert_eq!(opening_delimiter.span().byte_start, 4);
+        assert_eq!(opening_delimiter.span().byte_end, 6);
+        assert_eq!(quoted_text.span.byte_start, 6);
+        assert_eq!(quoted_text.span.byte_end, 12);
+        assert_eq!(closing_delimiter.phonemes().as_str(), "gy");
+        assert_eq!(closing_delimiter.span().byte_start, 13);
+        assert_eq!(closing_delimiter.span().byte_end, 15);
     }
 
     #[test]
@@ -1356,17 +1375,17 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bare_phonemes(words: &[WordLike]) -> Vec<&str> {
+    fn bare_phonemes(words: &[WordLike]) -> Vec<String> {
         words
             .iter()
-            .map(|word| bare_word(word).expect("bare word").phonemes.as_str())
+            .map(|word| bare_word(word).expect("bare word").phonemes().into_string())
             .collect()
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn bare_span(word: &WordLike) -> Option<&SourceSpan> {
-        bare_word(word).map(|word| &word.span)
+        bare_word(word).map(Word::span)
     }
 
     #[requires(true)]

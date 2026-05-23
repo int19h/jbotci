@@ -885,8 +885,8 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&output).expect("valid uncolored JSON");
 
-        assert_eq!(value[0]["Bare"]["kind"], "cmavo");
-        assert_eq!(value[0]["Bare"]["span"], serde_json::json!([0, 3]));
+        assert_eq!(value[0]["Bare"]["Cmavo"]["phonemes"], "coĭ");
+        assert_eq!(value[0]["Bare"]["Cmavo"]["span"], serde_json::json!([0, 3]));
         assert!(
             String::from_utf8(output)
                 .expect("utf8")
@@ -909,7 +909,8 @@ mod tests {
         assert!(output.starts_with("[\n"));
         assert!(output.contains("WordLike("));
         assert!(output.contains("Bare("));
-        assert!(output.contains("kind: Cmavo"));
+        assert!(output.contains("Cmavo"));
+        assert!(output.contains("Phonemes"));
     }
 
     #[test]
@@ -929,7 +930,8 @@ mod tests {
         assert!(!output.trim_end().contains('\n'));
         assert!(output.starts_with("[WordLike("));
         assert!(output.contains("Bare("));
-        assert!(output.contains("kind: Cmavo"));
+        assert!(output.contains("Cmavo"));
+        assert!(output.contains("Phonemes"));
     }
 
     #[test]

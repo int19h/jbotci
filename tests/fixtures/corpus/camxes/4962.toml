@@ -8,11 +8,11 @@ entry-id = "4962"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ĭe" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ĭe" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = ".ĭe"
@@ -20,7 +20,7 @@ tree = """
 [
   Cmavo "ĭe",
 ]"""
-json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"ĭe","span":[1,3]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -31,4 +31,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}}}}]}'
+json = '{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ĭe","span":[1,3]}}}}}]}'

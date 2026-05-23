@@ -8,11 +8,11 @@ entry-id = "7054"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: None }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
 brackets = ".i"
@@ -20,11 +20,11 @@ tree = """
 [
   Cmavo "i",
 ]"""
-json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
   i: Cmavo "i",
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}]}]}'

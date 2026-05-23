@@ -3,7 +3,6 @@ use bityzba::data;
 use bityzba::ensures;
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Word, WordLike, WordLikeData};
-use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, WithIndicators};
 use jbotci_tree::TreeVisitor;
@@ -2353,7 +2352,7 @@ fn word_like_brackets(word_like: &WordLike, source: &str) -> sexpr::SExpr {
         }) => sexpr::node(vec![
             word_leaf(zoi, source),
             word_leaf(opening_delimiter, source),
-            quoted_text_leaf(quoted_text, source),
+            quoted_text_leaf(quoted_text),
             word_leaf(closing_delimiter, source),
         ]),
         data!(WordLike::LohuQuote {
@@ -2371,7 +2370,7 @@ fn word_like_brackets(word_like: &WordLike, source: &str) -> sexpr::SExpr {
             quoted_text,
         }) => sexpr::node(vec![
             word_leaf(marker, source),
-            quoted_text_leaf(quoted_text, source),
+            quoted_text_leaf(quoted_text),
         ]),
         data!(WordLike::Letter { base, bu }) => sexpr::node(vec![
             word_like_brackets(base, source),
@@ -2394,16 +2393,10 @@ fn word_leaf(word: &Word, source: &str) -> sexpr::SExpr {
     ))
 }
 
-#[requires(span.byte_start <= span.byte_end)]
+#[requires(true)]
 #[ensures(true)]
-fn quoted_text_leaf(span: &SourceSpan, source: &str) -> sexpr::SExpr {
-    sexpr::leaf(
-        source
-            .get(span.byte_start..span.byte_end)
-            .unwrap_or_default()
-            .trim()
-            .to_owned(),
-    )
+fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
+    sexpr::leaf(verbatim.text.trim().to_owned())
 }
 
 #[requires(true)]

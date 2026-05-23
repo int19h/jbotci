@@ -8,11 +8,11 @@ entry-id = "5490"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), word: Word(WordData { kind: Gismu, phonemes: "natmi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }) })]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "natmi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }) })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), word: Word(WordData { kind: Gismu, phonemes: "natmi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "natmi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(.e'u [zo nátmi])"
@@ -24,7 +24,7 @@ tree = """
     Gismu "nátmi",
   },
 ]"""
-json = """[{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"natmi","kind":"gismu"}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"e'u","span":[1,4]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Gismu":{"phonemes":"natmi","span":[8,13]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -43,4 +43,4 @@ Text {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"natmi","kind":"gismu"}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"e'u","kind":"cmavo"}}}}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Gismu":{"phonemes":"natmi","span":[8,13]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"e'u","span":[1,4]}}}}}]}"""

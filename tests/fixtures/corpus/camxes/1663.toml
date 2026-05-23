@@ -8,11 +8,11 @@ entry-id = "1663"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "gi'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Gihek(PredicateTail { se: None, nahe: None, na: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))), cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }))) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Gihek(PredicateTail { se: None, nahe: None, na: Some(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))), cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "gi'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }))) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(na gi'e naĭ)"
@@ -22,7 +22,7 @@ tree = """
   Cmavo "gi'e",
   Cmavo "naĭ",
 ]"""
-json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[2,6]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -31,4 +31,4 @@ PredicateTail {
   Cmavo "gi'e",
   nai: Cmavo "naĭ",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"na":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[2,6],"phonemes":"gi'e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[2,6]}}}}],"nai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}}}}}}}]}]}"""

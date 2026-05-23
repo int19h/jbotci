@@ -99,7 +99,8 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
-    left.kind == right.kind && strip_diacritics(&left.phonemes) == strip_diacritics(&right.phonemes)
+    left.kind() == right.kind()
+        && strip_diacritics(left.phonemes().as_str()) == strip_diacritics(right.phonemes().as_str())
 }
 
 #[ensures(!ret.is_empty() || text.is_empty())]

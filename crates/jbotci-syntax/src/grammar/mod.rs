@@ -132,7 +132,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
 #[requires(true)]
 #[ensures(true)]
 fn word_anchor_byte_start(word: &WithIndicators<WordLike>) -> Option<usize> {
-    word.visible_word().map(|word| word.span.byte_start)
+    word.visible_word().map(|word| word.span().byte_start)
 }
 
 #[requires(true)]
@@ -293,8 +293,8 @@ fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_word(word: &Word) -> bool {
-    let text = canonicalize_text(&word.phonemes);
-    word.kind == WordKind::Cmavo
+    let text = canonicalize_text(word.phonemes().as_str());
+    word.kind() == WordKind::Cmavo
         && (tokens::UI_WORDS.contains(&text.as_str())
             || tokens::CAI_WORDS.contains(&text.as_str())
             || text == "y")

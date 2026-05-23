@@ -8,11 +8,11 @@ entry-id = "20437"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "to" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "toĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "to" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "toĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(to toĭ)"
@@ -21,7 +21,7 @@ tree = """
   Cmavo "to",
   Cmavo "toĭ",
 ]"""
-json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"toĭ","kind":"cmavo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[6,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -34,4 +34,4 @@ Text {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"To":{"to":{"Bare":{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}}},"text":{},"toi":{"Bare":{"Bare":{"span":[6,9],"phonemes":"toĭ","kind":"cmavo"}}}}}]}'
+json = '{"leading_free_modifiers":[{"To":{"to":{"Bare":{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{},"toi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[6,9]}}}}}}]}'

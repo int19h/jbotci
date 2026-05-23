@@ -8,7 +8,7 @@ entry-id = "9603"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "is", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "restrictive", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 18, char_start: 7, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "poĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "is" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "res" })), Rafsi(Phonemes(PhonemesData { text: "tri" })), Rafsi(Phonemes(PhonemesData { text: "ctive" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 18, char_start: 7, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmevla "is",
   Lujvo "restrictíve",
 ]"""
-json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"is","kind":"cmevla"}},{"Bare":{"span":[7,18],"phonemes":"restrictive","kind":"lujvo"}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[4,6]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"res"},{"Rafsi":"tri"},{"Rafsi":"ctive"}],"span":[7,18]}}}]'

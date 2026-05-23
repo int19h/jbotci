@@ -8,7 +8,7 @@ entry-id = "16979"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "snofarlu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "eden", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "gi'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sno" })), Rafsi(Phonemes(PhonemesData { text: "farlu" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "eden" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo "la",
   Cmevla "eden",
 ]"""
-json = """[{"Bare":{"span":[0,4],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"snofarlu","kind":"lujvo"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"eden","kind":"cmevla"}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[0,4]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sno"},{"Rafsi":"farlu"}],"span":[5,13]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[14,16]}}},{"Bare":{"Cmevla":{"phonemes":"eden","span":[18,22]}}}]"""
