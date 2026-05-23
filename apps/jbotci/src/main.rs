@@ -33,6 +33,14 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 #[invariant(true)]
+#[invariant(::Vlasei(..) => true)]
+#[invariant(::Gentufa(..) => true)]
+#[invariant(::Mulgau(..) => true)]
+#[invariant(::Tersmu(..) => true)]
+#[invariant(::Vlacku(..) => true)]
+#[invariant(::Jvozba(..) => true)]
+#[invariant(::Cukta(..) => true)]
+#[invariant(::Zbasu(..) => true)]
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
     Vlasei(VlaseiInput),

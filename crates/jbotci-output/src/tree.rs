@@ -14,6 +14,8 @@ use crate::{OutputError, TreeRenderOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Primary(..) => true)]
+#[invariant(::Labelled(..) => true)]
 enum RenderEntry {
     Primary(TreeValue),
     Labelled(&'static str, TreeValue),
@@ -35,6 +37,12 @@ struct TreeNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Node(..) => true)]
+#[invariant(::Collection(..) => true)]
+#[invariant(::Word => true)]
+#[invariant(::Verbatim => true)]
+#[invariant(::Text(..) => true)]
+#[invariant(::Span => true)]
 enum TreeValue {
     Node(TreeNode),
     Collection(Vec<TreeValue>),
@@ -176,6 +184,9 @@ fn syntax_tree_value(tree: &TextSyntax, source: &str, options: TreeRenderOptions
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Node => true)]
+#[invariant(::Field => true)]
+#[invariant(::Collection => true)]
 enum SyntaxFrame {
     Node {
         constructor: &'static str,
@@ -724,6 +735,8 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Node => true)]
+#[invariant(::Field => true)]
 enum MorphologyFrame {
     Node {
         constructor: &'static str,

@@ -67,6 +67,7 @@ impl Default for OutputFormat {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Json(..) => true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,

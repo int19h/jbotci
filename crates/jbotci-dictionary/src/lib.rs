@@ -405,6 +405,7 @@ pub struct OwnedSelmahoIndexEntry {
 /// Validation error for generated dictionary tables.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::InvalidEntry => true)]
 pub enum DictionaryValidationError {
     #[error("invalid dictionary entry at index {index}: {reason}")]
     InvalidEntry { index: usize, reason: &'static str },

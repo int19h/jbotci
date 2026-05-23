@@ -4,6 +4,8 @@ use crate::BracketRenderOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Leaf(..) => true)]
+#[invariant(::Node(..) => true)]
 pub(crate) enum SExpr {
     Leaf(String),
     Node(Vec<SExpr>),

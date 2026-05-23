@@ -214,6 +214,11 @@ impl TestCase {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 #[invariant(true)]
+#[invariant(::Cll => true)]
+#[invariant(::Muplis => true)]
+#[invariant(::Corpus => true)]
+#[invariant(::Adhoc => true)]
+#[invariant(::Other => true)]
 pub enum Provenance {
     Cll {
         chapter: u16,
@@ -427,6 +432,11 @@ pub struct ParseErrorExpectation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 #[invariant(true)]
+#[invariant(::Cmavo => true)]
+#[invariant(::CmavoOf => true)]
+#[invariant(::SingleWordQuote => true)]
+#[invariant(::Negative => true)]
+#[invariant(::Other => true)]
 pub enum AllowedNextExpectation {
     Cmavo {
         text: String,
@@ -643,6 +653,17 @@ pub struct LoadedTestCase {
 
 #[derive(Debug, Error)]
 #[invariant(true)]
+#[invariant(::Read => true)]
+#[invariant(::Write => true)]
+#[invariant(::ParseToml => true)]
+#[invariant(::EncodeToml => true)]
+#[invariant(::ParseJson => true)]
+#[invariant(::Walk => true)]
+#[invariant(::DuplicateId => true)]
+#[invariant(::UnknownFacet => true)]
+#[invariant(::InvalidDialect => true)]
+#[invariant(::InvalidXfail => true)]
+#[invariant(::LegacyExpectationFormat => true)]
 pub enum FixtureError {
     #[error("failed to read `{path}`: {source}")]
     Read {

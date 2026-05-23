@@ -20,6 +20,9 @@ struct JsonEntry {
 
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
+#[invariant(::Node => true)]
+#[invariant(::Field => true)]
+#[invariant(::Sequence => true)]
 enum JsonFrame<N> {
     Node {
         node: N,

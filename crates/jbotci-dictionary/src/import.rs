@@ -63,6 +63,8 @@ pub struct ImportedDictionaryUser {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 #[invariant(true)]
+#[invariant(::Text(..) => true)]
+#[invariant(::List(..) => true)]
 enum RafsiField {
     Text(String),
     List(Vec<String>),
@@ -71,6 +73,7 @@ enum RafsiField {
 /// Lensisku import error.
 #[derive(Debug, Error)]
 #[invariant(true)]
+#[invariant(::Json(..) => true)]
 pub enum LensiskuImportError {
     #[error("failed to parse Lensisku dictionary JSON: {0}")]
     Json(#[from] serde_json::Error),

@@ -5,16 +5,19 @@ use jbotci_morphology::Jvopau;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[invariant(!sources.is_empty())]
+#[invariant(!parts.is_empty())]
+#[invariant(!output.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct LujvoPlan {
     pub sources: Vec<LujvoSource>,
     pub parts: Vec<Jvopau>,
     pub output: String,
 }
 
+#[invariant(!word.is_empty())]
+#[invariant(fixed_rafsi.as_ref().is_none_or(|rafsi| !rafsi.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct LujvoSource {
     pub word: String,
     pub fixed_rafsi: Option<String>,

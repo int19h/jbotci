@@ -4,6 +4,9 @@ use jbotci_syntax::WithIndicators;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Word(..) => true)]
+#[invariant(::QuotedWords(..) => true)]
+#[invariant(::QuotedText(..) => true)]
 enum SurfaceChunk {
     Word(String),
     QuotedWords(Vec<String>),

@@ -4,16 +4,17 @@ use bityzba::{contract_trait, invariant, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[invariant(!model.is_empty())]
+#[invariant(*dimensions == values.len())]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct Embedding {
     pub model: String,
     pub dimensions: usize,
     pub values: Vec<f32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchHit<T> {
     pub item: T,
     pub score: f32,
@@ -28,6 +29,7 @@ pub trait VectorSearchIndex<T> {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::DimensionMismatch => true)]
 pub enum SearchError {
     #[error("semantic search is not implemented yet")]
     NotImplemented,

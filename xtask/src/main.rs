@@ -45,6 +45,14 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 #[invariant(true)]
+#[invariant(::Fmt => true)]
+#[invariant(::FixtureCheck => true)]
+#[invariant(::FixtureImport(..) => true)]
+#[invariant(::FixtureList(..) => true)]
+#[invariant(::FixtureRewrite(..) => true)]
+#[invariant(::FixtureVectorStats(..) => true)]
+#[invariant(::FixtureTest(..) => true)]
+#[invariant(::VendorDictionary(..) => true)]
 enum Command {
     Check,
     Test,
