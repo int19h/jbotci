@@ -1,14 +1,12 @@
 use crate::WithIndicators;
 use bityzba::{data, invariant, new, requires};
-use jbotci_morphology::WordLike;
+use jbotci_morphology::{Cmavo, Selmaho, WordLike};
 
 use super::ast::{
     CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, FihoModalSyntax,
     FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax, SpaceTenseSyntax,
     TenseModalSyntax, TenseModalSyntaxData, TimeTenseSyntax, WithFreeModifiers,
 };
-use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmavo_text_matches};
-
 #[requires(true)]
 #[ensures(true)]
 fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
@@ -87,12 +85,6 @@ pub(super) fn connective_tense_modal_from_leaves(
     new!(TenseModalSyntax::Composite {
         parts: WithFreeModifiers::new(parts_from_leaves(leaves), Vec::new()),
     })
-}
-
-#[requires(!texts.is_empty())]
-#[ensures(ret == texts.iter().any(|text| cmavo_text_matches(word, text)))]
-fn cmavo_matches_any(word: &WithIndicators<WordLike>, texts: &[&str]) -> bool {
-    texts.iter().any(|text| cmavo_text_matches(word, text))
 }
 
 impl TenseModalSyntax {
@@ -234,45 +226,39 @@ fn classify_composite_leaf(
     leaf: &WithIndicators<WordLike>,
     classification: &mut CompositeTenseModalClassification,
 ) {
-    if cmavo_text_matches(leaf, "ki") {
+    if leaf.is_cmavo(Cmavo::Ki) {
         classification.ki = Some(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["cu'e", "nau"]) {
+    } else if leaf.is_selmaho(Selmaho::Cuhe) {
         classification.cuhe = Some(leaf.clone());
-    } else if cmavo_matches_any(leaf, CAHA_WORDS) {
+    } else if leaf.is_selmaho(Selmaho::Caha) {
         classification.caha = Some(leaf.clone());
-    } else if cmavo_matches_any(leaf, ZAHO_WORDS) {
+    } else if leaf.is_selmaho(Selmaho::Zaho) {
         classification.zaho.push(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["pu", "ca", "ba"]) {
+    } else if leaf.is_selmaho(Selmaho::Pu) {
         classification.time_direction.push(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["zi", "za", "zu"]) {
+    } else if leaf.is_selmaho(Selmaho::Zi) {
         classification.time_distance = Some(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["ze'i", "ze'a", "ze'u", "ze'e"]) {
+    } else if leaf.is_selmaho(Selmaho::Zeha) {
         classification.time_interval = Some(leaf.clone());
-    } else if cmavo_matches_any(
-        leaf,
-        &[
-            "be'a", "du'a", "vu'a", "ne'u", "ca'u", "ri'u", "zu'a", "ga'u", "ni'a", "ti'a", "ru'u",
-            "re'o", "te'e", "bu'u", "ne'a", "pa'o", "ne'i", "fa'a", "to'o", "zo'a", "zo'i", "ze'o",
-        ],
-    ) {
+    } else if leaf.is_selmaho(Selmaho::Faha) {
         classification.space_direction.push(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["vi", "va", "vu"]) {
+    } else if leaf.is_selmaho(Selmaho::Va) {
         classification.space_distance.push(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["ve'i", "ve'a", "ve'u", "ve'e"]) {
+    } else if leaf.is_selmaho(Selmaho::Veha) {
         classification.space_interval.push(leaf.clone());
-    } else if cmavo_matches_any(leaf, &["vi'i", "vi'a", "vi'u", "vi'e"]) {
+    } else if leaf.is_selmaho(Selmaho::Viha) {
         classification.space_dimensions.push(leaf.clone());
-    } else if cmavo_text_matches(leaf, "mo'i") {
+    } else if leaf.is_cmavo(Cmavo::Mohi) {
         classification.space_mohi = Some(leaf.clone());
-    } else if cmavo_text_matches(leaf, "fe'e") {
+    } else if leaf.is_cmavo(Cmavo::Fehe) {
         classification.space_fehe = Some(leaf.clone());
-    } else if cmavo_matches_any(leaf, BAI_WORDS) {
+    } else if leaf.is_selmaho(Selmaho::Bai) {
         classification.simple = Some(set_simple_bai(classification.simple.take(), leaf.clone()));
-    } else if cmavo_matches_any(leaf, &["na'e", "to'e", "no'e", "je'a"]) {
+    } else if leaf.is_selmaho(Selmaho::Nahe) {
         classification.simple = Some(set_simple_nahe(classification.simple.take(), leaf.clone()));
-    } else if cmavo_matches_any(leaf, &["se", "te", "ve", "xe"]) {
+    } else if leaf.is_selmaho(Selmaho::Se) {
         classification.simple = Some(set_simple_se(classification.simple.take(), leaf.clone()));
-    } else if cmavo_text_matches(leaf, "nai") {
+    } else if leaf.is_cmavo(Cmavo::Nai) {
         if let Some(existing_simple) = classification.simple.take() {
             let mut simple_data = existing_simple.into_data();
             simple_data.nai = Some(leaf.clone());
@@ -288,23 +274,17 @@ fn classify_composite_leaf(
         } else {
             classification.time_nai = Some(leaf.clone());
         }
-    } else if cmavo_matches_any(leaf, ROI_WORDS)
-        || cmavo_matches_any(leaf, &["di'i", "na'o", "ru'i", "ta'e"])
-    {
+    } else if leaf.is_selmaho(Selmaho::Roi) || leaf.is_selmaho(Selmaho::Tahe) {
         classification.interval = Some(new!(IntervalTenseSyntax {
             number: None,
             roi_or_tahe: leaf.clone(),
             nai: None,
         }));
-    } else if cmavo_matches_any(leaf, &["je'i", "ja", "je", "jo", "ju"])
-        || cmavo_matches_any(
-            leaf,
-            &[
-                "ce", "ce'o", "jo'u", "jo'e", "fa'u", "ku'a", "pi'u", "joi", "bi'i", "bi'o", "mi'i",
-            ],
-        )
-        || cmavo_matches_any(leaf, &["ga'o", "ke'i"])
-        || cmavo_matches_any(leaf, FA_WORDS)
+    } else if leaf.is_selmaho(Selmaho::Ja)
+        || leaf.is_selmaho(Selmaho::Joi)
+        || leaf.is_selmaho(Selmaho::Bihi)
+        || leaf.is_selmaho(Selmaho::Gaho)
+        || leaf.is_selmaho(Selmaho::Fa)
     {
         classification.connectives.push(leaf.clone());
     }

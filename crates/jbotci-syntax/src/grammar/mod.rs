@@ -10,7 +10,7 @@ use chumsky::inspector::Inspector;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_dialect::DialectFeature;
-use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, canonicalize_text};
+use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
     Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
@@ -299,11 +299,9 @@ fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_word(word: &Word) -> bool {
-    let text = canonicalize_text(word.phonemes().as_str());
-    word.kind() == WordKind::Cmavo
-        && (tokens::UI_WORDS.contains(&text.as_str())
-            || tokens::CAI_WORDS.contains(&text.as_str())
-            || text == "y")
+    word.cmavo().is_some_and(|cmavo| {
+        cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai) || cmavo == Cmavo::Y
+    })
 }
 
 #[requires(true)]
@@ -507,16 +505,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gates_zantufa_cmavo_table_entries() {
+    fn accepts_zantufa_cmavo_table_entries_with_warning() {
         run_on_large_stack(|| {
             let words = segment_words_with_modifiers("mi bo'ei do").expect("valid morphology");
 
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-CMAVO)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa cmavo syntax");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                .expect("valid Zantufa cmavo syntax");
 
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo

@@ -895,10 +895,15 @@ mod tests {
         };
         assert!(defs_input.definitions);
 
-        let Command::Gentufa(dialect_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--dialect", "(zantufa-cmavo)", "coi"])
-                .expect("dialect flag parses")
-                .command
+        let Command::Gentufa(dialect_input) = Cli::try_parse_from([
+            "jbotci",
+            "gentufa",
+            "--dialect",
+            "(zantufa-connectives)",
+            "coi",
+        ])
+        .expect("dialect flag parses")
+        .command
         else {
             panic!("expected gentufa command")
         };
@@ -907,7 +912,7 @@ mod tests {
                 .dialect_definition()
                 .expect("dialect definition")
                 .features
-                .contains(&DialectFeature::ZantufaCmavo)
+                .contains(&DialectFeature::ZantufaConnectives)
         );
     }
 
@@ -1385,16 +1390,18 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn warning_context_includes_verbatim_quote_text() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "zo'oi", "gleki"])
-            .expect("zo'oi warning parse");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "zo'oi", "gleki"])
+                .expect("zo'oi warning parse");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
 
-        let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("ZOhOI single-word foreign quote"));
-        assert!(stderr.contains("zo'oĭ-\"gleki\""));
-        assert!(!stderr.contains("<5 chars>"));
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("ZOhOI single-word foreign quote"));
+            assert!(stderr.contains("zo'oĭ-\"gleki\""));
+            assert!(!stderr.contains("<5 chars>"));
+        });
     }
 
     #[test]

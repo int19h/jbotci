@@ -40,7 +40,6 @@ pub enum DialectFeature {
     SoiAdverbials,
     TermHierarchy,
     ZantufaAdverbials,
-    ZantufaCmavo,
     ZantufaConnectives,
     ZantufaMex,
     ZantufaMorphology,
@@ -61,7 +60,6 @@ impl DialectFeature {
             Self::SoiAdverbials,
             Self::TermHierarchy,
             Self::ZantufaAdverbials,
-            Self::ZantufaCmavo,
             Self::ZantufaConnectives,
             Self::ZantufaMex,
             Self::ZantufaMorphology,
@@ -82,7 +80,6 @@ impl DialectFeature {
             Self::SoiAdverbials => "soi-adverbials",
             Self::TermHierarchy => "term-hierarchy",
             Self::ZantufaAdverbials => "zantufa-adverbials",
-            Self::ZantufaCmavo => "zantufa-cmavo",
             Self::ZantufaConnectives => "zantufa-connectives",
             Self::ZantufaMex => "zantufa-mex",
             Self::ZantufaMorphology => "zantufa-morphology",
@@ -541,7 +538,6 @@ fn lookup_builtin_dialect_reference_in_stack(
 #[requires(true)]
 fn builtin_reference_canonical_name(reference_name: &str) -> &str {
     match reference_name {
-        "zantufa-cmavo" => "zantufa/cmavo",
         "zantufa-connectives" => "zantufa/connectives",
         "zantufa-terms" => "zantufa/terms",
         "zantufa-tags" => "zantufa/tags",
@@ -563,7 +559,6 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
         ("soi-adverbials", "(+SOI-ADVERBIALS)"),
         ("term-hierarchy", "(+TERM-HIERARCHY)"),
-        ("zantufa/cmavo", "(+ZANTUFA-CMAVO)"),
         ("zantufa/connectives", "(+ZANTUFA-CONNECTIVES)"),
         ("zantufa/terms", "(+ZANTUFA-TERMS)"),
         ("zantufa/tags", "(+ZANTUFA-TAGS)"),
@@ -573,7 +568,7 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("zantufa/mex", "(+ZANTUFA-MEX)"),
         (
             "zantufa",
-            "(cbm soi-adverbials term-hierarchy zantufa/cmavo zantufa/connectives zantufa/terms zantufa/tags zantufa/adverbials zantufa/quotes zantufa/morphology)",
+            "(cbm soi-adverbials term-hierarchy zantufa/connectives zantufa/terms zantufa/tags zantufa/adverbials zantufa/quotes zantufa/morphology)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
@@ -1151,12 +1146,7 @@ mod tests {
                 .features
                 .contains(&DialectFeature::ZantufaMorphology)
         );
-        assert_eq!(
-            parse_dialect_definition("(zantufa-cmavo)")
-                .expect("dialect")
-                .features,
-            BTreeSet::from([DialectFeature::ZantufaCmavo])
-        );
+        assert!(parse_dialect_definition("(zantufa-cmavo)").is_err());
     }
 
     #[test]

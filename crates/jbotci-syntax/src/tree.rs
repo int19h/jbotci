@@ -7,8 +7,8 @@
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
-use jbotci_morphology::{Word, WordKind, WordLike};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
+use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike};
 use serde::{Deserialize, Serialize};
 use vec1::{Vec1, smallvec_v1::SmallVec1};
 
@@ -85,6 +85,30 @@ impl WithIndicators<WordLike> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn cmavo(&self) -> Option<Cmavo> {
+        self.visible_word().and_then(Word::cmavo)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.cmavo() == Some(cmavo)))]
+    pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.cmavo() == Some(cmavo)
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(ret == self.cmavo().is_some_and(|actual| cmavo.contains(&actual)))]
+    pub fn is_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.cmavo().is_some_and(|actual| cmavo.contains(&actual))
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo)))]
+    pub fn is_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn source_spans(&self) -> Vec<&jbotci_source::SourceSpan> {
         let mut spans = Vec::new();
         self.source_spans_into(&mut spans);
@@ -112,6 +136,89 @@ impl WithIndicators<WordLike> {
                 }
             }
         }
+    }
+}
+
+impl WithFreeModifiers<WithIndicators<WordLike>> {
+    #[requires(true)]
+    #[ensures(ret == self.value.cmavo())]
+    pub fn cmavo(&self) -> Option<Cmavo> {
+        self.value.cmavo()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.is_cmavo(cmavo))]
+    pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.value.is_cmavo(cmavo)
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(ret == self.value.is_one_of_cmavo(cmavo))]
+    pub fn is_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.value.is_one_of_cmavo(cmavo)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.is_selmaho(selmaho))]
+    pub fn is_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.value.is_selmaho(selmaho)
+    }
+}
+
+#[contract_trait]
+pub(crate) trait OptionalSyntaxCmavoExt {
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_cmavo(&self, cmavo: Cmavo) -> bool;
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(true)]
+    fn is_absent_or_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_selmaho(&self, selmaho: Selmaho) -> bool;
+}
+
+#[contract_trait]
+impl OptionalSyntaxCmavoExt for Option<WithIndicators<WordLike>> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.as_ref().is_none_or(|word| word.is_cmavo(cmavo))
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(true)]
+    fn is_absent_or_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.as_ref().is_none_or(|word| word.is_one_of_cmavo(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.as_ref().is_none_or(|word| word.is_selmaho(selmaho))
+    }
+}
+
+#[contract_trait]
+impl OptionalSyntaxCmavoExt for Option<WithFreeModifiers<WithIndicators<WordLike>>> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.as_ref().is_none_or(|word| word.is_cmavo(cmavo))
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(true)]
+    fn is_absent_or_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.as_ref().is_none_or(|word| word.is_one_of_cmavo(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.as_ref().is_none_or(|word| word.is_selmaho(selmaho))
     }
 }
 
@@ -151,7 +258,7 @@ pub struct Indicator {
     pub nai: Option<Word>,
 }
 
-#[invariant(crate::tree::opt_free_cmavo_text(cu, "cu"))]
+#[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
@@ -169,9 +276,9 @@ pub struct PredicateTailSyntax {
     pub ke_continuation: Option<Box<KePredicateTailSyntax>>,
 }
 
-#[invariant(crate::tree::free_cmavo_text(ke, "ke"))]
-#[invariant(crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
-#[invariant(crate::tree::opt_free_cmavo_text(vau, "vau"))]
+#[invariant(ke.is_cmavo(Cmavo::Ke))]
+#[invariant(kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
@@ -193,8 +300,8 @@ pub struct PredicateTail1Syntax {
     pub continuations: Vec<PredicateTailContinuationSyntax>,
 }
 
-#[invariant(crate::tree::opt_free_cmavo_text(cu, "cu"))]
-#[invariant(crate::tree::opt_free_cmavo_text(vau, "vau"))]
+#[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
+#[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
@@ -215,9 +322,9 @@ pub struct PredicateTail2Syntax {
     pub bo_continuation: Option<Box<BoPredicateTailSyntax>>,
 }
 
-#[invariant(crate::tree::free_cmavo_text(bo, "bo"))]
-#[invariant(crate::tree::opt_free_cmavo_text(cu, "cu"))]
-#[invariant(crate::tree::opt_free_cmavo_text(vau, "vau"))]
+#[invariant(bo.is_cmavo(Cmavo::Bo))]
+#[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
+#[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
@@ -232,7 +339,7 @@ pub struct BoPredicateTailSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Relation => crate::tree::opt_free_cmavo_text(vau, "vau"))]
+#[invariant(::Relation => vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[invariant(::GekSentence(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum PredicateTail3Syntax {
@@ -247,9 +354,9 @@ pub enum PredicateTail3Syntax {
 }
 
 #[invariant(true)]
-#[invariant(::Pair => crate::tree::opt_gihi(gihi) && crate::tree::opt_free_cmavo_text(vau, "vau"))]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
-#[invariant(::Na => crate::tree::free_cmavo_label(na, "NA", &["na", "ja'a"]))]
+#[invariant(::Pair => crate::tree::opt_gihi(gihi) && vau.is_absent_or_cmavo(Cmavo::Vau))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::Na => na.is_selmaho(Selmaho::Na))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum GekSentenceSyntax {
     Pair {
@@ -278,7 +385,7 @@ pub enum GekSentenceSyntax {
 
 #[invariant(true)]
 #[invariant(::Plain(..) => true)]
-#[invariant(::Prenex => crate::tree::free_cmavo_text(zohu, "zo'u"))]
+#[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
@@ -290,7 +397,7 @@ pub enum SubsentenceSyntax {
     },
 }
 
-#[invariant(leading_nai.iter().all(|nai| crate::tree::wi_cmavo_text(nai, "nai")))]
+#[invariant(leading_nai.iter().all(|nai| nai.is_cmavo(Cmavo::Nai)))]
 #[invariant(leading_cmevla.iter().all(crate::grammar::tokens::is_cmevla_word))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TextSyntax {
@@ -303,8 +410,8 @@ pub struct TextSyntax {
     pub paragraphs: Vec<ParagraphSyntax>,
 }
 
-#[invariant(crate::tree::opt_wi_cmavo_text(i, "i"))]
-#[invariant(niho.iter().all(|niho| crate::tree::wi_cmavo_label(niho, "NIhO", &["ni'o", "no'i"])))]
+#[invariant(i.is_absent_or_cmavo(Cmavo::I))]
+#[invariant(niho.iter().all(|niho| niho.is_selmaho(Selmaho::Niho)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParagraphSyntax {
     pub i: Option<WithIndicators<WordLike>>,
@@ -314,7 +421,7 @@ pub struct ParagraphSyntax {
     pub statements: Vec<ParagraphStatementSyntax>,
 }
 
-#[invariant(crate::tree::opt_wi_cmavo_text(i, "i"))]
+#[invariant(i.is_absent_or_cmavo(Cmavo::I))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParagraphStatementSyntax {
     pub i: Option<WithIndicators<WordLike>>,
@@ -325,13 +432,13 @@ pub struct ParagraphStatementSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Sei => crate::tree::free_cmavo_label(sei, "SEI", &["sei", "ti'o", "xoi"]) && crate::tree::opt_free_cmavo_text(cu, "cu") && crate::tree::opt_free_cmavo_text(sehu, "se'u"))]
-#[invariant(::To => crate::tree::free_cmavo_label(to, "TO", &["to'i", "to"]) && crate::tree::opt_free_cmavo_text(toi, "toi"))]
-#[invariant(::Xi => crate::tree::free_cmavo_label(xi, "XI", &["xi", "te'ai"]))]
-#[invariant(::Mai => crate::tree::word_run_number_or_letter(number) && crate::tree::free_cmavo_label(mai, "MAI", crate::grammar::tokens::MAI_WORDS))]
-#[invariant(::Soi => crate::tree::free_cmavo_label(soi, "SOI", &["soi", "xoi"]) && crate::tree::opt_free_cmavo_text(sehu, "se'u"))]
-#[invariant(::Vocative => crate::tree::free_words_vocative_markers(vocative_markers) && crate::tree::opt_free_cmavo_text(dohu, "do'u"))]
-#[invariant(::Replacement => crate::tree::opt_wi_cmavo_text(lohai, "lo'ai") && crate::tree::opt_wi_cmavo_text(sahai, "sa'ai") && crate::tree::free_cmavo_text(lehai, "le'ai"))]
+#[invariant(::Sei => sei.is_selmaho(Selmaho::Sei) && cu.is_absent_or_cmavo(Cmavo::Cu) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::To => to.is_selmaho(Selmaho::To) && toi.is_absent_or_cmavo(Cmavo::Toi))]
+#[invariant(::Xi => xi.is_selmaho(Selmaho::Xi))]
+#[invariant(::Mai => crate::tree::word_run_number_or_letter(number) && mai.is_selmaho(Selmaho::Mai))]
+#[invariant(::Soi => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::Vocative => crate::tree::free_words_vocative_markers(vocative_markers) && dohu.is_absent_or_cmavo(Cmavo::Dohu))]
+#[invariant(::Replacement => lohai.is_absent_or_cmavo(Cmavo::Lohai) && sahai.is_absent_or_cmavo(Cmavo::Sahai) && lehai.is_cmavo(Cmavo::Lehai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FreeModifierSyntax {
     Sei {
@@ -377,12 +484,12 @@ pub enum FreeModifierSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Tuhe => crate::tree::free_cmavo_text(tuhe, "tu'e") && crate::tree::opt_free_cmavo_text(tuhu, "tu'u"))]
-#[invariant(::Prenex => crate::tree::free_cmavo_text(zohu, "zo'u"))]
+#[invariant(::Tuhe => tuhe.is_cmavo(Cmavo::Tuhe) && tuhu.is_absent_or_cmavo(Cmavo::Tuhu))]
+#[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
 #[invariant(::Predicate(..) => true)]
-#[invariant(::Connected => crate::tree::wi_cmavo_text(i, "i"))]
-#[invariant(::PreIConnected => crate::tree::wi_cmavo_text(i, "i"))]
-#[invariant(::Iau => crate::tree::free_cmavo_text(iau, "i'au"))]
+#[invariant(::Connected => i.is_cmavo(Cmavo::I))]
+#[invariant(::PreIConnected => i.is_cmavo(Cmavo::I))]
+#[invariant(::Iau => iau.is_cmavo(Cmavo::Ihau))]
 #[invariant(::ExperimentalPredicateContinuation => true)]
 #[invariant(::Fragment(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -436,8 +543,8 @@ pub struct PredicateStatementContinuationSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Bo(bo) => crate::tree::free_cmavo_text(bo, "bo"))]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
+#[invariant(::Bo(bo) => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo(WithFreeModifiers<WithIndicators<WordLike>>),
@@ -451,13 +558,13 @@ pub enum PredicateStatementContinuationMarkerSyntax {
 #[invariant(::Ek(..) => true)]
 #[invariant(::Gihek(..) => true)]
 #[invariant(::Other(words) => !words.value.is_empty())]
-#[invariant(::Ijek => crate::tree::wi_cmavo_text(i, "i"))]
-#[invariant(::Prenex => crate::tree::free_cmavo_text(zohu, "zo'u"))]
-#[invariant(::BeLink => crate::tree::free_cmavo_text(be, "be") && crate::tree::opt_free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS) && (fa.is_none() || first_argument.is_some()) && crate::tree::opt_free_cmavo_text(beho, "be'o"))]
+#[invariant(::Ijek => i.is_cmavo(Cmavo::I))]
+#[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
+#[invariant(::BeLink => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
 #[invariant(::BeiLink(bei_only_links) => !bei_only_links.is_empty())]
 #[invariant(::RelativeClause(relative_clauses) => !relative_clauses.is_empty())]
 #[invariant(::MathExpression(..) => true)]
-#[invariant(::Term => crate::tree::opt_free_cmavo_text(vau, "vau"))]
+#[invariant(::Term => vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[invariant(::Relation(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FragmentSyntax {
@@ -490,22 +597,22 @@ pub enum FragmentSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::NuhiTermset => crate::tree::free_cmavo_text(nuhi, "nu'i") && !termset.is_empty() && crate::tree::opt_free_cmavo_text(nuhu, "nu'u"))]
-#[invariant(::GekNuhiTermset => m_nuhi.as_ref().is_none_or(|nuhi| crate::tree::free_cmavo_text(nuhi, "nu'i")) && !terms.is_empty() && crate::tree::opt_free_cmavo_text(nuhu, "nu'u") && !gik_terms.is_empty() && crate::tree::opt_gihi(gihi) && crate::tree::opt_free_cmavo_text(gik_nuhu, "nu'u"))]
-#[invariant(::Cehe => !leading_terms.is_empty() && crate::tree::free_cmavo_text(cehe, "ce'e") && !trailing_terms.is_empty())]
-#[invariant(::Pehe => !leading_terms.is_empty() && crate::tree::free_cmavo_text(pehe, "pe'e") && !trailing_terms.is_empty())]
+#[invariant(::NuhiTermset => nuhi.is_cmavo(Cmavo::Nuhi) && !termset.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
+#[invariant(::GekNuhiTermset => m_nuhi.as_ref().is_none_or(|nuhi| nuhi.is_cmavo(Cmavo::Nuhi)) && !terms.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu) && !gik_terms.is_empty() && crate::tree::opt_gihi(gihi) && gik_nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
+#[invariant(::Cehe => !leading_terms.is_empty() && cehe.is_cmavo(Cmavo::Cehe) && !trailing_terms.is_empty())]
+#[invariant(::Pehe => !leading_terms.is_empty() && pehe.is_cmavo(Cmavo::Pehe) && !trailing_terms.is_empty())]
 #[invariant(::Argument(..) => true)]
-#[invariant(::Fa => crate::tree::free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS) && crate::tree::opt_free_cmavo_text(ku, "ku"))]
-#[invariant(::NaKu => crate::tree::wi_cmavo_label(na, "NA", &["na", "ja'a"]) && crate::tree::free_cmavo_text(na_ku, "ku"))]
-#[invariant(::BareNa(na) => crate::tree::free_cmavo_label(na, "NA", &["na", "ja'a"]))]
-#[invariant(::NoihaAdverbial => crate::tree::free_cmavo_label(noiha, "NOIhA", &["noi'a", "poi'a", "poi'o'a", "soi'a", "noi'o'a"]) && crate::tree::opt_free_cmavo_text(fehu, "fe'u"))]
-#[invariant(::PoihaBrigahi => crate::tree::free_cmavo_label(poiha, "NOIhA", &["noi'a", "poi'a", "poi'o'a", "soi'a", "noi'o'a"]) && crate::tree::free_cmavo_text(brigahi_ku, "ku"))]
-#[invariant(::FihoiAdverbial => crate::tree::free_cmavo_text(fihoi, "fi'oi") && crate::tree::opt_free_cmavo_text(fihau, "fi'au"))]
-#[invariant(::SoiAdverbial => crate::tree::free_cmavo_label(soi, "SOI", &["soi", "xoi"]) && crate::tree::opt_free_cmavo_text(sehu, "se'u"))]
-#[invariant(::JaiTagged => crate::tree::free_cmavo_text(jai, "jai"))]
+#[invariant(::Fa => fa.is_selmaho(Selmaho::Fa) && ku.is_absent_or_cmavo(Cmavo::Ku))]
+#[invariant(::NaKu => na.is_selmaho(Selmaho::Na) && na_ku.is_cmavo(Cmavo::Ku))]
+#[invariant(::BareNa(na) => na.is_selmaho(Selmaho::Na))]
+#[invariant(::NoihaAdverbial => noiha.is_selmaho(Selmaho::Noiha) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
+#[invariant(::PoihaBrigahi => poiha.is_selmaho(Selmaho::Noiha) && brigahi_ku.is_cmavo(Cmavo::Ku))]
+#[invariant(::FihoiAdverbial => fihoi.is_cmavo(Cmavo::Fihoi) && fihau.is_absent_or_cmavo(Cmavo::Fihau))]
+#[invariant(::SoiAdverbial => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::JaiTagged => jai.is_cmavo(Cmavo::Jai))]
 #[invariant(::Tagged => tense_modal.is_some())]
 #[invariant(::Connected => !leading_terms.is_empty() && !trailing_terms.is_empty())]
-#[invariant(::BoConnected => !leading_terms.is_empty() && crate::tree::free_cmavo_text(bo, "bo"))]
+#[invariant(::BoConnected => !leading_terms.is_empty() && bo.is_cmavo(Cmavo::Bo))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TermSyntax {
     NuhiTermset {
@@ -606,7 +713,7 @@ pub enum TermWrapperKindSyntax {
 
 #[invariant(true)]
 #[invariant(::TenseModal(..) => true)]
-#[invariant(::Fa(fa) => crate::tree::free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS))]
+#[invariant(::Fa(fa) => fa.is_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ArgumentTagSyntax {
     TenseModal(TenseModalSyntax),
@@ -623,27 +730,27 @@ pub struct ArgumentConnectionSyntax {
 
 #[invariant(true)]
 #[invariant(::Quote(..) => true)]
-#[invariant(::MathExpression => crate::tree::free_cmavo_label(li, "LI", &["li", "me'o"]) && crate::tree::opt_free_cmavo_text(loho, "lo'o"))]
-#[invariant(::Letter => crate::tree::free_word_run_number_or_letter(letter) && crate::tree::opt_free_cmavo_text(boi, "boi"))]
+#[invariant(::MathExpression => li.is_selmaho(Selmaho::Li) && loho.is_absent_or_cmavo(Cmavo::Loho))]
+#[invariant(::Letter => crate::tree::free_word_run_number_or_letter(letter) && boi.is_absent_or_cmavo(Cmavo::Boi))]
 #[invariant(::Quantified => true)]
-#[invariant(::RelativeClause => crate::tree::opt_free_cmavo_text(vuho, "vu'o") && !relative_clauses.is_empty())]
-#[invariant(::Vuho => crate::tree::free_cmavo_text(vuho_marker, "vu'o") && (!relative_clauses.is_empty() || connected_argument.is_some()))]
-#[invariant(::BridiDescription => crate::tree::free_cmavo_label(lohoi, "LOhOI", &["lo'oi", "mau'a", "xau'a"]) && crate::tree::opt_free_cmavo_text(kuhau, "ku'au"))]
-#[invariant(::NaKu => crate::tree::wi_cmavo_label(na, "NA", &["na", "ja'a"]) && crate::tree::free_cmavo_text(ku, "ku"))]
+#[invariant(::RelativeClause => vuho.is_absent_or_cmavo(Cmavo::Vuho) && !relative_clauses.is_empty())]
+#[invariant(::Vuho => vuho_marker.is_cmavo(Cmavo::Vuho) && (!relative_clauses.is_empty() || connected_argument.is_some()))]
+#[invariant(::BridiDescription => lohoi.is_selmaho(Selmaho::Lohoi) && kuhau.is_absent_or_cmavo(Cmavo::Kuhau))]
+#[invariant(::NaKu => na.is_selmaho(Selmaho::Na) && ku.is_cmavo(Cmavo::Ku))]
 #[invariant(::Tagged => true)]
-#[invariant(::NaheBo => crate::tree::wi_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"]) && crate::tree::free_cmavo_text(bo, "bo") && crate::tree::opt_free_cmavo_text(luhu, "lu'u"))]
-#[invariant(::Nahe => crate::tree::free_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"]) && crate::tree::opt_free_cmavo_text(luhu, "lu'u"))]
-#[invariant(::TermWrapped => crate::tree::term_wrapper_is_valid(term_wrapper_kind, wrapper, wrapper_bo) && crate::tree::opt_free_cmavo_text(luhu, "lu'u"))]
+#[invariant(::NaheBo => nahe.is_selmaho(Selmaho::Nahe) && bo.is_cmavo(Cmavo::Bo) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::TermWrapped => crate::tree::term_wrapper_is_valid(term_wrapper_kind, wrapper, wrapper_bo) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
 #[invariant(::Koha(koha) => crate::grammar::tokens::is_koha_argument(&koha.value))]
-#[invariant(::Zohe => crate::tree::opt_free_cmavo_text(maybe_ku, "ku"))]
-#[invariant(::Lahe => crate::tree::free_cmavo_label(lahe, "LAhE", &["tu'a", "lu'a", "lu'o", "la'e", "vu'i", "lu'i", "lu'e"]) && crate::tree::opt_free_cmavo_text(luhu, "lu'u"))]
+#[invariant(::Zohe => maybe_ku.is_absent_or_cmavo(Cmavo::Ku))]
+#[invariant(::Lahe => lahe.is_selmaho(Selmaho::Lahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
 #[invariant(::Connected => true)]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
-#[invariant(::Bo => crate::tree::free_cmavo_text(bo, "bo"))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
 #[invariant(::Gek => crate::tree::opt_gihi(gihi))]
 #[invariant(::Descriptor(descriptor) => crate::tree::descriptor_is_valid(descriptor))]
 #[invariant(::ConnectedDescriptor(descriptor) => crate::tree::connected_descriptor_is_valid(descriptor))]
-#[invariant(::Name => crate::tree::free_cmavo_label(la, "LA", &["lai", "la'i", "la"]) && crate::tree::free_word_run_cmevla(names))]
+#[invariant(::Name => la.is_selmaho(Selmaho::La) && crate::tree::free_word_run_cmevla(names))]
 #[invariant(::Cmevla(names) => crate::tree::free_word_run_cmevla(names))]
 #[invariant(::RelationVocative => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -765,9 +872,9 @@ pub enum ArgumentSyntax {
 
 #[invariant(true)]
 #[invariant(::Goi(goi) => crate::tree::goi_relative_clause_is_valid(goi))]
-#[invariant(::Noi => crate::tree::free_cmavo_label(noi, "NOI", &["noi", "voi"]) && crate::tree::opt_free_cmavo_text(kuho, "ku'o"))]
-#[invariant(::Poi => crate::tree::free_cmavo_text(poi, "poi") && crate::tree::opt_free_cmavo_text(kuho, "ku'o"))]
-#[invariant(::Zihe => crate::tree::free_cmavo_text(zihe, "zi'e"))]
+#[invariant(::Noi => noi.is_one_of_cmavo(crate::tree::NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
+#[invariant(::Poi => poi.is_one_of_cmavo(crate::tree::RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
+#[invariant(::Zihe => zihe.is_cmavo(Cmavo::Zihe))]
 #[invariant(::Connected => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RelativeClauseSyntax {
@@ -796,12 +903,8 @@ pub enum RelativeClauseSyntax {
     },
 }
 
-#[invariant(crate::tree::free_cmavo_label(
-    goi,
-    "GOI",
-    &["pe", "ne", "po", "po'e", "po'u", "no'u", "goi"],
-))]
-#[invariant(crate::tree::opt_free_cmavo_text(gehu, "ge'u"))]
+#[invariant(goi.is_selmaho(Selmaho::Goi))]
+#[invariant(gehu.is_absent_or_cmavo(Cmavo::Gehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GoiRelativeClauseSyntax {
     pub goi: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -810,8 +913,8 @@ pub struct GoiRelativeClauseSyntax {
     pub gehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[invariant(crate::tree::free_cmavo_text(nohoi, "no'oi"))]
-#[invariant(crate::tree::opt_free_cmavo_text(kuhoi, "ku'oi"))]
+#[invariant(nohoi.is_cmavo(Cmavo::Nohoi))]
+#[invariant(kuhoi.is_absent_or_cmavo(Cmavo::Kuhoi))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SelbriRelativeClauseSyntax {
     pub nohoi: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -821,11 +924,11 @@ pub struct SelbriRelativeClauseSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Lu => crate::tree::free_cmavo_text(lu, "lu") && crate::tree::opt_free_cmavo_text(lihu, "li'u"))]
-#[invariant(::Zo(zo) => crate::tree::free_cmavo_text(zo, "zo"))]
-#[invariant(::ZohOi(zohoi) => crate::tree::free_cmavo_any(zohoi, &["zo'oi", "la'oi", "ra'oi", "me'oi", "go'oi"]))]
-#[invariant(::Zoi(zoi) => crate::tree::free_cmavo_label(zoi, "ZOI", &["zoi", "la'o", "mu'oi"]))]
-#[invariant(::Lohu(lohu) => crate::tree::free_cmavo_text(lohu, "lo'u"))]
+#[invariant(::Lu => lu.is_cmavo(Cmavo::Lu) && lihu.is_absent_or_cmavo(Cmavo::Lihu))]
+#[invariant(::Zo(zo) => zo.is_cmavo(Cmavo::Zo))]
+#[invariant(::ZohOi(zohoi) => zohoi.is_one_of_cmavo(&[Cmavo::Zohoi, Cmavo::Lahoi, Cmavo::Rahoi, Cmavo::Mehoi, Cmavo::Gohoi]))]
+#[invariant(::Zoi(zoi) => zoi.is_selmaho(Selmaho::Zoi))]
+#[invariant(::Lohu(lohu) => lohu.is_cmavo(Cmavo::Lohu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum QuoteSyntax {
     Lu {
@@ -841,7 +944,7 @@ pub enum QuoteSyntax {
 }
 
 #[invariant(descriptor.as_ref().is_none_or(crate::tree::descriptor_marker_is_valid))]
-#[invariant(crate::tree::opt_free_cmavo_text(ku, "ku"))]
+#[invariant(ku.is_absent_or_cmavo(Cmavo::Ku))]
 #[invariant(descriptor.is_some() || (!tail_elements.is_empty() && relation.is_some()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DescriptorSyntax {
@@ -859,7 +962,7 @@ pub struct DescriptorHeadSyntax {
     pub descriptor: WithFreeModifiers<WithIndicators<WordLike>>,
 }
 
-#[invariant(crate::tree::opt_free_cmavo_text(ku, "ku"))]
+#[invariant(ku.is_absent_or_cmavo(Cmavo::Ku))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ConnectedDescriptorSyntax {
     pub leading_descriptor_head: DescriptorHeadSyntax,
@@ -930,9 +1033,9 @@ pub enum ConnectiveSyntax {
     },
 }
 
-#[invariant(crate::tree::free_cmavo_text(bei, "bei"))]
+#[invariant(bei.is_cmavo(Cmavo::Bei))]
 #[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
-#[invariant(crate::tree::opt_free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS))]
+#[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeiLinkSyntax {
     pub bei: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -983,8 +1086,8 @@ pub enum ArgumentTailElementSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Number => crate::tree::free_word_run_number_or_letter(number) && crate::tree::opt_free_cmavo_text(boi, "boi"))]
-#[invariant(::Vei => crate::tree::free_cmavo_text(vei, "vei") && crate::tree::opt_free_cmavo_text(veho, "ve'o"))]
+#[invariant(::Number => crate::tree::free_word_run_number_or_letter(number) && boi.is_absent_or_cmavo(Cmavo::Boi))]
+#[invariant(::Vei => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum QuantifierSyntax {
     Number {
@@ -1002,18 +1105,18 @@ pub enum QuantifierSyntax {
 
 #[invariant(true)]
 #[invariant(::Number(..) => true)]
-#[invariant(::Letter => crate::tree::free_word_run_number_or_letter(letter) && crate::tree::opt_free_cmavo_text(boi, "boi"))]
-#[invariant(::Vei => crate::tree::free_cmavo_text(vei, "vei") && crate::tree::opt_free_cmavo_text(veho, "ve'o"))]
+#[invariant(::Letter => crate::tree::free_word_run_number_or_letter(letter) && boi.is_absent_or_cmavo(Cmavo::Boi))]
+#[invariant(::Vei => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
 #[invariant(::Gek => true)]
-#[invariant(::Forethought => peho.as_ref().is_none_or(|peho| crate::tree::free_cmavo_text(peho, "pe'o")) && !operands.is_empty() && crate::tree::opt_free_cmavo_text(kuhe, "ku'e"))]
-#[invariant(::ReversePolish => crate::tree::free_cmavo_text(fuha, "fu'a") && !operands.is_empty())]
-#[invariant(::Nihe => crate::tree::free_cmavo_text(nihe, "ni'e") && crate::tree::opt_free_cmavo_text(tehu, "te'u"))]
-#[invariant(::Mohe => crate::tree::free_cmavo_text(mohe, "mo'e") && crate::tree::opt_free_cmavo_text(tehu, "te'u"))]
-#[invariant(::Johi => crate::tree::free_cmavo_text(johi, "jo'i") && crate::tree::opt_free_cmavo_text(tehu, "te'u"))]
-#[invariant(::Lahe => crate::tree::free_nahe_bo_markers(markers) && crate::tree::opt_free_cmavo_text(luhu, "lu'u"))]
+#[invariant(::Forethought => peho.as_ref().is_none_or(|peho| peho.is_cmavo(Cmavo::Peho)) && !operands.is_empty() && kuhe.is_absent_or_cmavo(Cmavo::Kuhe))]
+#[invariant(::ReversePolish => fuha.is_cmavo(Cmavo::Fuha) && !operands.is_empty())]
+#[invariant(::Nihe => nihe.is_cmavo(Cmavo::Nihe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Mohe => mohe.is_cmavo(Cmavo::Mohe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Johi => johi.is_cmavo(Cmavo::Johi) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Lahe => crate::tree::free_nahe_bo_markers(markers) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
 #[invariant(::Connected => true)]
 #[invariant(::Binary => true)]
-#[invariant(::Bihe => crate::tree::free_cmavo_text(bihe, "bi'e"))]
+#[invariant(::Bihe => bihe.is_cmavo(Cmavo::Bihe))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
@@ -1088,13 +1191,13 @@ pub enum MathExpressionSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Vuhu(vuhu) => crate::tree::free_cmavo_label(vuhu, "VUhU", crate::grammar::tokens::VUHU_WORDS))]
-#[invariant(::Maho => crate::tree::free_cmavo_text(maho, "ma'o") && crate::tree::opt_free_cmavo_text(tehu, "te'u"))]
-#[invariant(::Se => crate::tree::free_cmavo_label(se, "SE", &["se", "te", "ve", "xe"]))]
-#[invariant(::Nahe => crate::tree::free_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"]))]
-#[invariant(::Nahu => crate::tree::free_cmavo_text(nahu, "na'u") && crate::tree::opt_free_cmavo_text(tehu, "te'u"))]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
-#[invariant(::Bo => crate::tree::free_cmavo_text(bo, "bo"))]
+#[invariant(::Vuhu(vuhu) => vuhu.is_selmaho(Selmaho::Vuhu))]
+#[invariant(::Maho => maho.is_cmavo(Cmavo::Maho) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
+#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe))]
+#[invariant(::Nahu => nahu.is_cmavo(Cmavo::Nahu) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
 #[invariant(::Connected => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MathOperatorSyntax {
@@ -1142,12 +1245,12 @@ pub enum MathOperatorSyntax {
 
 #[invariant(true)]
 #[invariant(::Connected => true)]
-#[invariant(::Co => crate::tree::free_cmavo_text(co, "co"))]
-#[invariant(::Bo => crate::tree::free_cmavo_text(bo, "bo"))]
-#[invariant(::Na => crate::tree::free_cmavo_label(na, "NA", &["na", "ja'a"]))]
+#[invariant(::Co => co.is_cmavo(Cmavo::Co))]
+#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::Na => na.is_selmaho(Selmaho::Na))]
 #[invariant(::Base(word) => crate::tree::wi_relation_word(word))]
-#[invariant(::Se => crate::tree::free_cmavo_label(se, "SE", &["se", "te", "ve", "xe"]))]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
+#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
 #[invariant(::TenseModal => true)]
 #[invariant(::Guha => crate::tree::opt_gihi(gihi))]
 #[invariant(::Abstraction(abstraction) => crate::tree::abstraction_is_valid(abstraction))]
@@ -1207,10 +1310,10 @@ pub enum RelationSyntax {
 
 pub type RelationUnitVec = SmallVec1<[RelationUnitSyntax; 2]>;
 
-#[invariant(direction.iter().all(|direction| crate::tree::wi_cmavo_label(direction, "PU", &["pu", "ca", "ba"])))]
-#[invariant(distance.as_ref().is_none_or(|distance| crate::tree::wi_cmavo_label(distance, "ZI", &["zi", "za", "zu"])))]
-#[invariant(interval.as_ref().is_none_or(|interval| crate::tree::wi_cmavo_label(interval, "ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"])))]
-#[invariant(crate::tree::opt_wi_cmavo_text(nai, "nai"))]
+#[invariant(direction.iter().all(|direction| direction.is_selmaho(Selmaho::Pu)))]
+#[invariant(distance.as_ref().is_none_or(|distance| distance.is_selmaho(Selmaho::Zi)))]
+#[invariant(interval.as_ref().is_none_or(|interval| interval.is_selmaho(Selmaho::Zeha)))]
+#[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TimeTenseSyntax {
     pub direction: Vec<WithIndicators<WordLike>>,
@@ -1219,12 +1322,12 @@ pub struct TimeTenseSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[invariant(direction.iter().all(|direction| crate::tree::wi_cmavo_label(direction, "FAhA", crate::tree::FAHA_WORDS)))]
-#[invariant(distance.iter().all(|distance| crate::tree::wi_cmavo_label(distance, "VA", &["vi", "va", "vu"])))]
-#[invariant(interval.iter().all(|interval| crate::tree::wi_cmavo_label(interval, "VEhA", &["ve'i", "ve'a", "ve'u", "ve'e"])))]
-#[invariant(dimensions.iter().all(|dimension| crate::tree::wi_cmavo_label(dimension, "VIhA", &["vi'i", "vi'a", "vi'u", "vi'e"])))]
-#[invariant(crate::tree::opt_wi_cmavo_text(mohi, "mo'i"))]
-#[invariant(crate::tree::opt_wi_cmavo_text(fehe, "fe'e"))]
+#[invariant(direction.iter().all(|direction| direction.is_selmaho(Selmaho::Faha)))]
+#[invariant(distance.iter().all(|distance| distance.is_selmaho(Selmaho::Va)))]
+#[invariant(interval.iter().all(|interval| interval.is_selmaho(Selmaho::Veha)))]
+#[invariant(dimensions.iter().all(|dimension| dimension.is_selmaho(Selmaho::Viha)))]
+#[invariant(mohi.is_absent_or_cmavo(Cmavo::Mohi))]
+#[invariant(fehe.is_absent_or_cmavo(Cmavo::Fehe))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SpaceTenseSyntax {
     pub direction: Vec<WithIndicators<WordLike>>,
@@ -1236,9 +1339,9 @@ pub struct SpaceTenseSyntax {
 }
 
 #[invariant(number.as_ref().is_none_or(crate::tree::word_run_number_or_letter))]
-#[invariant(crate::tree::wi_cmavo_label(roi_or_tahe, "ROI", crate::grammar::tokens::ROI_WORDS)
-    || crate::tree::wi_cmavo_label(roi_or_tahe, "TAhE", &["di'i", "na'o", "ru'i", "ta'e"]))]
-#[invariant(crate::tree::opt_wi_cmavo_text(nai, "nai"))]
+#[invariant(roi_or_tahe.is_selmaho(Selmaho::Roi)
+    || roi_or_tahe.is_selmaho(Selmaho::Tahe))]
+#[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct IntervalTenseSyntax {
     pub number: Option<WordRun>,
@@ -1246,10 +1349,10 @@ pub struct IntervalTenseSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[invariant(nahe.as_ref().is_none_or(|nahe| crate::tree::wi_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])))]
-#[invariant(se.as_ref().is_none_or(|se| crate::tree::wi_cmavo_label(se, "SE", &["se", "te", "ve", "xe"])))]
-#[invariant(bai.as_ref().is_none_or(|bai| crate::tree::wi_cmavo_label(bai, "BAI", crate::grammar::tokens::BAI_WORDS)))]
-#[invariant(crate::tree::opt_wi_cmavo_text(nai, "nai"))]
+#[invariant(nahe.as_ref().is_none_or(|nahe| nahe.is_selmaho(Selmaho::Nahe)))]
+#[invariant(se.as_ref().is_none_or(|se| se.is_selmaho(Selmaho::Se)))]
+#[invariant(bai.as_ref().is_none_or(|bai| bai.is_selmaho(Selmaho::Bai)))]
+#[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SimpleTenseModalSyntax {
     pub nahe: Option<WithIndicators<WordLike>>,
@@ -1258,9 +1361,9 @@ pub struct SimpleTenseModalSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[invariant(nahe.as_ref().is_none_or(|nahe| crate::tree::wi_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])))]
-#[invariant(crate::tree::free_cmavo_text(fiho, "fi'o"))]
-#[invariant(crate::tree::opt_free_cmavo_text(fehu, "fe'u"))]
+#[invariant(nahe.as_ref().is_none_or(|nahe| nahe.is_selmaho(Selmaho::Nahe)))]
+#[invariant(fiho.is_cmavo(Cmavo::Fiho))]
+#[invariant(fehu.is_absent_or_cmavo(Cmavo::Fehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct FihoModalSyntax {
     pub nahe: Option<WithIndicators<WordLike>>,
@@ -1280,19 +1383,19 @@ pub enum CompositeTenseModalPartSyntax {
 
 #[invariant(true)]
 #[invariant(::Composite => !parts.value.is_empty())]
-#[invariant(::Pu(pu) => crate::tree::free_cmavo_label(pu, "PU", &["pu", "ca", "ba"]))]
-#[invariant(::PuDistance => crate::tree::wi_cmavo_label(pu, "PU", &["pu", "ca", "ba"]) && crate::tree::free_cmavo_label(distance, "ZI", &["zi", "za", "zu"]))]
-#[invariant(::TimeInterval(interval) => crate::tree::free_cmavo_label(interval, "ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"]))]
-#[invariant(::PuCaha => crate::tree::wi_cmavo_label(pu, "PU", &["pu", "ca", "ba"]) && crate::tree::free_cmavo_label(caha, "CAhA", crate::grammar::tokens::CAHA_WORDS))]
-#[invariant(::SpaceDistance(distance) => crate::tree::free_cmavo_label(distance, "VA", &["vi", "va", "vu"]))]
-#[invariant(::SpaceDirection(direction) => crate::tree::free_cmavo_label(direction, "FAhA", crate::tree::FAHA_WORDS))]
-#[invariant(::SpaceMovement => crate::tree::wi_cmavo_text(mohi, "mo'i") && crate::tree::free_cmavo_label(direction, "FAhA", crate::tree::FAHA_WORDS) && crate::tree::opt_free_cmavo_label(distance, "VA", &["vi", "va", "vu"]))]
-#[invariant(::Simple => nahe.as_ref().is_none_or(|nahe| crate::tree::free_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])) && se.as_ref().is_none_or(|se| crate::tree::free_cmavo_label(se, "SE", &["se", "te", "ve", "xe"])) && crate::tree::free_cmavo_label(bai, "BAI", crate::grammar::tokens::BAI_WORDS) && crate::tree::opt_free_cmavo_text(nai, "nai") && crate::tree::opt_free_cmavo_text(ki, "ki"))]
-#[invariant(::Ki(ki) => crate::tree::free_cmavo_text(ki, "ki"))]
-#[invariant(::Fiho => crate::tree::free_cmavo_text(fiho, "fi'o") && crate::tree::opt_free_cmavo_text(fehu, "fe'u"))]
-#[invariant(::Caha(caha) => crate::tree::free_cmavo_label(caha, "CAhA", crate::grammar::tokens::CAHA_WORDS))]
-#[invariant(::Zaho(zaho) => crate::tree::free_words_cmavo_label(zaho, "ZAhO", crate::grammar::tokens::ZAHO_WORDS))]
-#[invariant(::Interval => number.as_ref().is_none_or(crate::tree::word_run_number_or_letter) && (crate::tree::free_cmavo_label(roi_or_tahe, "ROI", crate::grammar::tokens::ROI_WORDS) || crate::tree::free_cmavo_label(roi_or_tahe, "TAhE", &["di'i", "na'o", "ru'i", "ta'e"])) && crate::tree::opt_free_cmavo_text(nai, "nai"))]
+#[invariant(::Pu(pu) => pu.is_selmaho(Selmaho::Pu))]
+#[invariant(::PuDistance => pu.is_selmaho(Selmaho::Pu) && distance.is_selmaho(Selmaho::Zi))]
+#[invariant(::TimeInterval(interval) => interval.is_selmaho(Selmaho::Zeha))]
+#[invariant(::PuCaha => pu.is_selmaho(Selmaho::Pu) && caha.is_selmaho(Selmaho::Caha))]
+#[invariant(::SpaceDistance(distance) => distance.is_selmaho(Selmaho::Va))]
+#[invariant(::SpaceDirection(direction) => direction.is_selmaho(Selmaho::Faha))]
+#[invariant(::SpaceMovement => mohi.is_cmavo(Cmavo::Mohi) && direction.is_selmaho(Selmaho::Faha) && distance.is_absent_or_selmaho(Selmaho::Va))]
+#[invariant(::Simple => nahe.as_ref().is_none_or(|nahe| nahe.is_selmaho(Selmaho::Nahe)) && se.as_ref().is_none_or(|se| se.is_selmaho(Selmaho::Se)) && bai.is_selmaho(Selmaho::Bai) && nai.is_absent_or_cmavo(Cmavo::Nai) && ki.is_absent_or_cmavo(Cmavo::Ki))]
+#[invariant(::Ki(ki) => ki.is_cmavo(Cmavo::Ki))]
+#[invariant(::Fiho => fiho.is_cmavo(Cmavo::Fiho) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
+#[invariant(::Caha(caha) => caha.is_selmaho(Selmaho::Caha))]
+#[invariant(::Zaho(zaho) => zaho.value.iter().all(|word| word.is_selmaho(Selmaho::Zaho)))]
+#[invariant(::Interval => number.as_ref().is_none_or(crate::tree::word_run_number_or_letter) && (roi_or_tahe.is_selmaho(Selmaho::Roi) || roi_or_tahe.is_selmaho(Selmaho::Tahe)) && nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TenseModalSyntax {
     Composite {
@@ -1339,9 +1442,9 @@ pub enum TenseModalSyntax {
     },
 }
 
-#[invariant(crate::tree::free_cmavo_label(nu, "NU", crate::grammar::tokens::NU_WORDS))]
-#[invariant(crate::tree::opt_free_cmavo_text(nai, "nai"))]
-#[invariant(crate::tree::opt_free_cmavo_text(kei, "kei"))]
+#[invariant(nu.is_selmaho(Selmaho::Nu))]
+#[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
+#[invariant(kei.is_absent_or_cmavo(Cmavo::Kei))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AbstractionSyntax {
     pub nu: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -1352,8 +1455,8 @@ pub struct AbstractionSyntax {
     pub kei: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[invariant(crate::tree::free_cmavo_label(nu, "NU", crate::grammar::tokens::NU_WORDS))]
-#[invariant(crate::tree::opt_free_cmavo_text(nai, "nai"))]
+#[invariant(nu.is_selmaho(Selmaho::Nu))]
+#[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AdditionalNuSyntax {
     pub connective: ConnectiveSyntax,
@@ -1363,26 +1466,26 @@ pub struct AdditionalNuSyntax {
 
 #[invariant(true)]
 #[invariant(::Word(word) => crate::tree::free_relation_word(word))]
-#[invariant(::Goha => crate::tree::free_cmavo_label(goha, "GOhA", crate::grammar::tokens::GOHA_WORDS) && crate::tree::opt_free_cmavo_text(raho, "ra'o"))]
-#[invariant(::Se => crate::tree::free_cmavo_label(se, "SE", &["se", "te", "ve", "xe"]))]
-#[invariant(::Ke => crate::tree::free_cmavo_text(ke, "ke") && crate::tree::opt_free_cmavo_text(kehe, "ke'e"))]
-#[invariant(::Nahe => crate::tree::free_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"]))]
-#[invariant(::Bo => crate::tree::free_cmavo_text(bo, "bo"))]
+#[invariant(::Goha => goha.is_selmaho(Selmaho::Goha) && raho.is_absent_or_cmavo(Cmavo::Raho))]
+#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe))]
+#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
 #[invariant(::Connected => true)]
 #[invariant(::SelbriRelativeClause => !selbri_relative_clauses.is_empty())]
 #[invariant(::Wrapped(..) => true)]
-#[invariant(::Jai => crate::tree::free_cmavo_text(jai, "jai"))]
-#[invariant(::Be => crate::tree::free_cmavo_text(be, "be") && crate::tree::opt_free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS) && (fa.is_none() || first_argument.is_some()) && crate::tree::opt_free_cmavo_text(beho, "be'o"))]
-#[invariant(::PreposedBe => crate::tree::free_cmavo_text(be, "be") && crate::tree::opt_free_cmavo_label(fa, "FA", crate::grammar::tokens::FA_WORDS) && (fa.is_none() || first_argument.is_some()) && crate::tree::opt_free_cmavo_text(beho, "be'o"))]
+#[invariant(::Jai => jai.is_cmavo(Cmavo::Jai))]
+#[invariant(::Be => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
+#[invariant(::PreposedBe => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
 #[invariant(::Abstraction(abstraction) => crate::tree::abstraction_is_valid(abstraction))]
-#[invariant(::Me => crate::tree::free_cmavo_text(me, "me") && crate::tree::opt_free_cmavo_text(mehu, "me'u") && crate::tree::opt_free_cmavo_label(moi_marker, "MOI", crate::grammar::tokens::MOI_WORDS))]
-#[invariant(::Mehoi(mehoi) => crate::tree::free_cmavo_text(mehoi, "me'oi"))]
-#[invariant(::Gohoi(gohoi) => crate::tree::free_cmavo_text(gohoi, "go'oi"))]
-#[invariant(::Muhoi(muhoi) => crate::tree::free_cmavo_text(muhoi, "mu'oi"))]
-#[invariant(::Luhei => crate::tree::free_cmavo_text(luhei, "lu'ei") && crate::tree::opt_free_cmavo_text(liau, "li'au"))]
-#[invariant(::Moi => crate::tree::word_run_number_or_letter(number) && crate::tree::free_cmavo_label(moi, "MOI", crate::grammar::tokens::MOI_WORDS))]
-#[invariant(::Nuha => crate::tree::free_cmavo_text(nuha, "nu'a"))]
-#[invariant(::Xohi => crate::tree::free_cmavo_text(xohi, "xo'i"))]
+#[invariant(::Me => me.is_cmavo(Cmavo::Me) && mehu.is_absent_or_cmavo(Cmavo::Mehu) && moi_marker.is_absent_or_selmaho(Selmaho::Moi))]
+#[invariant(::Mehoi(mehoi) => mehoi.is_cmavo(Cmavo::Mehoi))]
+#[invariant(::Gohoi(gohoi) => gohoi.is_cmavo(Cmavo::Gohoi))]
+#[invariant(::Muhoi(muhoi) => muhoi.is_cmavo(Cmavo::Muhoi))]
+#[invariant(::Luhei => luhei.is_cmavo(Cmavo::Luhei) && liau.is_absent_or_cmavo(Cmavo::Lihau))]
+#[invariant(::Moi => crate::tree::word_run_number_or_letter(number) && moi.is_selmaho(Selmaho::Moi))]
+#[invariant(::Nuha => nuha.is_cmavo(Cmavo::Nuha))]
+#[invariant(::Xohi => xohi.is_cmavo(Cmavo::Xohi))]
 #[invariant(::Cei => !assignments.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RelationUnitSyntax {
@@ -1488,7 +1591,7 @@ pub enum RelationUnitSyntax {
     },
 }
 
-#[invariant(crate::tree::free_cmavo_text(cei, "cei"))]
+#[invariant(cei.is_cmavo(Cmavo::Cei))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CeiAssignmentSyntax {
     pub cei: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -1498,124 +1601,9 @@ pub struct CeiAssignmentSyntax {
 
 }
 
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn wi_cmavo_text(word: &WithIndicators<WordLike>, expected: &str) -> bool {
-    word.visible_word()
-        .is_some_and(|word| word.is_cmavo_text(expected))
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn free_cmavo_text(
-    word: &WithFreeModifiers<WithIndicators<WordLike>>,
-    expected: &str,
-) -> bool {
-    wi_cmavo_text(&word.value, expected)
-}
-
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn wi_cmavo_any(word: &WithIndicators<WordLike>, texts: &[&str]) -> bool {
-    texts.iter().any(|text| wi_cmavo_text(word, text))
-}
-
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn free_cmavo_any(
-    word: &WithFreeModifiers<WithIndicators<WordLike>>,
-    texts: &[&str],
-) -> bool {
-    wi_cmavo_any(&word.value, texts)
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn opt_wi_cmavo_text(word: &Option<WithIndicators<WordLike>>, expected: &str) -> bool {
-    word.as_ref()
-        .is_none_or(|word| wi_cmavo_text(word, expected))
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn opt_free_cmavo_text(
-    word: &Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    expected: &str,
-) -> bool {
-    word.as_ref()
-        .is_none_or(|word| free_cmavo_text(word, expected))
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn wi_cmavo_label(word: &WithIndicators<WordLike>, label: &str, texts: &[&str]) -> bool {
-    let Some(word) = word.visible_word() else {
-        return false;
-    };
-    texts.iter().any(|text| word.is_cmavo_text(text))
-        || crate::grammar::tokens::zantufa_cmavo_words_for(label)
-            .iter()
-            .any(|text| word.is_cmavo_text(text))
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn free_cmavo_label(
-    word: &WithFreeModifiers<WithIndicators<WordLike>>,
-    label: &str,
-    texts: &[&str],
-) -> bool {
-    wi_cmavo_label(&word.value, label, texts)
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn opt_wi_cmavo_label(
-    word: &Option<WithIndicators<WordLike>>,
-    label: &str,
-    texts: &[&str],
-) -> bool {
-    word.as_ref()
-        .is_none_or(|word| wi_cmavo_label(word, label, texts))
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn opt_free_cmavo_label(
-    word: &Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    label: &str,
-    texts: &[&str],
-) -> bool {
-    word.as_ref()
-        .is_none_or(|word| free_cmavo_label(word, label, texts))
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn free_words_cmavo_label(
-    words: &WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    label: &str,
-    texts: &[&str],
-) -> bool {
-    words
-        .value
-        .iter()
-        .all(|word| wi_cmavo_label(word, label, texts))
-}
-
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn free_words_cmavo_texts(
-    words: &WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    texts: &[&str],
-) -> bool {
-    words.value.iter().all(|word| wi_cmavo_any(word, texts))
-}
+pub(crate) const RESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] = &[Cmavo::Poi, Cmavo::Pohoi];
+pub(crate) const NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] =
+    &[Cmavo::Noi, Cmavo::Nohoi, Cmavo::Voi, Cmavo::Voihi];
 
 #[requires(true)]
 #[ensures(true)]
@@ -1625,25 +1613,17 @@ pub(crate) fn free_nahe_bo_markers(
     matches!(
         markers.value.as_slice(),
         [nahe, bo]
-            if wi_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-                && wi_cmavo_text(bo, "bo")
+            if nahe.is_selmaho(Selmaho::Nahe)
+                && bo.is_cmavo(Cmavo::Bo)
     )
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn word_run_cmavo_label(words: &WordRun, label: &str, texts: &[&str]) -> bool {
-    words.iter().all(|word| wi_cmavo_label(word, label, texts))
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_run_number_or_letter(words: &WordRun) -> bool {
-    words.iter().all(|word| {
-        wi_cmavo_label(word, "PA", crate::grammar::tokens::PA_WORDS)
-            || crate::grammar::tokens::is_letter_word(word)
-    })
+    words
+        .iter()
+        .all(|word| word.is_selmaho(Selmaho::Pa) || crate::grammar::tokens::is_letter_word(word))
 }
 
 #[requires(true)]
@@ -1695,13 +1675,8 @@ pub(crate) fn free_relation_word(word: &WithFreeModifiers<WithIndicators<WordLik
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn opt_gihi(word: &Option<WithIndicators<WordLike>>) -> bool {
-    opt_wi_cmavo_label(word, "GIhI", &["gi'i"])
+    word.is_absent_or_selmaho(Selmaho::Gihi)
 }
-
-pub(crate) const FAHA_WORDS: &[&str] = &[
-    "be'a", "du'a", "vu'a", "ne'u", "ca'u", "ri'u", "zu'a", "ga'u", "ni'a", "ti'a", "ru'u", "re'o",
-    "te'e", "bu'u", "ne'a", "pa'o", "ne'i", "fa'a", "to'o", "zo'a", "zo'i", "ze'o",
-];
 
 #[requires(true)]
 #[ensures(true)]
@@ -1714,11 +1689,11 @@ pub(crate) fn free_words_vocative_markers(
 
     let mut may_take_nai = false;
     for (index, word) in markers.value.iter().enumerate() {
-        if wi_cmavo_label(word, "COI", crate::grammar::tokens::COI_WORDS) {
+        if word.is_selmaho(Selmaho::Coi) {
             may_take_nai = true;
-        } else if may_take_nai && wi_cmavo_text(word, "nai") {
+        } else if may_take_nai && word.is_cmavo(Cmavo::Nai) {
             may_take_nai = false;
-        } else if wi_cmavo_text(word, "doi") && index + 1 == markers.value.len() {
+        } else if word.is_cmavo(Cmavo::Doi) && index + 1 == markers.value.len() {
             may_take_nai = false;
         } else {
             return false;
@@ -1730,11 +1705,7 @@ pub(crate) fn free_words_vocative_markers(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn goi_relative_clause_is_valid(clause: &GoiRelativeClauseSyntax) -> bool {
-    free_cmavo_label(
-        &clause.goi,
-        "GOI",
-        &["pe", "ne", "po", "po'e", "po'u", "no'u", "goi"],
-    ) && opt_free_cmavo_text(&clause.gehu, "ge'u")
+    clause.goi.is_selmaho(Selmaho::Goi) && clause.gehu.is_absent_or_cmavo(Cmavo::Gehu)
 }
 
 #[requires(true)]
@@ -1744,7 +1715,7 @@ pub(crate) fn descriptor_is_valid(descriptor: &DescriptorSyntax) -> bool {
         .descriptor
         .as_ref()
         .is_none_or(descriptor_marker_is_valid)
-        && opt_free_cmavo_text(&descriptor.ku, "ku")
+        && descriptor.ku.is_absent_or_cmavo(Cmavo::Ku)
         && (descriptor.descriptor.is_some()
             || (!descriptor.tail_elements.is_empty() && descriptor.relation.is_some()))
 }
@@ -1754,7 +1725,7 @@ pub(crate) fn descriptor_is_valid(descriptor: &DescriptorSyntax) -> bool {
 pub(crate) fn connected_descriptor_is_valid(descriptor: &ConnectedDescriptorSyntax) -> bool {
     descriptor_head_is_valid(&descriptor.leading_descriptor_head)
         && descriptor_head_is_valid(&descriptor.trailing_descriptor_head)
-        && opt_free_cmavo_text(&descriptor.ku, "ku")
+        && descriptor.ku.is_absent_or_cmavo(Cmavo::Ku)
 }
 
 #[requires(true)]
@@ -1768,35 +1739,30 @@ fn descriptor_head_is_valid(head: &DescriptorHeadSyntax) -> bool {
 pub(crate) fn descriptor_marker_is_valid(
     marker: &WithFreeModifiers<WithIndicators<WordLike>>,
 ) -> bool {
-    free_cmavo_label(
-        marker,
-        "LE",
-        &["lei", "loi", "le'i", "lo'i", "le'e", "lo'e", "lo", "le"],
-    ) || free_cmavo_label(marker, "LA", &["lai", "la'i", "la"])
+    marker.is_selmaho(Selmaho::Le) || marker.is_selmaho(Selmaho::La)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn abstraction_is_valid(abstraction: &AbstractionSyntax) -> bool {
-    free_cmavo_label(&abstraction.nu, "NU", crate::grammar::tokens::NU_WORDS)
-        && opt_free_cmavo_text(&abstraction.nai, "nai")
+    abstraction.nu.is_selmaho(Selmaho::Nu)
+        && abstraction.nai.is_absent_or_cmavo(Cmavo::Nai)
         && abstraction.additional_nu.iter().all(additional_nu_is_valid)
-        && opt_free_cmavo_text(&abstraction.kei, "kei")
+        && abstraction.kei.is_absent_or_cmavo(Cmavo::Kei)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn additional_nu_is_valid(additional_nu: &AdditionalNuSyntax) -> bool {
-    free_cmavo_label(&additional_nu.nu, "NU", crate::grammar::tokens::NU_WORDS)
-        && opt_free_cmavo_text(&additional_nu.nai, "nai")
+    additional_nu.nu.is_selmaho(Selmaho::Nu) && additional_nu.nai.is_absent_or_cmavo(Cmavo::Nai)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn fiho_modal_is_valid(modal: &FihoModalSyntax) -> bool {
-    opt_wi_cmavo_label(&modal.nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-        && free_cmavo_text(&modal.fiho, "fi'o")
-        && opt_free_cmavo_text(&modal.fehu, "fe'u")
+    modal.nahe.is_absent_or_selmaho(Selmaho::Nahe)
+        && modal.fiho.is_cmavo(Cmavo::Fiho)
+        && modal.fehu.is_absent_or_cmavo(Cmavo::Fehu)
 }
 
 #[requires(true)]
@@ -1807,23 +1773,12 @@ pub(crate) fn term_wrapper_is_valid(
     wrapper_bo: &Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 ) -> bool {
     match kind {
-        TermWrapperKindSyntax::Lahe => {
-            free_cmavo_label(
-                wrapper,
-                "LAhE",
-                &["tu'a", "lu'a", "lu'o", "la'e", "vu'i", "lu'i", "lu'e"],
-            ) && wrapper_bo.is_none()
-        }
+        TermWrapperKindSyntax::Lahe => wrapper.is_selmaho(Selmaho::Lahe) && wrapper_bo.is_none(),
         TermWrapperKindSyntax::NaheBo => {
-            free_cmavo_label(wrapper, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-                && wrapper_bo
-                    .as_ref()
-                    .is_some_and(|bo| free_cmavo_text(bo, "bo"))
+            wrapper.is_selmaho(Selmaho::Nahe)
+                && wrapper_bo.as_ref().is_some_and(|bo| bo.is_cmavo(Cmavo::Bo))
         }
-        TermWrapperKindSyntax::Nahe => {
-            free_cmavo_label(wrapper, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-                && wrapper_bo.is_none()
-        }
+        TermWrapperKindSyntax::Nahe => wrapper.is_selmaho(Selmaho::Nahe) && wrapper_bo.is_none(),
     }
 }
 
@@ -1837,63 +1792,57 @@ pub(crate) fn connective_parts_are_valid(
     nai: &Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     _kind: ConnectiveKind,
 ) -> bool {
-    opt_wi_cmavo_label(se, "SE", &["se", "te", "ve", "xe"])
-        && opt_wi_cmavo_label(nahe, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-        && opt_wi_cmavo_label(na, "NA", &["na", "ja'a"])
+    se.is_absent_or_selmaho(Selmaho::Se)
+        && nahe.is_absent_or_selmaho(Selmaho::Nahe)
+        && na.is_absent_or_selmaho(Selmaho::Na)
         && !cmavo.value.is_empty()
         && cmavo.value.iter().all(connective_word_is_valid)
-        && opt_free_cmavo_text(nai, "nai")
+        && nai.is_absent_or_cmavo(Cmavo::Nai)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn connective_word_is_valid(word: &WithIndicators<WordLike>) -> bool {
-    wi_cmavo_label(word, "A", &["a", "e", "o", "u", "ji"])
-        || wi_cmavo_label(word, "JA", &["je'i", "ja", "je", "jo", "ju"])
-        || wi_cmavo_label(
-            word,
-            "JOI",
-            &[
-                "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
-            ],
-        )
-        || wi_cmavo_label(word, "BIhI", &["mi'i", "bi'o", "bi'i"])
-        || wi_cmavo_label(word, "GAhO", &["ga'o", "ke'i"])
-        || wi_cmavo_label(word, "GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
-        || wi_cmavo_label(word, "GA", &["ga", "ge", "ge'i", "go", "gu"])
-        || wi_cmavo_label(word, "GUhA", &["gu'a", "gu'e", "gu'i", "gu'o", "gu'u"])
-        || wi_cmavo_text(word, "gi")
-        || wi_cmavo_text(word, "bo")
-        || wi_cmavo_label(word, "VUhU", crate::grammar::tokens::VUHU_WORDS)
+    word.is_selmaho(Selmaho::A)
+        || word.is_selmaho(Selmaho::Ja)
+        || word.is_selmaho(Selmaho::Joi)
+        || word.is_selmaho(Selmaho::Bihi)
+        || word.is_selmaho(Selmaho::Gaho)
+        || word.is_selmaho(Selmaho::Giha)
+        || word.is_selmaho(Selmaho::Ga)
+        || word.is_selmaho(Selmaho::Guha)
+        || word.is_cmavo(Cmavo::Gi)
+        || word.is_cmavo(Cmavo::Bo)
+        || word.is_selmaho(Selmaho::Vuhu)
         || tense_modal_word_is_valid(word)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn tense_modal_word_is_valid(word: &WithIndicators<WordLike>) -> bool {
-    wi_cmavo_label(word, "PU", &["pu", "ca", "ba"])
-        || wi_cmavo_label(word, "ZI", &["zi", "za", "zu"])
-        || wi_cmavo_label(word, "VA", &["vi", "va", "vu"])
-        || wi_cmavo_label(word, "ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"])
-        || wi_cmavo_label(word, "FAhA", FAHA_WORDS)
-        || wi_cmavo_label(word, "VEhA", &["ve'i", "ve'a", "ve'u", "ve'e"])
-        || wi_cmavo_label(word, "VIhA", &["vi'i", "vi'a", "vi'u", "vi'e"])
-        || wi_cmavo_label(word, "CAhA", crate::grammar::tokens::CAHA_WORDS)
-        || wi_cmavo_label(word, "ZAhO", crate::grammar::tokens::ZAHO_WORDS)
-        || wi_cmavo_label(word, "ROI", crate::grammar::tokens::ROI_WORDS)
-        || wi_cmavo_label(word, "TAhE", &["di'i", "na'o", "ru'i", "ta'e"])
-        || wi_cmavo_label(word, "BAI", crate::grammar::tokens::BAI_WORDS)
-        || wi_cmavo_label(word, "NAhE", &["na'e", "to'e", "no'e", "je'a"])
-        || wi_cmavo_label(word, "SE", &["se", "te", "ve", "xe"])
-        || wi_cmavo_label(word, "PA", crate::grammar::tokens::PA_WORDS)
-        || wi_cmavo_label(word, "FA", crate::grammar::tokens::FA_WORDS)
+    word.is_selmaho(Selmaho::Pu)
+        || word.is_selmaho(Selmaho::Zi)
+        || word.is_selmaho(Selmaho::Va)
+        || word.is_selmaho(Selmaho::Zeha)
+        || word.is_selmaho(Selmaho::Faha)
+        || word.is_selmaho(Selmaho::Veha)
+        || word.is_selmaho(Selmaho::Viha)
+        || word.is_selmaho(Selmaho::Caha)
+        || word.is_selmaho(Selmaho::Zaho)
+        || word.is_selmaho(Selmaho::Roi)
+        || word.is_selmaho(Selmaho::Tahe)
+        || word.is_selmaho(Selmaho::Bai)
+        || word.is_selmaho(Selmaho::Nahe)
+        || word.is_selmaho(Selmaho::Se)
+        || word.is_selmaho(Selmaho::Pa)
+        || word.is_selmaho(Selmaho::Fa)
         || crate::grammar::tokens::is_letter_word(word)
-        || wi_cmavo_text(word, "ki")
-        || wi_cmavo_text(word, "cu'e")
-        || wi_cmavo_text(word, "nau")
-        || wi_cmavo_text(word, "fe'e")
-        || wi_cmavo_text(word, "mo'i")
-        || wi_cmavo_text(word, "nai")
+        || word.is_cmavo(Cmavo::Ki)
+        || word.is_cmavo(Cmavo::Cuhe)
+        || word.is_cmavo(Cmavo::Nau)
+        || word.is_cmavo(Cmavo::Fehe)
+        || word.is_cmavo(Cmavo::Mohi)
+        || word.is_cmavo(Cmavo::Nai)
 }
 
 impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {

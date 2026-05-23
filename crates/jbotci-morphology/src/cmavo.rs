@@ -4,16 +4,6 @@ use bityzba::requires;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Cmavo {
-    Digit0,
-    Digit1,
-    Digit2,
-    Digit3,
-    Digit4,
-    Digit5,
-    Digit6,
-    Digit7,
-    Digit8,
-    Digit9,
     A,
     Aha,
     Ahai,
@@ -22,6 +12,7 @@ pub enum Cmavo {
     Aho,
     Ahoi,
     Ahu,
+    Ahy,
     Ai,
     Aihi,
     Au,
@@ -42,6 +33,7 @@ pub enum Cmavo {
     Beha,
     Behau,
     Behe,
+    Behei,
     Behi,
     Beho,
     Behu,
@@ -78,6 +70,7 @@ pub enum Cmavo {
     Cauhi,
     Ce,
     Ceha,
+    Cehai,
     Cehe,
     Cehi,
     Ceho,
@@ -115,6 +108,7 @@ pub enum Cmavo {
     Dahei,
     Dahi,
     Daho,
+    Dahoi,
     Dahu,
     Dai,
     Daiha,
@@ -136,12 +130,27 @@ pub enum Cmavo {
     Dehe,
     Dehei,
     Dehi,
+    Dehiha,
+    Dehihe,
+    Dehihi,
+    Dehiho,
+    Dehihu,
     Deho,
     Dehoha,
     Dehu,
     Dei,
     Deiha,
     Di,
+    Digit0,
+    Digit1,
+    Digit2,
+    Digit3,
+    Digit4,
+    Digit5,
+    Digit6,
+    Digit7,
+    Digit8,
+    Digit9,
     Diha,
     Dihai,
     Dihe,
@@ -174,6 +183,7 @@ pub enum Cmavo {
     Eho,
     Ehu,
     Ehuhi,
+    Ehy,
     Ei,
     Eihai,
     Eihei,
@@ -230,6 +240,7 @@ pub enum Cmavo {
     Fy,
     Ga,
     Gaha,
+    Gahe,
     Gahei,
     Gahi,
     Gahihi,
@@ -249,6 +260,7 @@ pub enum Cmavo {
     Gehai,
     Gehe,
     Gehi,
+    Geho,
     Gehu,
     Gehuhi,
     Gei,
@@ -275,6 +287,11 @@ pub enum Cmavo {
     Guhu,
     Gy,
     I,
+    Ia,
+    Iahau,
+    Iahu,
+    Ie,
+    Ieho,
     Iha,
     Ihau,
     Ihe,
@@ -283,16 +300,14 @@ pub enum Cmavo {
     Ihihi,
     Iho,
     Ihu,
-    Ia,
-    Iahau,
-    Iahu,
-    Ie,
-    Ieho,
+    Ihy,
     Ii,
     Io,
     Iu,
+    Iy,
     Ja,
     Jaha,
+    Jahai,
     Jahau,
     Jahe,
     Jahei,
@@ -314,6 +329,7 @@ pub enum Cmavo {
     Jehau,
     Jehe,
     Jehi,
+    Jeho,
     Jehu,
     Jei,
     Jeihe,
@@ -338,6 +354,7 @@ pub enum Cmavo {
     Johe,
     Johi,
     Johiha,
+    Joho,
     Johu,
     Johuhu,
     Joi,
@@ -389,12 +406,14 @@ pub enum Cmavo {
     Kiho,
     Kihoha,
     Kihohe,
+    Kihoi,
     Kihu,
     Kihuha,
     Kihuhe,
     Kihuhi,
     Ko,
     Koha,
+    Kohau,
     Kohe,
     Kohi,
     Koho,
@@ -433,9 +452,12 @@ pub enum Cmavo {
     Lehohe,
     Lehu,
     Lei,
+    Leihe,
+    Leihi,
     Li,
     Liha,
     Lihai,
+    Lihau,
     Lihe,
     Lihehe,
     Lihei,
@@ -444,6 +466,7 @@ pub enum Cmavo {
     Lihoi,
     Lihu,
     Lo,
+    Loha,
     Lohai,
     Lohe,
     Lohei,
@@ -457,6 +480,7 @@ pub enum Cmavo {
     Lu,
     Luha,
     Luhe,
+    Luhei,
     Luhi,
     Luho,
     Luhu,
@@ -481,6 +505,7 @@ pub enum Cmavo {
     Mauhu,
     Me,
     Meha,
+    Mehau,
     Mehe,
     Mehei,
     Mehi,
@@ -503,9 +528,11 @@ pub enum Cmavo {
     Mohe,
     Mohi,
     Moho,
+    Mohoi,
     Mohu,
     Moi,
     Moiho,
+    Moihoi,
     Mu,
     Muha,
     Muhai,
@@ -517,7 +544,9 @@ pub enum Cmavo {
     Muhu,
     My,
     Na,
+    Naha,
     Nahe,
+    Nahei,
     Nahi,
     Naho,
     Nahoi,
@@ -567,6 +596,7 @@ pub enum Cmavo {
     Ohi,
     Oho,
     Ohu,
+    Ohy,
     Oi,
     Oiha,
     Oihoi,
@@ -667,6 +697,7 @@ pub enum Cmavo {
     Ruha,
     Ruhe,
     Ruhi,
+    Ruho,
     Ruhu,
     Ry,
     Sa,
@@ -758,6 +789,8 @@ pub enum Cmavo {
     Tihuhi,
     Tihuhu,
     To,
+    Toha,
+    Tohai,
     Tohe,
     Tohi,
     Toho,
@@ -779,6 +812,9 @@ pub enum Cmavo {
     Tuhu,
     Ty,
     U,
+    Ua,
+    Ue,
+    Uehi,
     Uha,
     Uhe,
     Uhi,
@@ -789,13 +825,12 @@ pub enum Cmavo {
     Uhohu,
     Uhoi,
     Uhu,
-    Ua,
-    Ue,
-    Uehi,
+    Uhy,
     Ui,
     Uihai,
     Uo,
     Uu,
+    Uy,
     Va,
     Vaha,
     Vahe,
@@ -822,6 +857,7 @@ pub enum Cmavo {
     Vihu,
     Vo,
     Voha,
+    Vohai,
     Vohe,
     Vohi,
     Voho,
@@ -847,6 +883,7 @@ pub enum Cmavo {
     Xauhu,
     Xe,
     Xehau,
+    Xehe,
     Xehei,
     Xehiha,
     Xehihe,
@@ -854,6 +891,7 @@ pub enum Cmavo {
     Xehiho,
     Xehihu,
     Xehu,
+    Xeihe,
     Xi,
     Xihe,
     Xihi,
@@ -943,6 +981,7 @@ impl Cmavo {
             "a'o" => Self::Aho,
             "a'oi" => Self::Ahoi,
             "a'u" => Self::Ahu,
+            "a'y" => Self::Ahy,
             "ai" => Self::Ai,
             "ai'i" => Self::Aihi,
             "au" => Self::Au,
@@ -963,6 +1002,7 @@ impl Cmavo {
             "be'a" => Self::Beha,
             "be'au" => Self::Behau,
             "be'e" => Self::Behe,
+            "be'ei" => Self::Behei,
             "be'i" => Self::Behi,
             "be'o" => Self::Beho,
             "be'u" => Self::Behu,
@@ -999,6 +1039,7 @@ impl Cmavo {
             "cau'i" => Self::Cauhi,
             "ce" => Self::Ce,
             "ce'a" => Self::Ceha,
+            "ce'ai" => Self::Cehai,
             "ce'e" => Self::Cehe,
             "ce'i" => Self::Cehi,
             "ce'o" => Self::Ceho,
@@ -1036,6 +1077,7 @@ impl Cmavo {
             "da'ei" => Self::Dahei,
             "da'i" => Self::Dahi,
             "da'o" => Self::Daho,
+            "da'oi" => Self::Dahoi,
             "da'u" => Self::Dahu,
             "dai" => Self::Dai,
             "dai'a" => Self::Daiha,
@@ -1057,6 +1099,11 @@ impl Cmavo {
             "de'e" => Self::Dehe,
             "de'ei" => Self::Dehei,
             "de'i" => Self::Dehi,
+            "de'i'a" => Self::Dehiha,
+            "de'i'e" => Self::Dehihe,
+            "de'i'i" => Self::Dehihi,
+            "de'i'o" => Self::Dehiho,
+            "de'i'u" => Self::Dehihu,
             "de'o" => Self::Deho,
             "de'o'a" => Self::Dehoha,
             "de'u" => Self::Dehu,
@@ -1095,6 +1142,7 @@ impl Cmavo {
             "e'o" => Self::Eho,
             "e'u" => Self::Ehu,
             "e'u'i" => Self::Ehuhi,
+            "e'y" => Self::Ehy,
             "ei" => Self::Ei,
             "ei'ai" => Self::Eihai,
             "ei'ei" => Self::Eihei,
@@ -1151,6 +1199,7 @@ impl Cmavo {
             "fy" => Self::Fy,
             "ga" => Self::Ga,
             "ga'a" => Self::Gaha,
+            "ga'e" => Self::Gahe,
             "ga'ei" => Self::Gahei,
             "ga'i" => Self::Gahi,
             "ga'i'i" => Self::Gahihi,
@@ -1170,6 +1219,7 @@ impl Cmavo {
             "ge'ai" => Self::Gehai,
             "ge'e" => Self::Gehe,
             "ge'i" => Self::Gehi,
+            "ge'o" => Self::Geho,
             "ge'u" => Self::Gehu,
             "ge'u'i" => Self::Gehuhi,
             "gei" => Self::Gei,
@@ -1204,6 +1254,7 @@ impl Cmavo {
             "i'i'i" => Self::Ihihi,
             "i'o" => Self::Iho,
             "i'u" => Self::Ihu,
+            "i'y" => Self::Ihy,
             "ia" => Self::Ia,
             "ia'au" => Self::Iahau,
             "ia'u" => Self::Iahu,
@@ -1212,8 +1263,10 @@ impl Cmavo {
             "ii" => Self::Ii,
             "io" => Self::Io,
             "iu" => Self::Iu,
+            "iy" => Self::Iy,
             "ja" => Self::Ja,
             "ja'a" => Self::Jaha,
+            "ja'ai" => Self::Jahai,
             "ja'au" => Self::Jahau,
             "ja'e" => Self::Jahe,
             "ja'ei" => Self::Jahei,
@@ -1235,6 +1288,7 @@ impl Cmavo {
             "je'au" => Self::Jehau,
             "je'e" => Self::Jehe,
             "je'i" => Self::Jehi,
+            "je'o" => Self::Jeho,
             "je'u" => Self::Jehu,
             "jei" => Self::Jei,
             "jei'e" => Self::Jeihe,
@@ -1259,6 +1313,7 @@ impl Cmavo {
             "jo'e" => Self::Johe,
             "jo'i" => Self::Johi,
             "jo'i'a" => Self::Johiha,
+            "jo'o" => Self::Joho,
             "jo'u" => Self::Johu,
             "jo'u'u" => Self::Johuhu,
             "joi" => Self::Joi,
@@ -1310,12 +1365,14 @@ impl Cmavo {
             "ki'o" => Self::Kiho,
             "ki'o'a" => Self::Kihoha,
             "ki'o'e" => Self::Kihohe,
+            "ki'oi" => Self::Kihoi,
             "ki'u" => Self::Kihu,
             "ki'u'a" => Self::Kihuha,
             "ki'u'e" => Self::Kihuhe,
             "ki'u'i" => Self::Kihuhi,
             "ko" => Self::Ko,
             "ko'a" => Self::Koha,
+            "ko'au" => Self::Kohau,
             "ko'e" => Self::Kohe,
             "ko'i" => Self::Kohi,
             "ko'o" => Self::Koho,
@@ -1354,9 +1411,12 @@ impl Cmavo {
             "le'o'e" => Self::Lehohe,
             "le'u" => Self::Lehu,
             "lei" => Self::Lei,
+            "lei'e" => Self::Leihe,
+            "lei'i" => Self::Leihi,
             "li" => Self::Li,
             "li'a" => Self::Liha,
             "li'ai" => Self::Lihai,
+            "li'au" => Self::Lihau,
             "li'e" => Self::Lihe,
             "li'e'e" => Self::Lihehe,
             "li'ei" => Self::Lihei,
@@ -1365,6 +1425,7 @@ impl Cmavo {
             "li'oi" => Self::Lihoi,
             "li'u" => Self::Lihu,
             "lo" => Self::Lo,
+            "lo'a" => Self::Loha,
             "lo'ai" => Self::Lohai,
             "lo'e" => Self::Lohe,
             "lo'ei" => Self::Lohei,
@@ -1378,6 +1439,7 @@ impl Cmavo {
             "lu" => Self::Lu,
             "lu'a" => Self::Luha,
             "lu'e" => Self::Luhe,
+            "lu'ei" => Self::Luhei,
             "lu'i" => Self::Luhi,
             "lu'o" => Self::Luho,
             "lu'u" => Self::Luhu,
@@ -1402,6 +1464,7 @@ impl Cmavo {
             "mau'u" => Self::Mauhu,
             "me" => Self::Me,
             "me'a" => Self::Meha,
+            "me'au" => Self::Mehau,
             "me'e" => Self::Mehe,
             "me'ei" => Self::Mehei,
             "me'i" => Self::Mehi,
@@ -1424,9 +1487,11 @@ impl Cmavo {
             "mo'e" => Self::Mohe,
             "mo'i" => Self::Mohi,
             "mo'o" => Self::Moho,
+            "mo'oi" => Self::Mohoi,
             "mo'u" => Self::Mohu,
             "moi" => Self::Moi,
             "moi'o" => Self::Moiho,
+            "moi'oi" => Self::Moihoi,
             "mu" => Self::Mu,
             "mu'a" => Self::Muha,
             "mu'ai" => Self::Muhai,
@@ -1438,7 +1503,9 @@ impl Cmavo {
             "mu'u" => Self::Muhu,
             "my" => Self::My,
             "na" => Self::Na,
+            "na'a" => Self::Naha,
             "na'e" => Self::Nahe,
+            "na'ei" => Self::Nahei,
             "na'i" => Self::Nahi,
             "na'o" => Self::Naho,
             "na'oi" => Self::Nahoi,
@@ -1488,6 +1555,7 @@ impl Cmavo {
             "o'i" => Self::Ohi,
             "o'o" => Self::Oho,
             "o'u" => Self::Ohu,
+            "o'y" => Self::Ohy,
             "oi" => Self::Oi,
             "oi'a" => Self::Oiha,
             "oi'oi" => Self::Oihoi,
@@ -1588,6 +1656,7 @@ impl Cmavo {
             "ru'a" => Self::Ruha,
             "ru'e" => Self::Ruhe,
             "ru'i" => Self::Ruhi,
+            "ru'o" => Self::Ruho,
             "ru'u" => Self::Ruhu,
             "ry" => Self::Ry,
             "sa" => Self::Sa,
@@ -1679,6 +1748,8 @@ impl Cmavo {
             "ti'u'i" => Self::Tihuhi,
             "ti'u'u" => Self::Tihuhu,
             "to" => Self::To,
+            "to'a" => Self::Toha,
+            "to'ai" => Self::Tohai,
             "to'e" => Self::Tohe,
             "to'i" => Self::Tohi,
             "to'o" => Self::Toho,
@@ -1710,6 +1781,7 @@ impl Cmavo {
             "u'o'u" => Self::Uhohu,
             "u'oi" => Self::Uhoi,
             "u'u" => Self::Uhu,
+            "u'y" => Self::Uhy,
             "ua" => Self::Ua,
             "ue" => Self::Ue,
             "ue'i" => Self::Uehi,
@@ -1717,6 +1789,7 @@ impl Cmavo {
             "ui'ai" => Self::Uihai,
             "uo" => Self::Uo,
             "uu" => Self::Uu,
+            "uy" => Self::Uy,
             "va" => Self::Va,
             "va'a" => Self::Vaha,
             "va'e" => Self::Vahe,
@@ -1743,6 +1816,7 @@ impl Cmavo {
             "vi'u" => Self::Vihu,
             "vo" => Self::Vo,
             "vo'a" => Self::Voha,
+            "vo'ai" => Self::Vohai,
             "vo'e" => Self::Vohe,
             "vo'i" => Self::Vohi,
             "vo'o" => Self::Voho,
@@ -1768,6 +1842,7 @@ impl Cmavo {
             "xau'u" => Self::Xauhu,
             "xe" => Self::Xe,
             "xe'au" => Self::Xehau,
+            "xe'e" => Self::Xehe,
             "xe'ei" => Self::Xehei,
             "xe'i'a" => Self::Xehiha,
             "xe'i'e" => Self::Xehihe,
@@ -1775,6 +1850,7 @@ impl Cmavo {
             "xe'i'o" => Self::Xehiho,
             "xe'i'u" => Self::Xehihu,
             "xe'u" => Self::Xehu,
+            "xei'e" => Self::Xeihe,
             "xi" => Self::Xi,
             "xi'e" => Self::Xihe,
             "xi'i" => Self::Xihi,
@@ -1847,16 +1923,6 @@ impl Cmavo {
     #[bityzba::ensures(!ret.is_empty())]
     pub const fn canonical_text(self) -> &'static str {
         match self {
-            Self::Digit0 => "0",
-            Self::Digit1 => "1",
-            Self::Digit2 => "2",
-            Self::Digit3 => "3",
-            Self::Digit4 => "4",
-            Self::Digit5 => "5",
-            Self::Digit6 => "6",
-            Self::Digit7 => "7",
-            Self::Digit8 => "8",
-            Self::Digit9 => "9",
             Self::A => "a",
             Self::Aha => "a'a",
             Self::Ahai => "a'ai",
@@ -1865,6 +1931,7 @@ impl Cmavo {
             Self::Aho => "a'o",
             Self::Ahoi => "a'oi",
             Self::Ahu => "a'u",
+            Self::Ahy => "a'y",
             Self::Ai => "ai",
             Self::Aihi => "ai'i",
             Self::Au => "au",
@@ -1885,6 +1952,7 @@ impl Cmavo {
             Self::Beha => "be'a",
             Self::Behau => "be'au",
             Self::Behe => "be'e",
+            Self::Behei => "be'ei",
             Self::Behi => "be'i",
             Self::Beho => "be'o",
             Self::Behu => "be'u",
@@ -1921,6 +1989,7 @@ impl Cmavo {
             Self::Cauhi => "cau'i",
             Self::Ce => "ce",
             Self::Ceha => "ce'a",
+            Self::Cehai => "ce'ai",
             Self::Cehe => "ce'e",
             Self::Cehi => "ce'i",
             Self::Ceho => "ce'o",
@@ -1958,6 +2027,7 @@ impl Cmavo {
             Self::Dahei => "da'ei",
             Self::Dahi => "da'i",
             Self::Daho => "da'o",
+            Self::Dahoi => "da'oi",
             Self::Dahu => "da'u",
             Self::Dai => "dai",
             Self::Daiha => "dai'a",
@@ -1979,12 +2049,27 @@ impl Cmavo {
             Self::Dehe => "de'e",
             Self::Dehei => "de'ei",
             Self::Dehi => "de'i",
+            Self::Dehiha => "de'i'a",
+            Self::Dehihe => "de'i'e",
+            Self::Dehihi => "de'i'i",
+            Self::Dehiho => "de'i'o",
+            Self::Dehihu => "de'i'u",
             Self::Deho => "de'o",
             Self::Dehoha => "de'o'a",
             Self::Dehu => "de'u",
             Self::Dei => "dei",
             Self::Deiha => "dei'a",
             Self::Di => "di",
+            Self::Digit0 => "0",
+            Self::Digit1 => "1",
+            Self::Digit2 => "2",
+            Self::Digit3 => "3",
+            Self::Digit4 => "4",
+            Self::Digit5 => "5",
+            Self::Digit6 => "6",
+            Self::Digit7 => "7",
+            Self::Digit8 => "8",
+            Self::Digit9 => "9",
             Self::Diha => "di'a",
             Self::Dihai => "di'ai",
             Self::Dihe => "di'e",
@@ -2017,6 +2102,7 @@ impl Cmavo {
             Self::Eho => "e'o",
             Self::Ehu => "e'u",
             Self::Ehuhi => "e'u'i",
+            Self::Ehy => "e'y",
             Self::Ei => "ei",
             Self::Eihai => "ei'ai",
             Self::Eihei => "ei'ei",
@@ -2073,6 +2159,7 @@ impl Cmavo {
             Self::Fy => "fy",
             Self::Ga => "ga",
             Self::Gaha => "ga'a",
+            Self::Gahe => "ga'e",
             Self::Gahei => "ga'ei",
             Self::Gahi => "ga'i",
             Self::Gahihi => "ga'i'i",
@@ -2092,6 +2179,7 @@ impl Cmavo {
             Self::Gehai => "ge'ai",
             Self::Gehe => "ge'e",
             Self::Gehi => "ge'i",
+            Self::Geho => "ge'o",
             Self::Gehu => "ge'u",
             Self::Gehuhi => "ge'u'i",
             Self::Gei => "gei",
@@ -2118,6 +2206,11 @@ impl Cmavo {
             Self::Guhu => "gu'u",
             Self::Gy => "gy",
             Self::I => "i",
+            Self::Ia => "ia",
+            Self::Iahau => "ia'au",
+            Self::Iahu => "ia'u",
+            Self::Ie => "ie",
+            Self::Ieho => "ie'o",
             Self::Iha => "i'a",
             Self::Ihau => "i'au",
             Self::Ihe => "i'e",
@@ -2126,16 +2219,14 @@ impl Cmavo {
             Self::Ihihi => "i'i'i",
             Self::Iho => "i'o",
             Self::Ihu => "i'u",
-            Self::Ia => "ia",
-            Self::Iahau => "ia'au",
-            Self::Iahu => "ia'u",
-            Self::Ie => "ie",
-            Self::Ieho => "ie'o",
+            Self::Ihy => "i'y",
             Self::Ii => "ii",
             Self::Io => "io",
             Self::Iu => "iu",
+            Self::Iy => "iy",
             Self::Ja => "ja",
             Self::Jaha => "ja'a",
+            Self::Jahai => "ja'ai",
             Self::Jahau => "ja'au",
             Self::Jahe => "ja'e",
             Self::Jahei => "ja'ei",
@@ -2157,6 +2248,7 @@ impl Cmavo {
             Self::Jehau => "je'au",
             Self::Jehe => "je'e",
             Self::Jehi => "je'i",
+            Self::Jeho => "je'o",
             Self::Jehu => "je'u",
             Self::Jei => "jei",
             Self::Jeihe => "jei'e",
@@ -2181,6 +2273,7 @@ impl Cmavo {
             Self::Johe => "jo'e",
             Self::Johi => "jo'i",
             Self::Johiha => "jo'i'a",
+            Self::Joho => "jo'o",
             Self::Johu => "jo'u",
             Self::Johuhu => "jo'u'u",
             Self::Joi => "joi",
@@ -2232,12 +2325,14 @@ impl Cmavo {
             Self::Kiho => "ki'o",
             Self::Kihoha => "ki'o'a",
             Self::Kihohe => "ki'o'e",
+            Self::Kihoi => "ki'oi",
             Self::Kihu => "ki'u",
             Self::Kihuha => "ki'u'a",
             Self::Kihuhe => "ki'u'e",
             Self::Kihuhi => "ki'u'i",
             Self::Ko => "ko",
             Self::Koha => "ko'a",
+            Self::Kohau => "ko'au",
             Self::Kohe => "ko'e",
             Self::Kohi => "ko'i",
             Self::Koho => "ko'o",
@@ -2276,9 +2371,12 @@ impl Cmavo {
             Self::Lehohe => "le'o'e",
             Self::Lehu => "le'u",
             Self::Lei => "lei",
+            Self::Leihe => "lei'e",
+            Self::Leihi => "lei'i",
             Self::Li => "li",
             Self::Liha => "li'a",
             Self::Lihai => "li'ai",
+            Self::Lihau => "li'au",
             Self::Lihe => "li'e",
             Self::Lihehe => "li'e'e",
             Self::Lihei => "li'ei",
@@ -2287,6 +2385,7 @@ impl Cmavo {
             Self::Lihoi => "li'oi",
             Self::Lihu => "li'u",
             Self::Lo => "lo",
+            Self::Loha => "lo'a",
             Self::Lohai => "lo'ai",
             Self::Lohe => "lo'e",
             Self::Lohei => "lo'ei",
@@ -2300,6 +2399,7 @@ impl Cmavo {
             Self::Lu => "lu",
             Self::Luha => "lu'a",
             Self::Luhe => "lu'e",
+            Self::Luhei => "lu'ei",
             Self::Luhi => "lu'i",
             Self::Luho => "lu'o",
             Self::Luhu => "lu'u",
@@ -2324,6 +2424,7 @@ impl Cmavo {
             Self::Mauhu => "mau'u",
             Self::Me => "me",
             Self::Meha => "me'a",
+            Self::Mehau => "me'au",
             Self::Mehe => "me'e",
             Self::Mehei => "me'ei",
             Self::Mehi => "me'i",
@@ -2346,9 +2447,11 @@ impl Cmavo {
             Self::Mohe => "mo'e",
             Self::Mohi => "mo'i",
             Self::Moho => "mo'o",
+            Self::Mohoi => "mo'oi",
             Self::Mohu => "mo'u",
             Self::Moi => "moi",
             Self::Moiho => "moi'o",
+            Self::Moihoi => "moi'oi",
             Self::Mu => "mu",
             Self::Muha => "mu'a",
             Self::Muhai => "mu'ai",
@@ -2360,7 +2463,9 @@ impl Cmavo {
             Self::Muhu => "mu'u",
             Self::My => "my",
             Self::Na => "na",
+            Self::Naha => "na'a",
             Self::Nahe => "na'e",
+            Self::Nahei => "na'ei",
             Self::Nahi => "na'i",
             Self::Naho => "na'o",
             Self::Nahoi => "na'oi",
@@ -2410,6 +2515,7 @@ impl Cmavo {
             Self::Ohi => "o'i",
             Self::Oho => "o'o",
             Self::Ohu => "o'u",
+            Self::Ohy => "o'y",
             Self::Oi => "oi",
             Self::Oiha => "oi'a",
             Self::Oihoi => "oi'oi",
@@ -2510,6 +2616,7 @@ impl Cmavo {
             Self::Ruha => "ru'a",
             Self::Ruhe => "ru'e",
             Self::Ruhi => "ru'i",
+            Self::Ruho => "ru'o",
             Self::Ruhu => "ru'u",
             Self::Ry => "ry",
             Self::Sa => "sa",
@@ -2601,6 +2708,8 @@ impl Cmavo {
             Self::Tihuhi => "ti'u'i",
             Self::Tihuhu => "ti'u'u",
             Self::To => "to",
+            Self::Toha => "to'a",
+            Self::Tohai => "to'ai",
             Self::Tohe => "to'e",
             Self::Tohi => "to'i",
             Self::Toho => "to'o",
@@ -2622,6 +2731,9 @@ impl Cmavo {
             Self::Tuhu => "tu'u",
             Self::Ty => "ty",
             Self::U => "u",
+            Self::Ua => "ua",
+            Self::Ue => "ue",
+            Self::Uehi => "ue'i",
             Self::Uha => "u'a",
             Self::Uhe => "u'e",
             Self::Uhi => "u'i",
@@ -2632,13 +2744,12 @@ impl Cmavo {
             Self::Uhohu => "u'o'u",
             Self::Uhoi => "u'oi",
             Self::Uhu => "u'u",
-            Self::Ua => "ua",
-            Self::Ue => "ue",
-            Self::Uehi => "ue'i",
+            Self::Uhy => "u'y",
             Self::Ui => "ui",
             Self::Uihai => "ui'ai",
             Self::Uo => "uo",
             Self::Uu => "uu",
+            Self::Uy => "uy",
             Self::Va => "va",
             Self::Vaha => "va'a",
             Self::Vahe => "va'e",
@@ -2665,6 +2776,7 @@ impl Cmavo {
             Self::Vihu => "vi'u",
             Self::Vo => "vo",
             Self::Voha => "vo'a",
+            Self::Vohai => "vo'ai",
             Self::Vohe => "vo'e",
             Self::Vohi => "vo'i",
             Self::Voho => "vo'o",
@@ -2690,6 +2802,7 @@ impl Cmavo {
             Self::Xauhu => "xau'u",
             Self::Xe => "xe",
             Self::Xehau => "xe'au",
+            Self::Xehe => "xe'e",
             Self::Xehei => "xe'ei",
             Self::Xehiha => "xe'i'a",
             Self::Xehihe => "xe'i'e",
@@ -2697,6 +2810,7 @@ impl Cmavo {
             Self::Xehiho => "xe'i'o",
             Self::Xehihu => "xe'i'u",
             Self::Xehu => "xe'u",
+            Self::Xeihe => "xei'e",
             Self::Xi => "xi",
             Self::Xihe => "xi'e",
             Self::Xihi => "xi'i",
@@ -2782,15 +2896,16 @@ impl fmt::Display for Cmavo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Selmaho {
     A,
-    Bai,
     Bahe,
+    Bai,
     Be,
-    Bei,
     Beho,
+    Bei,
+    Bihi,
     Bu,
     By,
-    Cai,
     Caha,
+    Cai,
     Cehe,
     Co,
     Coi,
@@ -2802,33 +2917,45 @@ pub enum Selmaho {
     Faha,
     Faho,
     Fuha,
-    Goi,
+    Ga,
+    Gaho,
+    Gi,
+    Giha,
+    Gihi,
     Goha,
+    Goi,
+    Guha,
     I,
     Ja,
     Jai,
-    Joi,
+    Jehi,
     Johi,
+    Joi,
     Koha,
+    Ku,
     La,
-    Lau,
     Lahe,
+    Lau,
     Le,
     Lehu,
     Li,
+    Lihau,
     Lihu,
     Loho,
+    Lohoi,
     Lohu,
     Lu,
+    Luhei,
     Mai,
     Me,
-    Moi,
     Mohe,
+    Moi,
     Na,
-    Nai,
     Nahe,
+    Nai,
     Niho,
     Noi,
+    Noiha,
     Nu,
     Pa,
     Pehe,
@@ -2836,10 +2963,12 @@ pub enum Selmaho {
     Roi,
     Sa,
     Se,
-    Sei,
     Sehu,
+    Sei,
     Si,
+    Soi,
     Su,
+    Tahe,
     To,
     Toi,
     Tuhe,
@@ -2847,17 +2976,20 @@ pub enum Selmaho {
     Ui3a,
     Va,
     Vau,
-    Vei,
+    Veha,
     Veho,
+    Vei,
+    Viha,
     Vuhu,
     Xi,
     Y,
     Zaho,
+    Zeha,
     Zei,
     Zi,
     Zo,
-    Zoi,
     Zohu,
+    Zoi,
 }
 
 impl Selmaho {
@@ -2866,15 +2998,16 @@ impl Selmaho {
     pub const fn name(self) -> &'static str {
         match self {
             Self::A => "A",
-            Self::Bai => "BAI",
             Self::Bahe => "BAhE",
+            Self::Bai => "BAI",
             Self::Be => "BE",
-            Self::Bei => "BEI",
             Self::Beho => "BEhO",
+            Self::Bei => "BEI",
+            Self::Bihi => "BIhI",
             Self::Bu => "BU",
             Self::By => "BY",
-            Self::Cai => "CAI",
             Self::Caha => "CAhA",
+            Self::Cai => "CAI",
             Self::Cehe => "CEhE",
             Self::Co => "CO",
             Self::Coi => "COI",
@@ -2886,33 +3019,45 @@ impl Selmaho {
             Self::Faha => "FAhA",
             Self::Faho => "FAhO",
             Self::Fuha => "FUhA",
-            Self::Goi => "GOI",
+            Self::Ga => "GA",
+            Self::Gaho => "GAhO",
+            Self::Gi => "GI",
+            Self::Giha => "GIhA",
+            Self::Gihi => "GIhI",
             Self::Goha => "GOhA",
+            Self::Goi => "GOI",
+            Self::Guha => "GUhA",
             Self::I => "I",
             Self::Ja => "JA",
             Self::Jai => "JAI",
-            Self::Joi => "JOI",
+            Self::Jehi => "JEhI",
             Self::Johi => "JOhI",
+            Self::Joi => "JOI",
             Self::Koha => "KOhA",
+            Self::Ku => "KU",
             Self::La => "LA",
-            Self::Lau => "LAU",
             Self::Lahe => "LAhE",
+            Self::Lau => "LAU",
             Self::Le => "LE",
             Self::Lehu => "LEhU",
             Self::Li => "LI",
+            Self::Lihau => "LIhAU",
             Self::Lihu => "LIhU",
             Self::Loho => "LOhO",
+            Self::Lohoi => "LOhOI",
             Self::Lohu => "LOhU",
             Self::Lu => "LU",
+            Self::Luhei => "LUhEI",
             Self::Mai => "MAI",
             Self::Me => "ME",
-            Self::Moi => "MOI",
             Self::Mohe => "MOhE",
+            Self::Moi => "MOI",
             Self::Na => "NA",
-            Self::Nai => "NAI",
             Self::Nahe => "NAhE",
+            Self::Nai => "NAI",
             Self::Niho => "NIhO",
             Self::Noi => "NOI",
+            Self::Noiha => "NOIhA",
             Self::Nu => "NU",
             Self::Pa => "PA",
             Self::Pehe => "PEhE",
@@ -2920,10 +3065,12 @@ impl Selmaho {
             Self::Roi => "ROI",
             Self::Sa => "SA",
             Self::Se => "SE",
-            Self::Sei => "SEI",
             Self::Sehu => "SEhU",
+            Self::Sei => "SEI",
             Self::Si => "SI",
+            Self::Soi => "SOI",
             Self::Su => "SU",
+            Self::Tahe => "TAhE",
             Self::To => "TO",
             Self::Toi => "TOI",
             Self::Tuhe => "TUhE",
@@ -2931,34 +3078,38 @@ impl Selmaho {
             Self::Ui3a => "UI3a",
             Self::Va => "VA",
             Self::Vau => "VAU",
-            Self::Vei => "VEI",
+            Self::Veha => "VEhA",
             Self::Veho => "VEhO",
+            Self::Vei => "VEI",
+            Self::Viha => "VIhA",
             Self::Vuhu => "VUhU",
             Self::Xi => "XI",
             Self::Y => "Y",
             Self::Zaho => "ZAhO",
+            Self::Zeha => "ZEhA",
             Self::Zei => "ZEI",
             Self::Zi => "ZI",
             Self::Zo => "ZO",
-            Self::Zoi => "ZOI",
             Self::Zohu => "ZOhU",
+            Self::Zoi => "ZOI",
         }
     }
 
-    #[requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(!name.is_empty())]
+    #[bityzba::ensures(ret.is_none() || ret.unwrap().name() == name)]
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "A" => Self::A,
-            "BAI" => Self::Bai,
             "BAhE" => Self::Bahe,
+            "BAI" => Self::Bai,
             "BE" => Self::Be,
-            "BEI" => Self::Bei,
             "BEhO" => Self::Beho,
+            "BEI" => Self::Bei,
+            "BIhI" => Self::Bihi,
             "BU" => Self::Bu,
             "BY" => Self::By,
-            "CAI" => Self::Cai,
             "CAhA" => Self::Caha,
+            "CAI" => Self::Cai,
             "CEhE" => Self::Cehe,
             "CO" => Self::Co,
             "COI" => Self::Coi,
@@ -2970,33 +3121,45 @@ impl Selmaho {
             "FAhA" => Self::Faha,
             "FAhO" => Self::Faho,
             "FUhA" => Self::Fuha,
-            "GOI" => Self::Goi,
+            "GA" => Self::Ga,
+            "GAhO" => Self::Gaho,
+            "GI" => Self::Gi,
+            "GIhA" => Self::Giha,
+            "GIhI" => Self::Gihi,
             "GOhA" => Self::Goha,
+            "GOI" => Self::Goi,
+            "GUhA" => Self::Guha,
             "I" => Self::I,
             "JA" => Self::Ja,
             "JAI" => Self::Jai,
-            "JOI" => Self::Joi,
+            "JEhI" => Self::Jehi,
             "JOhI" => Self::Johi,
+            "JOI" => Self::Joi,
             "KOhA" => Self::Koha,
+            "KU" => Self::Ku,
             "LA" => Self::La,
-            "LAU" => Self::Lau,
             "LAhE" => Self::Lahe,
+            "LAU" => Self::Lau,
             "LE" => Self::Le,
             "LEhU" => Self::Lehu,
             "LI" => Self::Li,
+            "LIhAU" => Self::Lihau,
             "LIhU" => Self::Lihu,
             "LOhO" => Self::Loho,
+            "LOhOI" => Self::Lohoi,
             "LOhU" => Self::Lohu,
             "LU" => Self::Lu,
+            "LUhEI" => Self::Luhei,
             "MAI" => Self::Mai,
             "ME" => Self::Me,
-            "MOI" => Self::Moi,
             "MOhE" => Self::Mohe,
+            "MOI" => Self::Moi,
             "NA" => Self::Na,
-            "NAI" => Self::Nai,
             "NAhE" => Self::Nahe,
+            "NAI" => Self::Nai,
             "NIhO" => Self::Niho,
             "NOI" => Self::Noi,
+            "NOIhA" => Self::Noiha,
             "NU" => Self::Nu,
             "PA" => Self::Pa,
             "PEhE" => Self::Pehe,
@@ -3004,10 +3167,12 @@ impl Selmaho {
             "ROI" => Self::Roi,
             "SA" => Self::Sa,
             "SE" => Self::Se,
-            "SEI" => Self::Sei,
             "SEhU" => Self::Sehu,
+            "SEI" => Self::Sei,
             "SI" => Self::Si,
+            "SOI" => Self::Soi,
             "SU" => Self::Su,
+            "TAhE" => Self::Tahe,
             "TO" => Self::To,
             "TOI" => Self::Toi,
             "TUhE" => Self::Tuhe,
@@ -3015,17 +3180,20 @@ impl Selmaho {
             "UI3a" => Self::Ui3a,
             "VA" => Self::Va,
             "VAU" => Self::Vau,
-            "VEI" => Self::Vei,
+            "VEhA" => Self::Veha,
             "VEhO" => Self::Veho,
+            "VEI" => Self::Vei,
+            "VIhA" => Self::Viha,
             "VUhU" => Self::Vuhu,
             "XI" => Self::Xi,
             "Y" => Self::Y,
             "ZAhO" => Self::Zaho,
+            "ZEhA" => Self::Zeha,
             "ZEI" => Self::Zei,
             "ZI" => Self::Zi,
             "ZO" => Self::Zo,
-            "ZOI" => Self::Zoi,
             "ZOhU" => Self::Zohu,
+            "ZOI" => Self::Zoi,
             _ => return None,
         })
     }
@@ -3035,6 +3203,7 @@ impl Selmaho {
     pub const fn contains(self, cmavo: Cmavo) -> bool {
         match self {
             Self::A => matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::Ji | Cmavo::O | Cmavo::U),
+            Self::Bahe => matches!(cmavo, Cmavo::Bahe | Cmavo::Zahe),
             Self::Bai => matches!(
                 cmavo,
                 Cmavo::Bahi
@@ -3042,6 +3211,7 @@ impl Selmaho {
                     | Cmavo::Baihau
                     | Cmavo::Bau
                     | Cmavo::Behau
+                    | Cmavo::Behei
                     | Cmavo::Behi
                     | Cmavo::Buhuhe
                     | Cmavo::Cahi
@@ -3056,6 +3226,11 @@ impl Selmaho {
                     | Cmavo::Dauhu
                     | Cmavo::Dehahu
                     | Cmavo::Dehi
+                    | Cmavo::Dehiha
+                    | Cmavo::Dehihe
+                    | Cmavo::Dehihi
+                    | Cmavo::Dehiho
+                    | Cmavo::Dehihu
                     | Cmavo::Diho
                     | Cmavo::Dohe
                     | Cmavo::Duhi
@@ -3080,14 +3255,17 @@ impl Selmaho {
                     | Cmavo::Jiho
                     | Cmavo::Jihu
                     | Cmavo::Kaha
+                    | Cmavo::Kahai
                     | Cmavo::Kahi
                     | Cmavo::Kai
                     | Cmavo::Kihai
                     | Cmavo::Kihi
                     | Cmavo::Kihohe
+                    | Cmavo::Kihoi
                     | Cmavo::Kihu
                     | Cmavo::Kihuhe
                     | Cmavo::Kihuhi
+                    | Cmavo::Kohau
                     | Cmavo::Koi
                     | Cmavo::Kuhu
                     | Cmavo::Lahai
@@ -3173,14 +3351,15 @@ impl Selmaho {
                     | Cmavo::Zuhai
                     | Cmavo::Zuhe
             ),
-            Self::Bahe => matches!(cmavo, Cmavo::Bahe | Cmavo::Zahe),
             Self::Be => matches!(cmavo, Cmavo::Be),
-            Self::Bei => matches!(cmavo, Cmavo::Bei),
             Self::Beho => matches!(cmavo, Cmavo::Beho),
+            Self::Bei => matches!(cmavo, Cmavo::Bei),
+            Self::Bihi => matches!(cmavo, Cmavo::Bihi | Cmavo::Biho | Cmavo::Mihi),
             Self::Bu => matches!(cmavo, Cmavo::Bu),
             Self::By => matches!(
                 cmavo,
                 Cmavo::A
+                    | Cmavo::Ahy
                     | Cmavo::By
                     | Cmavo::Cauhe
                     | Cmavo::Cauhi
@@ -3195,24 +3374,31 @@ impl Selmaho {
                     | Cmavo::Dauhi
                     | Cmavo::Dy
                     | Cmavo::E
+                    | Cmavo::Ehy
                     | Cmavo::Fauha
                     | Cmavo::Fauhe
                     | Cmavo::Fauhi
                     | Cmavo::Fauho
                     | Cmavo::Fauhu
                     | Cmavo::Fy
+                    | Cmavo::Gahe
                     | Cmavo::Gaiha
                     | Cmavo::Gaihe
                     | Cmavo::Gaihi
                     | Cmavo::Gaiho
                     | Cmavo::Gaihu
+                    | Cmavo::Geho
                     | Cmavo::Gy
                     | Cmavo::I
+                    | Cmavo::Ihy
+                    | Cmavo::Iy
                     | Cmavo::Jauha
                     | Cmavo::Jauhe
                     | Cmavo::Jauhi
                     | Cmavo::Jauho
                     | Cmavo::Jauhu
+                    | Cmavo::Jeho
+                    | Cmavo::Joho
                     | Cmavo::Joiho
                     | Cmavo::Joihu
                     | Cmavo::Jy
@@ -3222,27 +3408,34 @@ impl Selmaho {
                     | Cmavo::Kauho
                     | Cmavo::Kauhu
                     | Cmavo::Ky
+                    | Cmavo::Loha
                     | Cmavo::Ly
                     | Cmavo::My
+                    | Cmavo::Naha
                     | Cmavo::Ny
                     | Cmavo::O
+                    | Cmavo::Ohy
                     | Cmavo::Py
+                    | Cmavo::Ruho
                     | Cmavo::Ry
                     | Cmavo::Sy
+                    | Cmavo::Toha
                     | Cmavo::Ty
                     | Cmavo::U
+                    | Cmavo::Uhy
+                    | Cmavo::Uy
                     | Cmavo::Vy
                     | Cmavo::Xy
                     | Cmavo::Yhy
                     | Cmavo::Zy
             ),
-            Self::Cai => matches!(
-                cmavo,
-                Cmavo::Cai | Cmavo::Cuhi | Cmavo::Pei | Cmavo::Ruhe | Cmavo::Sai
-            ),
             Self::Caha => matches!(
                 cmavo,
                 Cmavo::Bihai | Cmavo::Caha | Cmavo::Kahe | Cmavo::Nuho | Cmavo::Puhi
+            ),
+            Self::Cai => matches!(
+                cmavo,
+                Cmavo::Cai | Cmavo::Cuhi | Cmavo::Pei | Cmavo::Ruhe | Cmavo::Sai
             ),
             Self::Cehe => matches!(cmavo, Cmavo::Cehe),
             Self::Co => matches!(cmavo, Cmavo::Co),
@@ -3280,9 +3473,12 @@ impl Selmaho {
                     | Cmavo::Xuhei
             ),
             Self::Cu => matches!(cmavo, Cmavo::Cu),
-            Self::Cuhe => matches!(cmavo, Cmavo::Bahau | Cmavo::Puhau),
+            Self::Cuhe => matches!(
+                cmavo,
+                Cmavo::Bahau | Cmavo::Cuhe | Cmavo::Nau | Cmavo::Puhau
+            ),
             Self::Daho => matches!(cmavo, Cmavo::Daiho | Cmavo::Dohai),
-            Self::Doi => matches!(cmavo, Cmavo::Dahei),
+            Self::Doi => matches!(cmavo, Cmavo::Dahei | Cmavo::Dahoi),
             Self::Fa => matches!(
                 cmavo,
                 Cmavo::Fa
@@ -3314,6 +3510,7 @@ impl Selmaho {
                     | Cmavo::Tiha
                     | Cmavo::Toho
                     | Cmavo::Vuha
+                    | Cmavo::Xeihe
                     | Cmavo::Zeho
                     | Cmavo::Zoha
                     | Cmavo::Zohi
@@ -3322,17 +3519,17 @@ impl Selmaho {
             ),
             Self::Faho => matches!(cmavo, Cmavo::Faho),
             Self::Fuha => matches!(cmavo, Cmavo::Fuha),
-            Self::Goi => matches!(
+            Self::Ga => matches!(
                 cmavo,
-                Cmavo::Goi
-                    | Cmavo::Ne
-                    | Cmavo::Nohu
-                    | Cmavo::Pe
-                    | Cmavo::Po
-                    | Cmavo::Pohe
-                    | Cmavo::Pohu
-                    | Cmavo::Voihe
+                Cmavo::Ga | Cmavo::Ge | Cmavo::Gehi | Cmavo::Go | Cmavo::Gu
             ),
+            Self::Gaho => matches!(cmavo, Cmavo::Gaho | Cmavo::Kehi),
+            Self::Gi => matches!(cmavo, Cmavo::Gi),
+            Self::Giha => matches!(
+                cmavo,
+                Cmavo::Giha | Cmavo::Gihe | Cmavo::Gihi | Cmavo::Giho | Cmavo::Gihu
+            ),
+            Self::Gihi => matches!(cmavo, Cmavo::Gihi),
             Self::Goha => matches!(
                 cmavo,
                 Cmavo::Bohei
@@ -3355,9 +3552,32 @@ impl Selmaho {
                     | Cmavo::Xehu
                     | Cmavo::Zehoi
             ),
+            Self::Goi => matches!(
+                cmavo,
+                Cmavo::Goi
+                    | Cmavo::Ne
+                    | Cmavo::Nohu
+                    | Cmavo::Pe
+                    | Cmavo::Po
+                    | Cmavo::Pohe
+                    | Cmavo::Pohu
+                    | Cmavo::Voihe
+            ),
+            Self::Guha => matches!(
+                cmavo,
+                Cmavo::Guha | Cmavo::Guhe | Cmavo::Guhi | Cmavo::Guho | Cmavo::Guhu
+            ),
             Self::I => matches!(cmavo, Cmavo::I),
-            Self::Ja => matches!(cmavo, Cmavo::Ja | Cmavo::Je | Cmavo::Jo | Cmavo::Ju),
+            Self::Ja => matches!(
+                cmavo,
+                Cmavo::Ja | Cmavo::Je | Cmavo::Jehi | Cmavo::Jo | Cmavo::Ju
+            ),
             Self::Jai => matches!(cmavo, Cmavo::Jahei | Cmavo::Johai),
+            Self::Jehi => matches!(
+                cmavo,
+                Cmavo::Ja | Cmavo::Je | Cmavo::Jehi | Cmavo::Jo | Cmavo::Ju
+            ),
+            Self::Johi => matches!(cmavo, Cmavo::Johi),
             Self::Joi => matches!(
                 cmavo,
                 Cmavo::Ce
@@ -3378,7 +3598,6 @@ impl Selmaho {
                     | Cmavo::Kuha
                     | Cmavo::Pihu
             ),
-            Self::Johi => matches!(cmavo, Cmavo::Johi),
             Self::Koha => matches!(
                 cmavo,
                 Cmavo::Cehu
@@ -3457,8 +3676,8 @@ impl Selmaho {
                     | Cmavo::Zuhai
                     | Cmavo::Zuhi
             ),
+            Self::Ku => matches!(cmavo, Cmavo::Ku),
             Self::La => matches!(cmavo, Cmavo::La | Cmavo::Lahi | Cmavo::Lai),
-            Self::Lau => matches!(cmavo, Cmavo::Ceha | Cmavo::Lau | Cmavo::Tau | Cmavo::Zai),
             Self::Lahe => matches!(
                 cmavo,
                 Cmavo::Lahe
@@ -3476,7 +3695,9 @@ impl Selmaho {
                     | Cmavo::Tuha
                     | Cmavo::Voihe
                     | Cmavo::Vuhi
+                    | Cmavo::Zohei
             ),
+            Self::Lau => matches!(cmavo, Cmavo::Ceha | Cmavo::Lau | Cmavo::Tau | Cmavo::Zai),
             Self::Le => matches!(
                 cmavo,
                 Cmavo::Lahei
@@ -3485,12 +3706,18 @@ impl Selmaho {
                     | Cmavo::Lehei
                     | Cmavo::Lehi
                     | Cmavo::Lei
+                    | Cmavo::Leihe
+                    | Cmavo::Leihi
                     | Cmavo::Lo
                     | Cmavo::Lohe
                     | Cmavo::Lohei
                     | Cmavo::Lohi
                     | Cmavo::Loi
+                    | Cmavo::Loihe
+                    | Cmavo::Loihi
                     | Cmavo::Mehei
+                    | Cmavo::Mohoi
+                    | Cmavo::Moihoi
                     | Cmavo::Rihoi
                     | Cmavo::Zohau
             ),
@@ -3499,12 +3726,16 @@ impl Selmaho {
                 cmavo,
                 Cmavo::Bohai | Cmavo::Li | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho | Cmavo::Meho
             ),
+            Self::Lihau => matches!(cmavo, Cmavo::Lihau),
             Self::Lihu => matches!(cmavo, Cmavo::Lihu),
             Self::Loho => matches!(cmavo, Cmavo::Loho),
+            Self::Lohoi => matches!(cmavo, Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha),
             Self::Lohu => matches!(cmavo, Cmavo::Lohu),
             Self::Lu => matches!(cmavo, Cmavo::Lahau | Cmavo::Lu | Cmavo::Tuhai),
+            Self::Luhei => matches!(cmavo, Cmavo::Luhei),
             Self::Mai => matches!(cmavo, Cmavo::Mai | Cmavo::Moho),
-            Self::Me => matches!(cmavo, Cmavo::Xohi),
+            Self::Me => matches!(cmavo, Cmavo::Mehau | Cmavo::Xohi),
+            Self::Mohe => matches!(cmavo, Cmavo::Boihau),
             Self::Moi => matches!(
                 cmavo,
                 Cmavo::Ceiha
@@ -3515,17 +3746,26 @@ impl Selmaho {
                     | Cmavo::Sihe
                     | Cmavo::Vahe
             ),
-            Self::Mohe => matches!(cmavo, Cmavo::Boihau),
             Self::Na => matches!(cmavo, Cmavo::Jaha | Cmavo::Na),
-            Self::Nai => matches!(cmavo, Cmavo::Nai),
             Self::Nahe => matches!(
                 cmavo,
-                Cmavo::Dehai | Cmavo::Jeha | Cmavo::Nahe | Cmavo::Nohe | Cmavo::Nohei | Cmavo::Tohe
+                Cmavo::Dehai
+                    | Cmavo::Jeha
+                    | Cmavo::Nahe
+                    | Cmavo::Nahei
+                    | Cmavo::Nohe
+                    | Cmavo::Nohei
+                    | Cmavo::Tohe
             ),
-            Self::Niho => matches!(cmavo, Cmavo::Niho),
+            Self::Nai => matches!(cmavo, Cmavo::Jahai | Cmavo::Nai),
+            Self::Niho => matches!(cmavo, Cmavo::Niho | Cmavo::Nohi),
             Self::Noi => matches!(
                 cmavo,
                 Cmavo::Nohoi | Cmavo::Noi | Cmavo::Pohoi | Cmavo::Poi | Cmavo::Voi | Cmavo::Voihi
+            ),
+            Self::Noiha => matches!(
+                cmavo,
+                Cmavo::Noiha | Cmavo::Noihoha | Cmavo::Poiha | Cmavo::Poihoha | Cmavo::Soiha
             ),
             Self::Nu => matches!(
                 cmavo,
@@ -3554,7 +3794,13 @@ impl Selmaho {
             ),
             Self::Pa => matches!(
                 cmavo,
-                Cmavo::Digit0
+                Cmavo::Bi
+                    | Cmavo::Cehi
+                    | Cmavo::Ci
+                    | Cmavo::Cihi
+                    | Cmavo::Daha
+                    | Cmavo::Dau
+                    | Cmavo::Digit0
                     | Cmavo::Digit1
                     | Cmavo::Digit2
                     | Cmavo::Digit3
@@ -3564,12 +3810,6 @@ impl Selmaho {
                     | Cmavo::Digit7
                     | Cmavo::Digit8
                     | Cmavo::Digit9
-                    | Cmavo::Bi
-                    | Cmavo::Cehi
-                    | Cmavo::Ci
-                    | Cmavo::Cihi
-                    | Cmavo::Daha
-                    | Cmavo::Dau
                     | Cmavo::Duhe
                     | Cmavo::Duhei
                     | Cmavo::Faihu
@@ -3607,6 +3847,7 @@ impl Selmaho {
                     | Cmavo::Soho
                     | Cmavo::Sohoi
                     | Cmavo::Sohu
+                    | Cmavo::Suhai
                     | Cmavo::Suhe
                     | Cmavo::Suho
                     | Cmavo::Suhoi
@@ -3617,6 +3858,7 @@ impl Selmaho {
                     | Cmavo::Xa
                     | Cmavo::Xaihe
                     | Cmavo::Xauhe
+                    | Cmavo::Xehe
                     | Cmavo::Xo
                     | Cmavo::Xohai
                     | Cmavo::Xohe
@@ -3641,16 +3883,33 @@ impl Selmaho {
             Self::Sa => matches!(cmavo, Cmavo::Sa),
             Self::Se => matches!(
                 cmavo,
-                Cmavo::Dehai | Cmavo::Nahoi | Cmavo::Se | Cmavo::Te | Cmavo::Ve | Cmavo::Xe
-            ),
-            Self::Sei => matches!(
-                cmavo,
-                Cmavo::Saihe | Cmavo::Seihe | Cmavo::Soihe | Cmavo::Suhoi
+                Cmavo::Dehai
+                    | Cmavo::Nahoi
+                    | Cmavo::Se
+                    | Cmavo::Suhei
+                    | Cmavo::Te
+                    | Cmavo::Tohai
+                    | Cmavo::Ve
+                    | Cmavo::Vohai
+                    | Cmavo::Xe
+                    | Cmavo::Xohai
             ),
             Self::Sehu => matches!(cmavo, Cmavo::Xehau),
+            Self::Sei => matches!(
+                cmavo,
+                Cmavo::Saihe
+                    | Cmavo::Sei
+                    | Cmavo::Seihe
+                    | Cmavo::Soihe
+                    | Cmavo::Suhoi
+                    | Cmavo::Tiho
+                    | Cmavo::Xoi
+            ),
             Self::Si => matches!(cmavo, Cmavo::Si),
+            Self::Soi => matches!(cmavo, Cmavo::Soi | Cmavo::Xoi),
             Self::Su => matches!(cmavo, Cmavo::Su),
-            Self::To => matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi | Cmavo::To),
+            Self::Tahe => matches!(cmavo, Cmavo::Dihi | Cmavo::Naho | Cmavo::Ruhi | Cmavo::Tahe),
+            Self::To => matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi | Cmavo::To | Cmavo::Tohi),
             Self::Toi => matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho | Cmavo::Toi),
             Self::Tuhe => matches!(cmavo, Cmavo::Tuhe),
             Self::Ui => matches!(
@@ -3696,6 +3955,9 @@ impl Selmaho {
                     | Cmavo::Gahuhi
                     | Cmavo::Gehai
                     | Cmavo::Gehe
+                    | Cmavo::Ia
+                    | Cmavo::Iahau
+                    | Cmavo::Ie
                     | Cmavo::Iha
                     | Cmavo::Ihau
                     | Cmavo::Ihe
@@ -3704,9 +3966,6 @@ impl Selmaho {
                     | Cmavo::Ihihi
                     | Cmavo::Iho
                     | Cmavo::Ihu
-                    | Cmavo::Ia
-                    | Cmavo::Iahau
-                    | Cmavo::Ie
                     | Cmavo::Ii
                     | Cmavo::Io
                     | Cmavo::Iu
@@ -3788,6 +4047,9 @@ impl Selmaho {
                     | Cmavo::Tahu
                     | Cmavo::Tihe
                     | Cmavo::Tohu
+                    | Cmavo::Ua
+                    | Cmavo::Ue
+                    | Cmavo::Uehi
                     | Cmavo::Uha
                     | Cmavo::Uhe
                     | Cmavo::Uhi
@@ -3798,9 +4060,6 @@ impl Selmaho {
                     | Cmavo::Uhohu
                     | Cmavo::Uhoi
                     | Cmavo::Uhu
-                    | Cmavo::Ua
-                    | Cmavo::Ue
-                    | Cmavo::Uehi
                     | Cmavo::Ui
                     | Cmavo::Uihai
                     | Cmavo::Uo
@@ -3839,10 +4098,10 @@ impl Selmaho {
                     | Cmavo::Gahihi
                     | Cmavo::Gahuhi
                     | Cmavo::Gehai
+                    | Cmavo::Iahau
                     | Cmavo::Ihau
                     | Cmavo::Ihei
                     | Cmavo::Ihihi
-                    | Cmavo::Iahau
                     | Cmavo::Jahohe
                     | Cmavo::Jahoho
                     | Cmavo::Jihai
@@ -3889,8 +4148,10 @@ impl Selmaho {
             ),
             Self::Va => matches!(cmavo, Cmavo::Va | Cmavo::Vi | Cmavo::Vu),
             Self::Vau => matches!(cmavo, Cmavo::Vau),
-            Self::Vei => matches!(cmavo, Cmavo::Vei),
+            Self::Veha => matches!(cmavo, Cmavo::Veha | Cmavo::Vehe | Cmavo::Vehi | Cmavo::Vehu),
             Self::Veho => matches!(cmavo, Cmavo::Veho),
+            Self::Vei => matches!(cmavo, Cmavo::Vei),
+            Self::Viha => matches!(cmavo, Cmavo::Viha | Cmavo::Vihe | Cmavo::Vihi | Cmavo::Vihu),
             Self::Vuhu => matches!(
                 cmavo,
                 Cmavo::Cuha
@@ -3925,7 +4186,10 @@ impl Selmaho {
                     | Cmavo::Vaha
                     | Cmavo::Vuhu
             ),
-            Self::Xi => matches!(cmavo, Cmavo::Fauhe | Cmavo::Xi | Cmavo::Xihe | Cmavo::Xihi),
+            Self::Xi => matches!(
+                cmavo,
+                Cmavo::Fauhe | Cmavo::Tehai | Cmavo::Xi | Cmavo::Xihe | Cmavo::Xihi
+            ),
             Self::Y => matches!(cmavo, Cmavo::Ieho | Cmavo::Y),
             Self::Zaho => matches!(
                 cmavo,
@@ -3946,11 +4210,15 @@ impl Selmaho {
                     | Cmavo::Xohu
                     | Cmavo::Zaho
             ),
+            Self::Zeha => matches!(cmavo, Cmavo::Zeha | Cmavo::Zehe | Cmavo::Zehi | Cmavo::Zehu),
             Self::Zei => matches!(cmavo, Cmavo::Zei),
             Self::Zi => matches!(cmavo, Cmavo::Za | Cmavo::Zi | Cmavo::Zu),
             Self::Zo => matches!(cmavo, Cmavo::Mahoi | Cmavo::Zo),
+            Self::Zohu => matches!(
+                cmavo,
+                Cmavo::Cehai | Cmavo::Gehai | Cmavo::Kehau | Cmavo::Zohu
+            ),
             Self::Zoi => matches!(cmavo, Cmavo::Laho | Cmavo::Muhoi | Cmavo::Zoi),
-            Self::Zohu => matches!(cmavo, Cmavo::Gehai | Cmavo::Kehau | Cmavo::Zohu),
         }
     }
 }

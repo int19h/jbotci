@@ -6,154 +6,71 @@ use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_dialect::DialectFeature;
-use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics_eq};
+use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
 use super::{BoxedParser, ParserState, Span, SpannedToken};
 use crate::SyntaxError;
 
-pub(crate) const PA_WORDS: &[&str] = &[
-    "dau", "fei", "gai", "jau", "rei", "vai", "pi'e", "pi", "fi'u", "za'u", "me'i", "ni'u", "ki'o",
-    "ce'i", "ma'u", "ra'e", "da'a", "so'a", "ji'i", "su'o", "su'e", "ro", "rau", "so'u", "so'i",
-    "so'e", "so'o", "mo'a", "du'e", "te'o", "ka'o", "ci'i", "tu'o", "xo", "pai", "ro'oi", "su'oi",
-    "xo'e", "no'o", "no", "pa", "re", "ci", "vo", "mu", "xa", "ze", "bi", "so", "0", "1", "2", "3",
-    "4", "5", "6", "7", "8", "9",
-];
-pub(crate) const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e", "cei'a"];
-pub(crate) const MAI_WORDS: &[&str] = &["mo'o", "mai"];
-pub(crate) const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
-pub(crate) const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
-pub(crate) const CAHA_WORDS: &[&str] = &["ca'a", "pu'i", "nu'o", "ka'e", "bi'ai"];
-pub(crate) const BAI_WORDS: &[&str] = &[
-    "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u", "ri'a", "ni'i",
-    "mu'i", "ki'u", "va'u", "koi", "ca'i", "ta'i", "pu'e", "ja'i", "kai", "bai", "fi'e", "de'i",
-    "ci'o", "mau", "mu'u", "ri'i", "ra'i", "ka'a", "pa'u", "pa'a", "le'a", "ku'u", "tai", "bau",
-    "ma'i", "ci'e", "fau", "po'i", "cau", "ma'e", "ci'u", "ra'a", "pu'a", "li'e", "la'u", "ba'i",
-    "ka'i", "sau", "fa'e", "be'i", "ti'i", "ja'e", "ga'a", "va'o", "ji'o", "me'a", "do'e", "ji'e",
-    "pi'o", "gau", "zu'e", "me'e", "rai",
-];
-pub(crate) const KOHA_WORDS: &[&str] = &[
-    "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
-    "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",
-    "vo'i", "vo'o", "vo'u", "ru", "ri", "ra", "ta", "tu", "ti", "zi'o", "ke'a", "ma", "zu'i",
-    "zo'e", "ce'u", "mi'ai", "nau'o", "nau'u", "xai", "zu'ai", "da", "de", "di", "ko", "mi", "do",
-];
-pub(crate) const GOHA_WORDS: &[&str] = &[
-    "mo", "nei", "go'u", "go'o", "go'i", "no'a", "go'e", "go'a", "du", "bu'a", "bu'e", "bu'i",
-    "co'e",
-];
-pub(crate) const ROI_WORDS: &[&str] = &["roi", "re'u", "mu'ei", "va'ei", "ba'oi", "de'ei", "xu'au"];
-pub(crate) const ZAHO_WORDS: &[&str] = &[
-    "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o", "co'a'a",
-    "co'au'a", "co'u'a", "sau'a", "xa'o", "xo'u",
-];
-pub(crate) const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fai", "fi'a"];
-pub(crate) const UI_WORDS: &[&str] = &[
-    "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
-    "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
-    "e'a", "uu", "o'a", "o'u", "u'u", "e'o", "io", "e'u", "ue", "i'i", "u'e", "ba'a", "ja'o",
-    "ca'e", "su'a", "ti'e", "ka'u", "se'o", "za'a", "pe'i", "ru'a", "ju'a", "ta'o", "ra'u", "li'a",
-    "ba'u", "mu'a", "do'a", "to'u", "va'i", "pa'e", "zu'u", "sa'e", "la'a", "ke'u", "sa'u", "da'i",
-    "je'u", "sa'a", "kau", "ta'u", "na'i", "jo'a", "bi'u", "li'o", "pau", "mi'u", "ku'i", "ji'a",
-    "si'a", "po'o", "pe'a", "ro'i", "ro'e", "ro'o", "ro'u", "ro'a", "re'e", "le'o", "ju'o", "fu'i",
-    "dai", "ga'i", "zo'o", "be'u", "ri'e", "se'i", "se'a", "vu'e", "ki'a", "xu", "ge'e", "bu'o",
-    "fu'e", "fu'o", "da'o", "ai'i", "e'ei", "fu'au", "ju'oi", "ko'oi", "oi'a", "si'au", "ue'i",
-    "xo'o", "li'oi",
-];
-pub(crate) const VUHU_WORDS: &[&str] = &[
-    "ge'a", "fu'u", "pi'i", "fe'i", "vu'u", "su'i", "ju'u", "gei", "pa'i", "fa'i", "te'a", "cu'a",
-    "va'a", "ne'o", "de'o", "fe'a", "sa'o", "ri'o", "sa'i", "pi'a", "si'i", "joi'i",
-];
-pub(crate) const NU_WORDS: &[&str] = &[
-    "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u", "za'i",
-    "kai'u", "poi'i", "xe'ei",
-];
-pub(crate) const COI_WORDS: &[&str] = &[
-    "ju'i", "coi", "fi'i", "ta'a", "mu'o", "fe'o", "co'o", "pe'u", "ke'o", "nu'e", "re'i", "be'e",
-    "je'e", "mi'e", "ki'e", "vi'o", "co'oi", "di'ai", "ki'ai", "sa'ei", "a'oi", "o'ai",
-];
-
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("cmavo", move |word| cmavo_text_matches(word, text))
+pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    token_matching("cmavo", move |word| parser_word_is_cmavo(word, cmavo))
 }
 
 #[requires(!label.is_empty())]
-#[requires(!text.is_empty())]
 #[ensures(true)]
 pub(super) fn feature_cmavo<'tokens>(
     label: &'static str,
-    text: &'static str,
+    cmavo: Cmavo,
     feature: DialectFeature,
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    custom(move |input| {
-        let checkpoint = input.save();
-        let cursor = input.cursor();
-        match input.next() {
-            Some(word) if cmavo_text_matches(&word, text) => {
-                let state: &mut ParserState = input.state();
-                if !state.feature_enabled(feature) {
-                    let span = input.span_since(&cursor);
-                    input.rewind(checkpoint);
-                    return Err(Rich::custom(span, format!("expected {label}")));
-                }
-                warn_experimental_cmavo(input.state(), label, &word);
-                Ok(word)
-            }
-            _ => {
-                let span = input.span_since(&cursor);
-                input.rewind(checkpoint);
-                Err(Rich::custom(span, format!("expected {label}")))
-            }
-        }
+    token_matching_with_state(label, move |word, state| {
+        parser_word_is_cmavo(word, cmavo) && state.feature_enabled(feature)
     })
-    .boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmavo_of<'tokens>(
-    label: &'static str,
-    texts: &'static [&'static str],
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching(label, move |word| {
-        texts.iter().any(|text| cmavo_text_matches(word, text))
-            || zantufa_cmavo_words_for(label)
-                .iter()
-                .any(|text| cmavo_text_matches(word, text))
+pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    token_matching(selmaho.name(), move |word| {
+        parser_word_is_selmaho(word, selmaho)
     })
+}
+
+#[requires(!label.is_empty())]
+#[requires(!cmavo.is_empty())]
+#[ensures(true)]
+pub(super) fn cmavo_one_of<'tokens>(
+    label: &'static str,
+    cmavo: &'static [Cmavo],
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    token_matching(label, move |word| parser_word_is_one_of_cmavo(word, cmavo))
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    cmavo_of(
-        "LE",
-        &["lei", "loi", "le'i", "lo'i", "le'e", "lo'e", "lo", "le"],
-    )
+    selmaho(Selmaho::Le)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    cmavo_of("LA", &["lai", "la'i", "la"])
+    selmaho(Selmaho::La)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    cmavo_of(
-        "LAhE",
-        &["tu'a", "lu'a", "lu'o", "la'e", "vu'i", "lu'i", "lu'e"],
-    )
+    selmaho(Selmaho::Lahe)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
-    choice((cmavo_of("UI", UI_WORDS), cmavo_of("CAI", CAI_WORDS)))
-        .then(cmavo("nai").or_not())
+    choice((selmaho(Selmaho::Ui), selmaho(Selmaho::Cai)))
+        .then(cmavo(Cmavo::Nai).or_not())
         .map(|(indicator, nai)| {
             let nai = nai.map(|nai| {
                 nai.visible_word()
@@ -168,13 +85,13 @@ pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    cmavo_of("PA", PA_WORDS)
+    selmaho(Selmaho::Pa)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    cmavo_of("NA", &["na", "ja'a"])
+    selmaho(Selmaho::Na)
 }
 
 #[requires(true)]
@@ -222,16 +139,8 @@ pub(super) fn token_matching<'tokens>(
         match input.next() {
             Some(word) if predicate(&word) => {
                 let state: &mut ParserState = input.state();
-                if feature_required_for_cmavo(label, &word)
-                    .is_none_or(|feature| state.feature_enabled(feature))
-                {
-                    warn_experimental_cmavo(state, label, &word);
-                    Ok(word)
-                } else {
-                    let span = input.span_since(&cursor);
-                    input.rewind(checkpoint);
-                    Err(Rich::custom(span, format!("expected {label}")))
-                }
+                warn_experimental_cmavo(state, label, &word);
+                Ok(word)
             }
             _ => {
                 let span = input.span_since(&cursor);
@@ -281,110 +190,6 @@ fn token_matching_with_state<'tokens>(
 
 #[requires(!label.is_empty())]
 #[ensures(true)]
-fn feature_required_for_cmavo(
-    label: &str,
-    word: &WithIndicators<WordLike>,
-) -> Option<DialectFeature> {
-    let canonical = word.visible_word()?.canonical_phonemes();
-    match (label, canonical.as_str()) {
-        ("NOIhA", "noi'o'a") => Some(DialectFeature::ZantufaAdverbials),
-        ("GIhI", "gi'i") => Some(DialectFeature::ZantufaConnectives),
-        ("LIhAU" | "LUhEI", _) => Some(DialectFeature::ZantufaQuotes),
-        ("LOhOI", "mau'a" | "xau'a") | ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
-            Some(DialectFeature::ZantufaCmavo)
-        }
-        _ if zantufa_cmavo_words_for(label).contains(&canonical.as_str()) => {
-            Some(DialectFeature::ZantufaCmavo)
-        }
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn zantufa_cmavo_words_for(label: &str) -> &'static [&'static str] {
-    match label {
-        "BAI" => &[
-            "be'au", "bu'u'e", "bai'au", "cu'ei", "de'a'u", "dau'a", "dau'o", "dau'u", "ei'ei",
-            "e'u'i", "fau'u", "ga'ei", "ja'au", "ja'oi", "ja'ui", "ji'e'e", "ji'i'a", "ki'ai",
-            "ki'o'e", "ki'u'e", "ki'u'i", "la'ei", "la'ai", "la'o'o", "li'e'e", "li'ei", "mau'i",
-            "mau'u", "mu'ei", "ma'ei", "mu'oi", "mu'ai", "ne'a'i", "ni'i'i", "pa'a'i", "pe'a'i",
-            "pu'i'a", "pu'i'i", "pu'e'i", "pu'o'i", "rai'e", "ri'i'a", "ri'i'e", "ri'i'i",
-            "ri'i'o", "ri'i'u", "ta'i'a", "ta'i'e", "ta'i'i", "ta'i'o", "ta'i'u", "ta'u'i",
-            "te'ai", "ti'i'a", "ti'u'a", "ti'u'i", "ti'u'u", "tu'i'a", "tu'i'e", "tu'i'i",
-            "tu'i'o", "tu'i'u", "va'o'i", "xu'ai", "zau'a", "zau'e", "zau'i", "zau'o", "zau'u",
-            "zu'ai",
-        ],
-        "BY" => &[
-            "a", "e", "i", "o", "u", "cau'e", "cau'i", "dau'e", "dau'i", "dai'a", "dai'e", "dai'i",
-            "dai'o", "dai'u", "dai'y", "fau'a", "fau'e", "fau'i", "fau'o", "fau'u", "gai'a",
-            "gai'e", "gai'i", "gai'o", "gai'u", "jau'a", "jau'e", "jau'i", "jau'o", "jau'u",
-            "kau'a", "kau'e", "kau'i", "kau'o", "kau'u", "joi'o", "joi'u",
-        ],
-        "COI" => &[
-            "mi'ei", "pe'ei", "pei'e", "fei'e", "jei'e", "gau'i", "re'ei", "xu'ei",
-        ],
-        "CUhE" => &["ba'au", "pu'au"],
-        "DAhO" => &["dai'o", "do'ai"],
-        "DOI" => &["da'ei"],
-        "FAhA" => &["du'oi", "zu'au"],
-        "GOI" => &["voi'e"],
-        "GOhA" => &["bo'ei", "cei'i", "gai'o", "ta'ai", "xe'u", "ze'oi"],
-        "JAI" => &["ja'ei", "jo'ai"],
-        "JOI" => &[
-            "je'au", "jei'i", "jei'o", "jo'au", "joi'e", "jo'u'u", "jau'u", "jo'i'a",
-        ],
-        "KOhA" => &[
-            "da'ei", "dei'a", "di'ei", "fo'e", "fo'i", "fo'o", "fo'u", "fo'a", "fo'ai", "ki'o'a",
-            "ki'e'a", "ki'i'a", "ki'u'a", "ki'a'a", "ma'oi", "ma'au", "ma'ei", "mo'i", "mo'o",
-            "mo'u", "mi'au", "rau'i", "ra'ai", "ro'ei", "se'e", "so'ai", "ti'au", "to'o'e",
-            "tu'au", "zo'ei",
-        ],
-        "LAhE" => &[
-            "loi'e", "loi'i", "me'o'e", "pi'ei", "poi'ei", "po'oi", "te'oi", "voi'e",
-        ],
-        "LE" => &["la'ei", "le'ei", "lo'ei", "me'ei", "ri'oi", "zo'au"],
-        "LI" => &["bo'ai", "li'ai", "li'ei", "mai'o"],
-        "LU" => &["la'au", "tu'ai"],
-        "ME" => &["xo'i"],
-        "MOhE" => &["boi'au"],
-        "MOI" => &["moi'o"],
-        "NAhE" => &["de'ai", "no'ei"],
-        "NOI" => &["no'oi", "po'oi", "voi'i"],
-        "NU" => &[
-            "ja'oi", "ka'ai", "kai'ai", "ki'i", "pai'e", "su'ai", "za'ai",
-        ],
-        "PA" => &[
-            "xo'ai", "du'ei", "fai'u", "me'ei", "so'ai", "so'ei", "so'oi", "xai'e", "xau'e",
-            "xo'ai", "xoi'i", "xo'u", "za'ai",
-        ],
-        "ROI" => &["ba'oi", "de'ei", "xu'au"],
-        "SE" => &["de'ai", "na'oi"],
-        "SEI" => &["sai'e", "sei'e", "soi'e", "su'oi"],
-        "SEhU" => &["xe'au"],
-        "TO" => &["mau'e", "noi'i"],
-        "TOI" => &["ge'u'i", "mau'o"],
-        "UI" | "UI3a" => &[
-            "a'ai", "au'au", "ba'ei", "bu'ei", "cu'ei", "ei'ai", "fa'ai", "ga'i'i", "ga'u'i",
-            "ge'ai", "ia'au", "i'au", "i'ei", "i'i'i", "ja'o'e", "ja'o'o", "ji'ai", "ji'ei",
-            "ji'o'e", "ji'o'o", "ki'ai", "ke'i'ai", "la'ei", "la'oi", "le'o'e", "ma'ai", "mu'ei",
-            "ni'ei", "no'oi", "oi'oi", "po'ai", "sai'i", "sei'a", "sei'i", "so'a'u", "so'ei",
-            "su'ei", "u'oi", "u'o'e", "u'oi", "u'o'i", "u'o'o", "u'o'u", "ui'ai", "vai'e", "xau'a",
-            "xau'e", "xau'i", "xau'o", "xau'u", "xe'i'a", "xe'i'e", "xe'i'i", "xe'i'o", "xe'i'u",
-            "za'ei", "za'o'a", "zo'oi",
-        ],
-        "VUhU" => &[
-            "de'o'a", "fe'a'a", "fe'a'e", "fe'a'i", "fe'a'o", "gei'a", "pi'ai", "sa'i'a",
-        ],
-        "XI" => &["fau'e", "xi'e", "xi'i"],
-        "Y" => &["ie'o"],
-        "ZOhU" => &["ge'ai", "ke'au"],
-        _ => &[],
-    }
-}
-
-#[requires(!label.is_empty())]
-#[ensures(true)]
 fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WithIndicators<WordLike>) {
     let Some(construct) = experimental_construct_for_cmavo(label, word) else {
         return;
@@ -398,85 +203,537 @@ fn experimental_construct_for_cmavo(
     label: &str,
     word: &WithIndicators<WordLike>,
 ) -> Option<ExperimentalConstruct> {
-    let canonical = word.visible_word()?.canonical_phonemes();
-    match (label, canonical.as_str()) {
-        (
-            "BAI",
-            "be'ei" | "de'i'a" | "de'i'e" | "de'i'i" | "de'i'o" | "de'i'u" | "ka'ai" | "ki'oi"
-            | "ko'au",
-        )
-        | ("BY", "a'y" | "e'y" | "i'y" | "iy" | "o'y" | "u'y" | "uy")
-        | ("CAhA", "bi'ai")
-        | ("COI", "co'oi" | "di'ai" | "ki'ai" | "sa'ei")
-        | ("KOhA", "mi'ai" | "nau'o" | "nau'u" | "xai" | "zu'ai")
-        | ("LAhE", "zo'ei")
-        | ("LE", "lei'i" | "lei'e" | "loi'e" | "loi'i" | "mo'oi" | "moi'oi")
-        | ("ME", "me'au")
-        | ("MOI", "cei'a")
-        | ("NAhE", "na'ei")
-        | ("NAI", "ja'ai")
-        | ("NU", "kai'u" | "poi'i" | "xe'ei")
-        | ("PA", "ro'oi" | "su'oi" | "xo'e")
-        | ("ROI", "mu'ei" | "va'ei")
-        | ("SE", "su'ei" | "to'ai" | "vo'ai" | "xo'ai")
-        | (
-            "UI",
-            "ai'i" | "e'ei" | "fu'au" | "ju'oi" | "ko'oi" | "oi'a" | "si'au" | "ue'i" | "xo'o",
-        )
-        | ("VUhU", "joi'i")
-        | ("XI", "te'ai")
-        | ("ZAhO", "co'a'a" | "co'au'a" | "co'u'a" | "sau'a" | "xa'o" | "xo'u")
-        | ("ZO", "ma'oi")
-        | ("ZOhU", "ce'ai") => Some(ExperimentalConstruct::ExperimentalCmavo),
-        ("COI", "a'oi" | "o'ai") => Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative),
-        ("DOI", "da'oi") => Some(ExperimentalConstruct::ExperimentalDictionaryDoiVocative),
-        ("FAhA", "xei'e") => Some(ExperimentalConstruct::ExperimentalDictionaryFahaTag),
-        ("PA", "su'ai" | "xe'e") => Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber),
-        ("SEI", "xoi") => Some(ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier),
-        ("UI" | "UI3a", "li'oi") => Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator),
-        ("NOIhA", "noi'o'a") => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
+    let cmavo = parser_word_cmavo(word)?;
+    match (label, cmavo) {
+        ("COI", Cmavo::Ahoi | Cmavo::Ohai) => {
+            Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative)
+        }
+        ("DOI", Cmavo::Dahoi) => Some(ExperimentalConstruct::ExperimentalDictionaryDoiVocative),
+        ("FAhA", Cmavo::Xeihe) => Some(ExperimentalConstruct::ExperimentalDictionaryFahaTag),
+        ("PA", Cmavo::Suhai | Cmavo::Xehe) => {
+            Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber)
+        }
+        ("SEI", Cmavo::Xoi) => Some(ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier),
+        ("UI" | "UI3a", Cmavo::Lihoi) => {
+            Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator)
+        }
+        ("NOIhA", Cmavo::Noihoha) => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
         ("NOIhA", _) => Some(ExperimentalConstruct::ExperimentalNoihaAdverbial),
         ("SOI", _) => Some(ExperimentalConstruct::ExperimentalSoiAdverbial),
-        ("LOhOI", "lo'oi") => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
-        ("LOhOI", "mau'a" | "xau'a") => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
-        ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
-            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
-        }
-        _ if zantufa_cmavo_words_for(label).contains(&canonical.as_str()) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
-        }
-        ("cmavo", "fi'oi") => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
-        ("cmavo", "lo'ai" | "sa'ai" | "le'ai") => {
+        ("LOhOI", Cmavo::Lohoi) => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
+        ("cmavo", Cmavo::Fihoi) => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
+        ("cmavo", Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
             Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
         }
-        ("cmavo", "no'oi") => Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause),
-        ("cmavo", "go'oi") => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
+        ("cmavo", Cmavo::Nohoi) => {
+            Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause)
+        }
+        ("cmavo", Cmavo::Gohoi) => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
         ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
-        ("cmavo", "lu'ei") => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
-        ("cmavo", "mu'oi") => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit),
-        ("cmavo", "xo'i") => Some(ExperimentalConstruct::ExperimentalXohiTagRelation),
+        ("cmavo", Cmavo::Luhei) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit)
+        }
+        ("cmavo", Cmavo::Muhoi) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit)
+        }
+        ("cmavo", Cmavo::Xohi) => Some(ExperimentalConstruct::ExperimentalXohiTagRelation),
+        _ if is_general_experimental_cmavo_for_context(label, cmavo) => {
+            Some(ExperimentalConstruct::ExperimentalCmavo)
+        }
+        _ if is_zantufa_experimental_cmavo_for_context(label, cmavo) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
+        }
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || word.word_like().is_some_and(|word_like| word_like.cmavo() == ret))]
+fn parser_word_cmavo(word: &WithIndicators<WordLike>) -> Option<Cmavo> {
+    word.word_like().and_then(WordLike::cmavo)
+}
+
+#[requires(true)]
+#[ensures(ret == (parser_word_cmavo(word) == Some(cmavo)))]
+fn parser_word_is_cmavo(word: &WithIndicators<WordLike>, cmavo: Cmavo) -> bool {
+    parser_word_cmavo(word) == Some(cmavo)
+}
+
+#[requires(!cmavo.is_empty())]
+#[ensures(ret == parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual)))]
+fn parser_word_is_one_of_cmavo(word: &WithIndicators<WordLike>, cmavo: &[Cmavo]) -> bool {
+    parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual))
+}
+
+#[requires(true)]
+#[ensures(ret == parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo)))]
+fn parser_word_is_selmaho(word: &WithIndicators<WordLike>, selmaho: Selmaho) -> bool {
+    parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo))
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
+    match label {
+        "BAI" => matches!(
+            cmavo,
+            Cmavo::Behei
+                | Cmavo::Dehiha
+                | Cmavo::Dehihe
+                | Cmavo::Dehihi
+                | Cmavo::Dehiho
+                | Cmavo::Dehihu
+                | Cmavo::Kahai
+                | Cmavo::Kihoi
+                | Cmavo::Kohau
+        ),
+        "BY" => matches!(
+            cmavo,
+            Cmavo::Ahy | Cmavo::Ehy | Cmavo::Ihy | Cmavo::Iy | Cmavo::Ohy | Cmavo::Uhy | Cmavo::Uy
+        ),
+        "CAhA" => matches!(cmavo, Cmavo::Bihai),
+        "COI" => matches!(
+            cmavo,
+            Cmavo::Cohoi | Cmavo::Dihai | Cmavo::Kihai | Cmavo::Sahei
+        ),
+        "KOhA" => matches!(
+            cmavo,
+            Cmavo::Mihai | Cmavo::Nauho | Cmavo::Nauhu | Cmavo::Xai | Cmavo::Zuhai
+        ),
+        "LAhE" => matches!(cmavo, Cmavo::Zohei),
+        "LE" => matches!(
+            cmavo,
+            Cmavo::Leihe
+                | Cmavo::Leihi
+                | Cmavo::Loihe
+                | Cmavo::Loihi
+                | Cmavo::Mohoi
+                | Cmavo::Moihoi
+        ),
+        "ME" => matches!(cmavo, Cmavo::Mehau),
+        "MOI" => matches!(cmavo, Cmavo::Ceiha),
+        "NAI" => matches!(cmavo, Cmavo::Jahai),
+        "NAhE" => matches!(cmavo, Cmavo::Nahei),
+        "NU" => matches!(cmavo, Cmavo::Kaihu | Cmavo::Poihi | Cmavo::Xehei),
+        "PA" => matches!(cmavo, Cmavo::Rohoi | Cmavo::Suhoi | Cmavo::Xohe),
+        "ROI" => matches!(cmavo, Cmavo::Muhei | Cmavo::Vahei),
+        "SE" => matches!(
+            cmavo,
+            Cmavo::Suhei | Cmavo::Tohai | Cmavo::Vohai | Cmavo::Xohai
+        ),
+        "UI" => matches!(
+            cmavo,
+            Cmavo::Aihi
+                | Cmavo::Ehei
+                | Cmavo::Fuhau
+                | Cmavo::Juhoi
+                | Cmavo::Kohoi
+                | Cmavo::Oiha
+                | Cmavo::Sihau
+                | Cmavo::Uehi
+                | Cmavo::Xoho
+        ),
+        "VUhU" => matches!(cmavo, Cmavo::Joihi),
+        "XI" => matches!(cmavo, Cmavo::Tehai),
+        "ZAhO" => matches!(
+            cmavo,
+            Cmavo::Cohaha
+                | Cmavo::Cohauha
+                | Cmavo::Cohuha
+                | Cmavo::Sauha
+                | Cmavo::Xaho
+                | Cmavo::Xohu
+        ),
+        "ZO" => matches!(cmavo, Cmavo::Mahoi),
+        "ZOhU" => matches!(cmavo, Cmavo::Cehai),
+        _ => false,
+    }
+}
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
+    match label {
+        "BAI" => matches!(
+            cmavo,
+            Cmavo::Baihau
+                | Cmavo::Behau
+                | Cmavo::Buhuhe
+                | Cmavo::Cuhei
+                | Cmavo::Dauha
+                | Cmavo::Dauho
+                | Cmavo::Dauhu
+                | Cmavo::Dehahu
+                | Cmavo::Ehuhi
+                | Cmavo::Eihei
+                | Cmavo::Fauhu
+                | Cmavo::Gahei
+                | Cmavo::Jahau
+                | Cmavo::Jahoi
+                | Cmavo::Jahui
+                | Cmavo::Jihehe
+                | Cmavo::Jihiha
+                | Cmavo::Kihai
+                | Cmavo::Kihohe
+                | Cmavo::Kihuhe
+                | Cmavo::Kihuhi
+                | Cmavo::Lahai
+                | Cmavo::Lahei
+                | Cmavo::Lahoho
+                | Cmavo::Lihehe
+                | Cmavo::Lihei
+                | Cmavo::Mahei
+                | Cmavo::Mauhi
+                | Cmavo::Mauhu
+                | Cmavo::Muhai
+                | Cmavo::Muhei
+                | Cmavo::Muhoi
+                | Cmavo::Nehahi
+                | Cmavo::Nihihi
+                | Cmavo::Pahahi
+                | Cmavo::Pehahi
+                | Cmavo::Puhehi
+                | Cmavo::Puhiha
+                | Cmavo::Puhihi
+                | Cmavo::Puhohi
+                | Cmavo::Raihe
+                | Cmavo::Rihiha
+                | Cmavo::Rihihe
+                | Cmavo::Rihihi
+                | Cmavo::Rihiho
+                | Cmavo::Rihihu
+                | Cmavo::Tahiha
+                | Cmavo::Tahihe
+                | Cmavo::Tahihi
+                | Cmavo::Tahiho
+                | Cmavo::Tahihu
+                | Cmavo::Tahuhi
+                | Cmavo::Tehai
+                | Cmavo::Tihiha
+                | Cmavo::Tihuha
+                | Cmavo::Tihuhi
+                | Cmavo::Tihuhu
+                | Cmavo::Tuhiha
+                | Cmavo::Tuhihe
+                | Cmavo::Tuhihi
+                | Cmavo::Tuhiho
+                | Cmavo::Tuhihu
+                | Cmavo::Vahohi
+                | Cmavo::Xuhai
+                | Cmavo::Zauha
+                | Cmavo::Zauhe
+                | Cmavo::Zauhi
+                | Cmavo::Zauho
+                | Cmavo::Zauhu
+                | Cmavo::Zuhai
+        ),
+        "BY" => matches!(
+            cmavo,
+            Cmavo::A
+                | Cmavo::Cauhe
+                | Cmavo::Cauhi
+                | Cmavo::Daiha
+                | Cmavo::Daihe
+                | Cmavo::Daihi
+                | Cmavo::Daiho
+                | Cmavo::Daihu
+                | Cmavo::Daihy
+                | Cmavo::Dauhe
+                | Cmavo::Dauhi
+                | Cmavo::E
+                | Cmavo::Fauha
+                | Cmavo::Fauhe
+                | Cmavo::Fauhi
+                | Cmavo::Fauho
+                | Cmavo::Fauhu
+                | Cmavo::Gaiha
+                | Cmavo::Gaihe
+                | Cmavo::Gaihi
+                | Cmavo::Gaiho
+                | Cmavo::Gaihu
+                | Cmavo::I
+                | Cmavo::Jauha
+                | Cmavo::Jauhe
+                | Cmavo::Jauhi
+                | Cmavo::Jauho
+                | Cmavo::Jauhu
+                | Cmavo::Joiho
+                | Cmavo::Joihu
+                | Cmavo::Kauha
+                | Cmavo::Kauhe
+                | Cmavo::Kauhi
+                | Cmavo::Kauho
+                | Cmavo::Kauhu
+                | Cmavo::O
+                | Cmavo::U
+        ),
+        "COI" => matches!(
+            cmavo,
+            Cmavo::Feihe
+                | Cmavo::Gauhi
+                | Cmavo::Jeihe
+                | Cmavo::Mihei
+                | Cmavo::Pehei
+                | Cmavo::Peihe
+                | Cmavo::Rehei
+                | Cmavo::Xuhei
+        ),
+        "CUhE" => matches!(cmavo, Cmavo::Bahau | Cmavo::Puhau),
+        "DAhO" => matches!(cmavo, Cmavo::Daiho | Cmavo::Dohai),
+        "DOI" => matches!(cmavo, Cmavo::Dahei),
+        "FAhA" => matches!(cmavo, Cmavo::Duhoi | Cmavo::Zuhau),
+        "GOI" => matches!(cmavo, Cmavo::Voihe),
+        "GOhA" => matches!(
+            cmavo,
+            Cmavo::Bohei | Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Tahai | Cmavo::Xehu | Cmavo::Zehoi
+        ),
+        "JAI" => matches!(cmavo, Cmavo::Jahei | Cmavo::Johai),
+        "JOI" => matches!(
+            cmavo,
+            Cmavo::Jauhu
+                | Cmavo::Jehau
+                | Cmavo::Jeihi
+                | Cmavo::Jeiho
+                | Cmavo::Johau
+                | Cmavo::Johiha
+                | Cmavo::Johuhu
+                | Cmavo::Joihe
+        ),
+        "KOhA" => matches!(
+            cmavo,
+            Cmavo::Dahei
+                | Cmavo::Deiha
+                | Cmavo::Dihei
+                | Cmavo::Foha
+                | Cmavo::Fohai
+                | Cmavo::Fohe
+                | Cmavo::Fohi
+                | Cmavo::Foho
+                | Cmavo::Fohu
+                | Cmavo::Kihaha
+                | Cmavo::Kiheha
+                | Cmavo::Kihiha
+                | Cmavo::Kihoha
+                | Cmavo::Kihuha
+                | Cmavo::Mahau
+                | Cmavo::Mahei
+                | Cmavo::Mahoi
+                | Cmavo::Mihau
+                | Cmavo::Mohi
+                | Cmavo::Moho
+                | Cmavo::Mohu
+                | Cmavo::Rahai
+                | Cmavo::Rauhi
+                | Cmavo::Rohei
+                | Cmavo::Sehe
+                | Cmavo::Sohai
+                | Cmavo::Tihau
+                | Cmavo::Tohohe
+                | Cmavo::Tuhau
+                | Cmavo::Zohei
+        ),
+        "LAhE" => matches!(
+            cmavo,
+            Cmavo::Loihe
+                | Cmavo::Loihi
+                | Cmavo::Mehohe
+                | Cmavo::Pihei
+                | Cmavo::Pohoi
+                | Cmavo::Poihei
+                | Cmavo::Tehoi
+                | Cmavo::Voihe
+        ),
+        "LE" => matches!(
+            cmavo,
+            Cmavo::Lahei | Cmavo::Lehei | Cmavo::Lohei | Cmavo::Mehei | Cmavo::Rihoi | Cmavo::Zohau
+        ),
+        "LI" => matches!(
+            cmavo,
+            Cmavo::Bohai | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho
+        ),
+        "LOhOI" => matches!(cmavo, Cmavo::Mauha | Cmavo::Xauha),
+        "LU" => matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai),
+        "ME" => matches!(cmavo, Cmavo::Xohi),
+        "MOI" => matches!(cmavo, Cmavo::Moiho),
+        "MOhE" => matches!(cmavo, Cmavo::Boihau),
+        "NAhE" => matches!(cmavo, Cmavo::Dehai | Cmavo::Nohei),
+        "NOI" => matches!(cmavo, Cmavo::Nohoi | Cmavo::Pohoi | Cmavo::Voihi),
+        "NOIhA" => matches!(cmavo, Cmavo::Noihoha),
+        "NU" => matches!(
+            cmavo,
+            Cmavo::Jahoi
+                | Cmavo::Kahai
+                | Cmavo::Kaihai
+                | Cmavo::Kihi
+                | Cmavo::Paihe
+                | Cmavo::Suhai
+                | Cmavo::Zahai
+        ),
+        "PA" => matches!(
+            cmavo,
+            Cmavo::Duhei
+                | Cmavo::Faihu
+                | Cmavo::Mehei
+                | Cmavo::Sohai
+                | Cmavo::Sohei
+                | Cmavo::Sohoi
+                | Cmavo::Xaihe
+                | Cmavo::Xauhe
+                | Cmavo::Xohai
+                | Cmavo::Xohu
+                | Cmavo::Xoihi
+                | Cmavo::Zahai
+        ),
+        "ROI" => matches!(cmavo, Cmavo::Bahoi | Cmavo::Dehei | Cmavo::Xuhau),
+        "SE" => matches!(cmavo, Cmavo::Dehai | Cmavo::Nahoi),
+        "SEI" => matches!(
+            cmavo,
+            Cmavo::Saihe | Cmavo::Seihe | Cmavo::Soihe | Cmavo::Suhoi
+        ),
+        "SEhU" => matches!(cmavo, Cmavo::Xehau),
+        "TO" => matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi),
+        "TOI" => matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho),
+        "UI" => matches!(
+            cmavo,
+            Cmavo::Ahai
+                | Cmavo::Auhau
+                | Cmavo::Bahei
+                | Cmavo::Buhei
+                | Cmavo::Cuhei
+                | Cmavo::Eihai
+                | Cmavo::Fahai
+                | Cmavo::Gahihi
+                | Cmavo::Gahuhi
+                | Cmavo::Gehai
+                | Cmavo::Iahau
+                | Cmavo::Ihau
+                | Cmavo::Ihei
+                | Cmavo::Ihihi
+                | Cmavo::Jahohe
+                | Cmavo::Jahoho
+                | Cmavo::Jihai
+                | Cmavo::Jihei
+                | Cmavo::Jihohe
+                | Cmavo::Jihoho
+                | Cmavo::Kehihai
+                | Cmavo::Kihai
+                | Cmavo::Lahei
+                | Cmavo::Lahoi
+                | Cmavo::Lehohe
+                | Cmavo::Mahai
+                | Cmavo::Muhei
+                | Cmavo::Nihei
+                | Cmavo::Nohoi
+                | Cmavo::Oihoi
+                | Cmavo::Pohai
+                | Cmavo::Saihi
+                | Cmavo::Seiha
+                | Cmavo::Seihi
+                | Cmavo::Sohahu
+                | Cmavo::Sohei
+                | Cmavo::Suhei
+                | Cmavo::Uhohe
+                | Cmavo::Uhohi
+                | Cmavo::Uhoho
+                | Cmavo::Uhohu
+                | Cmavo::Uhoi
+                | Cmavo::Uihai
+                | Cmavo::Vaihe
+                | Cmavo::Xauha
+                | Cmavo::Xauhe
+                | Cmavo::Xauhi
+                | Cmavo::Xauho
+                | Cmavo::Xauhu
+                | Cmavo::Xehiha
+                | Cmavo::Xehihe
+                | Cmavo::Xehihi
+                | Cmavo::Xehiho
+                | Cmavo::Xehihu
+                | Cmavo::Zahei
+                | Cmavo::Zahoha
+                | Cmavo::Zohoi
+        ),
+        "UI3a" => matches!(
+            cmavo,
+            Cmavo::Ahai
+                | Cmavo::Auhau
+                | Cmavo::Bahei
+                | Cmavo::Buhei
+                | Cmavo::Cuhei
+                | Cmavo::Eihai
+                | Cmavo::Fahai
+                | Cmavo::Gahihi
+                | Cmavo::Gahuhi
+                | Cmavo::Gehai
+                | Cmavo::Iahau
+                | Cmavo::Ihau
+                | Cmavo::Ihei
+                | Cmavo::Ihihi
+                | Cmavo::Jahohe
+                | Cmavo::Jahoho
+                | Cmavo::Jihai
+                | Cmavo::Jihei
+                | Cmavo::Jihohe
+                | Cmavo::Jihoho
+                | Cmavo::Kehihai
+                | Cmavo::Kihai
+                | Cmavo::Lahei
+                | Cmavo::Lahoi
+                | Cmavo::Lehohe
+                | Cmavo::Mahai
+                | Cmavo::Muhei
+                | Cmavo::Nihei
+                | Cmavo::Nohoi
+                | Cmavo::Oihoi
+                | Cmavo::Pohai
+                | Cmavo::Saihi
+                | Cmavo::Seiha
+                | Cmavo::Seihi
+                | Cmavo::Sohahu
+                | Cmavo::Sohei
+                | Cmavo::Suhei
+                | Cmavo::Uhohe
+                | Cmavo::Uhohi
+                | Cmavo::Uhoho
+                | Cmavo::Uhohu
+                | Cmavo::Uhoi
+                | Cmavo::Uihai
+                | Cmavo::Vaihe
+                | Cmavo::Xauha
+                | Cmavo::Xauhe
+                | Cmavo::Xauhi
+                | Cmavo::Xauho
+                | Cmavo::Xauhu
+                | Cmavo::Xehiha
+                | Cmavo::Xehihe
+                | Cmavo::Xehihi
+                | Cmavo::Xehiho
+                | Cmavo::Xehihu
+                | Cmavo::Zahei
+                | Cmavo::Zahoha
+                | Cmavo::Zohoi
+        ),
+        "VUhU" => matches!(
+            cmavo,
+            Cmavo::Dehoha
+                | Cmavo::Fehaha
+                | Cmavo::Fehahe
+                | Cmavo::Fehahi
+                | Cmavo::Fehaho
+                | Cmavo::Geiha
+                | Cmavo::Pihai
+                | Cmavo::Sahiha
+        ),
+        "XI" => matches!(cmavo, Cmavo::Fauhe | Cmavo::Xihe | Cmavo::Xihi),
+        "Y" => matches!(cmavo, Cmavo::Ieho),
+        "ZOhU" => matches!(cmavo, Cmavo::Gehai | Cmavo::Kehau),
+        _ => false,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_koha_argument(word: &WithIndicators<WordLike>) -> bool {
-    cmavo_matches_label(word, "KOhA", KOHA_WORDS)
-}
-
-#[requires(!label.is_empty())]
-#[requires(!texts.is_empty())]
-#[ensures(true)]
-pub(crate) fn cmavo_matches_label(
-    word: &WithIndicators<WordLike>,
-    label: &str,
-    texts: &[&str],
-) -> bool {
-    texts.iter().any(|text| cmavo_text_matches(word, text))
-        || zantufa_cmavo_words_for(label)
-            .iter()
-            .any(|text| cmavo_text_matches(word, text))
+    parser_word_is_selmaho(word, Selmaho::Koha)
 }
 
 #[requires(true)]
@@ -490,7 +747,7 @@ pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
         WithIndicators::Bare(..) => {}
     }
 
-    if cmavo_matches_label(word, "GOhA", GOHA_WORDS) {
+    if parser_word_is_selmaho(word, Selmaho::Goha) {
         return true;
     }
 
@@ -501,9 +758,9 @@ pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret == (is_relation_word(word) && !cmavo_matches_label(word, "GOhA", GOHA_WORDS)))]
+#[ensures(ret == (is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)))]
 pub(crate) fn is_brivla_relation_word(word: &WithIndicators<WordLike>) -> bool {
-    is_relation_word(word) && !cmavo_matches_label(word, "GOhA", GOHA_WORDS)
+    is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)
 }
 
 #[requires(true)]
@@ -543,37 +800,9 @@ pub(crate) fn is_letter_word(word: &WithIndicators<WordLike>) -> bool {
                     let phonemes = word.phonemes();
                     word.kind() == WordKind::Cmavo
                         && ((phonemes.as_str() != "bu" && phonemes.as_str().ends_with("bu"))
-                            || matches!(
-                                phonemes.as_str(),
-                                "jo'o"
-                                    | "ru'o"
-                                    | "ge'o"
-                                    | "je'o"
-                                    | "lo'a"
-                                    | "na'a"
-                                    | "se'e"
-                                    | "to'a"
-                                    | "ga'e"
-                                    | "y'y"
-                                    | "y"
-                                    | "by"
-                                    | "cy"
-                                    | "dy"
-                                    | "fy"
-                                    | "gy"
-                                    | "jy"
-                                    | "ky"
-                                    | "ly"
-                                    | "my"
-                                    | "ny"
-                                    | "py"
-                                    | "ry"
-                                    | "sy"
-                                    | "ty"
-                                    | "vy"
-                                    | "xy"
-                                    | "zy"
-                            ))
+                            || word.cmavo().is_some_and(|cmavo| {
+                                cmavo.is_selmaho(Selmaho::By) || cmavo == Cmavo::Y
+                            }))
                 }
                 _ => false,
             }
@@ -589,38 +818,6 @@ pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
         return None;
     };
     Some(word.kind())
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn cmavo_text_matches(word: &WithIndicators<WordLike>, expected: &str) -> bool {
-    match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-            word_like_cmavo_text_matches(word_like, expected)
-        }
-        WithIndicators::WithIndicator { base, .. } => cmavo_text_matches(base, expected),
-    }
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn word_like_cmavo_text_matches(word_like: &WordLike, expected: &str) -> bool {
-    match word_like.as_data() {
-        data!(WordLike::Bare(word)) => word_record_text_matches(word, expected),
-        _ => false,
-    }
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn word_record_text_matches(word: &jbotci_morphology::Word, expected: &str) -> bool {
-    word.kind() == WordKind::Cmavo && phonemes_match_syntax_text(word.phonemes().as_str(), expected)
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
-    actual == expected || strip_diacritics_eq(actual, expected)
 }
 
 #[requires(true)]

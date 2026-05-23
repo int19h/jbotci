@@ -12,7 +12,7 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dialect::DialectDefinition;
-use jbotci_morphology::{Word, WordLike};
+use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -70,11 +70,9 @@ impl<'tree> TreeVisitor<'tree> for SourceSpanVisitor<'_> {
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_word(word: &Word) -> bool {
-    let canonical = word.canonical_phonemes();
-    word.kind() == jbotci_morphology::WordKind::Cmavo
-        && (crate::grammar::tokens::UI_WORDS.contains(&canonical.as_str())
-            || crate::grammar::tokens::CAI_WORDS.contains(&canonical.as_str())
-            || canonical == "y")
+    word.cmavo().is_some_and(|cmavo| {
+        cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai) || cmavo == Cmavo::Y
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
