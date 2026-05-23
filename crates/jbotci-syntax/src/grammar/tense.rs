@@ -59,12 +59,14 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
             fehu,
         }) => new!(TenseModalSyntax::Composite {
             parts: WithFreeModifiers::new(
-                vec![new!(CompositeTenseModalPartSyntax::Fiho(FihoModalSyntax {
-                    nahe: None,
-                    fiho,
-                    relation: *relation,
-                    fehu,
-                }))],
+                vec![new!(CompositeTenseModalPartSyntax::Fiho(new!(
+                    FihoModalSyntax {
+                        nahe: None,
+                        fiho,
+                        relation: *relation,
+                        fehu,
+                    }
+                )))],
                 Vec::new(),
             ),
         }),
@@ -101,12 +103,12 @@ impl TenseModalSyntax {
         (!classification.time_direction.is_empty()
             || classification.time_distance.is_some()
             || classification.time_interval.is_some())
-        .then_some(TimeTenseSyntax {
+        .then_some(new!(TimeTenseSyntax {
             direction: classification.time_direction,
             distance: classification.time_distance,
             interval: classification.time_interval,
             nai: classification.time_nai,
-        })
+        }))
     }
 
     #[requires(true)]
@@ -119,14 +121,14 @@ impl TenseModalSyntax {
             || !classification.space_dimensions.is_empty()
             || classification.space_mohi.is_some()
             || classification.space_fehe.is_some())
-        .then_some(SpaceTenseSyntax {
+        .then_some(new!(SpaceTenseSyntax {
             direction: classification.space_direction,
             distance: classification.space_distance,
             interval: classification.space_interval,
             dimensions: classification.space_dimensions,
             mohi: classification.space_mohi,
             fehe: classification.space_fehe,
-        })
+        }))
     }
 
     #[requires(true)]
@@ -272,30 +274,28 @@ fn classify_composite_leaf(
         classification.simple = Some(set_simple_se(classification.simple.take(), leaf.clone()));
     } else if cmavo_text_matches(leaf, "nai") {
         if let Some(existing_simple) = classification.simple.take() {
-            classification.simple = Some(SimpleTenseModalSyntax {
-                nai: Some(leaf.clone()),
-                ..existing_simple
-            });
+            let mut simple_data = existing_simple.into_data();
+            simple_data.nai = Some(leaf.clone());
+            classification.simple = Some(SimpleTenseModalSyntax::from_data(simple_data));
         } else if classification.interval.is_some() {
             let existing_interval = classification
                 .interval
                 .take()
                 .expect("interval was checked as present");
-            classification.interval = Some(IntervalTenseSyntax {
-                nai: Some(leaf.clone()),
-                ..existing_interval
-            });
+            let mut interval_data = existing_interval.into_data();
+            interval_data.nai = Some(leaf.clone());
+            classification.interval = Some(IntervalTenseSyntax::from_data(interval_data));
         } else {
             classification.time_nai = Some(leaf.clone());
         }
     } else if cmavo_matches_any(leaf, ROI_WORDS)
         || cmavo_matches_any(leaf, &["di'i", "na'o", "ru'i", "ta'e"])
     {
-        classification.interval = Some(IntervalTenseSyntax {
+        classification.interval = Some(new!(IntervalTenseSyntax {
             number: None,
             roi_or_tahe: leaf.clone(),
             nai: None,
-        });
+        }));
     } else if cmavo_matches_any(leaf, &["je'i", "ja", "je", "jo", "ju"])
         || cmavo_matches_any(
             leaf,
@@ -317,16 +317,17 @@ fn set_simple_bai(
     bai: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
-        Some(existing) => SimpleTenseModalSyntax {
-            bai: Some(bai),
-            ..existing
-        },
-        None => SimpleTenseModalSyntax {
+        Some(existing) => {
+            let mut data = existing.into_data();
+            data.bai = Some(bai);
+            SimpleTenseModalSyntax::from_data(data)
+        }
+        None => new!(SimpleTenseModalSyntax {
             nahe: None,
             se: None,
             bai: Some(bai),
             nai: None,
-        },
+        }),
     }
 }
 
@@ -337,16 +338,17 @@ fn set_simple_nahe(
     nahe: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
-        Some(existing) => SimpleTenseModalSyntax {
-            nahe: Some(nahe),
-            ..existing
-        },
-        None => SimpleTenseModalSyntax {
+        Some(existing) => {
+            let mut data = existing.into_data();
+            data.nahe = Some(nahe);
+            SimpleTenseModalSyntax::from_data(data)
+        }
+        None => new!(SimpleTenseModalSyntax {
             nahe: Some(nahe),
             se: None,
             bai: None,
             nai: None,
-        },
+        }),
     }
 }
 
@@ -357,15 +359,16 @@ fn set_simple_se(
     se: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
-        Some(existing) => SimpleTenseModalSyntax {
-            se: Some(se),
-            ..existing
-        },
-        None => SimpleTenseModalSyntax {
+        Some(existing) => {
+            let mut data = existing.into_data();
+            data.se = Some(se);
+            SimpleTenseModalSyntax::from_data(data)
+        }
+        None => new!(SimpleTenseModalSyntax {
             nahe: None,
             se: Some(se),
             bai: None,
             nai: None,
-        },
+        }),
     }
 }

@@ -1434,7 +1434,7 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
             assert!(!output.trim_end().contains('\n'));
-            assert!(output.starts_with("TextSyntax { "));
+            assert!(output.starts_with("TextSyntax"));
             assert!(output.contains("PredicateSyntax"));
         });
     }

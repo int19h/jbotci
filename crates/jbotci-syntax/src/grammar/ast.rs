@@ -306,18 +306,26 @@ impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.leading_nai;
-        words.extend(self.leading_cmevla);
-        for indicator in self.leading_indicators {
+        let data!(TextSyntax {
+            leading_nai,
+            leading_cmevla,
+            leading_indicators,
+            leading_free_modifiers,
+            leading_connective,
+            paragraphs,
+        }) = self.into_data();
+        let mut words = leading_nai;
+        words.extend(leading_cmevla);
+        for indicator in leading_indicators {
             words.extend(indicator.words());
         }
-        for free_modifier in self.leading_free_modifiers {
+        for free_modifier in leading_free_modifiers {
             words.extend(free_modifier.words());
         }
-        if let Some(leading_connective) = self.leading_connective {
+        if let Some(leading_connective) = leading_connective {
             words.extend(leading_connective.words());
         }
-        for paragraph in self.paragraphs {
+        for paragraph in paragraphs {
             words.extend(paragraph.words());
         }
         words
@@ -328,12 +336,18 @@ impl ParagraphSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.i.into_iter().collect::<Vec<_>>();
-        words.extend(self.niho);
-        for free_modifier in self.free_modifiers {
+        let data!(ParagraphSyntax {
+            i,
+            niho,
+            free_modifiers,
+            statements,
+        }) = self.into_data();
+        let mut words = i.into_iter().collect::<Vec<_>>();
+        words.extend(niho);
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
-        for paragraph_statement in self.statements {
+        for paragraph_statement in statements {
             words.extend(paragraph_statement.words());
         }
         words
@@ -344,14 +358,20 @@ impl ParagraphStatementSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.i.into_iter().collect::<Vec<_>>();
-        if let Some(connective) = self.connective {
+        let data!(ParagraphStatementSyntax {
+            i,
+            connective,
+            free_modifiers,
+            statement,
+        }) = self.into_data();
+        let mut words = i.into_iter().collect::<Vec<_>>();
+        if let Some(connective) = connective {
             words.extend(connective.words());
         }
-        for free_modifier in self.free_modifiers {
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
-        if let Some(statement) = self.statement {
+        if let Some(statement) = statement {
             words.extend(statement.words());
         }
         words
@@ -453,15 +473,21 @@ impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let data!(PredicateSyntax {
+            leading_terms,
+            cu,
+            predicate_tail,
+            free_modifiers,
+        }) = self.into_data();
         let mut words = Vec::new();
-        for term in self.leading_terms {
+        for term in leading_terms {
             words.extend(term.words());
         }
-        if let Some(cu) = self.cu {
+        if let Some(cu) = cu {
             words.extend(cu.words());
         }
-        words.extend(self.predicate_tail.words());
-        for free_modifier in self.free_modifiers {
+        words.extend(predicate_tail.words());
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
         words
@@ -484,22 +510,32 @@ impl KePredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.connective.words();
-        if let Some(tense_modal) = self.tense_modal {
+        let data!(KePredicateTailSyntax {
+            connective,
+            tense_modal,
+            ke,
+            predicate_tail,
+            kehe,
+            tail_terms,
+            vau,
+            free_modifiers,
+        }) = self.into_data();
+        let mut words = connective.words();
+        if let Some(tense_modal) = tense_modal {
             words.extend(tense_modal.words());
         }
-        words.extend(self.ke.words());
-        words.extend(self.predicate_tail.words());
-        if let Some(kehe) = self.kehe {
+        words.extend(ke.words());
+        words.extend(predicate_tail.words());
+        if let Some(kehe) = kehe {
             words.extend(kehe.words());
         }
-        for term in self.tail_terms {
+        for term in tail_terms {
             words.extend(term.words());
         }
-        if let Some(vau) = self.vau {
+        if let Some(vau) = vau {
             words.extend(vau.words());
         }
-        for free_modifier in self.free_modifiers {
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
         words
@@ -522,21 +558,30 @@ impl PredicateTailContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.connective.words();
-        if let Some(tense_modal) = self.tense_modal {
+        let data!(PredicateTailContinuationSyntax {
+            connective,
+            tense_modal,
+            cu,
+            predicate_tail,
+            tail_terms,
+            vau,
+            free_modifiers,
+        }) = self.into_data();
+        let mut words = connective.words();
+        if let Some(tense_modal) = tense_modal {
             words.extend(tense_modal.words());
         }
-        if let Some(cu) = self.cu {
+        if let Some(cu) = cu {
             words.extend(cu.words());
         }
-        words.extend(self.predicate_tail.words());
-        for term in self.tail_terms {
+        words.extend(predicate_tail.words());
+        for term in tail_terms {
             words.extend(term.words());
         }
-        if let Some(vau) = self.vau {
+        if let Some(vau) = vau {
             words.extend(vau.words());
         }
-        for free_modifier in self.free_modifiers {
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
         words
@@ -559,22 +604,32 @@ impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.connective.words();
-        if let Some(tense_modal) = self.tense_modal {
+        let data!(BoPredicateTailSyntax {
+            connective,
+            tense_modal,
+            bo,
+            cu,
+            predicate_tail,
+            tail_terms,
+            vau,
+            free_modifiers,
+        }) = self.into_data();
+        let mut words = connective.words();
+        if let Some(tense_modal) = tense_modal {
             words.extend(tense_modal.words());
         }
-        words.extend(self.bo.words());
-        if let Some(cu) = self.cu {
+        words.extend(bo.words());
+        if let Some(cu) = cu {
             words.extend(cu.words());
         }
-        words.extend(self.predicate_tail.words());
-        for term in self.tail_terms {
+        words.extend(predicate_tail.words());
+        for term in tail_terms {
             words.extend(term.words());
         }
-        if let Some(vau) = self.vau {
+        if let Some(vau) = vau {
             words.extend(vau.words());
         }
-        for free_modifier in self.free_modifiers {
+        for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
         }
         words
@@ -2128,9 +2183,15 @@ impl CompositeTenseModalPartSyntax {
         match self.into_data() {
             data!(CompositeTenseModalPartSyntax::Word(word)) => out.push(word),
             data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
-                out.push(fiho.fiho.value);
-                out.extend(fiho.relation.words());
-                if let Some(fehu) = fiho.fehu {
+                let data!(FihoModalSyntax {
+                    nahe: _,
+                    fiho,
+                    relation,
+                    fehu,
+                }) = fiho.into_data();
+                out.push(fiho.value);
+                out.extend(relation.words());
+                if let Some(fehu) = fehu {
                     out.push(fehu.value);
                 }
             }
@@ -2158,9 +2219,15 @@ impl CompositeTenseModalPartSyntax {
         match self.into_data() {
             data!(CompositeTenseModalPartSyntax::Word(word)) => vec![word],
             data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
-                let mut words = vec![fiho.fiho.value];
-                words.extend(fiho.relation.words());
-                if let Some(fehu) = fiho.fehu {
+                let data!(FihoModalSyntax {
+                    nahe: _,
+                    fiho,
+                    relation,
+                    fehu,
+                }) = fiho.into_data();
+                let mut words = vec![fiho.value];
+                words.extend(relation.words());
+                if let Some(fehu) = fehu {
                     words.push(fehu.value);
                 }
                 words
@@ -3012,9 +3079,14 @@ impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.goi.words();
-        words.extend(self.argument.words());
-        if let Some(gehu) = self.gehu {
+        let data!(GoiRelativeClauseSyntax {
+            goi,
+            argument,
+            gehu,
+        }) = self.into_data();
+        let mut words = goi.words();
+        words.extend(argument.words());
+        if let Some(gehu) = gehu {
             words.extend(gehu.words());
         }
         words
@@ -3025,9 +3097,14 @@ impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.nohoi.words();
-        words.extend(self.relation.words());
-        if let Some(kuhoi) = self.kuhoi {
+        let data!(SelbriRelativeClauseSyntax {
+            nohoi,
+            relation,
+            kuhoi,
+        }) = self.into_data();
+        let mut words = nohoi.words();
+        words.extend(relation.words());
+        if let Some(kuhoi) = kuhoi {
             words.extend(kuhoi.words());
         }
         words
@@ -3102,24 +3179,31 @@ impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self
-            .outer_quantifier
+        let data!(DescriptorSyntax {
+            descriptor,
+            outer_quantifier,
+            tail_elements,
+            relation,
+            relative_clauses,
+            ku,
+        }) = self.into_data();
+        let mut words = outer_quantifier
             .into_iter()
             .flat_map(QuantifierSyntax::words)
             .collect::<Vec<_>>();
-        if let Some(descriptor) = self.descriptor {
+        if let Some(descriptor) = descriptor {
             words.extend(descriptor.words());
         }
-        for element in self.tail_elements {
+        for element in tail_elements {
             words.extend(element.words());
         }
-        if let Some(relation) = self.relation {
+        if let Some(relation) = relation {
             words.extend(relation.words());
         }
-        for relative_clause in self.relative_clauses {
+        for relative_clause in relative_clauses {
             words.extend(relative_clause.words());
         }
-        if let Some(ku) = self.ku {
+        if let Some(ku) = ku {
             words.extend(ku.words());
         }
         words
@@ -3130,7 +3214,8 @@ impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        self.descriptor.words()
+        let data!(DescriptorHeadSyntax { descriptor }) = self.into_data();
+        descriptor.words()
     }
 }
 
@@ -3138,19 +3223,28 @@ impl ConnectedDescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.leading_descriptor_head.words();
-        words.extend(self.connective.words());
-        words.extend(self.trailing_descriptor_head.words());
-        for element in self.tail_elements {
+        let data!(ConnectedDescriptorSyntax {
+            leading_descriptor_head,
+            connective,
+            trailing_descriptor_head,
+            tail_elements,
+            relation,
+            relative_clauses,
+            ku,
+        }) = self.into_data();
+        let mut words = leading_descriptor_head.words();
+        words.extend(connective.words());
+        words.extend(trailing_descriptor_head.words());
+        for element in tail_elements {
             words.extend(element.words());
         }
-        if let Some(relation) = self.relation {
+        if let Some(relation) = relation {
             words.extend(relation.words());
         }
-        for relative_clause in self.relative_clauses {
+        for relative_clause in relative_clauses {
             words.extend(relative_clause.words());
         }
-        if let Some(ku) = self.ku {
+        if let Some(ku) = ku {
             words.extend(ku.words());
         }
         words
@@ -3184,11 +3278,12 @@ impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.bei.words();
-        if let Some(fa) = self.fa {
+        let data!(BeiLinkSyntax { bei, fa, argument }) = self.into_data();
+        let mut words = bei.words();
+        if let Some(fa) = fa {
             words.extend(fa.words());
         }
-        if let Some(argument) = self.argument {
+        if let Some(argument) = argument {
             words.extend(argument.words());
         }
         words
@@ -3600,8 +3695,9 @@ impl RelationUnitSyntax {
             data!(RelationUnitSyntax::Cei { base, assignments }) => {
                 let mut words = base.words();
                 for assignment in assignments {
-                    words.extend(assignment.cei.words());
-                    words.extend(assignment.relation_unit.words());
+                    let data!(CeiAssignmentSyntax { cei, relation_unit }) = assignment.into_data();
+                    words.extend(cei.words());
+                    words.extend(relation_unit.words());
                 }
                 words
             }
@@ -3613,15 +3709,22 @@ impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.nu.words();
-        if let Some(nai) = self.nai {
+        let data!(AbstractionSyntax {
+            nu,
+            nai,
+            additional_nu,
+            subsentence,
+            kei,
+        }) = self.into_data();
+        let mut words = nu.words();
+        if let Some(nai) = nai {
             words.extend(nai.words());
         }
-        for additional_nu in self.additional_nu {
+        for additional_nu in additional_nu {
             words.extend(additional_nu.words());
         }
-        words.extend((*self.subsentence).words());
-        if let Some(kei) = self.kei {
+        words.extend((*subsentence).words());
+        if let Some(kei) = kei {
             words.extend(kei.words());
         }
         words
@@ -3632,9 +3735,14 @@ impl AdditionalNuSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.connective.words();
-        words.extend(self.nu.words());
-        if let Some(nai) = self.nai {
+        let data!(AdditionalNuSyntax {
+            connective,
+            nu,
+            nai,
+        }) = self.into_data();
+        let mut words = connective.words();
+        words.extend(nu.words());
+        if let Some(nai) = nai {
             words.extend(nai.words());
         }
         words

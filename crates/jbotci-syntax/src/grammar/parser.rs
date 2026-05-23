@@ -811,15 +811,17 @@ fn statement_parser<'tokens>(
                                 predicate_tail,
                             ),
                             (tail_terms, vau, tail_free_modifiers),
-                        )| BoPredicateTailSyntax {
-                            connective,
-                            tense_modal,
-                            bo: WithFreeModifiers::new(bo, bo_free_modifiers),
-                            cu,
-                            predicate_tail: Box::new(predicate_tail),
-                            tail_terms,
-                            vau,
-                            free_modifiers: tail_free_modifiers,
+                        )| {
+                            new!(BoPredicateTailSyntax {
+                                connective,
+                                tense_modal,
+                                bo: WithFreeModifiers::new(bo, bo_free_modifiers),
+                                cu,
+                                predicate_tail: Box::new(predicate_tail),
+                                tail_terms,
+                                vau,
+                                free_modifiers: tail_free_modifiers,
+                            })
                         },
                     )
                     .boxed();
@@ -848,7 +850,7 @@ fn statement_parser<'tokens>(
                     )| {
                         let connective =
                             append_connective_free_modifiers(connective, free_modifiers);
-                        PredicateTailContinuationSyntax {
+                        new!(PredicateTailContinuationSyntax {
                             connective,
                             tense_modal: None,
                             cu,
@@ -856,7 +858,7 @@ fn statement_parser<'tokens>(
                             tail_terms,
                             vau,
                             free_modifiers: tail_free_modifiers,
-                        }
+                        })
                     },
                 )
                 .boxed();
@@ -891,7 +893,7 @@ fn statement_parser<'tokens>(
                         ),
                         (tail_terms, vau, free_modifiers),
                     )| {
-                        KePredicateTailSyntax {
+                        new!(KePredicateTailSyntax {
                             connective,
                             tense_modal,
                             ke: WithFreeModifiers::new(ke, ke_free_modifiers),
@@ -902,7 +904,7 @@ fn statement_parser<'tokens>(
                             tail_terms,
                             vau,
                             free_modifiers,
-                        }
+                        })
                     },
                 )
                 .boxed();
@@ -935,23 +937,25 @@ fn statement_parser<'tokens>(
             )
             .then(predicate_tail.clone())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(
-                |(((leading_terms, cu), predicate_tail), free_modifiers)| PredicateSyntax {
+            .map(|(((leading_terms, cu), predicate_tail), free_modifiers)| {
+                new!(PredicateSyntax {
                     leading_terms,
                     cu: cu.map(|(cu, free_modifiers)| WithFreeModifiers::new(cu, free_modifiers)),
                     predicate_tail,
                     free_modifiers,
-                },
-            );
+                })
+            });
 
         let relation_only = predicate_tail
             .clone()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|(predicate_tail, free_modifiers)| PredicateSyntax {
-                leading_terms: Vec::new(),
-                cu: None,
-                predicate_tail,
-                free_modifiers,
+            .map(|(predicate_tail, free_modifiers)| {
+                new!(PredicateSyntax {
+                    leading_terms: Vec::new(),
+                    cu: None,
+                    predicate_tail,
+                    free_modifiers,
+                })
             });
         let bare_cu_predicate = cu
             .clone()
@@ -959,11 +963,13 @@ fn statement_parser<'tokens>(
             .then(predicate_tail.clone())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(
-                |(((cu, cu_free_modifiers), predicate_tail), free_modifiers)| PredicateSyntax {
-                    leading_terms: Vec::new(),
-                    cu: Some(WithFreeModifiers::new(cu, cu_free_modifiers)),
-                    predicate_tail,
-                    free_modifiers,
+                |(((cu, cu_free_modifiers), predicate_tail), free_modifiers)| {
+                    new!(PredicateSyntax {
+                        leading_terms: Vec::new(),
+                        cu: Some(WithFreeModifiers::new(cu, cu_free_modifiers)),
+                        predicate_tail,
+                        free_modifiers,
+                    })
                 },
             )
             .boxed();
@@ -979,14 +985,14 @@ fn statement_parser<'tokens>(
             )
             .then(predicate_tail)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(
-                |(((leading_terms, cu), predicate_tail), free_modifiers)| PredicateSyntax {
+            .map(|(((leading_terms, cu), predicate_tail), free_modifiers)| {
+                new!(PredicateSyntax {
                     leading_terms,
                     cu: cu.map(|(cu, free_modifiers)| WithFreeModifiers::new(cu, free_modifiers)),
                     predicate_tail,
                     free_modifiers,
-                },
-            );
+                })
+            });
 
         choice((
             forethought_predicate_with_leading_terms,
@@ -1407,15 +1413,14 @@ fn statement_parser<'tokens>(
     )));
 
     let paragraph_statement_body = choice((statement.clone(), fragment_statement.clone())).boxed();
-    let initial_statement =
-        paragraph_statement_body
-            .clone()
-            .map(|statement| ParagraphStatementSyntax {
-                i: None,
-                connective: None,
-                free_modifiers: Vec::new(),
-                statement: Some(statement),
-            });
+    let initial_statement = paragraph_statement_body.clone().map(|statement| {
+        new!(ParagraphStatementSyntax {
+            i: None,
+            connective: None,
+            free_modifiers: Vec::new(),
+            statement: Some(statement),
+        })
+    });
 
     let i_connective_tag_bo = standard_statement_connective()
         .or_not()
@@ -1464,23 +1469,25 @@ fn statement_parser<'tokens>(
         .then_ignore(statement_connective().rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(paragraph_statement_body.or_not())
-        .map(
-            |((i, free_modifiers), statement)| ParagraphStatementSyntax {
+        .map(|((i, free_modifiers), statement)| {
+            new!(ParagraphStatementSyntax {
                 i: Some(i),
                 connective: None,
                 free_modifiers,
                 statement,
-            },
-        );
+            })
+        });
     let trailing_ijek_statement = cmavo("i")
         .then(statement_connective())
-        .map(|(i, connective)| ParagraphStatementSyntax {
-            i: None,
-            connective: None,
-            free_modifiers: Vec::new(),
-            statement: Some(new!(StatementSyntax::Fragment(new!(
-                FragmentSyntax::Ijek { i, connective }
-            )))),
+        .map(|(i, connective)| {
+            new!(ParagraphStatementSyntax {
+                i: None,
+                connective: None,
+                free_modifiers: Vec::new(),
+                statement: Some(new!(StatementSyntax::Fragment(new!(
+                    FragmentSyntax::Ijek { i, connective }
+                )))),
+            })
         });
 
     let paragraph_without_niho = initial_statement
@@ -1506,14 +1513,15 @@ fn statement_parser<'tokens>(
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(paragraph.clone().or_not())
         .map(|((niho, free_modifiers), paragraph)| match paragraph {
-            Some(mut paragraph) => {
-                if paragraph.niho.is_empty() {
-                    paragraph.niho = niho;
+            Some(paragraph) => {
+                let mut paragraph_data = paragraph.into_data();
+                if paragraph_data.niho.is_empty() {
+                    paragraph_data.niho = niho;
                 }
-                if paragraph.free_modifiers.is_empty() {
-                    paragraph.free_modifiers = free_modifiers;
+                if paragraph_data.free_modifiers.is_empty() {
+                    paragraph_data.free_modifiers = free_modifiers;
                 }
-                paragraph
+                ParagraphSyntax::from_data(paragraph_data)
             }
             None => build_paragraph(None, niho, free_modifiers, Vec::new()),
         })
@@ -1565,14 +1573,14 @@ fn statement_parser<'tokens>(
                 ),
                 paragraphs,
             )| {
-                let text = TextSyntax {
+                let text = new!(TextSyntax {
                     leading_nai,
                     leading_cmevla,
                     leading_indicators,
                     leading_free_modifiers,
                     leading_connective,
                     paragraphs,
-                };
+                });
                 leading_i_statements
                     .into_iter()
                     .rev()
@@ -1588,43 +1596,41 @@ fn statement_parser<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-fn prepend_i_with_free_modifier(
-    marker: LeadingIStatementSyntax,
-    mut text: TextSyntax,
-) -> TextSyntax {
-    if text.paragraphs.is_empty() {
-        text.paragraphs.push(ParagraphSyntax {
+fn prepend_i_with_free_modifier(marker: LeadingIStatementSyntax, text: TextSyntax) -> TextSyntax {
+    let mut text_data = text.into_data();
+    if text_data.paragraphs.is_empty() {
+        text_data.paragraphs.push(new!(ParagraphSyntax {
             i: None,
             niho: Vec::new(),
             free_modifiers: Vec::new(),
-            statements: vec![ParagraphStatementSyntax {
+            statements: vec![new!(ParagraphStatementSyntax {
                 i: Some(marker.i),
                 connective: marker.connective,
                 free_modifiers: marker.free_modifiers,
                 statement: None,
-            }],
-        });
-        return text;
+            })],
+        }));
+        return TextSyntax::from_data(text_data);
     }
 
-    let paragraph = text
-        .paragraphs
-        .first_mut()
-        .expect("empty paragraphs handled above");
-    if paragraph.niho.is_empty() {
-        paragraph.statements = prepend_i_to_niho_free_paragraph_statements(
+    let mut paragraph_data = text_data.paragraphs.remove(0).into_data();
+    if paragraph_data.niho.is_empty() {
+        paragraph_data.statements = prepend_i_to_niho_free_paragraph_statements(
             marker,
-            std::mem::take(&mut paragraph.statements),
+            std::mem::take(&mut paragraph_data.statements),
         );
     } else {
-        paragraph.i = Some(marker.i);
-        paragraph.statements = attach_i_connective_to_niho_paragraph_statements(
+        paragraph_data.i = Some(marker.i);
+        paragraph_data.statements = attach_i_connective_to_niho_paragraph_statements(
             marker.connective,
             marker.free_modifiers,
-            std::mem::take(&mut paragraph.statements),
+            std::mem::take(&mut paragraph_data.statements),
         );
     }
-    text
+    text_data
+        .paragraphs
+        .insert(0, ParagraphSyntax::from_data(paragraph_data));
+    TextSyntax::from_data(text_data)
 }
 
 #[requires(true)]
@@ -1633,23 +1639,35 @@ fn prepend_i_to_niho_free_paragraph_statements(
     marker: LeadingIStatementSyntax,
     mut statements: Vec<ParagraphStatementSyntax>,
 ) -> Vec<ParagraphStatementSyntax> {
-    let new_statement = ParagraphStatementSyntax {
-        i: Some(marker.i),
-        connective: marker.connective,
-        free_modifiers: marker.free_modifiers,
-        statement: None,
+    let LeadingIStatementSyntax {
+        i,
+        connective,
+        free_modifiers,
+    } = marker;
+    if statements.is_empty() {
+        return vec![new!(ParagraphStatementSyntax {
+            i: Some(i),
+            connective,
+            free_modifiers,
+            statement: None,
+        })];
     };
-    let Some(first) = statements.first_mut() else {
-        return vec![new_statement];
-    };
-    if first.i.is_some() {
+    if statements.first().is_some_and(|first| first.i.is_some()) {
+        let new_statement = new!(ParagraphStatementSyntax {
+            i: Some(i),
+            connective,
+            free_modifiers,
+            statement: None,
+        });
         statements.insert(0, new_statement);
         return statements;
     }
 
-    first.i = new_statement.i;
-    first.connective = new_statement.connective;
-    first.free_modifiers = new_statement.free_modifiers;
+    let mut first_data = statements.remove(0).into_data();
+    first_data.i = Some(i);
+    first_data.connective = connective;
+    first_data.free_modifiers = free_modifiers;
+    statements.insert(0, ParagraphStatementSyntax::from_data(first_data));
     statements
 }
 
@@ -1660,18 +1678,20 @@ fn attach_i_connective_to_niho_paragraph_statements(
     free_modifiers: Vec<FreeModifierSyntax>,
     mut statements: Vec<ParagraphStatementSyntax>,
 ) -> Vec<ParagraphStatementSyntax> {
-    let Some(first) = statements.first_mut() else {
-        return vec![ParagraphStatementSyntax {
+    if statements.is_empty() {
+        return vec![new!(ParagraphStatementSyntax {
             i: None,
             connective,
             free_modifiers,
             statement: None,
-        }];
+        })];
     };
-    first.connective = connective;
+    let mut first_data = statements.remove(0).into_data();
+    first_data.connective = connective;
     let mut combined_free_modifiers = free_modifiers;
-    combined_free_modifiers.append(&mut first.free_modifiers);
-    first.free_modifiers = combined_free_modifiers;
+    combined_free_modifiers.append(&mut first_data.free_modifiers);
+    first_data.free_modifiers = combined_free_modifiers;
+    statements.insert(0, ParagraphStatementSyntax::from_data(first_data));
     statements
 }
 
@@ -1683,12 +1703,12 @@ fn build_paragraph(
     free_modifiers: Vec<FreeModifierSyntax>,
     statements: Vec<ParagraphStatementSyntax>,
 ) -> ParagraphSyntax {
-    ParagraphSyntax {
+    new!(ParagraphSyntax {
         i,
         niho,
         free_modifiers,
         statements: normalize_trailing_ijek_fragment(statements),
-    }
+    })
 }
 
 #[requires(true)]
@@ -1699,25 +1719,25 @@ fn normalize_trailing_ijek_fragment(
     let Some(last) = statements.pop() else {
         return statements;
     };
-    match last {
-        ParagraphStatementSyntax {
+    match last.into_data() {
+        data!(ParagraphStatementSyntax {
             i: Some(i),
             connective: Some(connective),
             free_modifiers,
             statement: None,
-        } if free_modifiers.is_empty() => {
-            statements.push(ParagraphStatementSyntax {
+        }) if free_modifiers.is_empty() => {
+            statements.push(new!(ParagraphStatementSyntax {
                 i: None,
                 connective: None,
                 free_modifiers: Vec::new(),
                 statement: Some(new!(StatementSyntax::Fragment(new!(
                     FragmentSyntax::Ijek { i, connective }
                 )))),
-            });
+            }));
             statements
         }
         other => {
-            statements.push(other);
+            statements.push(ParagraphStatementSyntax::from_data(other));
             statements
         }
     }
@@ -1892,14 +1912,14 @@ fn connective_is_gihek(connective: &ConnectiveSyntax) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn empty_text() -> TextSyntax {
-    TextSyntax {
+    new!(TextSyntax {
         leading_nai: Vec::new(),
         leading_cmevla: Vec::new(),
         leading_indicators: Vec::new(),
         leading_free_modifiers: Vec::new(),
         leading_connective: None,
         paragraphs: Vec::new(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -2887,11 +2907,11 @@ where
     let descriptor_head = le_cmavo()
         .or(la_cmavo())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(
-            |(descriptor, descriptor_free_modifiers)| DescriptorHeadSyntax {
+        .map(|(descriptor, descriptor_free_modifiers)| {
+            new!(DescriptorHeadSyntax {
                 descriptor: WithFreeModifiers::new(descriptor, descriptor_free_modifiers),
-            },
-        );
+            })
+        });
     let descriptor_head_connective = jek_connective()
         .map(|connective| connective_with_kind(connective, ConnectiveKind::Afterthought));
     let connected_descriptor = descriptor_head
@@ -2913,7 +2933,7 @@ where
                 ku,
             )| {
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
-                new!(ArgumentSyntax::ConnectedDescriptor(
+                new!(ArgumentSyntax::ConnectedDescriptor(new!(
                     ConnectedDescriptorSyntax {
                         leading_descriptor_head,
                         connective,
@@ -2924,7 +2944,7 @@ where
                         ku: ku
                             .map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
                     }
-                ))
+                )))
             },
         );
 
@@ -2940,7 +2960,7 @@ where
         .map(
             |(((descriptor, descriptor_free_modifiers), descriptor_tail), ku)| {
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
-                new!(ArgumentSyntax::Descriptor(DescriptorSyntax {
+                new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
                     descriptor: Some(WithFreeModifiers::new(
                         descriptor,
                         descriptor_free_modifiers,
@@ -2950,7 +2970,7 @@ where
                     relation,
                     relative_clauses,
                     ku: ku.map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
-                }))
+                })))
             },
         );
     let descriptor_with_outer_quantifier = contextual_quantifier
@@ -2969,7 +2989,7 @@ where
                 ku,
             )| {
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
-                new!(ArgumentSyntax::Descriptor(DescriptorSyntax {
+                new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
                     descriptor: Some(WithFreeModifiers::new(
                         descriptor,
                         descriptor_free_modifiers,
@@ -2979,7 +2999,7 @@ where
                     relation,
                     relative_clauses,
                     ku: ku.map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
-                }))
+                })))
             },
         );
 
@@ -2993,14 +3013,14 @@ where
                 .map(Option::unwrap_or_default),
         )
         .map(|((quantifier, relation), relative_clauses)| {
-            new!(ArgumentSyntax::Descriptor(DescriptorSyntax {
+            new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
                 descriptor: None,
                 outer_quantifier: None,
                 tail_elements: vec![quantifier],
                 relation: Some(relation),
                 relative_clauses,
                 ku: None,
-            }))
+            })))
         });
 
     let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
@@ -3841,14 +3861,14 @@ where
                 .then(free_modifier.repeated().collect::<Vec<_>>())
                 .or_not(),
         )
-        .map(
-            |(((goi, leading_free_modifiers), argument), gehu)| GoiRelativeClauseSyntax {
+        .map(|(((goi, leading_free_modifiers), argument), gehu)| {
+            new!(GoiRelativeClauseSyntax {
                 goi: WithFreeModifiers::new(goi, leading_free_modifiers),
                 argument,
                 gehu: gehu
                     .map(|(gehu, free_modifiers)| WithFreeModifiers::new(gehu, free_modifiers)),
-            },
-        )
+            })
+        })
         .boxed()
 }
 
@@ -5358,8 +5378,8 @@ where
         .then(nu_cmavo())
         .then(cmavo("nai").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(
-            |(((connective, nu), nai), free_modifiers)| AdditionalNuSyntax {
+        .map(|(((connective, nu), nai), free_modifiers)| {
+            new!(AdditionalNuSyntax {
                 connective,
                 nu: WithFreeModifiers::new(
                     nu,
@@ -5370,8 +5390,8 @@ where
                     },
                 ),
                 nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
-            },
-        );
+            })
+        });
     let abstraction_subsentence_unit = nu_cmavo()
         .then(cmavo("nai").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5384,7 +5404,7 @@ where
         )
         .map(
             |(((((nu, nai), free_modifiers), additional_nu), subsentence), kei)| {
-                new!(RelationUnitSyntax::Abstraction(AbstractionSyntax {
+                new!(RelationUnitSyntax::Abstraction(new!(AbstractionSyntax {
                     nu: WithFreeModifiers::new(
                         nu,
                         if nai.is_some() {
@@ -5398,7 +5418,7 @@ where
                     subsentence: Box::new(subsentence),
                     kei: kei
                         .map(|(kei, free_modifiers)| WithFreeModifiers::new(kei, free_modifiers)),
-                }))
+                })))
             },
         )
         .boxed();
@@ -5464,14 +5484,14 @@ where
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .or_not(),
         )
-        .map(
-            |(((nohoi, leading_free_modifiers), relation), kuhoi)| SelbriRelativeClauseSyntax {
+        .map(|(((nohoi, leading_free_modifiers), relation), kuhoi)| {
+            new!(SelbriRelativeClauseSyntax {
                 nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
                 relation,
                 kuhoi: kuhoi
                     .map(|(kuhoi, free_modifiers)| WithFreeModifiers::new(kuhoi, free_modifiers)),
-            },
-        )
+            })
+        })
         .boxed();
 
     let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
@@ -5549,10 +5569,10 @@ where
                 base: Box::new(base),
                 assignments: be_link
                     .into_iter()
-                    .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                    .map(|(cei, relation_unit)| new!(CeiAssignmentSyntax {
                         cei: wrapped_word(cei, Vec::new()),
                         relation_unit,
-                    })
+                    }))
                     .collect(),
             })
         })
@@ -5854,8 +5874,8 @@ where
             .then(nu_cmavo())
             .then(cmavo("nai").or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(
-                |(((connective, nu), nai), free_modifiers)| AdditionalNuSyntax {
+            .map(|(((connective, nu), nai), free_modifiers)| {
+                new!(AdditionalNuSyntax {
                     connective,
                     nu: WithFreeModifiers::new(
                         nu,
@@ -5866,8 +5886,8 @@ where
                         },
                     ),
                     nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
-                },
-            );
+                })
+            });
         let abstraction_subsentence_unit = nu_cmavo()
             .then(cmavo("nai").or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5880,7 +5900,7 @@ where
             )
             .map(
                 |(((((nu, nai), free_modifiers), additional_nu), subsentence), kei)| {
-                    new!(RelationUnitSyntax::Abstraction(AbstractionSyntax {
+                    new!(RelationUnitSyntax::Abstraction(new!(AbstractionSyntax {
                         nu: WithFreeModifiers::new(
                             nu,
                             if nai.is_some() {
@@ -5895,7 +5915,7 @@ where
                         kei: kei.map(|(kei, free_modifiers)| {
                             WithFreeModifiers::new(kei, free_modifiers)
                         }),
-                    }))
+                    })))
                 },
             )
             .boxed();
@@ -6024,13 +6044,13 @@ where
                     .or_not(),
             )
             .map(|(((nohoi, leading_free_modifiers), relation), kuhoi)| {
-                SelbriRelativeClauseSyntax {
+                new!(SelbriRelativeClauseSyntax {
                     nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
                     relation,
                     kuhoi: kuhoi.map(|(kuhoi, free_modifiers)| {
                         WithFreeModifiers::new(kuhoi, free_modifiers)
                     }),
-                }
+                })
             })
             .boxed();
 
@@ -6151,10 +6171,10 @@ where
                     base: Box::new(base),
                     assignments: be_link
                         .into_iter()
-                        .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                        .map(|(cei, relation_unit)| new!(CeiAssignmentSyntax {
                             cei: wrapped_word(cei, Vec::new()),
                             relation_unit,
-                        })
+                        }))
                         .collect(),
                 })
             })
@@ -6388,7 +6408,7 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
 #[requires(true)]
 #[ensures(true)]
 fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
-    PredicateSyntax {
+    new!(PredicateSyntax {
         leading_terms: Vec::new(),
         cu: None,
         predicate_tail: PredicateTailSyntax {
@@ -6407,7 +6427,7 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
             ke_continuation: None,
         },
         free_modifiers: Vec::new(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -7362,11 +7382,11 @@ where
         .map(|((bei, bei_free_modifiers), link_argument)| {
             let data!(LinkArgumentSyntax { fa, argument }) = link_argument.into_data();
 
-            BeiLinkSyntax {
+            new!(BeiLinkSyntax {
                 bei: WithFreeModifiers::new(bei, bei_free_modifiers),
                 fa,
                 argument,
-            }
+            })
         })
         .boxed()
 }

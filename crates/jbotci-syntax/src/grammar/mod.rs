@@ -167,21 +167,27 @@ pub(crate) fn parse_text(
 ) -> Result<LojbanText, SyntaxError> {
     let tokens = syntax_tokens(words);
     let text = parser::parse_statement(&tokens, None, options)?.text;
-    let paragraphs = text
-        .paragraphs
+    let data!(TextSyntax {
+        leading_nai,
+        leading_cmevla,
+        leading_indicators,
+        leading_free_modifiers,
+        leading_connective,
+        paragraphs,
+    }) = text.into_data();
+    let paragraphs = paragraphs
         .into_iter()
         .map(public_paragraph)
         .collect::<Vec<_>>();
     Ok(LojbanText {
-        leading_nai: text.leading_nai,
-        leading_cmevla: text.leading_cmevla,
-        leading_indicators: text.leading_indicators,
-        leading_free_modifiers: text
-            .leading_free_modifiers
+        leading_nai,
+        leading_cmevla,
+        leading_indicators,
+        leading_free_modifiers: leading_free_modifiers
             .into_iter()
             .map(public_free_modifier)
             .collect(),
-        leading_connective: text.leading_connective.map(public_connective),
+        leading_connective: leading_connective.map(public_connective),
         paragraphs,
     })
 }
@@ -303,16 +309,20 @@ fn is_indicator_word(word: &Word) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn public_paragraph(paragraph: ParagraphSyntax) -> Paragraph {
+    let data!(ParagraphSyntax {
+        i,
+        niho,
+        free_modifiers,
+        statements,
+    }) = paragraph.into_data();
     Paragraph {
-        i: paragraph.i,
-        niho: paragraph.niho,
-        free_modifiers: paragraph
-            .free_modifiers
+        i,
+        niho,
+        free_modifiers: free_modifiers
             .into_iter()
             .map(public_free_modifier)
             .collect(),
-        statements: paragraph
-            .statements
+        statements: statements
             .into_iter()
             .map(public_paragraph_statement)
             .collect(),
@@ -322,15 +332,20 @@ fn public_paragraph(paragraph: ParagraphSyntax) -> Paragraph {
 #[requires(true)]
 #[ensures(true)]
 fn public_paragraph_statement(statement: ParagraphStatementSyntax) -> ParagraphStatement {
+    let data!(ParagraphStatementSyntax {
+        i,
+        connective,
+        free_modifiers,
+        statement,
+    }) = statement.into_data();
     ParagraphStatement {
-        i: statement.i,
-        connective: statement.connective.map(public_connective),
-        free_modifiers: statement
-            .free_modifiers
+        i,
+        connective: connective.map(public_connective),
+        free_modifiers: free_modifiers
             .into_iter()
             .map(public_free_modifier)
             .collect(),
-        statement: statement.statement.map(public_statement),
+        statement: statement.map(public_statement),
     }
 }
 
@@ -659,6 +674,151 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn rejects_wrong_struct_cmavo_markers() {
+        run_on_large_stack(|| {
+            let argument = sample_argument();
+            let relation = sample_relation();
+            let subsentence = sample_subsentence();
+            let predicate_tail = sample_predicate_tail();
+            let predicate_tail2 = sample_predicate_tail2();
+            let connective = sample_connective();
+
+            assert!(
+                try_new!(GoiRelativeClauseSyntax {
+                    goi: free_word("le"),
+                    argument: argument.clone(),
+                    gehu: None,
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(SelbriRelativeClauseSyntax {
+                    nohoi: free_word("no'oi"),
+                    relation: relation.clone(),
+                    kuhoi: Some(free_word("ku'o")),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(DescriptorHeadSyntax {
+                    descriptor: free_word("mi"),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(DescriptorSyntax {
+                    descriptor: Some(free_word("lo")),
+                    outer_quantifier: None,
+                    tail_elements: Vec::new(),
+                    relation: None,
+                    relative_clauses: Vec::new(),
+                    ku: Some(free_word("ku'o")),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(BeiLinkSyntax {
+                    bei: free_word("be"),
+                    fa: Some(free_word("fa")),
+                    argument: None,
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(PredicateSyntax {
+                    leading_terms: Vec::new(),
+                    cu: Some(free_word("ku")),
+                    predicate_tail: predicate_tail.clone(),
+                    free_modifiers: Vec::new(),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(KePredicateTailSyntax {
+                    connective: connective.clone(),
+                    tense_modal: None,
+                    ke: free_word("ke"),
+                    predicate_tail: Box::new(predicate_tail.clone()),
+                    kehe: Some(free_word("ku")),
+                    tail_terms: Vec::new(),
+                    vau: None,
+                    free_modifiers: Vec::new(),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(BoPredicateTailSyntax {
+                    connective: connective.clone(),
+                    tense_modal: None,
+                    bo: free_word("boi"),
+                    cu: None,
+                    predicate_tail: Box::new(predicate_tail2),
+                    tail_terms: Vec::new(),
+                    vau: None,
+                    free_modifiers: Vec::new(),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(TextSyntax {
+                    leading_nai: vec![indicated_word("i")],
+                    leading_cmevla: Vec::new(),
+                    leading_indicators: Vec::new(),
+                    leading_free_modifiers: Vec::new(),
+                    leading_connective: None,
+                    paragraphs: Vec::new(),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(ParagraphSyntax {
+                    i: Some(indicated_word("u'i")),
+                    niho: Vec::new(),
+                    free_modifiers: Vec::new(),
+                    statements: Vec::new(),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(FihoModalSyntax {
+                    nahe: None,
+                    fiho: free_word("fe'u"),
+                    relation: relation.clone(),
+                    fehu: None,
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(AbstractionSyntax {
+                    nu: free_word("nu"),
+                    nai: None,
+                    additional_nu: Vec::new(),
+                    subsentence: Box::new(subsentence),
+                    kei: Some(free_word("ku")),
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(AdditionalNuSyntax {
+                    connective,
+                    nu: free_word("ka'e"),
+                    nai: None,
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(CeiAssignmentSyntax {
+                    cei: free_word("bei"),
+                    relation_unit: new!(RelationUnitSyntax::Word(free_word("klama"))),
+                })
+                .is_err()
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_empty_repeated_enum_payloads() {
         assert!(try_new!(FragmentSyntax::BeiLink(Vec::new())).is_err());
         assert!(try_new!(FragmentSyntax::RelativeClause(Vec::new())).is_err());
@@ -693,6 +853,53 @@ mod tests {
             _ => panic!("test helper expected a predicate statement"),
         };
         new!(SubsentenceSyntax::Plain(predicate))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_argument() -> ArgumentSyntax {
+        new!(ArgumentSyntax::Koha(free_word("mi")))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_relation() -> RelationSyntax {
+        new!(RelationSyntax::Base(indicated_word("klama")))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_predicate() -> PredicateSyntax {
+        let data!(SubsentenceSyntax::Plain(predicate)) = sample_subsentence().into_data() else {
+            panic!("test helper expected a predicate subsentence");
+        };
+        predicate
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_predicate_tail() -> PredicateTailSyntax {
+        let data!(PredicateSyntax { predicate_tail, .. }) = sample_predicate().into_data();
+        predicate_tail
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_predicate_tail2() -> PredicateTail2Syntax {
+        sample_predicate_tail().first.first
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_connective() -> ConnectiveSyntax {
+        ConnectiveSyntax::new(
+            ConnectiveKind::Afterthought,
+            None,
+            None,
+            None,
+            WithFreeModifiers::new(vec![indicated_word("je")], Vec::new()),
+            None,
+        )
     }
 
     #[requires(true)]
