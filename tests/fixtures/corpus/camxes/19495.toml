@@ -18,33 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi .e la .clsn. na go'i)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "e",
-  Cmavo "la",
-  Cmevla "clsn",
-  Cmavo "na",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[4‥5) "e",
+  Cmavo @[6‥8) "la",
+  Cmevla @[9‥13) "clsn",
+  Cmavo @[15‥17) "na",
+  Cmavo @[18‥22) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}},{"Bare":{"Cmevla":{"phonemes":"clsn","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥22) {
   leading_terms: [
-    Connected {
-      leading_argument: Cmavo "mi",
-      connective: Cmavo "e",
-      trailing_argument: Name {
-        la: Cmavo "la",
+    Connected @[0‥13) {
+      leading_argument: Cmavo @[0‥2) "mi",
+      connective: Cmavo @[4‥5) "e",
+      trailing_argument: Name @[6‥13) {
+        la: Cmavo @[6‥8) "la",
         names: [
-          Cmevla "clsn",
+          Cmevla @[9‥13) "clsn",
         ],
       },
     },
   ],
-  Na {
-    na: Cmavo "na",
-    Cmavo "go'i",
+  Na @[15‥22) {
+    na: Cmavo @[15‥17) "na",
+    Cmavo @[18‥22) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}}}]}},"trailing_argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"clsn","span":[9,13]}}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[15,17]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}}}}}}}}}}}}}]}]}"""

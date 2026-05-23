@@ -8,37 +8,37 @@ entry-id = "7605"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "bad" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cture" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "bad" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ctúre" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "bad" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cture" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "bad" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ctúre" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.bad. pi ctúre)"
 tree = """
 [
-  Cmevla "bad",
-  Cmavo "pi",
-  Gismu "ctúre",
+  Cmevla @[0‥3) "bad",
+  Cmavo @[4‥6) "pi",
+  Gismu @[6‥11) "ctúre",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"bad","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}},{"Bare":{"Gismu":{"phonemes":"cture","span":[6,11]}}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"bad","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}},{"Bare":{"Gismu":{"phonemes":"ctúre","span":[6,11]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥11) {
   leading_cmevla: [
-    Cmevla "bad",
+    Cmevla @[0‥3) "bad",
   ],
-  Term {
+  Term @[4‥11) {
     terms: [
-      Descriptor {
+      Descriptor @[4‥11) {
         tail_elements: [
-          Cmavo "pi",
+          Cmavo @[4‥6) "pi",
         ],
-        relation: Gismu "ctúre",
+        relation: Gismu @[6‥11) "ctúre",
       },
     ],
   },
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"bad","span":[0,3]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"cture","span":[6,11]}}}}}}}}]}}}}]}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"bad","span":[0,3]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"ctúre","span":[6,11]}}}}}}}}]}}}}]}]}'

@@ -8,20 +8,20 @@ entry-id = "10723"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nun" })), Rafsi(Phonemes(PhonemesData { text: "kla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nún" })), Rafsi(Phonemes(PhonemesData { text: "kla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nun" })), Rafsi(Phonemes(PhonemesData { text: "kla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nún" })), Rafsi(Phonemes(PhonemesData { text: "kla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "núnkla"
 tree = """
 [
-  Lujvo "núnkla",
+  Lujvo @[0‥6) "núnkla",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nun"},{"Rafsi":"kla"}],"span":[0,6]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nún"},{"Rafsi":"kla"}],"span":[0,6]}}}]'
 
 [expectations.output.gentufa]
-tree = 'Lujvo "núnkla"'
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nun"},{"Rafsi":"kla"}],"span":[0,6]}}}}}}}}}}}}]}]}'
+tree = 'Lujvo @[0‥6) "núnkla"'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nún"},{"Rafsi":"kla"}],"span":[0,6]}}}}}}}}}}}}]}]}'

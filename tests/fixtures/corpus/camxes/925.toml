@@ -19,49 +19,49 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(le jeĭ li re su'i re du li vo keĭ)"
 tree = """
 [
-  Cmavo "le",
-  Cmavo "jeĭ",
-  Cmavo "li",
-  Cmavo "re",
-  Cmavo "su'i",
-  Cmavo "re",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "vo",
-  Cmavo "keĭ",
+  Cmavo @[0‥2) "le",
+  Cmavo @[3‥6) "jeĭ",
+  Cmavo @[7‥9) "li",
+  Cmavo @[10‥12) "re",
+  Cmavo @[13‥17) "su'i",
+  Cmavo @[18‥20) "re",
+  Cmavo @[21‥23) "du",
+  Cmavo @[24‥26) "li",
+  Cmavo @[27‥29) "vo",
+  Cmavo @[31‥34) "keĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"jeĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"keĭ","span":[31,34]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥34) {
   terms: [
-    Descriptor {
-      descriptor: Cmavo "le",
-      relation: Abstraction {
-        nu: Cmavo "jeĭ",
-        Predicate {
+    Descriptor @[0‥34) {
+      descriptor: Cmavo @[0‥2) "le",
+      relation: Abstraction @[3‥34) {
+        nu: Cmavo @[3‥6) "jeĭ",
+        Predicate @[7‥29) {
           leading_terms: [
-            MathExpression {
-              li: Cmavo "li",
-              Binary {
-                left_expression: Cmavo "re",
-                operator: Cmavo "su'i",
-                right_expression: Cmavo "re",
+            MathExpression @[7‥20) {
+              li: Cmavo @[7‥9) "li",
+              Binary @[10‥20) {
+                left_expression: Cmavo @[10‥12) "re",
+                operator: Cmavo @[13‥17) "su'i",
+                right_expression: Cmavo @[18‥20) "re",
               },
             },
           ],
-          Relation {
-            Cmavo "du",
+          Relation @[21‥29) {
+            Cmavo @[21‥23) "du",
             terms: [
-              MathExpression {
-                li: Cmavo "li",
-                Cmavo "vo",
+              MathExpression @[24‥29) {
+                li: Cmavo @[24‥26) "li",
+                Cmavo @[27‥29) "vo",
               },
             ],
           },
         },
-        kei: Cmavo "keĭ",
+        kei: Cmavo @[31‥34) "keĭ",
       },
     },
   ],

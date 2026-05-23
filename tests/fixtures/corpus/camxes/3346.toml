@@ -8,25 +8,25 @@ entry-id = "3346"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mabla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "skamrcmacu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mábla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "skamrcmácu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mabla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "skamrcmacu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mábla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "skamrcmácu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(mábla skamrcmácu)"
 tree = """
 [
-  Gismu "mábla",
-  Fuhivla "skamrcmácu",
+  Gismu @[0‥5) "mábla",
+  Fuhivla @[6‥16) "skamrcmácu",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"mabla","span":[0,5]}}},{"Bare":{"Fuhivla":{"phonemes":"skamrcmacu","span":[6,16]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"mábla","span":[0,5]}}},{"Bare":{"Fuhivla":{"phonemes":"skamrcmácu","span":[6,16]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Compound {
-  Gismu "mábla",
-  Fuhivla "skamrcmácu",
+Compound @[0‥16) {
+  Gismu @[0‥5) "mábla",
+  Fuhivla @[6‥16) "skamrcmácu",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"mabla","span":[0,5]}}}}},{"Word":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"skamrcmacu","span":[6,16]}}}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"mábla","span":[0,5]}}}}},{"Word":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"skamrcmácu","span":[6,16]}}}}}]}}}}}}}}]}]}'

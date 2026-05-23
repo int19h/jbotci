@@ -18,28 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ doĭ by vy xy)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "doĭ",
-  Cmavo "by",
-  Cmavo "vy",
-  Cmavo "xy",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥7) "doĭ",
+  Cmavo @[8‥10) "by",
+  Cmavo @[11‥13) "vy",
+  Cmavo @[14‥16) "xy",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"vy","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[14,16]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥16) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥16) {
       vocative_markers: [
-        Cmavo "coĭ",
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "coĭ",
+        Cmavo @[4‥7) "doĭ",
       ],
-      argument: Letter {
+      argument: Letter @[8‥16) {
         letter: [
-          Cmavo "by",
-          Cmavo "vy",
-          Cmavo "xy",
+          Cmavo @[8‥10) "by",
+          Cmavo @[11‥13) "vy",
+          Cmavo @[14‥16) "xy",
         ],
       },
     },

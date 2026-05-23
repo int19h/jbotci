@@ -8,33 +8,33 @@ entry-id = "18258"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nor" })), Rafsi(Phonemes(PhonemesData { text: "saĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gunta" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nór" })), Rafsi(Phonemes(PhonemesData { text: "saĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gúnta" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nor" })), Rafsi(Phonemes(PhonemesData { text: "saĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gunta" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nór" })), Rafsi(Phonemes(PhonemesData { text: "saĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gúnta" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(lo nórsaĭ gúnta)"
 tree = """
 [
-  Cmavo "lo",
-  Lujvo "nórsaĭ",
-  Gismu "gúnta",
+  Cmavo @[0‥2) "lo",
+  Lujvo @[3‥9) "nórsaĭ",
+  Gismu @[10‥15) "gúnta",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nor"},{"Rafsi":"saĭ"}],"span":[3,9]}}},{"Bare":{"Gismu":{"phonemes":"gunta","span":[10,15]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nór"},{"Rafsi":"saĭ"}],"span":[3,9]}}},{"Bare":{"Gismu":{"phonemes":"gúnta","span":[10,15]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥15) {
   terms: [
-    Descriptor {
-      descriptor: Cmavo "lo",
-      relation: Compound {
-        Lujvo "nórsaĭ",
-        Gismu "gúnta",
+    Descriptor @[0‥15) {
+      descriptor: Cmavo @[0‥2) "lo",
+      relation: Compound @[3‥15) {
+        Lujvo @[3‥9) "nórsaĭ",
+        Gismu @[10‥15) "gúnta",
       },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nor"},{"Rafsi":"saĭ"}],"span":[3,9]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"gunta","span":[10,15]}}}}}]}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nór"},{"Rafsi":"saĭ"}],"span":[3,9]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"gúnta","span":[10,15]}}}}}]}}}}]}}}}]}]}'

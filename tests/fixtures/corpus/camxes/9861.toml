@@ -18,17 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ti mo)"
 tree = """
 [
-  Cmavo "ti",
-  Cmavo "mo",
+  Cmavo @[0‥2) "ti",
+  Cmavo @[3‥5) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ti","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥5) {
   leading_terms: [
-    Cmavo "ti",
+    Cmavo @[0‥2) "ti",
   ],
-  Cmavo "mo",
+  Cmavo @[3‥5) "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ti","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}}}}}}}}}}]}]}'

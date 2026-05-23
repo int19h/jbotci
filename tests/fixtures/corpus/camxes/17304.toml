@@ -18,30 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'e co'e do'e le co'e)"
 tree = """
 [
-  Cmavo "zo'e",
-  Cmavo "co'e",
-  Cmavo "do'e",
-  Cmavo "le",
-  Cmavo "co'e",
+  Cmavo @[0‥4) "zo'e",
+  Cmavo @[5‥9) "co'e",
+  Cmavo @[10‥14) "do'e",
+  Cmavo @[15‥17) "le",
+  Cmavo @[18‥22) "co'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"do'e","span":[10,14]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[18,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥22) {
   leading_terms: [
-    Cmavo "zo'e",
+    Cmavo @[0‥4) "zo'e",
   ],
-  Relation {
-    Cmavo "co'e",
+  Relation @[5‥22) {
+    Cmavo @[5‥9) "co'e",
     terms: [
-      Tagged {
-        tense_modal: Simple {
-          bai: Cmavo "do'e",
+      Tagged @[10‥22) {
+        tense_modal: Simple @[10‥14) {
+          bai: Cmavo @[10‥14) "do'e",
         },
-        Descriptor {
-          descriptor: Cmavo "le",
-          relation: Cmavo "co'e",
+        Descriptor @[15‥22) {
+          descriptor: Cmavo @[15‥17) "le",
+          relation: Cmavo @[18‥22) "co'e",
         },
       },
     ],

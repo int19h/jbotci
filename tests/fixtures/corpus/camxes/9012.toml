@@ -18,39 +18,39 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu la'e [zo do] du mi)"
 tree = """
 [
-  Cmavo "xu",
-  Cmavo "la'e",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "do",
+  Cmavo @[0‥2) "xu",
+  Cmavo @[3‥7) "la'e",
+  ZoQuote @[8‥13) {
+    zo: Cmavo @[8‥10) "zo",
+    Cmavo @[11‥13) "do",
   },
-  Cmavo "du",
-  Cmavo "mi",
+  Cmavo @[14‥16) "du",
+  Cmavo @[17‥19) "mi",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"la'e","span":[3,7]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[8,10]}},"word":{"Cmavo":{"phonemes":"do","span":[11,13]}}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥19) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "xu",
+    Indicator @[0‥2) {
+      indicator: Cmavo @[0‥2) "xu",
     },
   ],
-  Predicate {
+  Predicate @[3‥19) {
     leading_terms: [
-      Lahe {
-        lahe: Cmavo "la'e",
-        ZoQuote {
-          zo: Cmavo "zo",
-          Cmavo "do",
+      Lahe @[3‥13) {
+        lahe: Cmavo @[3‥7) "la'e",
+        ZoQuote @[8‥13) {
+          zo: Cmavo @[8‥10) "zo",
+          Cmavo @[11‥13) "do",
         },
       },
     ],
-    Relation {
-      Cmavo "du",
+    Relation @[14‥19) {
+      Cmavo @[14‥16) "du",
       terms: [
-        Cmavo "mi",
+        Cmavo @[17‥19) "mi",
       ],
     },
   },

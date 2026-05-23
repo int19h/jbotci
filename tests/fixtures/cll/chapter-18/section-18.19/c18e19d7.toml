@@ -24,21 +24,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa maĭ)"
 tree = """
 [
-  Cmavo "pa",
-  Cmavo "maĭ",
+  Cmavo @[0‥2) "pa",
+  Cmavo @[2‥5) "maĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"maĭ","span":[2,5]}}}]'
 
 [expectations.output.gentufa]
 brackets = "(pa maĭ)"
 tree = """
-Text {
+Text @[0‥5) {
   leading_free_modifiers: [
-    Mai {
+    Mai @[0‥5) {
       number: [
-        Cmavo "pa",
+        Cmavo @[0‥2) "pa",
       ],
-      mai: Cmavo "maĭ",
+      mai: Cmavo @[2‥5) "maĭ",
     },
   ],
 }"""

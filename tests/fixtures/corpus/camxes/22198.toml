@@ -18,59 +18,59 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([zo poĭ] bu'a [zo noĭ] .i je [zo voĭ] bu'a ma)"
 tree = """
 [
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "poĭ",
+  ZoQuote @[0‥6) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[3‥6) "poĭ",
   },
-  Cmavo "bu'a",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "noĭ",
+  Cmavo @[7‥11) "bu'a",
+  ZoQuote @[12‥18) {
+    zo: Cmavo @[12‥14) "zo",
+    Cmavo @[15‥18) "noĭ",
   },
-  Cmavo "i",
-  Cmavo "je",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "voĭ",
+  Cmavo @[20‥21) "i",
+  Cmavo @[21‥23) "je",
+  ZoQuote @[24‥30) {
+    zo: Cmavo @[24‥26) "zo",
+    Cmavo @[27‥30) "voĭ",
   },
-  Cmavo "bu'a",
-  Cmavo "ma",
+  Cmavo @[31‥35) "bu'a",
+  Cmavo @[36‥38) "ma",
 ]"""
 json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"poĭ","span":[3,6]}}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[7,11]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[12,14]}},"word":{"Cmavo":{"phonemes":"noĭ","span":[15,18]}}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[20,21]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[21,23]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[24,26]}},"word":{"Cmavo":{"phonemes":"voĭ","span":[27,30]}}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[31,35]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[36,38]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Connected {
-  leading_statement: Predicate {
+Connected @[0‥38) {
+  leading_statement: Predicate @[0‥18) {
     leading_terms: [
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "poĭ",
+      ZoQuote @[0‥6) {
+        zo: Cmavo @[0‥2) "zo",
+        Cmavo @[3‥6) "poĭ",
       },
     ],
-    Relation {
-      Cmavo "bu'a",
+    Relation @[7‥18) {
+      Cmavo @[7‥11) "bu'a",
       terms: [
-        ZoQuote {
-          zo: Cmavo "zo",
-          Cmavo "noĭ",
+        ZoQuote @[12‥18) {
+          zo: Cmavo @[12‥14) "zo",
+          Cmavo @[15‥18) "noĭ",
         },
       ],
     },
   },
-  i: Cmavo "i",
-  connective: Cmavo "je",
-  trailing_statement: Predicate {
+  i: Cmavo @[20‥21) "i",
+  connective: Cmavo @[21‥23) "je",
+  trailing_statement: Predicate @[24‥38) {
     leading_terms: [
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "voĭ",
+      ZoQuote @[24‥30) {
+        zo: Cmavo @[24‥26) "zo",
+        Cmavo @[27‥30) "voĭ",
       },
     ],
-    Relation {
-      Cmavo "bu'a",
+    Relation @[31‥38) {
+      Cmavo @[31‥35) "bu'a",
       terms: [
-        Cmavo "ma",
+        Cmavo @[36‥38) "ma",
       ],
     },
   },

@@ -18,33 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to coĭ re do toĭ)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "coĭ",
-  Cmavo "re",
-  Cmavo "do",
-  Cmavo "toĭ",
+  Cmavo @[0‥2) "to",
+  Cmavo @[3‥6) "coĭ",
+  Cmavo @[7‥9) "re",
+  Cmavo @[9‥11) "do",
+  Cmavo @[12‥15) "toĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[12,15]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥15) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
+    To @[0‥15) {
+      to: Cmavo @[0‥2) "to",
       free_modifiers: [
-        Vocative {
+        Vocative @[3‥11) {
           vocative_markers: [
-            Cmavo "coĭ",
+            Cmavo @[3‥6) "coĭ",
           ],
-          argument: Quantified {
-            quantifier: Cmavo "re",
-            Cmavo "do",
+          argument: Quantified @[7‥11) {
+            quantifier: Cmavo @[7‥9) "re",
+            Cmavo @[9‥11) "do",
           },
         },
       ],
       Text {},
-      toi: Cmavo "toĭ",
+      toi: Cmavo @[12‥15) "toĭ",
     },
   ],
 }"""

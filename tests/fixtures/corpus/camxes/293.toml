@@ -18,30 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([le'u bu] [co bu])"
 tree = """
 [
-  Letter {
-    Cmavo "le'u",
-    bu: Cmavo "bu",
+  Letter @[0‥7) {
+    Cmavo @[0‥4) "le'u",
+    bu: Cmavo @[5‥7) "bu",
   },
-  Letter {
-    Cmavo "co",
-    bu: Cmavo "bu",
+  Letter @[8‥13) {
+    Cmavo @[8‥10) "co",
+    bu: Cmavo @[11‥13) "bu",
   },
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"le'u","span":[0,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"co","span":[8,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[11,13]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥13) {
   terms: [
-    Letter {
+    Letter @[0‥13) {
       letter: [
-        Letter {
-          Cmavo "le'u",
-          bu: Cmavo "bu",
+        Letter @[0‥7) {
+          Cmavo @[0‥4) "le'u",
+          bu: Cmavo @[5‥7) "bu",
         },
-        Letter {
-          Cmavo "co",
-          bu: Cmavo "bu",
+        Letter @[8‥13) {
+          Cmavo @[8‥10) "co",
+          bu: Cmavo @[11‥13) "bu",
         },
       ],
     },

@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(re maĭ mo)"
 tree = """
 [
-  Cmavo "re",
-  Cmavo "maĭ",
-  Cmavo "mo",
+  Cmavo @[0‥2) "re",
+  Cmavo @[2‥5) "maĭ",
+  Cmavo @[6‥8) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"maĭ","span":[2,5]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[6,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥8) {
   leading_free_modifiers: [
-    Mai {
+    Mai @[0‥5) {
       number: [
-        Cmavo "re",
+        Cmavo @[0‥2) "re",
       ],
-      mai: Cmavo "maĭ",
+      mai: Cmavo @[2‥5) "maĭ",
     },
   ],
-  Cmavo "mo",
+  Cmavo @[6‥8) "mo",
 }"""
 json = '{"leading_free_modifiers":[{"Mai":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}],"mai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"maĭ","span":[2,5]}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[6,8]}}}}}}}}}}}}]}]}'

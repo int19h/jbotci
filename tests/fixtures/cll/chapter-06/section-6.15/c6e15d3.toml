@@ -24,60 +24,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li [.a bu] bi'e pi'i xy bi'e te'a re su'i by bi'e pi'i xy su'i cy)"
 tree = """
 [
-  Cmavo "li",
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "li",
+  Letter @[4‥7) {
+    Cmavo @[4‥5) "a",
+    bu: Cmavo @[5‥7) "bu",
   },
-  Cmavo "bi'e",
-  Cmavo "pi'i",
-  Cmavo "xy",
-  Cmavo "bi'e",
-  Cmavo "te'a",
-  Cmavo "re",
-  Cmavo "su'i",
-  Cmavo "by",
-  Cmavo "bi'e",
-  Cmavo "pi'i",
-  Cmavo "xy",
-  Cmavo "su'i",
-  Cmavo "cy",
+  Cmavo @[8‥12) "bi'e",
+  Cmavo @[12‥16) "pi'i",
+  Cmavo @[17‥19) "xy",
+  Cmavo @[21‥25) "bi'e",
+  Cmavo @[25‥29) "te'a",
+  Cmavo @[30‥32) "re",
+  Cmavo @[33‥37) "su'i",
+  Cmavo @[38‥40) "by",
+  Cmavo @[42‥46) "bi'e",
+  Cmavo @[46‥50) "pi'i",
+  Cmavo @[51‥53) "xy",
+  Cmavo @[55‥59) "su'i",
+  Cmavo @[60‥62) "cy",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"Bare":{"Cmavo":{"phonemes":"bi'e","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"bi'e","span":[21,25]}}},{"Bare":{"Cmavo":{"phonemes":"te'a","span":[25,29]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[30,32]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[33,37]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[38,40]}}},{"Bare":{"Cmavo":{"phonemes":"bi'e","span":[42,46]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[46,50]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[51,53]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[55,59]}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[60,62]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(li [{([.a bu] bi'e pi'i [xy bi'e te'a re]) su'i (by bi'e pi'i xy)} su'i cy])"
 tree = """
-Term {
+Term @[0‥62) {
   terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Binary {
-          left_expression: Bihe {
-            left_expression: Letter {
-              Cmavo "a",
-              bu: Cmavo "bu",
+    MathExpression @[0‥62) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[4‥62) {
+        left_expression: Binary @[4‥53) {
+          left_expression: Bihe @[4‥32) {
+            left_expression: Letter @[4‥7) {
+              Cmavo @[4‥5) "a",
+              bu: Cmavo @[5‥7) "bu",
             },
-            bihe: Cmavo "bi'e",
-            operator: Cmavo "pi'i",
-            right_expression: Bihe {
-              left_expression: Cmavo "xy",
-              bihe: Cmavo "bi'e",
-              operator: Cmavo "te'a",
-              right_expression: Cmavo "re",
+            bihe: Cmavo @[8‥12) "bi'e",
+            operator: Cmavo @[12‥16) "pi'i",
+            right_expression: Bihe @[17‥32) {
+              left_expression: Cmavo @[17‥19) "xy",
+              bihe: Cmavo @[21‥25) "bi'e",
+              operator: Cmavo @[25‥29) "te'a",
+              right_expression: Cmavo @[30‥32) "re",
             },
           },
-          operator: Cmavo "su'i",
-          right_expression: Bihe {
-            left_expression: Cmavo "by",
-            bihe: Cmavo "bi'e",
-            operator: Cmavo "pi'i",
-            right_expression: Cmavo "xy",
+          operator: Cmavo @[33‥37) "su'i",
+          right_expression: Bihe @[38‥53) {
+            left_expression: Cmavo @[38‥40) "by",
+            bihe: Cmavo @[42‥46) "bi'e",
+            operator: Cmavo @[46‥50) "pi'i",
+            right_expression: Cmavo @[51‥53) "xy",
           },
         },
-        operator: Cmavo "su'i",
-        right_expression: Cmavo "cy",
+        operator: Cmavo @[55‥59) "su'i",
+        right_expression: Cmavo @[60‥62) "cy",
       },
     },
   ],

@@ -18,34 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ta'o la .moz. ca mo)"
 tree = """
 [
-  Cmavo "ta'o",
-  Cmavo "la",
-  Cmevla "moz",
-  Cmavo "ca",
-  Cmavo "mo",
+  Cmavo @[0‥4) "ta'o",
+  Cmavo @[5‥7) "la",
+  Cmevla @[8‥11) "moz",
+  Cmavo @[12‥14) "ca",
+  Cmavo @[15‥17) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"Bare":{"Cmevla":{"phonemes":"moz","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[15,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥17) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "ta'o",
+    Indicator @[0‥4) {
+      indicator: Cmavo @[0‥4) "ta'o",
     },
   ],
-  Predicate {
+  Predicate @[5‥17) {
     leading_terms: [
-      Name {
-        la: Cmavo "la",
+      Name @[5‥11) {
+        la: Cmavo @[5‥7) "la",
         names: [
-          Cmevla "moz",
+          Cmevla @[8‥11) "moz",
         ],
       },
     ],
-    TenseModal {
-      tense_modal: Cmavo "ca",
-      Cmavo "mo",
+    TenseModal @[12‥17) {
+      tense_modal: Cmavo @[12‥14) "ca",
+      Cmavo @[15‥17) "mo",
     },
   },
 }"""

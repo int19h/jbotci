@@ -19,19 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xu li'o)"
 tree = """
 [
-  Cmavo "xu",
-  Cmavo "li'o",
+  Cmavo @[3‥5) "xu",
+  Cmavo @[6‥10) "li'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xu","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"li'o","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[3‥10) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        Cmavo "xu",
-        indicator: Cmavo "li'o",
+    Indicator @[3‥10) {
+      indicator: WithIndicator @[3‥10) {
+        Cmavo @[3‥5) "xu",
+        indicator: Cmavo @[6‥10) "li'o",
       },
     },
   ],

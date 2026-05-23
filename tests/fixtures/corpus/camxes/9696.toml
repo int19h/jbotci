@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pe'i pe mi)"
 tree = """
 [
-  Cmavo "pe'i",
-  Cmavo "pe",
-  Cmavo "mi",
+  Cmavo @[0‥4) "pe'i",
+  Cmavo @[5‥7) "pe",
+  Cmavo @[8‥10) "mi",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"pe","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥10) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "pe'i",
+    Indicator @[0‥4) {
+      indicator: Cmavo @[0‥4) "pe'i",
     },
   ],
-  GoiRelativeClause {
-    goi: Cmavo "pe",
-    Cmavo "mi",
+  GoiRelativeClause @[5‥10) {
+    goi: Cmavo @[5‥7) "pe",
+    Cmavo @[8‥10) "mi",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pe","span":[5,7]}}}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}}]}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}"""

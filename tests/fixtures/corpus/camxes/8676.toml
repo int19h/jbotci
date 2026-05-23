@@ -19,23 +19,23 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(coĭ ro do)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "ro",
-  Cmavo "do",
+  Cmavo @[3‥6) "coĭ",
+  Cmavo @[7‥9) "ro",
+  Cmavo @[9‥11) "do",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[9,11]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[3‥11) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[3‥11) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[3‥6) "coĭ",
       ],
-      argument: Quantified {
-        quantifier: Cmavo "ro",
-        Cmavo "do",
+      argument: Quantified @[7‥11) {
+        quantifier: Cmavo @[7‥9) "ro",
+        Cmavo @[9‥11) "do",
       },
     },
   ],

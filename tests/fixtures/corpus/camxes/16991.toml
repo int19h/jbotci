@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le'o cu'i se'i naĭ)"
 tree = """
 [
-  Cmavo "le'o",
-  Cmavo "cu'i",
-  Cmavo "se'i",
-  Cmavo "naĭ",
+  Cmavo @[0‥4) "le'o",
+  Cmavo @[4‥8) "cu'i",
+  Cmavo @[9‥13) "se'i",
+  Cmavo @[13‥16) "naĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"le'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"cu'i","span":[4,8]}}},{"Bare":{"Cmavo":{"phonemes":"se'i","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[13,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥16) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        WithIndicator {
-          Cmavo "le'o",
-          indicator: Cmavo "cu'i",
+    Indicator @[0‥16) {
+      indicator: WithIndicator @[0‥16) {
+        WithIndicator @[0‥8) {
+          Cmavo @[0‥4) "le'o",
+          indicator: Cmavo @[4‥8) "cu'i",
         },
-        indicator: Cmavo "se'i",
-        nai: Cmavo "naĭ",
+        indicator: Cmavo @[9‥13) "se'i",
+        nai: Cmavo @[13‥16) "naĭ",
       },
     },
   ],

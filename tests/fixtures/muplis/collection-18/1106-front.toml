@@ -21,18 +21,18 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(so'u va'e)"
 tree = """
 [
-  Cmavo "so'u",
-  Cmavo "va'e",
+  Cmavo @[0‥4) "so'u",
+  Cmavo @[5‥9) "va'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"so'u","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"va'e","span":[5,9]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(so'u va'e)"
 tree = """
-Moi {
+Moi @[0‥9) {
   number: [
-    Cmavo "so'u",
+    Cmavo @[0‥4) "so'u",
   ],
-  moi: Cmavo "va'e",
+  moi: Cmavo @[5‥9) "va'e",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"so'u","span":[0,4]}}}}],"moi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"va'e","span":[5,9]}}}}}}]}}}}}}}}]}]}"""

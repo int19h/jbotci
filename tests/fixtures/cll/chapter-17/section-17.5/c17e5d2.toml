@@ -24,10 +24,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zaĭ [.devanagar. bu])"
 tree = """
 [
-  Cmavo "zaĭ",
-  Letter {
-    Cmevla "devanagar",
-    bu: Cmavo "bu",
+  Cmavo @[0‥3) "zaĭ",
+  Letter @[5‥18) {
+    Cmevla @[5‥14) "devanagar",
+    bu: Cmavo @[16‥18) "bu",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"zaĭ","span":[0,3]}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"devanagar","span":[5,14]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}]'
@@ -35,14 +35,14 @@ json = '[{"Bare":{"Cmavo":{"phonemes":"zaĭ","span":[0,3]}}},{"Letter":{"base":{
 [expectations.output.gentufa]
 brackets = "(zaĭ [.devanagar. bu])"
 tree = """
-Term {
+Term @[0‥18) {
   terms: [
-    Letter {
+    Letter @[0‥18) {
       letter: [
-        Cmavo "zaĭ",
-        Letter {
-          Cmevla "devanagar",
-          bu: Cmavo "bu",
+        Cmavo @[0‥3) "zaĭ",
+        Letter @[5‥18) {
+          Cmevla @[5‥14) "devanagar",
+          bu: Cmavo @[16‥18) "bu",
         },
       ],
     },

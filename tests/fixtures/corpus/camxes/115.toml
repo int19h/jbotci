@@ -18,28 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi ba'e [da zeĭ do])"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "ba'e",
-  ZeiLujvo {
-    left: Cmavo "da",
-    zei: Cmavo "zeĭ",
-    Cmavo "do",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥7) "ba'e",
+  ZeiLujvo @[8‥17) {
+    left: Cmavo @[8‥10) "da",
+    zei: Cmavo @[11‥14) "zeĭ",
+    Cmavo @[15‥17) "do",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ba'e","span":[3,7]}}},{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"da","span":[8,10]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[11,14]}},"right":{"Cmavo":{"phonemes":"do","span":[15,17]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥17) {
   leading_terms: [
-    Cmavo "mi",
+    Cmavo @[0‥2) "mi",
   ],
-  Emphasized {
-    bahe: Cmavo "ba'e",
-    ZeiLujvo {
-      left: Cmavo "da",
-      zei: Cmavo "zeĭ",
-      Cmavo "do",
+  Emphasized @[3‥17) {
+    bahe: Cmavo @[3‥7) "ba'e",
+    ZeiLujvo @[8‥17) {
+      left: Cmavo @[8‥10) "da",
+      zei: Cmavo @[11‥14) "zeĭ",
+      Cmavo @[15‥17) "do",
     },
   },
 }"""

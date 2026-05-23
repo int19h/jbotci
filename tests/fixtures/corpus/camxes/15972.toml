@@ -19,24 +19,24 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ry xi re)"
 tree = """
 [
-  Cmavo "ry",
-  Cmavo "xi",
-  Cmavo "re",
+  Cmavo @[3‥5) "ry",
+  Cmavo @[7‥9) "xi",
+  Cmavo @[10‥12) "re",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ry","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[3‥12) {
   terms: [
-    Letter {
+    Letter @[3‥12) {
       letter: [
-        Cmavo "ry",
+        Cmavo @[3‥5) "ry",
       ],
       free_modifiers: [
-        Xi {
-          xi: Cmavo "xi",
-          Cmavo "re",
+        Xi @[7‥12) {
+          xi: Cmavo @[7‥9) "xi",
+          Cmavo @[10‥12) "re",
         },
       ],
     },

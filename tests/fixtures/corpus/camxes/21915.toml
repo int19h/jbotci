@@ -18,53 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e naĭ ty pe'u ko me lu ta'u naĭ li'u)"
 tree = """
 [
-  Cmavo "je'e",
-  Cmavo "naĭ",
-  Cmavo "ty",
-  Cmavo "pe'u",
-  Cmavo "ko",
-  Cmavo "me",
-  Cmavo "lu",
-  Cmavo "ta'u",
-  Cmavo "naĭ",
-  Cmavo "li'u",
+  Cmavo @[0‥4) "je'e",
+  Cmavo @[4‥7) "naĭ",
+  Cmavo @[8‥10) "ty",
+  Cmavo @[12‥16) "pe'u",
+  Cmavo @[17‥19) "ko",
+  Cmavo @[24‥26) "me",
+  Cmavo @[27‥29) "lu",
+  Cmavo @[30‥34) "ta'u",
+  Cmavo @[34‥37) "naĭ",
+  Cmavo @[38‥42) "li'u",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"ty","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"pe'u","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"ko","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"lu","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"ta'u","span":[30,34]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[34,37]}}},{"Bare":{"Cmavo":{"phonemes":"li'u","span":[38,42]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥42) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥19) {
       vocative_markers: [
-        Cmavo "je'e",
-        Cmavo "naĭ",
+        Cmavo @[0‥4) "je'e",
+        Cmavo @[4‥7) "naĭ",
       ],
-      argument: Letter {
+      argument: Letter @[8‥19) {
         letter: [
-          Cmavo "ty",
+          Cmavo @[8‥10) "ty",
         ],
         free_modifiers: [
-          Vocative {
+          Vocative @[12‥19) {
             vocative_markers: [
-              Cmavo "pe'u",
+              Cmavo @[12‥16) "pe'u",
             ],
-            argument: Cmavo "ko",
+            argument: Cmavo @[17‥19) "ko",
           },
         ],
       },
     },
   ],
-  Me {
-    me: Cmavo "me",
-    Lu {
-      lu: WithIndicator {
-        Cmavo "lu",
-        indicator: Cmavo "ta'u",
-        nai: Cmavo "naĭ",
+  Me @[24‥42) {
+    me: Cmavo @[24‥26) "me",
+    Lu @[27‥42) {
+      lu: WithIndicator @[27‥37) {
+        Cmavo @[27‥29) "lu",
+        indicator: Cmavo @[30‥34) "ta'u",
+        nai: Cmavo @[34‥37) "naĭ",
       },
       Text {},
-      lihu: Cmavo "li'u",
+      lihu: Cmavo @[38‥42) "li'u",
     },
   },
 }"""

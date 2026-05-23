@@ -8,7 +8,7 @@ entry-id = "9701"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "xu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "fasnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "xu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "fásnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 1, allowed-next = [] }
 brackets = "(.a xu fásnu)"
 tree = """
 [
-  Cmavo "a",
-  Cmavo "xu",
-  Gismu "fásnu",
+  Cmavo @[0‥1) "a",
+  Cmavo @[3‥5) "xu",
+  Gismu @[6‥11) "fásnu",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"fasnu","span":[6,11]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"fásnu","span":[6,11]}}}]'

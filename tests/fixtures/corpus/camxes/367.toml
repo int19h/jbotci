@@ -8,29 +8,29 @@ entry-id = "367"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(ZeiLujvo { left: WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "cerman" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xarn" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "karce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 23, char_start: 13, char_end: 23, start: None, end: None }) }) })]'
+raw = '[WordLike(ZeiLujvo { left: WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "cerman" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xarn" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "kárce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 23, char_start: 13, char_end: 23, start: None, end: None }) }) })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(ZeiLujvo { left: WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "cerman" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xarn" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "karce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 23, char_start: 13, char_end: 23, start: None, end: None }) }) }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(ZeiLujvo { left: WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "cerman" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xarn" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "kárce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 23, char_start: 13, char_end: 23, start: None, end: None }) }) }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.cerman. zeĭ xarnykárce)"
 tree = """
 [
-  ZeiLujvo {
-    left: Cmevla "cerman",
-    zei: Cmavo "zeĭ",
-    Lujvo "xarnykárce",
+  ZeiLujvo @[1‥23) {
+    left: Cmevla @[1‥7) "cerman",
+    zei: Cmavo @[9‥12) "zeĭ",
+    Lujvo @[13‥23) "xarnykárce",
   },
 ]"""
-json = '[{"ZeiLujvo":{"left":{"Bare":{"Cmevla":{"phonemes":"cerman","span":[1,7]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[9,12]}},"right":{"Lujvo":{"parts":[{"Rafsi":"xarn"},{"Hyphen":"y"},{"Rafsi":"karce"}],"span":[13,23]}}}}]'
+json = '[{"ZeiLujvo":{"left":{"Bare":{"Cmevla":{"phonemes":"cerman","span":[1,7]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[9,12]}},"right":{"Lujvo":{"parts":[{"Rafsi":"xarn"},{"Hyphen":"y"},{"Rafsi":"kárce"}],"span":[13,23]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ZeiLujvo {
-  left: Cmevla "cerman",
-  zei: Cmavo "zeĭ",
-  Lujvo "xarnykárce",
+ZeiLujvo @[1‥23) {
+  left: Cmevla @[1‥7) "cerman",
+  zei: Cmavo @[9‥12) "zeĭ",
+  Lujvo @[13‥23) "xarnykárce",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"Cmevla":{"phonemes":"cerman","span":[1,7]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[9,12]}},"right":{"Lujvo":{"parts":[{"Rafsi":"xarn"},{"Hyphen":"y"},{"Rafsi":"karce"}],"span":[13,23]}}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"Cmevla":{"phonemes":"cerman","span":[1,7]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[9,12]}},"right":{"Lujvo":{"parts":[{"Rafsi":"xarn"},{"Hyphen":"y"},{"Rafsi":"kárce"}],"span":[13,23]}}}}}}}}}}}}}]}]}'

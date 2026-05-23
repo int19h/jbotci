@@ -18,17 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(re fi'u ze)"
 tree = """
 [
-  Cmavo "re",
-  Cmavo "fi'u",
-  Cmavo "ze",
+  Cmavo @[0‥2) "re",
+  Cmavo @[3‥7) "fi'u",
+  Cmavo @[8‥10) "ze",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"fi'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[8,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "re",
-  Cmavo "fi'u",
-  Cmavo "ze",
+Number @[0‥10) {
+  Cmavo @[0‥2) "re",
+  Cmavo @[3‥7) "fi'u",
+  Cmavo @[8‥10) "ze",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'u","span":[3,7]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[8,10]}}}}]}}}}}}]}]}"""

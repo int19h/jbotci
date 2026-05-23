@@ -18,47 +18,47 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li [y bu] du li ma'o fy boĭ xy)"
 tree = """
 [
-  Cmavo "li",
-  Letter {
-    Cmavo "y",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "li",
+  Letter @[4‥8) {
+    Cmavo @[4‥5) "y",
+    bu: Cmavo @[6‥8) "bu",
   },
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "ma'o",
-  Cmavo "fy",
-  Cmavo "boĭ",
-  Cmavo "xy",
+  Cmavo @[9‥11) "du",
+  Cmavo @[12‥14) "li",
+  Cmavo @[15‥19) "ma'o",
+  Cmavo @[20‥22) "fy",
+  Cmavo @[24‥27) "boĭ",
+  Cmavo @[28‥30) "xy",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"ma'o","span":[15,19]}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[24,27]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[28,30]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥30) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Letter {
-        Cmavo "y",
-        bu: Cmavo "bu",
+    MathExpression @[0‥8) {
+      li: Cmavo @[0‥2) "li",
+      Letter @[4‥8) {
+        Cmavo @[4‥5) "y",
+        bu: Cmavo @[6‥8) "bu",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[9‥30) {
+    Cmavo @[9‥11) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Forethought {
-          operator: Maho {
-            maho: Cmavo "ma'o",
-            Letter {
-              Cmavo "fy",
-              boi: Cmavo "boĭ",
+      MathExpression @[12‥30) {
+        li: Cmavo @[12‥14) "li",
+        Forethought @[15‥30) {
+          operator: Maho @[15‥27) {
+            maho: Cmavo @[15‥19) "ma'o",
+            Letter @[20‥27) {
+              Cmavo @[20‥22) "fy",
+              boi: Cmavo @[24‥27) "boĭ",
             },
           },
           operands: [
-            Cmavo "xy",
+            Cmavo @[28‥30) "xy",
           ],
         },
       },

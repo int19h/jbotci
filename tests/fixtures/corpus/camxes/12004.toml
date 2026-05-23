@@ -8,7 +8,7 @@ entry-id = "12004"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ja" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "va" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "is" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mabl" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "mutce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 18, char_start: 8, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ja" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "va" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "is" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mabl" })), Hyphen(Phonemes(PhonemesData { text: "y" })), Rafsi(Phonemes(PhonemesData { text: "mútce" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 18, char_start: 8, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,9 +18,9 @@ error = { position = 2, allowed-next = [] }
 brackets = "(ja va .is. mablymútce)"
 tree = """
 [
-  Cmavo "ja",
-  Cmavo "va",
-  Cmevla "is",
-  Lujvo "mablymútce",
+  Cmavo @[0‥2) "ja",
+  Cmavo @[2‥4) "va",
+  Cmevla @[5‥7) "is",
+  Lujvo @[8‥18) "mablymútce",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ja","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"va","span":[2,4]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[5,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mabl"},{"Hyphen":"y"},{"Rafsi":"mutce"}],"span":[8,18]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"ja","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"va","span":[2,4]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[5,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mabl"},{"Hyphen":"y"},{"Rafsi":"mútce"}],"span":[8,18]}}}]'

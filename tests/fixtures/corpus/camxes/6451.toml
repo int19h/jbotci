@@ -18,25 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(me le me lo mo)"
 tree = """
 [
-  Cmavo "me",
-  Cmavo "le",
-  Cmavo "me",
-  Cmavo "lo",
-  Cmavo "mo",
+  Cmavo @[0‥2) "me",
+  Cmavo @[3‥5) "le",
+  Cmavo @[6‥8) "me",
+  Cmavo @[9‥11) "lo",
+  Cmavo @[12‥14) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Me {
-  me: Cmavo "me",
-  Descriptor {
-    descriptor: Cmavo "le",
-    relation: Me {
-      me: Cmavo "me",
-      Descriptor {
-        descriptor: Cmavo "lo",
-        relation: Cmavo "mo",
+Me @[0‥14) {
+  me: Cmavo @[0‥2) "me",
+  Descriptor @[3‥14) {
+    descriptor: Cmavo @[3‥5) "le",
+    relation: Me @[6‥14) {
+      me: Cmavo @[6‥8) "me",
+      Descriptor @[9‥14) {
+        descriptor: Cmavo @[9‥11) "lo",
+        relation: Cmavo @[12‥14) "mo",
       },
     },
   },

@@ -8,7 +8,7 @@ entry-id = "20781"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ciska" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sam" })), Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "pla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 21, char_start: 12, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 26, char_start: 22, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "jerna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 35, char_start: 30, char_end: 35, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "císka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sam" })), Rafsi(Phonemes(PhonemesData { text: "sél" })), Rafsi(Phonemes(PhonemesData { text: "pla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 21, char_start: 12, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 26, char_start: 22, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "jérna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 35, char_start: 30, char_end: 35, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,12 +18,12 @@ error = { position = 6, allowed-next = [] }
 brackets = "(mi císka le samsélpla ki'u mi jérna)"
 tree = """
 [
-  Cmavo "mi",
-  Gismu "císka",
-  Cmavo "le",
-  Lujvo "samsélpla",
-  Cmavo "ki'u",
-  Cmavo "mi",
-  Gismu "jérna",
+  Cmavo @[0‥2) "mi",
+  Gismu @[3‥8) "císka",
+  Cmavo @[9‥11) "le",
+  Lujvo @[12‥21) "samsélpla",
+  Cmavo @[22‥26) "ki'u",
+  Cmavo @[27‥29) "mi",
+  Gismu @[30‥35) "jérna",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"ciska","span":[3,8]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sel"},{"Rafsi":"pla"}],"span":[12,21]}}},{"Bare":{"Cmavo":{"phonemes":"ki'u","span":[22,26]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[27,29]}}},{"Bare":{"Gismu":{"phonemes":"jerna","span":[30,35]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"císka","span":[3,8]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[12,21]}}},{"Bare":{"Cmavo":{"phonemes":"ki'u","span":[22,26]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[27,29]}}},{"Bare":{"Gismu":{"phonemes":"jérna","span":[30,35]}}}]"""

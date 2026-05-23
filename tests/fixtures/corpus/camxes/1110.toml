@@ -18,77 +18,77 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li jo'i pa boĭ re boĭ te'u su'i jo'i ci boĭ vo boĭ du li jo'i vo boĭ xa boĭ)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "jo'i",
-  Cmavo "pa",
-  Cmavo "boĭ",
-  Cmavo "re",
-  Cmavo "boĭ",
-  Cmavo "te'u",
-  Cmavo "su'i",
-  Cmavo "jo'i",
-  Cmavo "ci",
-  Cmavo "boĭ",
-  Cmavo "vo",
-  Cmavo "boĭ",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "jo'i",
-  Cmavo "vo",
-  Cmavo "boĭ",
-  Cmavo "xa",
-  Cmavo "boĭ",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "jo'i",
+  Cmavo @[8‥10) "pa",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "re",
+  Cmavo @[16‥19) "boĭ",
+  Cmavo @[20‥24) "te'u",
+  Cmavo @[25‥29) "su'i",
+  Cmavo @[30‥34) "jo'i",
+  Cmavo @[35‥37) "ci",
+  Cmavo @[37‥40) "boĭ",
+  Cmavo @[41‥43) "vo",
+  Cmavo @[43‥46) "boĭ",
+  Cmavo @[47‥49) "du",
+  Cmavo @[50‥52) "li",
+  Cmavo @[53‥57) "jo'i",
+  Cmavo @[58‥60) "vo",
+  Cmavo @[60‥63) "boĭ",
+  Cmavo @[64‥66) "xa",
+  Cmavo @[66‥69) "boĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"jo'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[16,19]}}},{"Bare":{"Cmavo":{"phonemes":"te'u","span":[20,24]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[25,29]}}},{"Bare":{"Cmavo":{"phonemes":"jo'i","span":[30,34]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[35,37]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[37,40]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[41,43]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[43,46]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[47,49]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[50,52]}}},{"Bare":{"Cmavo":{"phonemes":"jo'i","span":[53,57]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[58,60]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[60,63]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[64,66]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[66,69]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥69) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Johi {
-          johi: Cmavo "jo'i",
-          Number {
-            Cmavo "pa",
-            boi: Cmavo "boĭ",
+    MathExpression @[0‥46) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥46) {
+        left_expression: Johi @[3‥24) {
+          johi: Cmavo @[3‥7) "jo'i",
+          Number @[8‥13) {
+            Cmavo @[8‥10) "pa",
+            boi: Cmavo @[10‥13) "boĭ",
           },
-          Number {
-            Cmavo "re",
-            boi: Cmavo "boĭ",
+          Number @[14‥19) {
+            Cmavo @[14‥16) "re",
+            boi: Cmavo @[16‥19) "boĭ",
           },
-          tehu: Cmavo "te'u",
+          tehu: Cmavo @[20‥24) "te'u",
         },
-        operator: Cmavo "su'i",
-        right_expression: Johi {
-          johi: Cmavo "jo'i",
-          Number {
-            Cmavo "ci",
-            boi: Cmavo "boĭ",
+        operator: Cmavo @[25‥29) "su'i",
+        right_expression: Johi @[30‥46) {
+          johi: Cmavo @[30‥34) "jo'i",
+          Number @[35‥40) {
+            Cmavo @[35‥37) "ci",
+            boi: Cmavo @[37‥40) "boĭ",
           },
-          Number {
-            Cmavo "vo",
-            boi: Cmavo "boĭ",
+          Number @[41‥46) {
+            Cmavo @[41‥43) "vo",
+            boi: Cmavo @[43‥46) "boĭ",
           },
         },
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[47‥69) {
+    Cmavo @[47‥49) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Johi {
-          johi: Cmavo "jo'i",
-          Number {
-            Cmavo "vo",
-            boi: Cmavo "boĭ",
+      MathExpression @[50‥69) {
+        li: Cmavo @[50‥52) "li",
+        Johi @[53‥69) {
+          johi: Cmavo @[53‥57) "jo'i",
+          Number @[58‥63) {
+            Cmavo @[58‥60) "vo",
+            boi: Cmavo @[60‥63) "boĭ",
           },
-          Number {
-            Cmavo "xa",
-            boi: Cmavo "boĭ",
+          Number @[64‥69) {
+            Cmavo @[64‥66) "xa",
+            boi: Cmavo @[66‥69) "boĭ",
           },
         },
       },

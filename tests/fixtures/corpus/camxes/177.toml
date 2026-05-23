@@ -19,24 +19,24 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(zoĭ .bar. baz .bar.)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmevla "bar",
-    quoted_text: Verbatim "baz",
-    closing_delimiter: Cmevla "bar",
+  ZoiQuote @[24‥39) {
+    zoi: Cmavo @[24‥27) "zoĭ",
+    opening_delimiter: Cmevla @[28‥31) "bar",
+    quoted_text: Verbatim @[31‥35) "baz",
+    closing_delimiter: Cmevla @[36‥39) "bar",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[28,31]}},"quoted_text":{"span":[31,35],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[36,39]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[24‥39) {
   terms: [
-    ZoiQuote {
-      zoi: Cmavo "zoĭ",
-      opening_delimiter: Cmevla "bar",
-      quoted_text: Verbatim "baz",
-      closing_delimiter: Cmevla "bar",
+    ZoiQuote @[24‥39) {
+      zoi: Cmavo @[24‥27) "zoĭ",
+      opening_delimiter: Cmevla @[28‥31) "bar",
+      quoted_text: Verbatim @[31‥35) "baz",
+      closing_delimiter: Cmevla @[36‥39) "bar",
     },
   ],
 }"""

@@ -18,33 +18,33 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(li daŭ re ci vaĭ vaĭ vaĭ vaĭ vaĭ)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "daŭ",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vaĭ",
-  Cmavo "vaĭ",
-  Cmavo "vaĭ",
-  Cmavo "vaĭ",
-  Cmavo "vaĭ",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥6) "daŭ",
+  Cmavo @[7‥9) "re",
+  Cmavo @[10‥12) "ci",
+  Cmavo @[13‥16) "vaĭ",
+  Cmavo @[17‥20) "vaĭ",
+  Cmavo @[21‥24) "vaĭ",
+  Cmavo @[25‥28) "vaĭ",
+  Cmavo @[29‥32) "vaĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"daŭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"vaĭ","span":[13,16]}}},{"Bare":{"Cmavo":{"phonemes":"vaĭ","span":[17,20]}}},{"Bare":{"Cmavo":{"phonemes":"vaĭ","span":[21,24]}}},{"Bare":{"Cmavo":{"phonemes":"vaĭ","span":[25,28]}}},{"Bare":{"Cmavo":{"phonemes":"vaĭ","span":[29,32]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥32) {
   terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Number {
-        Cmavo "daŭ",
-        Cmavo "re",
-        Cmavo "ci",
-        Cmavo "vaĭ",
-        Cmavo "vaĭ",
-        Cmavo "vaĭ",
-        Cmavo "vaĭ",
-        Cmavo "vaĭ",
+    MathExpression @[0‥32) {
+      li: Cmavo @[0‥2) "li",
+      Number @[3‥32) {
+        Cmavo @[3‥6) "daŭ",
+        Cmavo @[7‥9) "re",
+        Cmavo @[10‥12) "ci",
+        Cmavo @[13‥16) "vaĭ",
+        Cmavo @[17‥20) "vaĭ",
+        Cmavo @[21‥24) "vaĭ",
+        Cmavo @[25‥28) "vaĭ",
+        Cmavo @[29‥32) "vaĭ",
       },
     },
   ],

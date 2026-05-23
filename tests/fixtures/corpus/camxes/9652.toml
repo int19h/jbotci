@@ -8,7 +8,7 @@ entry-id = "9652"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "for" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xam" })), Rafsi(Phonemes(PhonemesData { text: "ple" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 11, char_start: 5, char_end: 11, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "for" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xám" })), Rafsi(Phonemes(PhonemesData { text: "ple" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 11, char_start: 5, char_end: 11, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 2, allowed-next = [] }
 brackets = "(.for. .e xámple)"
 tree = """
 [
-  Cmevla "for",
-  Cmavo "e",
-  Lujvo "xámple",
+  Cmevla @[0‥3) "for",
+  Cmavo @[4‥5) "e",
+  Lujvo @[5‥11) "xámple",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"for","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xam"},{"Rafsi":"ple"}],"span":[5,11]}}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"for","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xám"},{"Rafsi":"ple"}],"span":[5,11]}}}]'

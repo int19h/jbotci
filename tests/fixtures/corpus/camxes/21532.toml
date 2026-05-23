@@ -15,27 +15,27 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "ón" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ca" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Compound([Me { me: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ra" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), mehu: None, moi_marker: None }]) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
-brackets = "(.on. ca me ra)"
+brackets = "(.ón. ca me ra)"
 tree = """
 [
-  Cmevla "on",
-  Cmavo "ca",
-  Cmavo "me",
-  Cmavo "ra",
+  Cmevla @[0‥2) "ón",
+  Cmavo @[3‥5) "ca",
+  Cmavo @[5‥7) "me",
+  Cmavo @[7‥9) "ra",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"ón","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥9) {
   leading_cmevla: [
-    Cmevla "on",
+    Cmevla @[0‥2) "ón",
   ],
-  TenseModal {
-    tense_modal: Cmavo "ca",
-    Me {
-      me: Cmavo "me",
-      Cmavo "ra",
+  TenseModal @[3‥9) {
+    tense_modal: Cmavo @[3‥5) "ca",
+    Me @[5‥9) {
+      me: Cmavo @[5‥7) "me",
+      Cmavo @[7‥9) "ra",
     },
   },
 }"""

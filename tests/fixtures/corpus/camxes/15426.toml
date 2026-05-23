@@ -18,43 +18,43 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = "(.besides. da ji de .e naĭ ke da .e de)"
 tree = """
 [
-  Cmevla "besides",
-  Cmavo "da",
-  Cmavo "ji",
-  Cmavo "de",
-  Cmavo "e",
-  Cmavo "naĭ",
-  Cmavo "ke",
-  Cmavo "da",
-  Cmavo "e",
-  Cmavo "de",
+  Cmevla @[0‥7) "besides",
+  Cmavo @[8‥10) "da",
+  Cmavo @[11‥13) "ji",
+  Cmavo @[14‥16) "de",
+  Cmavo @[18‥19) "e",
+  Cmavo @[19‥22) "naĭ",
+  Cmavo @[23‥25) "ke",
+  Cmavo @[26‥28) "da",
+  Cmavo @[30‥31) "e",
+  Cmavo @[32‥34) "de",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"besides","span":[0,7]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"ji","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[18,19]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[19,22]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[30,31]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[32,34]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥34) {
   leading_cmevla: [
-    Cmevla "besides",
+    Cmevla @[0‥7) "besides",
   ],
-  Term {
+  Term @[8‥34) {
     terms: [
-      Connected {
-        leading_argument: Connected {
-          leading_argument: Cmavo "da",
-          connective: Cmavo "ji",
-          trailing_argument: Cmavo "de",
+      Connected @[8‥34) {
+        leading_argument: Connected @[8‥16) {
+          leading_argument: Cmavo @[8‥10) "da",
+          connective: Cmavo @[11‥13) "ji",
+          trailing_argument: Cmavo @[14‥16) "de",
         },
-        connective: Afterthought {
-          Cmavo "e",
-          nai: Cmavo "naĭ",
+        connective: Afterthought @[18‥22) {
+          Cmavo @[18‥19) "e",
+          nai: Cmavo @[19‥22) "naĭ",
         },
-        trailing_argument: Ke {
-          ke: Cmavo "ke",
-          Connected {
-            leading_argument: Cmavo "da",
-            connective: Cmavo "e",
-            trailing_argument: Cmavo "de",
+        trailing_argument: Ke @[23‥34) {
+          ke: Cmavo @[23‥25) "ke",
+          Connected @[26‥34) {
+            leading_argument: Cmavo @[26‥28) "da",
+            connective: Cmavo @[30‥31) "e",
+            trailing_argument: Cmavo @[32‥34) "de",
           },
         },
       },

@@ -18,21 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko ca go'i)"
 tree = """
 [
-  Cmavo "ko",
-  Cmavo "ca",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "ko",
+  Cmavo @[3‥5) "ca",
+  Cmavo @[6‥10) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ko","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥10) {
   leading_terms: [
-    Cmavo "ko",
+    Cmavo @[0‥2) "ko",
   ],
-  TenseModal {
-    tense_modal: Cmavo "ca",
-    Cmavo "go'i",
+  TenseModal @[3‥10) {
+    tense_modal: Cmavo @[3‥5) "ca",
+    Cmavo @[6‥10) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}}}}}}}}}}}}]}]}"""

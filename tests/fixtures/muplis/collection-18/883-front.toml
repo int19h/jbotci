@@ -21,60 +21,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭo ru'e .a'i saĭ ro'o bu'o naĭ .a'i ru'e saĭ ro'e bu'o naĭ)"
 tree = """
 [
-  Cmavo "ŭo",
-  Cmavo "ru'e",
-  Cmavo "a'i",
-  Cmavo "saĭ",
-  Cmavo "ro'o",
-  Cmavo "bu'o",
-  Cmavo "naĭ",
-  Cmavo "a'i",
-  Cmavo "ru'e",
-  Cmavo "saĭ",
-  Cmavo "ro'e",
-  Cmavo "bu'o",
-  Cmavo "naĭ",
+  Cmavo @[0‥2) "ŭo",
+  Cmavo @[3‥7) "ru'e",
+  Cmavo @[8‥11) "a'i",
+  Cmavo @[12‥15) "saĭ",
+  Cmavo @[16‥20) "ro'o",
+  Cmavo @[21‥25) "bu'o",
+  Cmavo @[26‥29) "naĭ",
+  Cmavo @[30‥33) "a'i",
+  Cmavo @[34‥38) "ru'e",
+  Cmavo @[39‥42) "saĭ",
+  Cmavo @[43‥47) "ro'e",
+  Cmavo @[48‥52) "bu'o",
+  Cmavo @[53‥56) "naĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ŭo","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ru'e","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"a'i","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}},{"Bare":{"Cmavo":{"phonemes":"ro'o","span":[16,20]}}},{"Bare":{"Cmavo":{"phonemes":"bu'o","span":[21,25]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[26,29]}}},{"Bare":{"Cmavo":{"phonemes":"a'i","span":[30,33]}}},{"Bare":{"Cmavo":{"phonemes":"ru'e","span":[34,38]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[39,42]}}},{"Bare":{"Cmavo":{"phonemes":"ro'e","span":[43,47]}}},{"Bare":{"Cmavo":{"phonemes":"bu'o","span":[48,52]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[53,56]}}}]"""
 
 [expectations.output.gentufa]
 brackets = ".ŭo-ru'e.a'i-saĭ-ro'o-bu'o-naĭ.a'i-ru'e-saĭ-ro'e-bu'o-naĭ"
 tree = """
-Text {
+Text @[0‥56) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        WithIndicator {
-          WithIndicator {
-            WithIndicator {
-              WithIndicator {
-                WithIndicator {
-                  WithIndicator {
-                    WithIndicator {
-                      WithIndicator {
-                        WithIndicator {
-                          Cmavo "ŭo",
-                          indicator: Cmavo "ru'e",
+    Indicator @[0‥56) {
+      indicator: WithIndicator @[0‥56) {
+        WithIndicator @[0‥47) {
+          WithIndicator @[0‥42) {
+            WithIndicator @[0‥38) {
+              WithIndicator @[0‥33) {
+                WithIndicator @[0‥29) {
+                  WithIndicator @[0‥20) {
+                    WithIndicator @[0‥15) {
+                      WithIndicator @[0‥11) {
+                        WithIndicator @[0‥7) {
+                          Cmavo @[0‥2) "ŭo",
+                          indicator: Cmavo @[3‥7) "ru'e",
                         },
-                        indicator: Cmavo "a'i",
+                        indicator: Cmavo @[8‥11) "a'i",
                       },
-                      indicator: Cmavo "saĭ",
+                      indicator: Cmavo @[12‥15) "saĭ",
                     },
-                    indicator: Cmavo "ro'o",
+                    indicator: Cmavo @[16‥20) "ro'o",
                   },
-                  indicator: Cmavo "bu'o",
-                  nai: Cmavo "naĭ",
+                  indicator: Cmavo @[21‥25) "bu'o",
+                  nai: Cmavo @[26‥29) "naĭ",
                 },
-                indicator: Cmavo "a'i",
+                indicator: Cmavo @[30‥33) "a'i",
               },
-              indicator: Cmavo "ru'e",
+              indicator: Cmavo @[34‥38) "ru'e",
             },
-            indicator: Cmavo "saĭ",
+            indicator: Cmavo @[39‥42) "saĭ",
           },
-          indicator: Cmavo "ro'e",
+          indicator: Cmavo @[43‥47) "ro'e",
         },
-        indicator: Cmavo "bu'o",
-        nai: Cmavo "naĭ",
+        indicator: Cmavo @[48‥52) "bu'o",
+        nai: Cmavo @[53‥56) "naĭ",
       },
     },
   ],

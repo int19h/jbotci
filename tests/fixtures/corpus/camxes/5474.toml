@@ -8,7 +8,7 @@ entry-id = "5474"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "predicate" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 11, char_start: 2, char_end: 11, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "predicáte" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 11, char_start: 2, char_end: 11, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,7 +18,7 @@ error = { position = 1, allowed-next = [] }
 brackets = "(.a predicáte)"
 tree = """
 [
-  Cmavo "a",
-  Fuhivla "predicáte",
+  Cmavo @[0‥1) "a",
+  Fuhivla @[2‥11) "predicáte",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[0,1]}}},{"Bare":{"Fuhivla":{"phonemes":"predicate","span":[2,11]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[0,1]}}},{"Bare":{"Fuhivla":{"phonemes":"predicáte","span":[2,11]}}}]'

@@ -24,24 +24,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.oĭ ro'o daĭ)"
 tree = """
 [
-  Cmavo "oĭ",
-  Cmavo "ro'o",
-  Cmavo "daĭ",
+  Cmavo @[1‥3) "oĭ",
+  Cmavo @[3‥7) "ro'o",
+  Cmavo @[7‥10) "daĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"oĭ","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"ro'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"daĭ","span":[7,10]}}}]"""
 
 [expectations.output.gentufa]
 brackets = ".oĭ-ro'o-daĭ"
 tree = """
-Text {
+Text @[1‥10) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        WithIndicator {
-          Cmavo "oĭ",
-          indicator: Cmavo "ro'o",
+    Indicator @[1‥10) {
+      indicator: WithIndicator @[1‥10) {
+        WithIndicator @[1‥7) {
+          Cmavo @[1‥3) "oĭ",
+          indicator: Cmavo @[3‥7) "ro'o",
         },
-        indicator: Cmavo "daĭ",
+        indicator: Cmavo @[7‥10) "daĭ",
       },
     },
   ],

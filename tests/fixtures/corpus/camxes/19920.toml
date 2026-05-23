@@ -18,15 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = ".carbon."
 tree = """
 [
-  Cmevla "carbon",
+  Cmevla @[3‥9) "carbon",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"carbon","span":[3,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[3‥9) {
   leading_cmevla: [
-    Cmevla "carbon",
+    Cmevla @[3‥9) "carbon",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"carbon","span":[3,9]}}}}]}'

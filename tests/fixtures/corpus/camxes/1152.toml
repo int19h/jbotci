@@ -18,67 +18,67 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li xy boĭ xi ci du li xy boĭ xi pa su'i xy boĭ xi re)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "xy",
-  Cmavo "boĭ",
-  Cmavo "xi",
-  Cmavo "ci",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "xy",
-  Cmavo "boĭ",
-  Cmavo "xi",
-  Cmavo "pa",
-  Cmavo "su'i",
-  Cmavo "xy",
-  Cmavo "boĭ",
-  Cmavo "xi",
-  Cmavo "re",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "xy",
+  Cmavo @[6‥9) "boĭ",
+  Cmavo @[9‥11) "xi",
+  Cmavo @[11‥13) "ci",
+  Cmavo @[14‥16) "du",
+  Cmavo @[17‥19) "li",
+  Cmavo @[20‥22) "xy",
+  Cmavo @[23‥26) "boĭ",
+  Cmavo @[26‥28) "xi",
+  Cmavo @[28‥30) "pa",
+  Cmavo @[31‥35) "su'i",
+  Cmavo @[36‥38) "xy",
+  Cmavo @[39‥42) "boĭ",
+  Cmavo @[42‥44) "xi",
+  Cmavo @[44‥46) "re",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[23,26]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[28,30]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[31,35]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[36,38]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[39,42]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[42,44]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[44,46]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥46) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Letter {
-        Cmavo "xy",
-        boi: Cmavo "boĭ",
+    MathExpression @[0‥13) {
+      li: Cmavo @[0‥2) "li",
+      Letter @[3‥13) {
+        Cmavo @[3‥5) "xy",
+        boi: Cmavo @[6‥9) "boĭ",
         free_modifiers: [
-          Xi {
-            xi: Cmavo "xi",
-            Cmavo "ci",
+          Xi @[9‥13) {
+            xi: Cmavo @[9‥11) "xi",
+            Cmavo @[11‥13) "ci",
           },
         ],
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[14‥46) {
+    Cmavo @[14‥16) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Binary {
-          left_expression: Letter {
-            Cmavo "xy",
-            boi: Cmavo "boĭ",
+      MathExpression @[17‥46) {
+        li: Cmavo @[17‥19) "li",
+        Binary @[20‥46) {
+          left_expression: Letter @[20‥30) {
+            Cmavo @[20‥22) "xy",
+            boi: Cmavo @[23‥26) "boĭ",
             free_modifiers: [
-              Xi {
-                xi: Cmavo "xi",
-                Cmavo "pa",
+              Xi @[26‥30) {
+                xi: Cmavo @[26‥28) "xi",
+                Cmavo @[28‥30) "pa",
               },
             ],
           },
-          operator: Cmavo "su'i",
-          right_expression: Letter {
-            Cmavo "xy",
-            boi: Cmavo "boĭ",
+          operator: Cmavo @[31‥35) "su'i",
+          right_expression: Letter @[36‥46) {
+            Cmavo @[36‥38) "xy",
+            boi: Cmavo @[39‥42) "boĭ",
             free_modifiers: [
-              Xi {
-                xi: Cmavo "xi",
-                Cmavo "re",
+              Xi @[42‥46) {
+                xi: Cmavo @[42‥44) "xi",
+                Cmavo @[44‥46) "re",
               },
             ],
           },

@@ -18,24 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zoĭ .bar. baz .bar.)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmevla "bar",
-    quoted_text: Verbatim "baz",
-    closing_delimiter: Cmevla "bar",
+  ZoiQuote @[21‥36) {
+    zoi: Cmavo @[21‥24) "zoĭ",
+    opening_delimiter: Cmevla @[25‥28) "bar",
+    quoted_text: Verbatim @[28‥32) "baz",
+    closing_delimiter: Cmevla @[33‥36) "bar",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[21,24]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[25,28]}},"quoted_text":{"span":[28,32],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[33,36]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[21‥36) {
   terms: [
-    ZoiQuote {
-      zoi: Cmavo "zoĭ",
-      opening_delimiter: Cmevla "bar",
-      quoted_text: Verbatim "baz",
-      closing_delimiter: Cmevla "bar",
+    ZoiQuote @[21‥36) {
+      zoi: Cmavo @[21‥24) "zoĭ",
+      opening_delimiter: Cmevla @[25‥28) "bar",
+      quoted_text: Verbatim @[28‥32) "baz",
+      closing_delimiter: Cmevla @[33‥36) "bar",
     },
   ],
 }"""

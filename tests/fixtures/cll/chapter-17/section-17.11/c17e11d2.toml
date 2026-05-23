@@ -24,48 +24,48 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li [y bu] du li ma'o fy boĭ xy)"
 tree = """
 [
-  Cmavo "li",
-  Letter {
-    Cmavo "y",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "li",
+  Letter @[4‥7) {
+    Cmavo @[4‥5) "y",
+    bu: Cmavo @[5‥7) "bu",
   },
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "ma'o",
-  Cmavo "fy",
-  Cmavo "boĭ",
-  Cmavo "xy",
+  Cmavo @[8‥10) "du",
+  Cmavo @[11‥13) "li",
+  Cmavo @[14‥18) "ma'o",
+  Cmavo @[19‥21) "fy",
+  Cmavo @[23‥26) "boĭ",
+  Cmavo @[27‥29) "xy",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"ma'o","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[23,26]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[27,29]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([li {y bu}] [du {li ([ma'o {fy boĭ}] xy)}])"
 tree = """
-Predicate {
+Predicate @[0‥29) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Letter {
-        Cmavo "y",
-        bu: Cmavo "bu",
+    MathExpression @[0‥7) {
+      li: Cmavo @[0‥2) "li",
+      Letter @[4‥7) {
+        Cmavo @[4‥5) "y",
+        bu: Cmavo @[5‥7) "bu",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[8‥29) {
+    Cmavo @[8‥10) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Forethought {
-          operator: Maho {
-            maho: Cmavo "ma'o",
-            Letter {
-              Cmavo "fy",
-              boi: Cmavo "boĭ",
+      MathExpression @[11‥29) {
+        li: Cmavo @[11‥13) "li",
+        Forethought @[14‥29) {
+          operator: Maho @[14‥26) {
+            maho: Cmavo @[14‥18) "ma'o",
+            Letter @[19‥26) {
+              Cmavo @[19‥21) "fy",
+              boi: Cmavo @[23‥26) "boĭ",
             },
           },
           operands: [
-            Cmavo "xy",
+            Cmavo @[27‥29) "xy",
           ],
         },
       },

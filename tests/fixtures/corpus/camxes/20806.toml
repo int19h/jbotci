@@ -18,24 +18,24 @@ error = { position = 12, allowed-next = [] }
 brackets = "(pa no no pa no pi'e pa pa no no pa pa po [.u bu] ty cy)"
 tree = """
 [
-  Cmavo "pa",
-  Cmavo "no",
-  Cmavo "no",
-  Cmavo "pa",
-  Cmavo "no",
-  Cmavo "pi'e",
-  Cmavo "pa",
-  Cmavo "pa",
-  Cmavo "no",
-  Cmavo "no",
-  Cmavo "pa",
-  Cmavo "pa",
-  Cmavo "po",
-  Letter {
-    Cmavo "u",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "pa",
+  Cmavo @[2‥4) "no",
+  Cmavo @[4‥6) "no",
+  Cmavo @[6‥8) "pa",
+  Cmavo @[8‥10) "no",
+  Cmavo @[11‥15) "pi'e",
+  Cmavo @[16‥18) "pa",
+  Cmavo @[18‥20) "pa",
+  Cmavo @[20‥22) "no",
+  Cmavo @[22‥24) "no",
+  Cmavo @[24‥26) "pa",
+  Cmavo @[26‥28) "pa",
+  Cmavo @[29‥31) "po",
+  Letter @[33‥36) {
+    Cmavo @[33‥34) "u",
+    bu: Cmavo @[34‥36) "bu",
   },
-  Cmavo "ty",
-  Cmavo "cy",
+  Cmavo @[38‥40) "ty",
+  Cmavo @[42‥44) "cy",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"po","span":[29,31]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"u","span":[33,34]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[34,36]}}}},{"Bare":{"Cmavo":{"phonemes":"ty","span":[38,40]}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[42,44]}}}]"""

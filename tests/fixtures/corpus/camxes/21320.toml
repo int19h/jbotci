@@ -18,19 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no pi vo mu)"
 tree = """
 [
-  Cmavo "no",
-  Cmavo "pi",
-  Cmavo "vo",
-  Cmavo "mu",
+  Cmavo @[0‥2) "no",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[6‥8) "vo",
+  Cmavo @[9‥11) "mu",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[9,11]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "no",
-  Cmavo "pi",
-  Cmavo "vo",
-  Cmavo "mu",
+Number @[0‥11) {
+  Cmavo @[0‥2) "no",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[6‥8) "vo",
+  Cmavo @[9‥11) "mu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[9,11]}}}}]}}}}}}]}]}'

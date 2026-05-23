@@ -21,28 +21,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(doĭ .sam. do'u .e'u naĭ)"
 tree = """
 [
-  Cmavo "doĭ",
-  Cmevla "sam",
-  Cmavo "do'u",
-  Cmavo "e'u",
-  Cmavo "naĭ",
+  Cmavo @[0‥3) "doĭ",
+  Cmevla @[4‥7) "sam",
+  Cmavo @[9‥13) "do'u",
+  Cmavo @[15‥18) "e'u",
+  Cmavo @[18‥21) "naĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"sam","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"do'u","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"e'u","span":[15,18]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[18,21]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(doĭ .sam. [do'u .e'u naĭ])"
 tree = """
-Text {
+Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥21) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "doĭ",
       ],
-      argument: Cmevla "sam",
-      dohu: WithIndicator {
-        Cmavo "do'u",
-        indicator: Cmavo "e'u",
-        nai: Cmavo "naĭ",
+      argument: Cmevla @[4‥7) "sam",
+      dohu: WithIndicator @[9‥21) {
+        Cmavo @[9‥13) "do'u",
+        indicator: Cmavo @[15‥18) "e'u",
+        nai: Cmavo @[18‥21) "naĭ",
       },
     },
   ],

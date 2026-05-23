@@ -21,21 +21,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'e .djak.)"
 tree = """
 [
-  Cmavo "mi'e",
-  Cmevla "djak",
+  Cmavo @[0‥4) "mi'e",
+  Cmevla @[6‥10) "djak",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}},{"Bare":{"Cmevla":{"phonemes":"djak","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(mi'e .djak.)"
 tree = """
-Text {
+Text @[0‥10) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥10) {
       vocative_markers: [
-        Cmavo "mi'e",
+        Cmavo @[0‥4) "mi'e",
       ],
-      argument: Cmevla "djak",
+      argument: Cmevla @[6‥10) "djak",
     },
   ],
 }"""

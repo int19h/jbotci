@@ -18,54 +18,54 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa pi'e re pi'e ci ju'u re no du li vo vo ci)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pa",
-  Cmavo "pi'e",
-  Cmavo "re",
-  Cmavo "pi'e",
-  Cmavo "ci",
-  Cmavo "ju'u",
-  Cmavo "re",
-  Cmavo "no",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "vo",
-  Cmavo "vo",
-  Cmavo "ci",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[6‥10) "pi'e",
+  Cmavo @[11‥13) "re",
+  Cmavo @[14‥18) "pi'e",
+  Cmavo @[19‥21) "ci",
+  Cmavo @[22‥26) "ju'u",
+  Cmavo @[27‥29) "re",
+  Cmavo @[29‥31) "no",
+  Cmavo @[32‥34) "du",
+  Cmavo @[35‥37) "li",
+  Cmavo @[38‥40) "vo",
+  Cmavo @[40‥42) "vo",
+  Cmavo @[42‥44) "ci",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"ju'u","span":[22,26]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[32,34]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[35,37]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[38,40]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[40,42]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[42,44]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥44) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Number {
-          Cmavo "pa",
-          Cmavo "pi'e",
-          Cmavo "re",
-          Cmavo "pi'e",
-          Cmavo "ci",
+    MathExpression @[0‥31) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥31) {
+        left_expression: Number @[3‥21) {
+          Cmavo @[3‥5) "pa",
+          Cmavo @[6‥10) "pi'e",
+          Cmavo @[11‥13) "re",
+          Cmavo @[14‥18) "pi'e",
+          Cmavo @[19‥21) "ci",
         },
-        operator: Cmavo "ju'u",
-        right_expression: Number {
-          Cmavo "re",
-          Cmavo "no",
+        operator: Cmavo @[22‥26) "ju'u",
+        right_expression: Number @[27‥31) {
+          Cmavo @[27‥29) "re",
+          Cmavo @[29‥31) "no",
         },
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[32‥44) {
+    Cmavo @[32‥34) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "vo",
-          Cmavo "vo",
-          Cmavo "ci",
+      MathExpression @[35‥44) {
+        li: Cmavo @[35‥37) "li",
+        Number @[38‥44) {
+          Cmavo @[38‥40) "vo",
+          Cmavo @[40‥42) "vo",
+          Cmavo @[42‥44) "ci",
         },
       },
     ],

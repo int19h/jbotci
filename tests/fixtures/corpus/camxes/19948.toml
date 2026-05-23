@@ -8,36 +8,36 @@ entry-id = "19948"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "flexive" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 9, char_start: 2, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "flexíve" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 9, char_start: 2, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "flexive" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 9, char_start: 2, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None })), Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "flexíve" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 9, char_start: 2, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None })), Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(re flexíve fa)"
 tree = """
 [
-  Cmavo "re",
-  Fuhivla "flexíve",
-  Cmavo "fa",
+  Cmavo @[0‥2) "re",
+  Fuhivla @[2‥9) "flexíve",
+  Cmavo @[10‥12) "fa",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Fuhivla":{"phonemes":"flexive","span":[2,9]}}},{"Bare":{"Cmavo":{"phonemes":"fa","span":[10,12]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Fuhivla":{"phonemes":"flexíve","span":[2,9]}}},{"Bare":{"Cmavo":{"phonemes":"fa","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥12) {
   terms: [
-    Descriptor {
+    Descriptor @[0‥9) {
       tail_elements: [
-        Cmavo "re",
+        Cmavo @[0‥2) "re",
       ],
-      relation: Fuhivla "flexíve",
+      relation: Fuhivla @[2‥9) "flexíve",
     },
-    Fa {
-      fa: Cmavo "fa",
+    Fa @[10‥12) {
+      fa: Cmavo @[10‥12) "fa",
       Zohe {},
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"flexive","span":[2,9]}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fa","span":[10,12]}}}},"argument":{"Zohe":{}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"flexíve","span":[2,9]}}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fa","span":[10,12]}}}},"argument":{"Zohe":{}}}}]}}}}]}]}'

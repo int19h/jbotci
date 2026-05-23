@@ -18,99 +18,99 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la .dyny'am. .i la .ny'aty'om. .i la .cy'i'am. .i la .sykybulym. .i la .ibymym. .i la .ny'ybucym.)"
 tree = """
 [
-  Cmavo "la",
-  Cmevla "dyny'am",
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "ny'aty'om",
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "cy'i'am",
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "sykybulym",
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "ibymym",
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "ny'ybucym",
+  Cmavo @[0‥2) "la",
+  Cmevla @[3‥10) "dyny'am",
+  Cmavo @[13‥14) "i",
+  Cmavo @[15‥17) "la",
+  Cmevla @[18‥27) "ny'aty'om",
+  Cmavo @[31‥32) "i",
+  Cmavo @[33‥35) "la",
+  Cmevla @[36‥43) "cy'i'am",
+  Cmavo @[46‥47) "i",
+  Cmavo @[48‥50) "la",
+  Cmevla @[51‥60) "sykybulym",
+  Cmavo @[64‥65) "i",
+  Cmavo @[66‥68) "la",
+  Cmevla @[70‥76) "ibymym",
+  Cmavo @[79‥80) "i",
+  Cmavo @[81‥83) "la",
+  Cmevla @[84‥93) "ny'ybucym",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"dyny'am","span":[3,10]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[13,14]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[15,17]}}},{"Bare":{"Cmevla":{"phonemes":"ny'aty'om","span":[18,27]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[31,32]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[33,35]}}},{"Bare":{"Cmevla":{"phonemes":"cy'i'am","span":[36,43]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[46,47]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[48,50]}}},{"Bare":{"Cmevla":{"phonemes":"sykybulym","span":[51,60]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[64,65]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[66,68]}}},{"Bare":{"Cmevla":{"phonemes":"ibymym","span":[70,76]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[79,80]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[81,83]}}},{"Bare":{"Cmevla":{"phonemes":"ny'ybucym","span":[84,93]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Paragraph {
-  Term {
+Paragraph @[0‥93) {
+  Term @[0‥10) {
     terms: [
-      Name {
-        la: Cmavo "la",
+      Name @[0‥10) {
+        la: Cmavo @[0‥2) "la",
         names: [
-          Cmevla "dyny'am",
+          Cmevla @[3‥10) "dyny'am",
         ],
       },
     ],
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Term {
+  ParagraphStatement @[13‥27) {
+    i: Cmavo @[13‥14) "i",
+    Term @[15‥27) {
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[15‥27) {
+          la: Cmavo @[15‥17) "la",
           names: [
-            Cmevla "ny'aty'om",
+            Cmevla @[18‥27) "ny'aty'om",
           ],
         },
       ],
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Term {
+  ParagraphStatement @[31‥43) {
+    i: Cmavo @[31‥32) "i",
+    Term @[33‥43) {
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[33‥43) {
+          la: Cmavo @[33‥35) "la",
           names: [
-            Cmevla "cy'i'am",
+            Cmevla @[36‥43) "cy'i'am",
           ],
         },
       ],
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Term {
+  ParagraphStatement @[46‥60) {
+    i: Cmavo @[46‥47) "i",
+    Term @[48‥60) {
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[48‥60) {
+          la: Cmavo @[48‥50) "la",
           names: [
-            Cmevla "sykybulym",
+            Cmevla @[51‥60) "sykybulym",
           ],
         },
       ],
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Term {
+  ParagraphStatement @[64‥76) {
+    i: Cmavo @[64‥65) "i",
+    Term @[66‥76) {
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[66‥76) {
+          la: Cmavo @[66‥68) "la",
           names: [
-            Cmevla "ibymym",
+            Cmevla @[70‥76) "ibymym",
           ],
         },
       ],
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Term {
+  ParagraphStatement @[79‥93) {
+    i: Cmavo @[79‥80) "i",
+    Term @[81‥93) {
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[81‥93) {
+          la: Cmavo @[81‥83) "la",
           names: [
-            Cmevla "ny'ybucym",
+            Cmevla @[84‥93) "ny'ybucym",
           ],
         },
       ],

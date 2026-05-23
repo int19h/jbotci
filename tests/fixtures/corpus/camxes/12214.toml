@@ -8,25 +8,25 @@ entry-id = "12214"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ger" })), Rafsi(Phonemes(PhonemesData { text: "nal" })), Rafsi(Phonemes(PhonemesData { text: "dra" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 15, char_start: 6, char_end: 15, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lojbo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ger" })), Rafsi(Phonemes(PhonemesData { text: "nál" })), Rafsi(Phonemes(PhonemesData { text: "dra" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 15, char_start: 6, char_end: 15, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lójbo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ger" })), Rafsi(Phonemes(PhonemesData { text: "nal" })), Rafsi(Phonemes(PhonemesData { text: "dra" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 15, char_start: 6, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lojbo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ger" })), Rafsi(Phonemes(PhonemesData { text: "nál" })), Rafsi(Phonemes(PhonemesData { text: "dra" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 15, char_start: 6, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lójbo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(gernáldra lójbo)"
 tree = """
 [
-  Lujvo "gernáldra",
-  Gismu "lójbo",
+  Lujvo @[6‥15) "gernáldra",
+  Gismu @[16‥21) "lójbo",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ger"},{"Rafsi":"nal"},{"Rafsi":"dra"}],"span":[6,15]}}},{"Bare":{"Gismu":{"phonemes":"lojbo","span":[16,21]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ger"},{"Rafsi":"nál"},{"Rafsi":"dra"}],"span":[6,15]}}},{"Bare":{"Gismu":{"phonemes":"lójbo","span":[16,21]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Compound {
-  Lujvo "gernáldra",
-  Gismu "lójbo",
+Compound @[6‥21) {
+  Lujvo @[6‥15) "gernáldra",
+  Gismu @[16‥21) "lójbo",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ger"},{"Rafsi":"nal"},{"Rafsi":"dra"}],"span":[6,15]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"lojbo","span":[16,21]}}}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ger"},{"Rafsi":"nál"},{"Rafsi":"dra"}],"span":[6,15]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"lójbo","span":[16,21]}}}}}]}}}}}}}}]}]}'

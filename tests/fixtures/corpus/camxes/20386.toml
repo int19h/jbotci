@@ -8,29 +8,29 @@ entry-id = "20386"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "snada" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "snáda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "snada" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), sehu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "snáda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(seĭ snáda)"
 tree = """
 [
-  Cmavo "seĭ",
-  Gismu "snáda",
+  Cmavo @[0‥3) "seĭ",
+  Gismu @[4‥9) "snáda",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"snada","span":[4,9]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"snáda","span":[4,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥9) {
   leading_free_modifiers: [
-    Sei {
-      sei: Cmavo "seĭ",
-      relation: Gismu "snáda",
+    Sei @[0‥9) {
+      sei: Cmavo @[0‥3) "seĭ",
+      relation: Gismu @[4‥9) "snáda",
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"snada","span":[4,9]}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"snáda","span":[4,9]}}}}}}}]}'

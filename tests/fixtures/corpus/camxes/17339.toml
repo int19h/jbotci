@@ -15,25 +15,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "ór" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }), nai: None }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) }), nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
-brackets = "(.or. .a'i cu'i)"
+brackets = "(.ór. .a'i cu'i)"
 tree = """
 [
-  Cmevla "or",
-  Cmavo "a'i",
-  Cmavo "cu'i",
+  Cmevla @[0‥2) "ór",
+  Cmavo @[4‥7) "a'i",
+  Cmavo @[7‥11) "cu'i",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"ór","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"a'i","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"cu'i","span":[7,11]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥11) {
   leading_cmevla: [
-    WithIndicator {
-      WithIndicator {
-        Cmevla "or",
-        indicator: Cmavo "a'i",
+    WithIndicator @[0‥11) {
+      WithIndicator @[0‥7) {
+        Cmevla @[0‥2) "ór",
+        indicator: Cmavo @[4‥7) "a'i",
       },
-      indicator: Cmavo "cu'i",
+      indicator: Cmavo @[7‥11) "cu'i",
     },
   ],
 }"""

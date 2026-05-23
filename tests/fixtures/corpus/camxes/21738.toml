@@ -18,39 +18,39 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([la'o gy IRC topic gy] zo'u fy mo)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "IRC topic",
-    closing_delimiter: Cmavo "gy",
+  ZoiQuote @[0‥20) {
+    zoi: Cmavo @[0‥4) "la'o",
+    opening_delimiter: Cmavo @[5‥7) "gy",
+    quoted_text: Verbatim @[7‥17) "IRC topic",
+    closing_delimiter: Cmavo @[18‥20) "gy",
   },
-  Cmavo "zo'u",
-  Cmavo "fy",
-  Cmavo "mo",
+  Cmavo @[21‥25) "zo'u",
+  Cmavo @[26‥28) "fy",
+  Cmavo @[29‥31) "mo",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[7,17],"text":" IRC topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[21,25]}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[29,31]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Prenex {
+Prenex @[0‥31) {
   prenex_terms: [
-    ZoiQuote {
-      zoi: Cmavo "la'o",
-      opening_delimiter: Cmavo "gy",
-      quoted_text: Verbatim "IRC topic",
-      closing_delimiter: Cmavo "gy",
+    ZoiQuote @[0‥20) {
+      zoi: Cmavo @[0‥4) "la'o",
+      opening_delimiter: Cmavo @[5‥7) "gy",
+      quoted_text: Verbatim @[7‥17) "IRC topic",
+      closing_delimiter: Cmavo @[18‥20) "gy",
     },
   ],
-  zohu: Cmavo "zo'u",
-  Predicate {
+  zohu: Cmavo @[21‥25) "zo'u",
+  Predicate @[26‥31) {
     leading_terms: [
-      Letter {
+      Letter @[26‥28) {
         letter: [
-          Cmavo "fy",
+          Cmavo @[26‥28) "fy",
         ],
       },
     ],
-    Cmavo "mo",
+    Cmavo @[29‥31) "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[7,17],"text":" IRC topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}}}}}}],"zohu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[21,25]}}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"fy","span":[26,28]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[29,31]}}}}}}}}}}}}}}]}]}"""

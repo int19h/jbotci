@@ -18,16 +18,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = ".u'i"
 tree = """
 [
-  Cmavo "u'i",
+  Cmavo @[1‥4) "u'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"u'i","span":[1,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥4) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "u'i",
+    Indicator @[1‥4) {
+      indicator: Cmavo @[1‥4) "u'i",
     },
   ],
 }"""

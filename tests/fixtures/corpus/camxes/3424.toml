@@ -18,39 +18,39 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ ty [y'y bu] fy [y bu])"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "ty",
-  Letter {
-    Cmavo "y'y",
-    bu: Cmavo "bu",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥6) "ty",
+  Letter @[7‥13) {
+    Cmavo @[7‥10) "y'y",
+    bu: Cmavo @[11‥13) "bu",
   },
-  Cmavo "fy",
-  Letter {
-    Cmavo "y",
-    bu: Cmavo "bu",
+  Cmavo @[14‥16) "fy",
+  Letter @[17‥21) {
+    Cmavo @[17‥18) "y",
+    bu: Cmavo @[19‥21) "bu",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"ty","span":[4,6]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y'y","span":[7,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[11,13]}}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[14,16]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y","span":[17,18]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[19,21]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥21) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: Letter {
+      argument: Letter @[4‥21) {
         letter: [
-          Cmavo "ty",
-          Letter {
-            Cmavo "y'y",
-            bu: Cmavo "bu",
+          Cmavo @[4‥6) "ty",
+          Letter @[7‥13) {
+            Cmavo @[7‥10) "y'y",
+            bu: Cmavo @[11‥13) "bu",
           },
-          Cmavo "fy",
-          Letter {
-            Cmavo "y",
-            bu: Cmavo "bu",
+          Cmavo @[14‥16) "fy",
+          Letter @[17‥21) {
+            Cmavo @[17‥18) "y",
+            bu: Cmavo @[19‥21) "bu",
           },
         ],
       },

@@ -8,7 +8,7 @@ entry-id = "2875"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "res" })), Rafsi(Phonemes(PhonemesData { text: "pon" })), Rafsi(Phonemes(PhonemesData { text: "sible" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "managers" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "res" })), Rafsi(Phonemes(PhonemesData { text: "pon" })), Rafsi(Phonemes(PhonemesData { text: "síble" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "managers" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,7 +18,7 @@ error = { position = 1, allowed-next = [] }
 brackets = "(responsíble .managers.)"
 tree = """
 [
-  Lujvo "responsíble",
-  Cmevla "managers",
+  Lujvo @[0‥11) "responsíble",
+  Cmevla @[12‥20) "managers",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"res"},{"Rafsi":"pon"},{"Rafsi":"sible"}],"span":[0,11]}}},{"Bare":{"Cmevla":{"phonemes":"managers","span":[12,20]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"res"},{"Rafsi":"pon"},{"Rafsi":"síble"}],"span":[0,11]}}},{"Bare":{"Cmevla":{"phonemes":"managers","span":[12,20]}}}]'

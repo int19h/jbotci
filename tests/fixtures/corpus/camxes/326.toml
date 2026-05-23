@@ -18,24 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lo'u si mi le'u)"
 tree = """
 [
-  LohuQuote {
-    lohu: Cmavo "lo'u",
-    Cmavo "si",
-    Cmavo "mi",
-    lehu: Cmavo "le'u",
+  LohuQuote @[0‥15) {
+    lohu: Cmavo @[0‥4) "lo'u",
+    Cmavo @[5‥7) "si",
+    Cmavo @[8‥10) "mi",
+    lehu: Cmavo @[11‥15) "le'u",
   },
 ]"""
 json = """[{"LohuQuote":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"si","span":[5,7]}},{"Cmavo":{"phonemes":"mi","span":[8,10]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[11,15]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥15) {
   terms: [
-    LohuQuote {
-      lohu: Cmavo "lo'u",
-      Cmavo "si",
-      Cmavo "mi",
-      lehu: Cmavo "le'u",
+    LohuQuote @[0‥15) {
+      lohu: Cmavo @[0‥4) "lo'u",
+      Cmavo @[5‥7) "si",
+      Cmavo @[8‥10) "mi",
+      lehu: Cmavo @[11‥15) "le'u",
     },
   ],
 }"""

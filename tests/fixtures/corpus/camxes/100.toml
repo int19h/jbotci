@@ -18,25 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([zo bu] zeĭ de)"
 tree = """
 [
-  ZeiLujvo {
-    left: ZoQuote {
-      zo: Cmavo "zo",
-      Cmavo "bu",
+  ZeiLujvo @[0‥12) {
+    left: ZoQuote @[0‥5) {
+      zo: Cmavo @[0‥2) "zo",
+      Cmavo @[3‥5) "bu",
     },
-    zei: Cmavo "zeĭ",
-    Cmavo "de",
+    zei: Cmavo @[6‥9) "zeĭ",
+    Cmavo @[10‥12) "de",
   },
 ]"""
 json = '[{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[6,9]}},"right":{"Cmavo":{"phonemes":"de","span":[10,12]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ZeiLujvo {
-  left: ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "bu",
+ZeiLujvo @[0‥12) {
+  left: ZoQuote @[0‥5) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[3‥5) "bu",
   },
-  zei: Cmavo "zeĭ",
-  Cmavo "de",
+  zei: Cmavo @[6‥9) "zeĭ",
+  Cmavo @[10‥12) "de",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[6,9]}},"right":{"Cmavo":{"phonemes":"de","span":[10,12]}}}}}}}}}}}}}]}]}'

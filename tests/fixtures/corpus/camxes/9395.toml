@@ -8,7 +8,7 @@ entry-id = "9395"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "fra" })), Rafsi(Phonemes(PhonemesData { text: "cture" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cumki" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "fra" })), Rafsi(Phonemes(PhonemesData { text: "ctúre" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cúmki" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 2, allowed-next = [] }
 brackets = "(fractúre mi cúmki)"
 tree = """
 [
-  Lujvo "fractúre",
-  Cmavo "mi",
-  Gismu "cúmki",
+  Lujvo @[0‥8) "fractúre",
+  Cmavo @[10‥12) "mi",
+  Gismu @[13‥18) "cúmki",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"cture"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[10,12]}}},{"Bare":{"Gismu":{"phonemes":"cumki","span":[13,18]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[10,12]}}},{"Bare":{"Gismu":{"phonemes":"cúmki","span":[13,18]}}}]'

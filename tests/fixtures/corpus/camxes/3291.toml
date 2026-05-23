@@ -18,32 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu go'i pu zi ku)"
 tree = """
 [
-  Cmavo "xu",
-  Cmavo "go'i",
-  Cmavo "pu",
-  Cmavo "zi",
-  Cmavo "ku",
+  Cmavo @[0‥2) "xu",
+  Cmavo @[3‥7) "go'i",
+  Cmavo @[8‥10) "pu",
+  Cmavo @[10‥12) "zi",
+  Cmavo @[12‥14) "ku",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"zi","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ku","span":[12,14]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥14) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "xu",
+    Indicator @[0‥2) {
+      indicator: Cmavo @[0‥2) "xu",
     },
   ],
-  Relation {
-    Cmavo "go'i",
+  Relation @[3‥14) {
+    Cmavo @[3‥7) "go'i",
     terms: [
-      Tagged {
-        tense_modal: Composite {
-          Cmavo "pu",
-          Cmavo "zi",
+      Tagged @[8‥14) {
+        tense_modal: Composite @[8‥12) {
+          Cmavo @[8‥10) "pu",
+          Cmavo @[10‥12) "zi",
         },
-        Zohe {
-          maybe_ku: Cmavo "ku",
+        Zohe @[12‥14) {
+          maybe_ku: Cmavo @[12‥14) "ku",
         },
       },
     ],

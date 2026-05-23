@@ -18,37 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ge go'i gi go'i ra'o ji'a vaŭ zo'o)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "ge",
-  Cmavo "go'i",
-  Cmavo "gi",
-  Cmavo "go'i",
-  Cmavo "ra'o",
-  Cmavo "ji'a",
-  Cmavo "vaŭ",
-  Cmavo "zo'o",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "ge",
+  Cmavo @[6‥10) "go'i",
+  Cmavo @[11‥13) "gi",
+  Cmavo @[14‥18) "go'i",
+  Cmavo @[19‥23) "ra'o",
+  Cmavo @[24‥28) "ji'a",
+  Cmavo @[29‥32) "vaŭ",
+  Cmavo @[33‥37) "zo'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"ge","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"gi","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"ra'o","span":[19,23]}}},{"Bare":{"Cmavo":{"phonemes":"ji'a","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"vaŭ","span":[29,32]}}},{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[33,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Pair {
-    gek: Cmavo "ge",
-    first: Cmavo "go'i",
-    gik: Cmavo "gi",
-    second: Relation {
-      Goha {
-        goha: Cmavo "go'i",
-        raho: WithIndicator {
-          Cmavo "ra'o",
-          indicator: Cmavo "ji'a",
+ParagraphStatement @[1‥37) {
+  i: Cmavo @[1‥2) "i",
+  Pair @[3‥37) {
+    gek: Cmavo @[3‥5) "ge",
+    first: Cmavo @[6‥10) "go'i",
+    gik: Cmavo @[11‥13) "gi",
+    second: Relation @[14‥37) {
+      Goha @[14‥28) {
+        goha: Cmavo @[14‥18) "go'i",
+        raho: WithIndicator @[19‥28) {
+          Cmavo @[19‥23) "ra'o",
+          indicator: Cmavo @[24‥28) "ji'a",
         },
       },
-      vau: WithIndicator {
-        Cmavo "vaŭ",
-        indicator: Cmavo "zo'o",
+      vau: WithIndicator @[29‥37) {
+        Cmavo @[29‥32) "vaŭ",
+        indicator: Cmavo @[33‥37) "zo'o",
       },
     },
   },

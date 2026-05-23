@@ -9,8 +9,9 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{
-    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions,
-    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
+    BracketRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
+    TreeRenderOptions, compact_morphology_json_string_with_options,
+    compact_syntax_json_string_with_options, plain_morphology_word_with_options,
     pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
@@ -73,6 +74,44 @@ enum VlaseiFormat {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+enum CliStressMark {
+    None,
+    Acute,
+    Caps,
+}
+
+impl From<CliStressMark> for StressMark {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CliStressMark) -> Self {
+        match value {
+            CliStressMark::None => Self::None,
+            CliStressMark::Acute => Self::Acute,
+            CliStressMark::Caps => Self::Caps,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+enum CliGlideMark {
+    None,
+    Breve,
+}
+
+impl From<CliGlideMark> for GlideMark {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CliGlideMark) -> Self {
+        match value {
+            CliGlideMark::None => Self::None,
+            CliGlideMark::Breve => Self::Breve,
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct VlaseiInput {
@@ -95,6 +134,14 @@ struct VlaseiInput {
     camxes: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
+    #[arg(long = "mark-stress", value_enum)]
+    mark_stress: Option<CliStressMark>,
+    #[arg(long = "mark-glides", value_enum)]
+    mark_glides: Option<CliGlideMark>,
+    #[arg(long = "show-spans")]
+    show_spans: bool,
+    #[arg(long = "decompose-lujvo")]
+    decompose_lujvo: bool,
     #[arg()]
     text: Vec<String>,
 }
@@ -170,6 +217,14 @@ struct GentufaInput {
     definitions: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
+    #[arg(long = "mark-stress", value_enum)]
+    mark_stress: Option<CliStressMark>,
+    #[arg(long = "mark-glides", value_enum)]
+    mark_glides: Option<CliGlideMark>,
+    #[arg(long = "show-spans")]
+    show_spans: bool,
+    #[arg(long = "decompose-lujvo")]
+    decompose_lujvo: bool,
     #[arg()]
     text: Vec<String>,
 }
@@ -250,10 +305,15 @@ fn run_cli<WOut: Write, WErr: Write>(
             let dialect = input.dialect_definition()?;
             let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
             let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
+            let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
             match input.format {
                 VlaseiFormat::Plain => {
                     for word in words {
-                        writeln!(stdout, "{word}")?;
+                        writeln!(
+                            stdout,
+                            "{}",
+                            plain_morphology_word_with_options(&word, &text, phoneme_options)
+                        )?;
                     }
                 }
                 VlaseiFormat::Json => {
@@ -261,6 +321,7 @@ fn run_cli<WOut: Write, WErr: Write>(
                         &words,
                         JsonRenderOptions {
                             indent: input.indent.unwrap_or(2),
+                            phonemes: phoneme_options,
                         },
                     )?;
                     writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
@@ -271,6 +332,8 @@ fn run_cli<WOut: Write, WErr: Write>(
                         &text,
                         BracketRenderOptions {
                             color: color_enabled,
+                            phonemes: phoneme_options,
+                            decompose_lujvo: input.decompose_lujvo,
                         },
                     )?;
                     writeln!(stdout, "{rendered}")?;
@@ -282,6 +345,9 @@ fn run_cli<WOut: Write, WErr: Write>(
                         TreeRenderOptions {
                             color: color_enabled,
                             indent: input.indent.unwrap_or(2),
+                            phonemes: phoneme_options,
+                            show_spans: input.show_spans,
+                            decompose_lujvo: input.decompose_lujvo,
                         },
                     )?;
                     writeln!(stdout, "{rendered}")?;
@@ -326,6 +392,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
     let parsed = parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
     render_syntax_warnings(&parsed, &text, &warning_source, stderr)?;
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     match input.format {
         GentufaFormat::Brackets => {
             let rendered = pretty_brackets_with_options(
@@ -333,6 +400,8 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                 &text,
                 BracketRenderOptions {
                     color: color_enabled,
+                    phonemes: phoneme_options,
+                    decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
             writeln!(stdout, "{rendered}")?;
@@ -347,6 +416,9 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                 TreeRenderOptions {
                     color: color_enabled,
                     indent: input.indent.unwrap_or(2),
+                    phonemes: phoneme_options,
+                    show_spans: input.show_spans,
+                    decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
             writeln!(stdout, "{rendered}")?;
@@ -356,6 +428,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                 &parsed.parse_tree,
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or(2),
+                    phonemes: phoneme_options,
                 },
             )?;
             writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
@@ -384,6 +457,23 @@ fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn phoneme_render_options(
+    mark_stress: Option<CliStressMark>,
+    mark_glides: Option<CliGlideMark>,
+) -> PhonemeRenderOptions {
+    let default = PhonemeRenderOptions::default();
+    PhonemeRenderOptions {
+        mark_stress: mark_stress
+            .map(StressMark::from)
+            .unwrap_or(default.mark_stress),
+        mark_glides: mark_glides
+            .map(GlideMark::from)
+            .unwrap_or(default.mark_glides),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_syntax_warnings<W: Write>(
     parsed: &SyntaxParse,
@@ -409,8 +499,54 @@ fn render_syntax_warnings<W: Write>(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlasei_options(input: &VlaseiInput) -> Result<()> {
-    if input.format == VlaseiFormat::Raw {
-        validate_raw_indent(input.indent)?;
+    match input.format {
+        VlaseiFormat::Raw => {
+            validate_raw_indent(input.indent)?;
+            validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+        }
+        VlaseiFormat::Json => {
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+        }
+        VlaseiFormat::Tree => {}
+        VlaseiFormat::Brackets => {
+            validate_no_indent(
+                input.indent,
+                "`--indent` is only supported with raw, JSON, and tree output",
+            )?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+        }
+        VlaseiFormat::Plain => {
+            validate_no_indent(
+                input.indent,
+                "`--indent` is only supported with raw, JSON, and tree output",
+            )?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+        }
     }
     Ok(())
 }
@@ -430,6 +566,72 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
     }
     if input.format == GentufaFormat::Raw {
         validate_raw_indent(input.indent)?;
+        validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+        validate_not_present(
+            input.show_spans,
+            "`--show-spans` is only supported with `--turtai tree`",
+        )?;
+        validate_not_present(
+            input.decompose_lujvo,
+            "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+        )?;
+    } else {
+        match input.format {
+            GentufaFormat::Json => {
+                validate_not_present(
+                    input.show_spans,
+                    "`--show-spans` is only supported with `--turtai tree`",
+                )?;
+                validate_not_present(
+                    input.decompose_lujvo,
+                    "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                )?;
+            }
+            GentufaFormat::Tree => {}
+            GentufaFormat::Brackets => {
+                validate_no_indent(
+                    input.indent,
+                    "`--indent` is only supported with raw, JSON, and tree output",
+                )?;
+                validate_not_present(
+                    input.show_spans,
+                    "`--show-spans` is only supported with `--turtai tree`",
+                )?;
+            }
+            GentufaFormat::Raw => {}
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_no_indent(indent: Option<usize>, message: &str) -> Result<()> {
+    if indent.is_some() {
+        return Err(anyhow!(message.to_owned()));
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_not_present(value: bool, message: &str) -> Result<()> {
+    if value {
+        return Err(anyhow!(message.to_owned()));
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_no_phoneme_projection(
+    mark_stress: Option<CliStressMark>,
+    mark_glides: Option<CliGlideMark>,
+) -> Result<()> {
+    if mark_stress.is_some() || mark_glides.is_some() {
+        return Err(anyhow!(
+            "`--mark-stress` and `--mark-glides` are not supported with raw output"
+        ));
     }
     Ok(())
 }
@@ -862,7 +1064,10 @@ mod tests {
             let expected = pretty_brackets_with_options(
                 &parsed.parse_tree,
                 text,
-                BracketRenderOptions { color: false },
+                BracketRenderOptions {
+                    color: false,
+                    ..BracketRenderOptions::default()
+                },
             )
             .expect("brackets");
             assert_eq!(
@@ -945,6 +1150,75 @@ mod tests {
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("raw nonzero indent rejected");
         assert!(error.to_string().contains("only supports `0`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_projection_flags_affect_non_raw_output() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "vlasei",
+            "--format",
+            "tree",
+            "--mark-stress",
+            "none",
+            "--mark-glides",
+            "none",
+            "coi",
+            "klama",
+        ])
+        .expect("vlasei projection flags parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei tree run");
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(output.contains("Cmavo \"coi\""));
+        assert!(output.contains("Gismu \"klama\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_rejects_projection_flags() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "gentufa",
+            "--format",
+            "raw",
+            "--mark-stress",
+            "none",
+            "mi",
+            "klama",
+        ])
+        .expect("gentufa raw projection flag parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("raw projection flags rejected");
+        assert!(error.to_string().contains("not supported with raw output"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tree_show_spans_and_lujvo_decomposition() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "vlasei",
+            "--format",
+            "tree",
+            "--show-spans",
+            "--decompose-lujvo",
+            "mivyselbai",
+        ])
+        .expect("vlasei tree span flags parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei tree run");
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(output.contains("Lujvo @[0‥10)"));
+        assert!(output.contains("miv·y·sél·baĭ"));
     }
 
     #[test]
@@ -1105,6 +1379,22 @@ mod tests {
             .expect("spawn warning test")
             .join()
             .expect("warning test thread");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn warning_context_includes_verbatim_quote_text() {
+        let cli = Cli::try_parse_from(["jbotci", "gentufa", "zo'oi", "gleki"])
+            .expect("zo'oi warning parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
+
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("ZOhOI single-word foreign quote"));
+        assert!(stderr.contains("zo'oĭ-\"gleki\""));
+        assert!(!stderr.contains("<5 chars>"));
     }
 
     #[test]

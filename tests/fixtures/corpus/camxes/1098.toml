@@ -18,44 +18,44 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ci su'i vo pi'i mu du li ci mu)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "ci",
-  Cmavo "su'i",
-  Cmavo "vo",
-  Cmavo "pi'i",
-  Cmavo "mu",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "ci",
-  Cmavo "mu",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "ci",
+  Cmavo @[6‥10) "su'i",
+  Cmavo @[11‥13) "vo",
+  Cmavo @[14‥18) "pi'i",
+  Cmavo @[19‥21) "mu",
+  Cmavo @[22‥24) "du",
+  Cmavo @[25‥27) "li",
+  Cmavo @[28‥30) "ci",
+  Cmavo @[30‥32) "mu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[28,30]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[30,32]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥32) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Binary {
-          left_expression: Cmavo "ci",
-          operator: Cmavo "su'i",
-          right_expression: Cmavo "vo",
+    MathExpression @[0‥21) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥21) {
+        left_expression: Binary @[3‥13) {
+          left_expression: Cmavo @[3‥5) "ci",
+          operator: Cmavo @[6‥10) "su'i",
+          right_expression: Cmavo @[11‥13) "vo",
         },
-        operator: Cmavo "pi'i",
-        right_expression: Cmavo "mu",
+        operator: Cmavo @[14‥18) "pi'i",
+        right_expression: Cmavo @[19‥21) "mu",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[22‥32) {
+    Cmavo @[22‥24) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "ci",
-          Cmavo "mu",
+      MathExpression @[25‥32) {
+        li: Cmavo @[25‥27) "li",
+        Number @[28‥32) {
+          Cmavo @[28‥30) "ci",
+          Cmavo @[30‥32) "mu",
         },
       },
     ],

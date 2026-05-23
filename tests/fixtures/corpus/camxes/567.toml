@@ -18,21 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = "(.djan. .meris. .djeĭn. .alis.)"
 tree = """
 [
-  Cmevla "djan",
-  Cmevla "meris",
-  Cmevla "djeĭn",
-  Cmevla "alis",
+  Cmevla @[0‥4) "djan",
+  Cmevla @[6‥11) "meris",
+  Cmevla @[13‥18) "djeĭn",
+  Cmevla @[21‥25) "alis",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"djan","span":[0,4]}}},{"Bare":{"Cmevla":{"phonemes":"meris","span":[6,11]}}},{"Bare":{"Cmevla":{"phonemes":"djeĭn","span":[13,18]}}},{"Bare":{"Cmevla":{"phonemes":"alis","span":[21,25]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥25) {
   leading_cmevla: [
-    Cmevla "djan",
-    Cmevla "meris",
-    Cmevla "djeĭn",
-    Cmevla "alis",
+    Cmevla @[0‥4) "djan",
+    Cmevla @[6‥11) "meris",
+    Cmevla @[13‥18) "djeĭn",
+    Cmevla @[21‥25) "alis",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"djan","span":[0,4]}}}},{"Bare":{"Bare":{"Cmevla":{"phonemes":"meris","span":[6,11]}}}},{"Bare":{"Bare":{"Cmevla":{"phonemes":"djeĭn","span":[13,18]}}}},{"Bare":{"Bare":{"Cmevla":{"phonemes":"alis","span":[21,25]}}}}]}'

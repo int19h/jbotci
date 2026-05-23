@@ -18,17 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vo pi paĭ)"
 tree = """
 [
-  Cmavo "vo",
-  Cmavo "pi",
-  Cmavo "paĭ",
+  Cmavo @[0‥2) "vo",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[6‥9) "paĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"vo","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[6,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "vo",
-  Cmavo "pi",
-  Cmavo "paĭ",
+Number @[0‥9) {
+  Cmavo @[0‥2) "vo",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[6‥9) "paĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[6,9]}}}}]}}}}}}]}]}'

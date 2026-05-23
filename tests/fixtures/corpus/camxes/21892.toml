@@ -8,7 +8,7 @@ entry-id = "21892"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gismu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "exist" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gísmu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "exist" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 2, allowed-next = [] }
 brackets = "(gísmu do .exist.)"
 tree = """
 [
-  Gismu "gísmu",
-  Cmavo "do",
-  Cmevla "exist",
+  Gismu @[0‥5) "gísmu",
+  Cmavo @[6‥8) "do",
+  Cmevla @[9‥14) "exist",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"gismu","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[6,8]}}},{"Bare":{"Cmevla":{"phonemes":"exist","span":[9,14]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"gísmu","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[6,8]}}},{"Bare":{"Cmevla":{"phonemes":"exist","span":[9,14]}}}]'

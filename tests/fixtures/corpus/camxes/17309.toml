@@ -18,35 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(da jaĭ bu'a di po'u de)"
 tree = """
 [
-  Cmavo "da",
-  Cmavo "jaĭ",
-  Cmavo "bu'a",
-  Cmavo "di",
-  Cmavo "po'u",
-  Cmavo "de",
+  Cmavo @[0‥2) "da",
+  Cmavo @[3‥6) "jaĭ",
+  Cmavo @[7‥11) "bu'a",
+  Cmavo @[12‥14) "di",
+  Cmavo @[15‥19) "po'u",
+  Cmavo @[20‥22) "de",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"da","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"jaĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[7,11]}}},{"Bare":{"Cmavo":{"phonemes":"di","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"po'u","span":[15,19]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[20,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥22) {
   leading_terms: [
-    Cmavo "da",
+    Cmavo @[0‥2) "da",
   ],
-  Relation {
-    Jai {
-      jai: Cmavo "jaĭ",
-      Goha {
-        goha: Cmavo "bu'a",
+  Relation @[3‥22) {
+    Jai @[3‥11) {
+      jai: Cmavo @[3‥6) "jaĭ",
+      Goha @[7‥11) {
+        goha: Cmavo @[7‥11) "bu'a",
       },
     },
     terms: [
-      RelativeClause {
-        base_argument: Cmavo "di",
+      RelativeClause @[12‥22) {
+        base_argument: Cmavo @[12‥14) "di",
         relative_clauses: [
-          GoiRelativeClause {
-            goi: Cmavo "po'u",
-            Cmavo "de",
+          GoiRelativeClause @[15‥22) {
+            goi: Cmavo @[15‥19) "po'u",
+            Cmavo @[20‥22) "de",
           },
         ],
       },

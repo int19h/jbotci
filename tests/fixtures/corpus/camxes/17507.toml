@@ -15,11 +15,11 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
-brackets = "(no pe .ĭirc.)"
+brackets = "(no pe .ĭírc.)"
 tree = """
 [
-  Cmavo "no",
-  Cmavo "pe",
-  Cmevla "ĭirc",
+  Cmavo @[0‥2) "no",
+  Cmavo @[2‥4) "pe",
+  Cmevla @[5‥9) "ĭírc",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pe","span":[2,4]}}},{"Bare":{"Cmevla":{"phonemes":"ĭírc","span":[5,9]}}}]'

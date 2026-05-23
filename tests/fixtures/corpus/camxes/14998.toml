@@ -18,38 +18,38 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to ra to ra to ra)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "ra",
-  Cmavo "to",
-  Cmavo "ra",
-  Cmavo "to",
-  Cmavo "ra",
+  Cmavo @[0‥2) "to",
+  Cmavo @[2‥4) "ra",
+  Cmavo @[5‥7) "to",
+  Cmavo @[7‥9) "ra",
+  Cmavo @[10‥12) "to",
+  Cmavo @[12‥14) "ra",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"to","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"to","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[12,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥14) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
-      Term {
+    To @[0‥14) {
+      to: Cmavo @[0‥2) "to",
+      Term @[2‥14) {
         terms: [
-          Koha {
-            Cmavo "ra",
+          Koha @[2‥14) {
+            Cmavo @[2‥4) "ra",
             free_modifiers: [
-              To {
-                to: Cmavo "to",
-                Term {
+              To @[5‥14) {
+                to: Cmavo @[5‥7) "to",
+                Term @[7‥14) {
                   terms: [
-                    Koha {
-                      Cmavo "ra",
+                    Koha @[7‥14) {
+                      Cmavo @[7‥9) "ra",
                       free_modifiers: [
-                        To {
-                          to: Cmavo "to",
-                          Term {
+                        To @[10‥14) {
+                          to: Cmavo @[10‥12) "to",
+                          Term @[12‥14) {
                             terms: [
-                              Cmavo "ra",
+                              Cmavo @[12‥14) "ra",
                             ],
                           },
                         },

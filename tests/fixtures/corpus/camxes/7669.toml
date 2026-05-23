@@ -18,34 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xu ko'a du [zo kaŭ])"
 tree = """
 [
-  Cmavo "xu",
-  Cmavo "ko'a",
-  Cmavo "du",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "kaŭ",
+  Cmavo @[0‥2) "xu",
+  Cmavo @[3‥7) "ko'a",
+  Cmavo @[8‥10) "du",
+  ZoQuote @[11‥17) {
+    zo: Cmavo @[11‥13) "zo",
+    Cmavo @[14‥17) "kaŭ",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ko'a","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[8,10]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[11,13]}},"word":{"Cmavo":{"phonemes":"kaŭ","span":[14,17]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥17) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "xu",
+    Indicator @[0‥2) {
+      indicator: Cmavo @[0‥2) "xu",
     },
   ],
-  Predicate {
+  Predicate @[3‥17) {
     leading_terms: [
-      Cmavo "ko'a",
+      Cmavo @[3‥7) "ko'a",
     ],
-    Relation {
-      Cmavo "du",
+    Relation @[8‥17) {
+      Cmavo @[8‥10) "du",
       terms: [
-        ZoQuote {
-          zo: Cmavo "zo",
-          Cmavo "kaŭ",
+        ZoQuote @[11‥17) {
+          zo: Cmavo @[11‥13) "zo",
+          Cmavo @[14‥17) "kaŭ",
         },
       ],
     },

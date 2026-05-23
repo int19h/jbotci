@@ -18,31 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i le se go'e cu mo)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "le",
-  Cmavo "se",
-  Cmavo "go'e",
-  Cmavo "cu",
-  Cmavo "mo",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥4) "le",
+  Cmavo @[5‥7) "se",
+  Cmavo @[8‥12) "go'e",
+  Cmavo @[13‥15) "cu",
+  Cmavo @[16‥18) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"go'e","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Predicate {
+ParagraphStatement @[0‥18) {
+  i: Cmavo @[0‥1) "i",
+  Predicate @[2‥18) {
     leading_terms: [
-      Descriptor {
-        descriptor: Cmavo "le",
-        relation: Se {
-          se: Cmavo "se",
-          Cmavo "go'e",
+      Descriptor @[2‥12) {
+        descriptor: Cmavo @[2‥4) "le",
+        relation: Se @[5‥12) {
+          se: Cmavo @[5‥7) "se",
+          Cmavo @[8‥12) "go'e",
         },
       },
     ],
-    cu: Cmavo "cu",
-    Cmavo "mo",
+    cu: Cmavo @[13‥15) "cu",
+    Cmavo @[16‥18) "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[2,4]}}}},"relation":{"Se":{"se":{"Bare":{"Bare":{"Cmavo":{"phonemes":"se","span":[5,7]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'e","span":[8,12]}}}}}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[13,15]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}}}}}}}}}}]}]}"""

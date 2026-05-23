@@ -8,29 +8,29 @@ entry-id = "12210"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mal" })), Rafsi(Phonemes(PhonemesData { text: "jbo" })), Rafsi(Phonemes(PhonemesData { text: "ske" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mal" })), Rafsi(Phonemes(PhonemesData { text: "jbó" })), Rafsi(Phonemes(PhonemesData { text: "ske" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mal" })), Rafsi(Phonemes(PhonemesData { text: "jbo" })), Rafsi(Phonemes(PhonemesData { text: "ske" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "mal" })), Rafsi(Phonemes(PhonemesData { text: "jbó" })), Rafsi(Phonemes(PhonemesData { text: "ske" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(la maljbóske)"
 tree = """
 [
-  Cmavo "la",
-  Lujvo "maljbóske",
+  Cmavo @[0‥2) "la",
+  Lujvo @[3‥12) "maljbóske",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"jbo"},{"Rafsi":"ske"}],"span":[3,12]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"jbó"},{"Rafsi":"ske"}],"span":[3,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥12) {
   terms: [
-    Descriptor {
-      descriptor: Cmavo "la",
-      relation: Lujvo "maljbóske",
+    Descriptor @[0‥12) {
+      descriptor: Cmavo @[0‥2) "la",
+      relation: Lujvo @[3‥12) "maljbóske",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"jbo"},{"Rafsi":"ske"}],"span":[3,12]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"jbó"},{"Rafsi":"ske"}],"span":[3,12]}}}}}}}}]}}}}]}]}'

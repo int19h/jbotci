@@ -18,36 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pi mu ga'o mi'i ke'i pi mu)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pi",
-  Cmavo "mu",
-  Cmavo "ga'o",
-  Cmavo "mi'i",
-  Cmavo "ke'i",
-  Cmavo "pi",
-  Cmavo "mu",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[5‥7) "mu",
+  Cmavo @[8‥12) "ga'o",
+  Cmavo @[13‥17) "mi'i",
+  Cmavo @[18‥22) "ke'i",
+  Cmavo @[23‥25) "pi",
+  Cmavo @[25‥27) "mu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ga'o","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"mi'i","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"ke'i","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[25,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥27) {
   terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Connected {
-        left_expression: Number {
-          Cmavo "pi",
-          Cmavo "mu",
+    MathExpression @[0‥27) {
+      li: Cmavo @[0‥2) "li",
+      Connected @[3‥27) {
+        left_expression: Number @[3‥7) {
+          Cmavo @[3‥5) "pi",
+          Cmavo @[5‥7) "mu",
         },
-        connective: Interval {
-          Cmavo "ga'o",
-          Cmavo "mi'i",
-          Cmavo "ke'i",
+        connective: Interval @[8‥22) {
+          Cmavo @[8‥12) "ga'o",
+          Cmavo @[13‥17) "mi'i",
+          Cmavo @[18‥22) "ke'i",
         },
-        right_expression: Number {
-          Cmavo "pi",
-          Cmavo "mu",
+        right_expression: Number @[23‥27) {
+          Cmavo @[23‥25) "pi",
+          Cmavo @[25‥27) "mu",
         },
       },
     },

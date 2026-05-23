@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'u ma .ŭe)"
 tree = """
 [
-  Cmavo "ki'u",
-  Cmavo "ma",
-  Cmavo "ŭe",
+  Cmavo @[0‥4) "ki'u",
+  Cmavo @[5‥7) "ma",
+  Cmavo @[9‥11) "ŭe",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ki'u","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ŭe","span":[9,11]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥11) {
   terms: [
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "ki'u",
+    Tagged @[0‥11) {
+      tense_modal: Simple @[0‥4) {
+        bai: Cmavo @[0‥4) "ki'u",
       },
-      WithIndicator {
-        Cmavo "ma",
-        indicator: Cmavo "ŭe",
+      WithIndicator @[5‥11) {
+        Cmavo @[5‥7) "ma",
+        indicator: Cmavo @[9‥11) "ŭe",
       },
     },
   ],

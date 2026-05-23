@@ -8,29 +8,29 @@ entry-id = "13789"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skami" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "banrnorge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 18, char_start: 9, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skámi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "banrnórge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 18, char_start: 9, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skami" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Ke { ke_tense_modal: None, ke: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, relation: Base(Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "banrnorge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 18, char_start: 9, char_end: 18, start: None, end: None }) }))))), kehe: None }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skámi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Ke { ke_tense_modal: None, ke: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, relation: Base(Bare(WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "banrnórge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 18, char_start: 9, char_end: 18, start: None, end: None }) }))))), kehe: None }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(skámi ke banrnórge)"
 tree = """
 [
-  Gismu "skámi",
-  Cmavo "ke",
-  Fuhivla "banrnórge",
+  Gismu @[0‥5) "skámi",
+  Cmavo @[6‥8) "ke",
+  Fuhivla @[9‥18) "banrnórge",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"skami","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[6,8]}}},{"Bare":{"Fuhivla":{"phonemes":"banrnorge","span":[9,18]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"skámi","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[6,8]}}},{"Bare":{"Fuhivla":{"phonemes":"banrnórge","span":[9,18]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Compound {
-  Gismu "skámi",
-  Ke {
-    ke: Cmavo "ke",
-    Fuhivla "banrnórge",
+Compound @[0‥18) {
+  Gismu @[0‥5) "skámi",
+  Ke @[6‥18) {
+    ke: Cmavo @[6‥8) "ke",
+    Fuhivla @[9‥18) "banrnórge",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"skami","span":[0,5]}}}}},{"Ke":{"ke":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"relation":{"Base":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"banrnorge","span":[9,18]}}}}}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"skámi","span":[0,5]}}}}},{"Ke":{"ke":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"relation":{"Base":{"Bare":{"Bare":{"Fuhivla":{"phonemes":"banrnórge","span":[9,18]}}}}}}}]}}}}}}}}]}]}'

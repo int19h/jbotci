@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(go'e .i na ja bo mo)"
 tree = """
 [
-  Cmavo "go'e",
-  Cmavo "i",
-  Cmavo "na",
-  Cmavo "ja",
-  Cmavo "bo",
-  Cmavo "mo",
+  Cmavo @[0‥4) "go'e",
+  Cmavo @[5‥6) "i",
+  Cmavo @[6‥8) "na",
+  Cmavo @[8‥10) "ja",
+  Cmavo @[10‥12) "bo",
+  Cmavo @[13‥15) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"go'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ja","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"bo","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[13,15]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Connected {
-  leading_statement: Cmavo "go'e",
-  i: Cmavo "i",
-  connective: Relation {
-    na: Cmavo "na",
-    Cmavo "ja",
-    Cmavo "bo",
+Connected @[0‥15) {
+  leading_statement: Cmavo @[0‥4) "go'e",
+  i: Cmavo @[5‥6) "i",
+  connective: Relation @[6‥12) {
+    na: Cmavo @[6‥8) "na",
+    Cmavo @[8‥10) "ja",
+    Cmavo @[10‥12) "bo",
   },
-  trailing_statement: Cmavo "mo",
+  trailing_statement: Cmavo @[13‥15) "mo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'e","span":[0,4]}}}}}}}}}}},"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"connective":{"Relation":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}}},"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ja","span":[8,10]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"bo","span":[10,12]}}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[13,15]}}}}}}}}}}}}}}]}]}"""

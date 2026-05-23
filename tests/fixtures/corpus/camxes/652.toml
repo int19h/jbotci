@@ -18,15 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(gi'e naĭ)"
 tree = """
 [
-  Cmavo "gi'e",
-  Cmavo "naĭ",
+  Cmavo @[0‥4) "gi'e",
+  Cmavo @[4‥7) "naĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-PredicateTail {
-  Cmavo "gi'e",
-  nai: Cmavo "naĭ",
+PredicateTail @[0‥7) {
+  Cmavo @[0‥4) "gi'e",
+  nai: Cmavo @[4‥7) "naĭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[0,4]}}}}],"nai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}}}}}]}]}"""

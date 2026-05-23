@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .xod. na)"
 tree = """
 [
-  Cmavo "doĭ",
-  Cmevla "xod",
-  Cmavo "na",
+  Cmavo @[0‥3) "doĭ",
+  Cmevla @[4‥7) "xod",
+  Cmavo @[8‥10) "na",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"xod","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[8,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥10) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥7) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "doĭ",
       ],
-      argument: Cmevla "xod",
+      argument: Cmevla @[4‥7) "xod",
     },
   ],
-  Cmavo "na",
+  Cmavo @[8‥10) "na",
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"xod","span":[4,7]}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Other":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[8,10]}}}}]}}}]}]}'

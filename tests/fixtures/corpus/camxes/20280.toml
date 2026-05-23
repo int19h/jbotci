@@ -8,7 +8,7 @@ entry-id = "20280"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "femti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ragve" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rafsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 29, char_start: 26, char_end: 29, start: None, end: None }) }))), WordLike(Letter { base: WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 31, char_start: 30, char_end: 31, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None }) }) }), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "terto" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 39, char_start: 34, char_end: 39, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "fémti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rágve" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ráfsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 29, char_start: 26, char_end: 29, start: None, end: None }) }))), WordLike(Letter { base: WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 31, char_start: 30, char_end: 31, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None }) }) }), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "térto" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 39, char_start: 34, char_end: 39, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,16 +18,16 @@ error = { position = 4, allowed-next = [] }
 brackets = "(fémti .e'u .a'i rágve ráfsi .o'o [.o bu] térto)"
 tree = """
 [
-  Gismu "fémti",
-  Cmavo "e'u",
-  Cmavo "a'i",
-  Gismu "rágve",
-  Gismu "ráfsi",
-  Cmavo "o'o",
-  Letter {
-    Cmavo "o",
-    bu: Cmavo "bu",
+  Gismu @[0‥5) "fémti",
+  Cmavo @[6‥9) "e'u",
+  Cmavo @[10‥13) "a'i",
+  Gismu @[14‥19) "rágve",
+  Gismu @[20‥25) "ráfsi",
+  Cmavo @[26‥29) "o'o",
+  Letter @[30‥33) {
+    Cmavo @[30‥31) "o",
+    bu: Cmavo @[31‥33) "bu",
   },
-  Gismu "térto",
+  Gismu @[34‥39) "térto",
 ]"""
-json = """[{"Bare":{"Gismu":{"phonemes":"femti","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"e'u","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"a'i","span":[10,13]}}},{"Bare":{"Gismu":{"phonemes":"ragve","span":[14,19]}}},{"Bare":{"Gismu":{"phonemes":"rafsi","span":[20,25]}}},{"Bare":{"Cmavo":{"phonemes":"o'o","span":[26,29]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"o","span":[30,31]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[31,33]}}}},{"Bare":{"Gismu":{"phonemes":"terto","span":[34,39]}}}]"""
+json = """[{"Bare":{"Gismu":{"phonemes":"fémti","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"e'u","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"a'i","span":[10,13]}}},{"Bare":{"Gismu":{"phonemes":"rágve","span":[14,19]}}},{"Bare":{"Gismu":{"phonemes":"ráfsi","span":[20,25]}}},{"Bare":{"Cmavo":{"phonemes":"o'o","span":[26,29]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"o","span":[30,31]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[31,33]}}}},{"Bare":{"Gismu":{"phonemes":"térto","span":[34,39]}}}]"""

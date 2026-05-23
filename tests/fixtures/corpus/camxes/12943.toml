@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e [zo roĭ])"
 tree = """
 [
-  Cmavo "la'e",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "roĭ",
+  Cmavo @[9‥13) "la'e",
+  ZoQuote @[14‥20) {
+    zo: Cmavo @[14‥16) "zo",
+    Cmavo @[17‥20) "roĭ",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"la'e","span":[9,13]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[14,16]}},"word":{"Cmavo":{"phonemes":"roĭ","span":[17,20]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[9‥20) {
   terms: [
-    Lahe {
-      lahe: Cmavo "la'e",
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "roĭ",
+    Lahe @[9‥20) {
+      lahe: Cmavo @[9‥13) "la'e",
+      ZoQuote @[14‥20) {
+        zo: Cmavo @[14‥16) "zo",
+        Cmavo @[17‥20) "roĭ",
       },
     },
   ],

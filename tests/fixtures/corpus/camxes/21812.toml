@@ -18,29 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no pa re ci vo mu xa bi so)"
 tree = """
 [
-  Cmavo "no",
-  Cmavo "pa",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "mu",
-  Cmavo "xa",
-  Cmavo "bi",
-  Cmavo "so",
+  Cmavo @[0‥2) "no",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[6‥8) "re",
+  Cmavo @[9‥11) "ci",
+  Cmavo @[12‥14) "vo",
+  Cmavo @[15‥17) "mu",
+  Cmavo @[18‥20) "xa",
+  Cmavo @[24‥26) "bi",
+  Cmavo @[27‥29) "so",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"bi","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"so","span":[27,29]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "no",
-  Cmavo "pa",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "mu",
-  Cmavo "xa",
-  Cmavo "bi",
-  Cmavo "so",
+Number @[0‥29) {
+  Cmavo @[0‥2) "no",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[6‥8) "re",
+  Cmavo @[9‥11) "ci",
+  Cmavo @[12‥14) "vo",
+  Cmavo @[15‥17) "mu",
+  Cmavo @[18‥20) "xa",
+  Cmavo @[24‥26) "bi",
+  Cmavo @[27‥29) "so",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[6,8]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ci","span":[9,11]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[12,14]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[15,17]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"xa","span":[18,20]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"bi","span":[24,26]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"so","span":[27,29]}}}}]}}}}}}]}]}'

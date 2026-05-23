@@ -24,27 +24,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi .e .ŭi naĭ do)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "e",
-  Cmavo "ŭi",
-  Cmavo "naĭ",
-  Cmavo "do",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[4‥5) "e",
+  Cmavo @[7‥9) "ŭi",
+  Cmavo @[10‥13) "naĭ",
+  Cmavo @[14‥16) "do",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[14,16]}}}]'
 
 [expectations.output.gentufa]
 brackets = "(mi [.e .ŭi naĭ] do)"
 tree = """
-Term {
+Term @[0‥16) {
   terms: [
-    Connected {
-      leading_argument: Cmavo "mi",
-      connective: WithIndicator {
-        Cmavo "e",
-        indicator: Cmavo "ŭi",
-        nai: Cmavo "naĭ",
+    Connected @[0‥16) {
+      leading_argument: Cmavo @[0‥2) "mi",
+      connective: WithIndicator @[4‥13) {
+        Cmavo @[4‥5) "e",
+        indicator: Cmavo @[7‥9) "ŭi",
+        nai: Cmavo @[10‥13) "naĭ",
       },
-      trailing_argument: Cmavo "do",
+      trailing_argument: Cmavo @[14‥16) "do",
     },
   ],
 }"""

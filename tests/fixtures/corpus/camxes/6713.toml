@@ -18,31 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ĭe peĭ [zo mu'eĭ])"
 tree = """
 [
-  Cmavo "ĭe",
-  Cmavo "peĭ",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "mu'eĭ",
+  Cmavo @[1‥3) "ĭe",
+  Cmavo @[3‥6) "peĭ",
+  ZoQuote @[7‥15) {
+    zo: Cmavo @[7‥9) "zo",
+    Cmavo @[10‥15) "mu'eĭ",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ĭe","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[3,6]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[7,9]}},"word":{"Cmavo":{"phonemes":"mu'eĭ","span":[10,15]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥15) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        Cmavo "ĭe",
-        indicator: Cmavo "peĭ",
+    Indicator @[1‥6) {
+      indicator: WithIndicator @[1‥6) {
+        Cmavo @[1‥3) "ĭe",
+        indicator: Cmavo @[3‥6) "peĭ",
       },
     },
   ],
-  Term {
+  Term @[7‥15) {
     terms: [
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "mu'eĭ",
+      ZoQuote @[7‥15) {
+        zo: Cmavo @[7‥9) "zo",
+        Cmavo @[10‥15) "mu'eĭ",
       },
     ],
   },

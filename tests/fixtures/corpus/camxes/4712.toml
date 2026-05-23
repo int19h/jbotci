@@ -18,48 +18,48 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i pa .i re .i ci .i vo .i mu .i zo'o)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "pa",
-  Cmavo "i",
-  Cmavo "re",
-  Cmavo "i",
-  Cmavo "ci",
-  Cmavo "i",
-  Cmavo "vo",
-  Cmavo "i",
-  Cmavo "mu",
-  Cmavo "i",
-  Cmavo "zo'o",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[7‥8) "i",
+  Cmavo @[9‥11) "re",
+  Cmavo @[13‥14) "i",
+  Cmavo @[15‥17) "ci",
+  Cmavo @[19‥20) "i",
+  Cmavo @[21‥23) "vo",
+  Cmavo @[25‥26) "i",
+  Cmavo @[27‥29) "mu",
+  Cmavo @[31‥32) "i",
+  Cmavo @[33‥37) "zo'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[7,8]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[13,14]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[19,20]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[25,26]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[31,32]}}},{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[33,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Paragraph {
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "pa",
+Paragraph @[1‥37) {
+  ParagraphStatement @[1‥5) {
+    i: Cmavo @[1‥2) "i",
+    Cmavo @[3‥5) "pa",
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "re",
+  ParagraphStatement @[7‥11) {
+    i: Cmavo @[7‥8) "i",
+    Cmavo @[9‥11) "re",
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "ci",
+  ParagraphStatement @[13‥17) {
+    i: Cmavo @[13‥14) "i",
+    Cmavo @[15‥17) "ci",
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "vo",
+  ParagraphStatement @[19‥23) {
+    i: Cmavo @[19‥20) "i",
+    Cmavo @[21‥23) "vo",
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "mu",
+  ParagraphStatement @[25‥29) {
+    i: Cmavo @[25‥26) "i",
+    Cmavo @[27‥29) "mu",
   },
-  ParagraphStatement {
-    i: WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "zo'o",
+  ParagraphStatement @[31‥37) {
+    i: WithIndicator @[31‥37) {
+      Cmavo @[31‥32) "i",
+      indicator: Cmavo @[33‥37) "zo'o",
     },
   },
 }"""

@@ -8,7 +8,7 @@ entry-id = "4139"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tcana" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }) })]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tcána" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }) })]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,10 +18,10 @@ error = { position = 1, allowed-next = [] }
 brackets = "(.a [zo tcána])"
 tree = """
 [
-  Cmavo "a",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Gismu "tcána",
+  Cmavo @[1‥2) "a",
+  ZoQuote @[3‥11) {
+    zo: Cmavo @[3‥5) "zo",
+    Gismu @[6‥11) "tcána",
   },
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[1,2]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Gismu":{"phonemes":"tcana","span":[6,11]}}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"a","span":[1,2]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Gismu":{"phonemes":"tcána","span":[6,11]}}}}]'

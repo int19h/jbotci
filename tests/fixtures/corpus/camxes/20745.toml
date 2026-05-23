@@ -19,20 +19,20 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ta'i ma)"
 tree = """
 [
-  Cmavo "ta'i",
-  Cmavo "ma",
+  Cmavo @[3‥7) "ta'i",
+  Cmavo @[8‥10) "ma",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ta'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[8,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[3‥10) {
   terms: [
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "ta'i",
+    Tagged @[3‥10) {
+      tense_modal: Simple @[3‥7) {
+        bai: Cmavo @[3‥7) "ta'i",
       },
-      Cmavo "ma",
+      Cmavo @[8‥10) "ma",
     },
   ],
 }"""

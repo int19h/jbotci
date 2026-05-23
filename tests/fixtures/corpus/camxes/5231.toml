@@ -18,75 +18,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu da .o de li'u du lu da .e de .a ke da na .e naĭ de li'u)"
 tree = """
 [
-  Cmavo "lu",
-  Cmavo "da",
-  Cmavo "o",
-  Cmavo "de",
-  Cmavo "li'u",
-  Cmavo "du",
-  Cmavo "lu",
-  Cmavo "da",
-  Cmavo "e",
-  Cmavo "de",
-  Cmavo "a",
-  Cmavo "ke",
-  Cmavo "da",
-  Cmavo "na",
-  Cmavo "e",
-  Cmavo "naĭ",
-  Cmavo "de",
-  Cmavo "li'u",
+  Cmavo @[0‥2) "lu",
+  Cmavo @[3‥5) "da",
+  Cmavo @[7‥8) "o",
+  Cmavo @[9‥11) "de",
+  Cmavo @[12‥16) "li'u",
+  Cmavo @[17‥19) "du",
+  Cmavo @[20‥22) "lu",
+  Cmavo @[23‥25) "da",
+  Cmavo @[27‥28) "e",
+  Cmavo @[29‥31) "de",
+  Cmavo @[33‥34) "a",
+  Cmavo @[35‥37) "ke",
+  Cmavo @[38‥40) "da",
+  Cmavo @[41‥43) "na",
+  Cmavo @[44‥45) "e",
+  Cmavo @[45‥48) "naĭ",
+  Cmavo @[49‥51) "de",
+  Cmavo @[52‥56) "li'u",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"o","span":[7,8]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"li'u","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"lu","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[27,28]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[33,34]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[35,37]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[38,40]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[41,43]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[45,48]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[49,51]}}},{"Bare":{"Cmavo":{"phonemes":"li'u","span":[52,56]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥56) {
   leading_terms: [
-    Lu {
-      lu: Cmavo "lu",
-      Term {
+    Lu @[0‥16) {
+      lu: Cmavo @[0‥2) "lu",
+      Term @[3‥11) {
         terms: [
-          Connected {
-            leading_argument: Cmavo "da",
-            connective: Cmavo "o",
-            trailing_argument: Cmavo "de",
+          Connected @[3‥11) {
+            leading_argument: Cmavo @[3‥5) "da",
+            connective: Cmavo @[7‥8) "o",
+            trailing_argument: Cmavo @[9‥11) "de",
           },
         ],
       },
-      lihu: Cmavo "li'u",
+      lihu: Cmavo @[12‥16) "li'u",
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[17‥56) {
+    Cmavo @[17‥19) "du",
     terms: [
-      Lu {
-        lu: Cmavo "lu",
-        Term {
+      Lu @[20‥56) {
+        lu: Cmavo @[20‥22) "lu",
+        Term @[23‥51) {
           terms: [
-            Connected {
-              leading_argument: Connected {
-                leading_argument: Cmavo "da",
-                connective: Cmavo "e",
-                trailing_argument: Cmavo "de",
+            Connected @[23‥51) {
+              leading_argument: Connected @[23‥31) {
+                leading_argument: Cmavo @[23‥25) "da",
+                connective: Cmavo @[27‥28) "e",
+                trailing_argument: Cmavo @[29‥31) "de",
               },
-              connective: Cmavo "a",
-              trailing_argument: Ke {
-                ke: Cmavo "ke",
-                Connected {
-                  leading_argument: Cmavo "da",
-                  connective: Afterthought {
-                    na: Cmavo "na",
-                    Cmavo "e",
-                    nai: Cmavo "naĭ",
+              connective: Cmavo @[33‥34) "a",
+              trailing_argument: Ke @[35‥51) {
+                ke: Cmavo @[35‥37) "ke",
+                Connected @[38‥51) {
+                  leading_argument: Cmavo @[38‥40) "da",
+                  connective: Afterthought @[41‥48) {
+                    na: Cmavo @[41‥43) "na",
+                    Cmavo @[44‥45) "e",
+                    nai: Cmavo @[45‥48) "naĭ",
                   },
-                  trailing_argument: Cmavo "de",
+                  trailing_argument: Cmavo @[49‥51) "de",
                 },
               },
             },
           ],
         },
-        lihu: Cmavo "li'u",
+        lihu: Cmavo @[52‥56) "li'u",
       },
     ],
   },

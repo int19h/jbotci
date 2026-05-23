@@ -19,33 +19,33 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(pa ro lu la .lojban. .on.)"
 tree = """
 [
-  Cmavo "pa",
-  Cmavo "ro",
-  Cmavo "lu",
-  Cmavo "la",
-  Cmevla "lojban",
-  Cmevla "on",
+  Cmavo @[0‥2) "pa",
+  Cmavo @[2‥4) "ro",
+  Cmavo @[4‥6) "lu",
+  Cmavo @[7‥9) "la",
+  Cmevla @[10‥16) "lojban",
+  Cmevla @[17‥19) "on",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"lu","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[7,9]}}},{"Bare":{"Cmevla":{"phonemes":"lojban","span":[10,16]}}},{"Bare":{"Cmevla":{"phonemes":"on","span":[17,19]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥19) {
   terms: [
-    Quantified {
-      quantifier: Number {
-        Cmavo "pa",
-        Cmavo "ro",
+    Quantified @[0‥19) {
+      quantifier: Number @[0‥4) {
+        Cmavo @[0‥2) "pa",
+        Cmavo @[2‥4) "ro",
       },
-      Lu {
-        lu: Cmavo "lu",
-        Term {
+      Lu @[4‥19) {
+        lu: Cmavo @[4‥6) "lu",
+        Term @[7‥19) {
           terms: [
-            Name {
-              la: Cmavo "la",
+            Name @[7‥19) {
+              la: Cmavo @[7‥9) "la",
               names: [
-                Cmevla "lojban",
-                Cmevla "on",
+                Cmevla @[10‥16) "lojban",
+                Cmevla @[17‥19) "on",
               ],
             },
           ],

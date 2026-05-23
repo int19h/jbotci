@@ -18,24 +18,24 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ce'a [.xancisk. bu])"
 tree = """
 [
-  Cmavo "ce'a",
-  Letter {
-    Cmevla "xancisk",
-    bu: Cmavo "bu",
+  Cmavo @[0‥4) "ce'a",
+  Letter @[6‥17) {
+    Cmevla @[6‥13) "xancisk",
+    bu: Cmavo @[15‥17) "bu",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ce'a","span":[0,4]}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"xancisk","span":[6,13]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥17) {
   terms: [
-    Letter {
+    Letter @[0‥17) {
       letter: [
-        Cmavo "ce'a",
-        Letter {
-          Cmevla "xancisk",
-          bu: Cmavo "bu",
+        Cmavo @[0‥4) "ce'a",
+        Letter @[6‥17) {
+          Cmevla @[6‥13) "xancisk",
+          bu: Cmavo @[15‥17) "bu",
         },
       ],
     },

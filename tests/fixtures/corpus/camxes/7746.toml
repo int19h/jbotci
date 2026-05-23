@@ -18,25 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je [zo noĭ])"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "je",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "noĭ",
+  Cmavo @[1‥2) "i",
+  Cmavo @[2‥4) "je",
+  ZoQuote @[5‥11) {
+    zo: Cmavo @[5‥7) "zo",
+    Cmavo @[8‥11) "noĭ",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[2,4]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Cmavo":{"phonemes":"noĭ","span":[8,11]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  connective: Cmavo "je",
-  Term {
+ParagraphStatement @[1‥11) {
+  i: Cmavo @[1‥2) "i",
+  connective: Cmavo @[2‥4) "je",
+  Term @[5‥11) {
     terms: [
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "noĭ",
+      ZoQuote @[5‥11) {
+        zo: Cmavo @[5‥7) "zo",
+        Cmavo @[8‥11) "noĭ",
       },
     ],
   },

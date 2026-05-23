@@ -18,36 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(py du xy boĭ zy)"
 tree = """
 [
-  Cmavo "py",
-  Cmavo "du",
-  Cmavo "xy",
-  Cmavo "boĭ",
-  Cmavo "zy",
+  Cmavo @[0‥2) "py",
+  Cmavo @[4‥6) "du",
+  Cmavo @[7‥9) "xy",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "zy",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"py","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"zy","span":[14,16]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥16) {
   leading_terms: [
-    Letter {
+    Letter @[0‥2) {
       letter: [
-        Cmavo "py",
+        Cmavo @[0‥2) "py",
       ],
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[4‥16) {
+    Cmavo @[4‥6) "du",
     terms: [
-      Letter {
+      Letter @[7‥13) {
         letter: [
-          Cmavo "xy",
+          Cmavo @[7‥9) "xy",
         ],
-        boi: Cmavo "boĭ",
+        boi: Cmavo @[10‥13) "boĭ",
       },
-      Letter {
+      Letter @[14‥16) {
         letter: [
-          Cmavo "zy",
+          Cmavo @[14‥16) "zy",
         ],
       },
     ],

@@ -15,27 +15,27 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "ánd" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "to'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ka'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
-brackets = "(.and. to'e ka'e)"
+brackets = "(.ánd. to'e ka'e)"
 tree = """
 [
-  Cmevla "and",
-  Cmavo "to'e",
-  Cmavo "ka'e",
+  Cmevla @[0‥3) "ánd",
+  Cmavo @[4‥8) "to'e",
+  Cmavo @[8‥12) "ka'e",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"ánd","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"to'e","span":[4,8]}}},{"Bare":{"Cmavo":{"phonemes":"ka'e","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥12) {
   leading_cmevla: [
-    Cmevla "and",
+    Cmevla @[0‥3) "ánd",
   ],
-  Term {
+  Term @[4‥12) {
     terms: [
-      Tagged {
-        tense_modal: Composite {
-          Cmavo "to'e",
-          Cmavo "ka'e",
+      Tagged @[4‥12) {
+        tense_modal: Composite @[4‥12) {
+          Cmavo @[4‥8) "to'e",
+          Cmavo @[8‥12) "ka'e",
         },
         Zohe {},
       },

@@ -8,37 +8,37 @@ entry-id = "8574"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cnino" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "casnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cníno" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cásnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cnino" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "casnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }) }]), sehu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "seĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cníno" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cásnu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }) }]), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(seĭ cníno se cásnu)"
 tree = """
 [
-  Cmavo "seĭ",
-  Gismu "cníno",
-  Cmavo "se",
-  Gismu "cásnu",
+  Cmavo @[0‥3) "seĭ",
+  Gismu @[4‥9) "cníno",
+  Cmavo @[10‥12) "se",
+  Gismu @[13‥18) "cásnu",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"cnino","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[10,12]}}},{"Bare":{"Gismu":{"phonemes":"casnu","span":[13,18]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"cníno","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[10,12]}}},{"Bare":{"Gismu":{"phonemes":"cásnu","span":[13,18]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥18) {
   leading_free_modifiers: [
-    Sei {
-      sei: Cmavo "seĭ",
-      relation: Compound {
-        Gismu "cníno",
-        Se {
-          se: Cmavo "se",
-          Gismu "cásnu",
+    Sei @[0‥18) {
+      sei: Cmavo @[0‥3) "seĭ",
+      relation: Compound @[4‥18) {
+        Gismu @[4‥9) "cníno",
+        Se @[10‥18) {
+          se: Cmavo @[10‥12) "se",
+          Gismu @[13‥18) "cásnu",
         },
       },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"cnino","span":[4,9]}}}}},{"Se":{"se":{"Bare":{"Bare":{"Cmavo":{"phonemes":"se","span":[10,12]}}}},"inner_unit":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"casnu","span":[13,18]}}}}}}}]}}}]}'
+json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"cníno","span":[4,9]}}}}},{"Se":{"se":{"Bare":{"Bare":{"Cmavo":{"phonemes":"se","span":[10,12]}}}},"inner_unit":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"cásnu","span":[13,18]}}}}}}}]}}}]}'

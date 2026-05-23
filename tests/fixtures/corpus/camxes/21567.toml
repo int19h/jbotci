@@ -18,26 +18,26 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(le du'u deĭ co'e)"
 tree = """
 [
-  Cmavo "le",
-  Cmavo "du'u",
-  Cmavo "deĭ",
-  Cmavo "co'e",
+  Cmavo @[0‥2) "le",
+  Cmavo @[3‥7) "du'u",
+  Cmavo @[8‥11) "deĭ",
+  Cmavo @[12‥16) "co'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"du'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"deĭ","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[12,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥16) {
   terms: [
-    Descriptor {
-      descriptor: Cmavo "le",
-      relation: Abstraction {
-        nu: Cmavo "du'u",
-        Predicate {
+    Descriptor @[0‥16) {
+      descriptor: Cmavo @[0‥2) "le",
+      relation: Abstraction @[3‥16) {
+        nu: Cmavo @[3‥7) "du'u",
+        Predicate @[8‥16) {
           leading_terms: [
-            Cmavo "deĭ",
+            Cmavo @[8‥11) "deĭ",
           ],
-          Cmavo "co'e",
+          Cmavo @[12‥16) "co'e",
         },
       },
     },

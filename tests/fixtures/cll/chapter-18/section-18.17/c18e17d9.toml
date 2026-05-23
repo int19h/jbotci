@@ -24,50 +24,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pi mu su'i ni'u pi mu ga'o bi'o ke'i ma'u pi mu)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pi",
-  Cmavo "mu",
-  Cmavo "su'i",
-  Cmavo "ni'u",
-  Cmavo "pi",
-  Cmavo "mu",
-  Cmavo "ga'o",
-  Cmavo "bi'o",
-  Cmavo "ke'i",
-  Cmavo "ma'u",
-  Cmavo "pi",
-  Cmavo "mu",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pi",
+  Cmavo @[5‥7) "mu",
+  Cmavo @[8‥12) "su'i",
+  Cmavo @[13‥17) "ni'u",
+  Cmavo @[17‥19) "pi",
+  Cmavo @[19‥21) "mu",
+  Cmavo @[22‥26) "ga'o",
+  Cmavo @[27‥31) "bi'o",
+  Cmavo @[32‥36) "ke'i",
+  Cmavo @[37‥41) "ma'u",
+  Cmavo @[41‥43) "pi",
+  Cmavo @[43‥45) "mu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"ni'u","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}},{"Bare":{"Cmavo":{"phonemes":"bi'o","span":[27,31]}}},{"Bare":{"Cmavo":{"phonemes":"ke'i","span":[32,36]}}},{"Bare":{"Cmavo":{"phonemes":"ma'u","span":[37,41]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[41,43]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[43,45]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(li [{pi mu} su'i {(ni'u pi mu) (ga'o bi'o ke'i) (ma'u pi mu)}])"
 tree = """
-Term {
+Term @[0‥45) {
   terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Number {
-          Cmavo "pi",
-          Cmavo "mu",
+    MathExpression @[0‥45) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥45) {
+        left_expression: Number @[3‥7) {
+          Cmavo @[3‥5) "pi",
+          Cmavo @[5‥7) "mu",
         },
-        operator: Cmavo "su'i",
-        right_expression: Connected {
-          left_expression: Number {
-            Cmavo "ni'u",
-            Cmavo "pi",
-            Cmavo "mu",
+        operator: Cmavo @[8‥12) "su'i",
+        right_expression: Connected @[13‥45) {
+          left_expression: Number @[13‥21) {
+            Cmavo @[13‥17) "ni'u",
+            Cmavo @[17‥19) "pi",
+            Cmavo @[19‥21) "mu",
           },
-          connective: Interval {
-            Cmavo "ga'o",
-            Cmavo "bi'o",
-            Cmavo "ke'i",
+          connective: Interval @[22‥36) {
+            Cmavo @[22‥26) "ga'o",
+            Cmavo @[27‥31) "bi'o",
+            Cmavo @[32‥36) "ke'i",
           },
-          right_expression: Number {
-            Cmavo "ma'u",
-            Cmavo "pi",
-            Cmavo "mu",
+          right_expression: Number @[37‥45) {
+            Cmavo @[37‥41) "ma'u",
+            Cmavo @[41‥43) "pi",
+            Cmavo @[43‥45) "mu",
           },
         },
       },

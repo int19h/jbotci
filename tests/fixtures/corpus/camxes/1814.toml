@@ -19,19 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(ta cu go'i)"
 tree = """
 [
-  Cmavo "ta",
-  Cmavo "cu",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "ta",
+  Cmavo @[4‥6) "cu",
+  Cmavo @[8‥12) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ta","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥12) {
   leading_terms: [
-    Cmavo "ta",
+    Cmavo @[0‥2) "ta",
   ],
-  cu: Cmavo "cu",
-  Cmavo "go'i",
+  cu: Cmavo @[4‥6) "cu",
+  Cmavo @[8‥12) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ta","span":[0,2]}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[4,6]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}}}}]}]}"""

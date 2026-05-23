@@ -18,17 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(no .ĭa naĭ)"
 tree = """
 [
-  Cmavo "no",
-  Cmavo "ĭa",
-  Cmavo "naĭ",
+  Cmavo @[0‥2) "no",
+  Cmavo @[4‥6) "ĭa",
+  Cmavo @[6‥9) "naĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ĭa","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-WithIndicator {
-  Cmavo "no",
-  indicator: Cmavo "ĭa",
-  nai: Cmavo "naĭ",
+WithIndicator @[0‥9) {
+  Cmavo @[0‥2) "no",
+  indicator: Cmavo @[4‥6) "ĭa",
+  nai: Cmavo @[6‥9) "naĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ĭa","span":[4,6]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}}]}}}}}}]}]}'

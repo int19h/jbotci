@@ -18,13 +18,13 @@ error = { position = 4, allowed-next = [] }
 brackets = "(to .e naĭ [zo roĭ] toĭ)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "e",
-  Cmavo "naĭ",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "roĭ",
+  Cmavo @[0‥2) "to",
+  Cmavo @[4‥5) "e",
+  Cmavo @[5‥8) "naĭ",
+  ZoQuote @[9‥15) {
+    zo: Cmavo @[9‥11) "zo",
+    Cmavo @[12‥15) "roĭ",
   },
-  Cmavo "toĭ",
+  Cmavo @[16‥19) "toĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Cmavo":{"phonemes":"roĭ","span":[12,15]}}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[16,19]}}}]'

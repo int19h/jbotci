@@ -8,7 +8,7 @@ entry-id = "7158"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "er" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "vi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ce" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "versa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "er" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "vi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ce" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "vérsa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,9 +18,9 @@ error = { position = 3, allowed-next = [] }
 brackets = "(.er. vi ce vérsa)"
 tree = """
 [
-  Cmevla "er",
-  Cmavo "vi",
-  Cmavo "ce",
-  Gismu "vérsa",
+  Cmevla @[0‥2) "er",
+  Cmavo @[4‥6) "vi",
+  Cmavo @[6‥8) "ce",
+  Gismu @[9‥14) "vérsa",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"vi","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"ce","span":[6,8]}}},{"Bare":{"Gismu":{"phonemes":"versa","span":[9,14]}}}]'
+json = '[{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"vi","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"ce","span":[6,8]}}},{"Bare":{"Gismu":{"phonemes":"vérsa","span":[9,14]}}}]'

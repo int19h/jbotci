@@ -18,32 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .nynex. do ca mo)"
 tree = """
 [
-  Cmavo "doĭ",
-  Cmevla "nynex",
-  Cmavo "do",
-  Cmavo "ca",
-  Cmavo "mo",
+  Cmavo @[0‥3) "doĭ",
+  Cmevla @[4‥9) "nynex",
+  Cmavo @[10‥12) "do",
+  Cmavo @[13‥15) "ca",
+  Cmavo @[16‥18) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"nynex","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥18) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥9) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "doĭ",
       ],
-      argument: Cmevla "nynex",
+      argument: Cmevla @[4‥9) "nynex",
     },
   ],
-  Predicate {
+  Predicate @[10‥18) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[10‥12) "do",
     ],
-    TenseModal {
-      tense_modal: Cmavo "ca",
-      Cmavo "mo",
+    TenseModal @[13‥18) {
+      tense_modal: Cmavo @[13‥15) "ca",
+      Cmavo @[16‥18) "mo",
     },
   },
 }"""

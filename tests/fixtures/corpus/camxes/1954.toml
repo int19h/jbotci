@@ -18,35 +18,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xy boĭ xi by boĭ xi vo)"
 tree = """
 [
-  Cmavo "xy",
-  Cmavo "boĭ",
-  Cmavo "xi",
-  Cmavo "by",
-  Cmavo "boĭ",
-  Cmavo "xi",
-  Cmavo "vo",
+  Cmavo @[0‥2) "xy",
+  Cmavo @[3‥6) "boĭ",
+  Cmavo @[7‥9) "xi",
+  Cmavo @[10‥12) "by",
+  Cmavo @[13‥16) "boĭ",
+  Cmavo @[17‥19) "xi",
+  Cmavo @[20‥22) "vo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[13,16]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[20,22]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥22) {
   terms: [
-    Letter {
+    Letter @[0‥22) {
       letter: [
-        Cmavo "xy",
+        Cmavo @[0‥2) "xy",
       ],
-      boi: Cmavo "boĭ",
+      boi: Cmavo @[3‥6) "boĭ",
       free_modifiers: [
-        Xi {
-          xi: Cmavo "xi",
-          Number {
-            Cmavo "by",
-            boi: Cmavo "boĭ",
+        Xi @[7‥22) {
+          xi: Cmavo @[7‥9) "xi",
+          Number @[10‥22) {
+            Cmavo @[10‥12) "by",
+            boi: Cmavo @[13‥16) "boĭ",
             free_modifiers: [
-              Xi {
-                xi: Cmavo "xi",
-                Cmavo "vo",
+              Xi @[17‥22) {
+                xi: Cmavo @[17‥19) "xi",
+                Cmavo @[20‥22) "vo",
               },
             ],
           },

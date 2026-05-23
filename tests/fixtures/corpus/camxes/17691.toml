@@ -18,29 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ no pi ze mu)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "no",
-  Cmavo "pi",
-  Cmavo "ze",
-  Cmavo "mu",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥6) "no",
+  Cmavo @[6‥8) "pi",
+  Cmavo @[8‥10) "ze",
+  Cmavo @[10‥12) "mu",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥12) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥3) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
     },
   ],
-  Number {
-    Cmavo "no",
-    Cmavo "pi",
-    Cmavo "ze",
-    Cmavo "mu",
+  Number @[4‥12) {
+    Cmavo @[4‥6) "no",
+    Cmavo @[6‥8) "pi",
+    Cmavo @[8‥10) "ze",
+    Cmavo @[10‥12) "mu",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}]}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[4,6]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[6,8]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[8,10]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[10,12]}}}}]}}}}}}]}]}'

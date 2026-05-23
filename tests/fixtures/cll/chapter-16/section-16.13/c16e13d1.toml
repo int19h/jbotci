@@ -24,46 +24,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(su'o bu'a zo'u la .djim. bu'a la .djan.)"
 tree = """
 [
-  Cmavo "su'o",
-  Cmavo "bu'a",
-  Cmavo "zo'u",
-  Cmavo "la",
-  Cmevla "djim",
-  Cmavo "bu'a",
-  Cmavo "la",
-  Cmevla "djan",
+  Cmavo @[0‥4) "su'o",
+  Cmavo @[5‥9) "bu'a",
+  Cmavo @[10‥14) "zo'u",
+  Cmavo @[15‥17) "la",
+  Cmevla @[18‥22) "djim",
+  Cmavo @[24‥28) "bu'a",
+  Cmavo @[29‥31) "la",
+  Cmevla @[32‥36) "djan",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[10,14]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[15,17]}}},{"Bare":{"Cmevla":{"phonemes":"djim","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[29,31]}}},{"Bare":{"Cmevla":{"phonemes":"djan","span":[32,36]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([su'o bu'a] zo'u [{la .djim.} {bu'a (la .djan.)}])"
 tree = """
-Prenex {
+Prenex @[0‥36) {
   prenex_terms: [
-    Descriptor {
+    Descriptor @[0‥9) {
       tail_elements: [
-        Cmavo "su'o",
+        Cmavo @[0‥4) "su'o",
       ],
-      relation: Cmavo "bu'a",
+      relation: Cmavo @[5‥9) "bu'a",
     },
   ],
-  zohu: Cmavo "zo'u",
-  Predicate {
+  zohu: Cmavo @[10‥14) "zo'u",
+  Predicate @[15‥36) {
     leading_terms: [
-      Name {
-        la: Cmavo "la",
+      Name @[15‥22) {
+        la: Cmavo @[15‥17) "la",
         names: [
-          Cmevla "djim",
+          Cmevla @[18‥22) "djim",
         ],
       },
     ],
-    Relation {
-      Cmavo "bu'a",
+    Relation @[24‥36) {
+      Cmavo @[24‥28) "bu'a",
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[29‥36) {
+          la: Cmavo @[29‥31) "la",
           names: [
-            Cmevla "djan",
+            Cmevla @[32‥36) "djan",
           ],
         },
       ],

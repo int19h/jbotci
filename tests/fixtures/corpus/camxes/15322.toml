@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([la'o gy sodipodi gy] mo)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "sodipodi",
-    closing_delimiter: Cmavo "gy",
+  ZoiQuote @[0‥20) {
+    zoi: Cmavo @[0‥4) "la'o",
+    opening_delimiter: Cmavo @[5‥7) "gy",
+    quoted_text: Verbatim @[9‥17) "sodipodi",
+    closing_delimiter: Cmavo @[18‥20) "gy",
   },
-  Cmavo "mo",
+  Cmavo @[22‥24) "mo",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[9,17],"text":"sodipodi"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[22,24]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥24) {
   leading_terms: [
-    ZoiQuote {
-      zoi: Cmavo "la'o",
-      opening_delimiter: Cmavo "gy",
-      quoted_text: Verbatim "sodipodi",
-      closing_delimiter: Cmavo "gy",
+    ZoiQuote @[0‥20) {
+      zoi: Cmavo @[0‥4) "la'o",
+      opening_delimiter: Cmavo @[5‥7) "gy",
+      quoted_text: Verbatim @[9‥17) "sodipodi",
+      closing_delimiter: Cmavo @[18‥20) "gy",
     },
   ],
-  Cmavo "mo",
+  Cmavo @[22‥24) "mo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[9,17],"text":"sodipodi"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[22,24]}}}}}}}}}}}}]}]}"""

@@ -18,24 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zoĭ si si)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "si",
-    quoted_text: Verbatim "",
-    closing_delimiter: Cmavo "si",
+  ZoiQuote @[29‥38) {
+    zoi: Cmavo @[29‥32) "zoĭ",
+    opening_delimiter: Cmavo @[33‥35) "si",
+    quoted_text: Verbatim @[35‥35) "",
+    closing_delimiter: Cmavo @[36‥38) "si",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"si","span":[33,35]}},"quoted_text":{"span":[35,35],"text":""},"closing_delimiter":{"Cmavo":{"phonemes":"si","span":[36,38]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[29‥38) {
   terms: [
-    ZoiQuote {
-      zoi: Cmavo "zoĭ",
-      opening_delimiter: Cmavo "si",
-      quoted_text: Verbatim "",
-      closing_delimiter: Cmavo "si",
+    ZoiQuote @[29‥38) {
+      zoi: Cmavo @[29‥32) "zoĭ",
+      opening_delimiter: Cmavo @[33‥35) "si",
+      quoted_text: Verbatim @[35‥35) "",
+      closing_delimiter: Cmavo @[36‥38) "si",
     },
   ],
 }"""

@@ -8,7 +8,7 @@ entry-id = "7283"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "baĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gubni" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mucti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "minji" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "baĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gúbni" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "múcti" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mínji" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ error = { position = 2, allowed-next = [] }
 brackets = "(ke baĭ gúbni múcti ke'e mínji)"
 tree = """
 [
-  Cmavo "ke",
-  Cmavo "baĭ",
-  Gismu "gúbni",
-  Gismu "múcti",
-  Cmavo "ke'e",
-  Gismu "mínji",
+  Cmavo @[0‥2) "ke",
+  Cmavo @[3‥6) "baĭ",
+  Gismu @[7‥12) "gúbni",
+  Gismu @[13‥18) "múcti",
+  Cmavo @[19‥23) "ke'e",
+  Gismu @[24‥29) "mínji",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"ke","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"baĭ","span":[3,6]}}},{"Bare":{"Gismu":{"phonemes":"gubni","span":[7,12]}}},{"Bare":{"Gismu":{"phonemes":"mucti","span":[13,18]}}},{"Bare":{"Cmavo":{"phonemes":"ke'e","span":[19,23]}}},{"Bare":{"Gismu":{"phonemes":"minji","span":[24,29]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"ke","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"baĭ","span":[3,6]}}},{"Bare":{"Gismu":{"phonemes":"gúbni","span":[7,12]}}},{"Bare":{"Gismu":{"phonemes":"múcti","span":[13,18]}}},{"Bare":{"Cmavo":{"phonemes":"ke'e","span":[19,23]}}},{"Bare":{"Gismu":{"phonemes":"mínji","span":[24,29]}}}]"""

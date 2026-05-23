@@ -8,7 +8,7 @@ entry-id = "16013"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbo" })), Rafsi(Phonemes(PhonemesData { text: "pre" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "roĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 22, char_start: 19, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbó" })), Rafsi(Phonemes(PhonemesData { text: "pre" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "no" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "roĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 22, char_start: 19, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,12 +18,12 @@ error = { position = 7, allowed-next = [] }
 brackets = "(.a'o lo jbópre ba no roĭ me)"
 tree = """
 [
-  Cmavo "a'o",
-  Cmavo "lo",
-  Lujvo "jbópre",
-  Cmavo "ba",
-  Cmavo "no",
-  Cmavo "roĭ",
-  Cmavo "me",
+  Cmavo @[0‥3) "a'o",
+  Cmavo @[4‥6) "lo",
+  Lujvo @[7‥13) "jbópre",
+  Cmavo @[14‥16) "ba",
+  Cmavo @[17‥19) "no",
+  Cmavo @[19‥22) "roĭ",
+  Cmavo @[23‥25) "me",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[4,6]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbo"},{"Rafsi":"pre"}],"span":[7,13]}}},{"Bare":{"Cmavo":{"phonemes":"ba","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[19,22]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[23,25]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[4,6]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"pre"}],"span":[7,13]}}},{"Bare":{"Cmavo":{"phonemes":"ba","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[19,22]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[23,25]}}}]"""

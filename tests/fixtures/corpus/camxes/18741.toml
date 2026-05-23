@@ -18,99 +18,99 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(xy du li fa'i veĭ re [.a bu] fi'u ni'u by su'i ja vu'u fe'a veĭ by te'a re vu'u vo [.a bu] cy ve'o re)"
 tree = """
 [
-  Cmavo "xy",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "fa'i",
-  Cmavo "veĭ",
-  Cmavo "re",
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "xy",
+  Cmavo @[4‥6) "du",
+  Cmavo @[7‥9) "li",
+  Cmavo @[10‥14) "fa'i",
+  Cmavo @[15‥18) "veĭ",
+  Cmavo @[19‥21) "re",
+  Letter @[22‥25) {
+    Cmavo @[22‥23) "a",
+    bu: Cmavo @[23‥25) "bu",
   },
-  Cmavo "fi'u",
-  Cmavo "ni'u",
-  Cmavo "by",
-  Cmavo "su'i",
-  Cmavo "ja",
-  Cmavo "vu'u",
-  Cmavo "fe'a",
-  Cmavo "veĭ",
-  Cmavo "by",
-  Cmavo "te'a",
-  Cmavo "re",
-  Cmavo "vu'u",
-  Cmavo "vo",
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Cmavo @[27‥31) "fi'u",
+  Cmavo @[32‥36) "ni'u",
+  Cmavo @[37‥39) "by",
+  Cmavo @[41‥45) "su'i",
+  Cmavo @[46‥48) "ja",
+  Cmavo @[49‥53) "vu'u",
+  Cmavo @[54‥58) "fe'a",
+  Cmavo @[59‥62) "veĭ",
+  Cmavo @[63‥65) "by",
+  Cmavo @[67‥71) "te'a",
+  Cmavo @[72‥74) "re",
+  Cmavo @[75‥79) "vu'u",
+  Cmavo @[80‥82) "vo",
+  Letter @[83‥86) {
+    Cmavo @[83‥84) "a",
+    bu: Cmavo @[84‥86) "bu",
   },
-  Cmavo "cy",
-  Cmavo "ve'o",
-  Cmavo "re",
+  Cmavo @[88‥90) "cy",
+  Cmavo @[92‥96) "ve'o",
+  Cmavo @[97‥99) "re",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"fa'i","span":[10,14]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[15,18]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[19,21]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[22,23]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[23,25]}}}},{"Bare":{"Cmavo":{"phonemes":"fi'u","span":[27,31]}}},{"Bare":{"Cmavo":{"phonemes":"ni'u","span":[32,36]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[37,39]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[41,45]}}},{"Bare":{"Cmavo":{"phonemes":"ja","span":[46,48]}}},{"Bare":{"Cmavo":{"phonemes":"vu'u","span":[49,53]}}},{"Bare":{"Cmavo":{"phonemes":"fe'a","span":[54,58]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[59,62]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[63,65]}}},{"Bare":{"Cmavo":{"phonemes":"te'a","span":[67,71]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[72,74]}}},{"Bare":{"Cmavo":{"phonemes":"vu'u","span":[75,79]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[80,82]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[83,84]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[84,86]}}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[88,90]}}},{"Bare":{"Cmavo":{"phonemes":"ve'o","span":[92,96]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[97,99]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥99) {
   leading_terms: [
-    Letter {
+    Letter @[0‥2) {
       letter: [
-        Cmavo "xy",
+        Cmavo @[0‥2) "xy",
       ],
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[4‥99) {
+    Cmavo @[4‥6) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Forethought {
-          operator: Cmavo "fa'i",
+      MathExpression @[7‥99) {
+        li: Cmavo @[7‥9) "li",
+        Forethought @[10‥99) {
+          operator: Cmavo @[10‥14) "fa'i",
           operands: [
-            Vei {
-              vei: Cmavo "veĭ",
-              Binary {
-                left_expression: Number {
-                  Cmavo "re",
-                  Letter {
-                    Cmavo "a",
-                    bu: Cmavo "bu",
+            Vei @[15‥99) {
+              vei: Cmavo @[15‥18) "veĭ",
+              Binary @[19‥99) {
+                left_expression: Number @[19‥39) {
+                  Cmavo @[19‥21) "re",
+                  Letter @[22‥25) {
+                    Cmavo @[22‥23) "a",
+                    bu: Cmavo @[23‥25) "bu",
                   },
-                  Cmavo "fi'u",
-                  Cmavo "ni'u",
-                  Cmavo "by",
+                  Cmavo @[27‥31) "fi'u",
+                  Cmavo @[32‥36) "ni'u",
+                  Cmavo @[37‥39) "by",
                 },
-                operator: Connected {
-                  left_operator: Cmavo "su'i",
-                  connective: Cmavo "ja",
-                  right_operator: Cmavo "vu'u",
+                operator: Connected @[41‥53) {
+                  left_operator: Cmavo @[41‥45) "su'i",
+                  connective: Cmavo @[46‥48) "ja",
+                  right_operator: Cmavo @[49‥53) "vu'u",
                 },
-                right_expression: Forethought {
-                  operator: Cmavo "fe'a",
+                right_expression: Forethought @[54‥99) {
+                  operator: Cmavo @[54‥58) "fe'a",
                   operands: [
-                    Vei {
-                      vei: Cmavo "veĭ",
-                      Binary {
-                        left_expression: Binary {
-                          left_expression: Cmavo "by",
-                          operator: Cmavo "te'a",
-                          right_expression: Cmavo "re",
+                    Vei @[59‥96) {
+                      vei: Cmavo @[59‥62) "veĭ",
+                      Binary @[63‥90) {
+                        left_expression: Binary @[63‥74) {
+                          left_expression: Cmavo @[63‥65) "by",
+                          operator: Cmavo @[67‥71) "te'a",
+                          right_expression: Cmavo @[72‥74) "re",
                         },
-                        operator: Cmavo "vu'u",
-                        right_expression: Number {
-                          Cmavo "vo",
-                          Letter {
-                            Cmavo "a",
-                            bu: Cmavo "bu",
+                        operator: Cmavo @[75‥79) "vu'u",
+                        right_expression: Number @[80‥90) {
+                          Cmavo @[80‥82) "vo",
+                          Letter @[83‥86) {
+                            Cmavo @[83‥84) "a",
+                            bu: Cmavo @[84‥86) "bu",
                           },
-                          Cmavo "cy",
+                          Cmavo @[88‥90) "cy",
                         },
                       },
-                      veho: Cmavo "ve'o",
+                      veho: Cmavo @[92‥96) "ve'o",
                     },
-                    Cmavo "re",
+                    Cmavo @[97‥99) "re",
                   ],
                 },
               },

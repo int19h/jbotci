@@ -18,32 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to be no ma de)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "be",
-  Cmavo "no",
-  Cmavo "ma",
-  Cmavo "de",
+  Cmavo @[0‥2) "to",
+  Cmavo @[3‥5) "be",
+  Cmavo @[6‥8) "no",
+  Cmavo @[8‥10) "ma",
+  Cmavo @[10‥12) "de",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"be","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥12) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
-      BeLink {
-        be: Cmavo "be",
-        first_argument: Quantified {
-          quantifier: Cmavo "no",
-          Cmavo "ma",
+    To @[0‥10) {
+      to: Cmavo @[0‥2) "to",
+      BeLink @[3‥10) {
+        be: Cmavo @[3‥5) "be",
+        first_argument: Quantified @[6‥10) {
+          quantifier: Cmavo @[6‥8) "no",
+          Cmavo @[8‥10) "ma",
         },
       },
     },
   ],
-  Term {
+  Term @[10‥12) {
     terms: [
-      Cmavo "de",
+      Cmavo @[10‥12) "de",
     ],
   },
 }"""

@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(vi ca ja pu)"
 tree = """
 [
-  Cmavo "vi",
-  Cmavo "ca",
-  Cmavo "ja",
-  Cmavo "pu",
+  Cmavo @[0‥2) "vi",
+  Cmavo @[2‥4) "ca",
+  Cmavo @[4‥6) "ja",
+  Cmavo @[6‥8) "pu",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"vi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"ja","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[6,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥8) {
   terms: [
-    Tagged {
-      tense_modal: Composite {
-        Cmavo "vi",
-        Cmavo "ca",
-        Cmavo "ja",
-        Cmavo "pu",
+    Tagged @[0‥8) {
+      tense_modal: Composite @[0‥8) {
+        Cmavo @[0‥2) "vi",
+        Cmavo @[2‥4) "ca",
+        Cmavo @[4‥6) "ja",
+        Cmavo @[6‥8) "pu",
       },
       Zohe {},
     },

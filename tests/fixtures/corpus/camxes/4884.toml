@@ -8,7 +8,7 @@ entry-id = "4884"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "ponse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "xamgu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "valsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "pónse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "xámgu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "válsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,9 +18,9 @@ error = { position = 2, allowed-next = [] }
 brackets = "(pónse na xámgu válsi)"
 tree = """
 [
-  Gismu "pónse",
-  Cmavo "na",
-  Gismu "xámgu",
-  Gismu "válsi",
+  Gismu @[0‥5) "pónse",
+  Cmavo @[6‥8) "na",
+  Gismu @[9‥14) "xámgu",
+  Gismu @[15‥20) "válsi",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"ponse","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"Bare":{"Gismu":{"phonemes":"xamgu","span":[9,14]}}},{"Bare":{"Gismu":{"phonemes":"valsi","span":[15,20]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"pónse","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"Bare":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}},{"Bare":{"Gismu":{"phonemes":"válsi","span":[15,20]}}}]'

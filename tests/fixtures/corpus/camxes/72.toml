@@ -8,7 +8,7 @@ entry-id = "72"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gleki" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 41, char_start: 36, char_end: 41, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cinmo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 47, char_start: 42, char_end: 47, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cafne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 56, char_start: 51, char_end: 56, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 57, byte_end: 59, char_start: 57, char_end: 59, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lifri" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 60, byte_end: 65, char_start: 60, char_end: 65, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gléki" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 41, char_start: 36, char_end: 41, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cínmo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 47, char_start: 42, char_end: 47, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "cáfne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 56, char_start: 51, char_end: 56, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "se" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 57, byte_end: 59, char_start: 57, char_end: 59, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lífri" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 60, byte_end: 65, char_start: 60, char_end: 65, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ error = { position = 2, allowed-next = [] }
 brackets = "(gléki cínmo cu cáfne se lífri)"
 tree = """
 [
-  Gismu "gléki",
-  Gismu "cínmo",
-  Cmavo "cu",
-  Gismu "cáfne",
-  Cmavo "se",
-  Gismu "lífri",
+  Gismu @[36‥41) "gléki",
+  Gismu @[42‥47) "cínmo",
+  Cmavo @[48‥50) "cu",
+  Gismu @[51‥56) "cáfne",
+  Cmavo @[57‥59) "se",
+  Gismu @[60‥65) "lífri",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"gleki","span":[36,41]}}},{"Bare":{"Gismu":{"phonemes":"cinmo","span":[42,47]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[48,50]}}},{"Bare":{"Gismu":{"phonemes":"cafne","span":[51,56]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[57,59]}}},{"Bare":{"Gismu":{"phonemes":"lifri","span":[60,65]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"gléki","span":[36,41]}}},{"Bare":{"Gismu":{"phonemes":"cínmo","span":[42,47]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[48,50]}}},{"Bare":{"Gismu":{"phonemes":"cáfne","span":[51,56]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[57,59]}}},{"Bare":{"Gismu":{"phonemes":"lífri","span":[60,65]}}}]'

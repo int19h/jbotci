@@ -8,7 +8,7 @@ entry-id = "8455"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "from" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "klani" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ni" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "from" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláni" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 1, allowed-next = [] }
 brackets = "(ni .from. kláni)"
 tree = """
 [
-  Cmavo "ni",
-  Cmevla "from",
-  Gismu "kláni",
+  Cmavo @[0‥2) "ni",
+  Cmevla @[3‥7) "from",
+  Gismu @[8‥13) "kláni",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ni","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"from","span":[3,7]}}},{"Bare":{"Gismu":{"phonemes":"klani","span":[8,13]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"ni","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"from","span":[3,7]}}},{"Bare":{"Gismu":{"phonemes":"kláni","span":[8,13]}}}]'

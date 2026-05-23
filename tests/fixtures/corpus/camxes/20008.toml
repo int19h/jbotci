@@ -18,44 +18,44 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko co'e le do me la .mumym. me'u co'e)"
 tree = """
 [
-  Cmavo "ko",
-  Cmavo "co'e",
-  Cmavo "le",
-  Cmavo "do",
-  Cmavo "me",
-  Cmavo "la",
-  Cmevla "mumym",
-  Cmavo "me'u",
-  Cmavo "co'e",
+  Cmavo @[0‥2) "ko",
+  Cmavo @[3‥7) "co'e",
+  Cmavo @[8‥10) "le",
+  Cmavo @[11‥13) "do",
+  Cmavo @[14‥16) "me",
+  Cmavo @[17‥19) "la",
+  Cmevla @[20‥25) "mumym",
+  Cmavo @[26‥30) "me'u",
+  Cmavo @[31‥35) "co'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ko","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[17,19]}}},{"Bare":{"Cmevla":{"phonemes":"mumym","span":[20,25]}}},{"Bare":{"Cmavo":{"phonemes":"me'u","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[31,35]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥35) {
   leading_terms: [
-    Cmavo "ko",
+    Cmavo @[0‥2) "ko",
   ],
-  Relation {
-    Cmavo "co'e",
+  Relation @[3‥35) {
+    Cmavo @[3‥7) "co'e",
     terms: [
-      Descriptor {
-        descriptor: Cmavo "le",
+      Descriptor @[8‥35) {
+        descriptor: Cmavo @[8‥10) "le",
         tail_elements: [
-          Cmavo "do",
+          Cmavo @[11‥13) "do",
         ],
-        relation: Compound {
-          Me {
-            me: Cmavo "me",
-            Name {
-              la: Cmavo "la",
+        relation: Compound @[14‥35) {
+          Me @[14‥30) {
+            me: Cmavo @[14‥16) "me",
+            Name @[17‥25) {
+              la: Cmavo @[17‥19) "la",
               names: [
-                Cmevla "mumym",
+                Cmevla @[20‥25) "mumym",
               ],
             },
-            mehu: Cmavo "me'u",
+            mehu: Cmavo @[26‥30) "me'u",
           },
-          Cmavo "co'e",
+          Cmavo @[31‥35) "co'e",
         },
       },
     ],

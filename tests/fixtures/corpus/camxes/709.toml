@@ -8,29 +8,29 @@ entry-id = "709"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(ZeiLujvo { left: WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "kulnrfarsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "lol" })), Rafsi(Phonemes(PhonemesData { text: "gaĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) }) })]'
+raw = '[WordLike(ZeiLujvo { left: WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "kulnrfársi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "lól" })), Rafsi(Phonemes(PhonemesData { text: "gaĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) }) })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(ZeiLujvo { left: WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "kulnrfarsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "lol" })), Rafsi(Phonemes(PhonemesData { text: "gaĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) }) }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(ZeiLujvo { left: WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "kulnrfársi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None }) }))), zei: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zeĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), right: Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "lól" })), Rafsi(Phonemes(PhonemesData { text: "gaĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) }) }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(kulnrfársi zeĭ lólgaĭ)"
 tree = """
 [
-  ZeiLujvo {
-    left: Fuhivla "kulnrfársi",
-    zei: Cmavo "zeĭ",
-    Lujvo "lólgaĭ",
+  ZeiLujvo @[0‥22) {
+    left: Fuhivla @[0‥11) "kulnrfársi",
+    zei: Cmavo @[12‥15) "zeĭ",
+    Lujvo @[16‥22) "lólgaĭ",
   },
 ]"""
-json = '[{"ZeiLujvo":{"left":{"Bare":{"Fuhivla":{"phonemes":"kulnrfarsi","span":[0,11]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Lujvo":{"parts":[{"Rafsi":"lol"},{"Rafsi":"gaĭ"}],"span":[16,22]}}}}]'
+json = '[{"ZeiLujvo":{"left":{"Bare":{"Fuhivla":{"phonemes":"kulnrfársi","span":[0,11]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Lujvo":{"parts":[{"Rafsi":"lól"},{"Rafsi":"gaĭ"}],"span":[16,22]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ZeiLujvo {
-  left: Fuhivla "kulnrfársi",
-  zei: Cmavo "zeĭ",
-  Lujvo "lólgaĭ",
+ZeiLujvo @[0‥22) {
+  left: Fuhivla @[0‥11) "kulnrfársi",
+  zei: Cmavo @[12‥15) "zeĭ",
+  Lujvo @[16‥22) "lólgaĭ",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"Fuhivla":{"phonemes":"kulnrfarsi","span":[0,11]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Lujvo":{"parts":[{"Rafsi":"lol"},{"Rafsi":"gaĭ"}],"span":[16,22]}}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"Fuhivla":{"phonemes":"kulnrfársi","span":[0,11]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Lujvo":{"parts":[{"Rafsi":"lól"},{"Rafsi":"gaĭ"}],"span":[16,22]}}}}}}}}}}}}}]}]}'

@@ -18,11 +18,11 @@ error = { position = 2, allowed-next = [] }
 brackets = "([da zeĭ fa'o] co)"
 tree = """
 [
-  ZeiLujvo {
-    left: Cmavo "da",
-    zei: Cmavo "zeĭ",
-    Cmavo "fa'o",
+  ZeiLujvo @[0‥11) {
+    left: Cmavo @[0‥2) "da",
+    zei: Cmavo @[3‥6) "zeĭ",
+    Cmavo @[7‥11) "fa'o",
   },
-  Cmavo "co",
+  Cmavo @[12‥14) "co",
 ]"""
 json = """[{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"da","span":[0,2]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[3,6]}},"right":{"Cmavo":{"phonemes":"fa'o","span":[7,11]}}}},{"Bare":{"Cmavo":{"phonemes":"co","span":[12,14]}}}]"""

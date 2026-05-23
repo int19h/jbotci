@@ -18,38 +18,38 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i go'i ba'e cu'u la .rodjer. .klark. xu)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "go'i",
-  Cmavo "ba'e",
-  Cmavo "cu'u",
-  Cmavo "la",
-  Cmevla "rodjer",
-  Cmevla "klark",
-  Cmavo "xu",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥6) "go'i",
+  Cmavo @[7‥11) "ba'e",
+  Cmavo @[12‥16) "cu'u",
+  Cmavo @[17‥19) "la",
+  Cmevla @[20‥26) "rodjer",
+  Cmevla @[27‥32) "klark",
+  Cmavo @[33‥35) "xu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[2,6]}}},{"Bare":{"Cmavo":{"phonemes":"ba'e","span":[7,11]}}},{"Bare":{"Cmavo":{"phonemes":"cu'u","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[17,19]}}},{"Bare":{"Cmevla":{"phonemes":"rodjer","span":[20,26]}}},{"Bare":{"Cmevla":{"phonemes":"klark","span":[27,32]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[33,35]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Relation {
-    Cmavo "go'i",
+ParagraphStatement @[0‥35) {
+  i: Cmavo @[0‥1) "i",
+  Relation @[2‥35) {
+    Cmavo @[2‥6) "go'i",
     terms: [
-      Tagged {
-        tense_modal: Simple {
-          bai: Emphasized {
-            bahe: Cmavo "ba'e",
-            Cmavo "cu'u",
+      Tagged @[7‥35) {
+        tense_modal: Simple @[7‥16) {
+          bai: Emphasized @[7‥16) {
+            bahe: Cmavo @[7‥11) "ba'e",
+            Cmavo @[12‥16) "cu'u",
           },
         },
-        Name {
-          la: Cmavo "la",
+        Name @[17‥35) {
+          la: Cmavo @[17‥19) "la",
           names: [
-            Cmevla "rodjer",
-            WithIndicator {
-              Cmevla "klark",
-              indicator: Cmavo "xu",
+            Cmevla @[20‥26) "rodjer",
+            WithIndicator @[27‥35) {
+              Cmevla @[27‥32) "klark",
+              indicator: Cmavo @[33‥35) "xu",
             },
           ],
         },

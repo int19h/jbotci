@@ -18,15 +18,15 @@ raw = 'TextSyntax { leading_nai: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phon
 brackets = "naĭ"
 tree = """
 [
-  Cmavo "naĭ",
+  Cmavo @[0‥3) "naĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[0,3]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥3) {
   leading_nai: [
-    Cmavo "naĭ",
+    Cmavo @[0‥3) "naĭ",
   ],
 }"""
 json = '{"leading_nai":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[0,3]}}}}]}'

@@ -18,29 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.ŭa naĭ ru'e na go'i)"
 tree = """
 [
-  Cmavo "ŭa",
-  Cmavo "naĭ",
-  Cmavo "ru'e",
-  Cmavo "na",
-  Cmavo "go'i",
+  Cmavo @[1‥3) "ŭa",
+  Cmavo @[3‥6) "naĭ",
+  Cmavo @[6‥10) "ru'e",
+  Cmavo @[12‥14) "na",
+  Cmavo @[15‥19) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"ru'e","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[15,19]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥19) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "ŭa",
-      nai: Cmavo "naĭ",
+    Indicator @[1‥6) {
+      indicator: Cmavo @[1‥3) "ŭa",
+      nai: Cmavo @[3‥6) "naĭ",
     },
-    Indicator {
-      indicator: Cmavo "ru'e",
+    Indicator @[6‥10) {
+      indicator: Cmavo @[6‥10) "ru'e",
     },
   ],
-  Na {
-    na: Cmavo "na",
-    Cmavo "go'i",
+  Na @[12‥19) {
+    na: Cmavo @[12‥14) "na",
+    Cmavo @[15‥19) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[12,14]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[15,19]}}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[3,6]}}},{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ru'e","span":[6,10]}}}}}]}"""

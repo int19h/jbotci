@@ -18,15 +18,15 @@ error = { position = 4, allowed-next = [] }
 brackets = "(ky sy me [la'o gy java gy] la'o)"
 tree = """
 [
-  Cmavo "ky",
-  Cmavo "sy",
-  Cmavo "me",
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "java",
-    closing_delimiter: Cmavo "gy",
+  Cmavo @[0‥2) "ky",
+  Cmavo @[2‥4) "sy",
+  Cmavo @[5‥7) "me",
+  ZoiQuote @[8‥25) {
+    zoi: Cmavo @[8‥12) "la'o",
+    opening_delimiter: Cmavo @[13‥15) "gy",
+    quoted_text: Verbatim @[17‥21) "java",
+    closing_delimiter: Cmavo @[23‥25) "gy",
   },
-  Cmavo "la'o",
+  Cmavo @[27‥31) "la'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ky","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"sy","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[5,7]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[8,12]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}},"quoted_text":{"span":[17,21],"text":"java"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[23,25]}}}},{"Bare":{"Cmavo":{"phonemes":"la'o","span":[27,31]}}}]"""

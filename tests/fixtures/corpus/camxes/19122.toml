@@ -18,21 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.er. nu go'i)"
 tree = """
 [
-  Cmevla "er",
-  Cmavo "nu",
-  Cmavo "go'i",
+  Cmevla @[0‥2) "er",
+  Cmavo @[4‥6) "nu",
+  Cmavo @[7‥11) "go'i",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"nu","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[7,11]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥11) {
   leading_cmevla: [
-    Cmevla "er",
+    Cmevla @[0‥2) "er",
   ],
-  Abstraction {
-    nu: Cmavo "nu",
-    Cmavo "go'i",
+  Abstraction @[4‥11) {
+    nu: Cmavo @[4‥6) "nu",
+    Cmavo @[7‥11) "go'i",
   },
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"nu","span":[4,6]}}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[7,11]}}}}}}}}}}}}}}}}}}}}]}]}"""

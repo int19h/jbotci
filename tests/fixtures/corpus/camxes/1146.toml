@@ -18,40 +18,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li tu'o va'a ny du li no vu'u ny)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "tu'o",
-  Cmavo "va'a",
-  Cmavo "ny",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "no",
-  Cmavo "vu'u",
-  Cmavo "ny",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "tu'o",
+  Cmavo @[8‥12) "va'a",
+  Cmavo @[13‥15) "ny",
+  Cmavo @[17‥19) "du",
+  Cmavo @[20‥22) "li",
+  Cmavo @[23‥25) "no",
+  Cmavo @[26‥30) "vu'u",
+  Cmavo @[31‥33) "ny",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"tu'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"va'a","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"vu'u","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[31,33]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥33) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Cmavo "tu'o",
-        operator: Cmavo "va'a",
-        right_expression: Cmavo "ny",
+    MathExpression @[0‥15) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥15) {
+        left_expression: Cmavo @[3‥7) "tu'o",
+        operator: Cmavo @[8‥12) "va'a",
+        right_expression: Cmavo @[13‥15) "ny",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[17‥33) {
+    Cmavo @[17‥19) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Binary {
-          left_expression: Cmavo "no",
-          operator: Cmavo "vu'u",
-          right_expression: Cmavo "ny",
+      MathExpression @[20‥33) {
+        li: Cmavo @[20‥22) "li",
+        Binary @[23‥33) {
+          left_expression: Cmavo @[23‥25) "no",
+          operator: Cmavo @[26‥30) "vu'u",
+          right_expression: Cmavo @[31‥33) "ny",
         },
       },
     ],

@@ -19,15 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(cu go'i)"
 tree = """
 [
-  Cmavo "cu",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "cu",
+  Cmavo @[3‥7) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"cu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
-  cu: Cmavo "cu",
-  Cmavo "go'i",
+Predicate @[0‥7) {
+  cu: Cmavo @[0‥2) "cu",
+  Cmavo @[3‥7) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[0,2]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}}}}}}}}}]}]}"""

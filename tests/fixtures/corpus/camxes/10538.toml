@@ -18,43 +18,43 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭo .ŭo .ŭo naĭ .ŭe naĭ .ŭa naĭ .ŭi naĭ)"
 tree = """
 [
-  Cmavo "ŭo",
-  Cmavo "ŭo",
-  Cmavo "ŭo",
-  Cmavo "naĭ",
-  Cmavo "ŭe",
-  Cmavo "naĭ",
-  Cmavo "ŭa",
-  Cmavo "naĭ",
-  Cmavo "ŭi",
-  Cmavo "naĭ",
+  Cmavo @[1‥3) "ŭo",
+  Cmavo @[5‥7) "ŭo",
+  Cmavo @[9‥11) "ŭo",
+  Cmavo @[11‥14) "naĭ",
+  Cmavo @[16‥18) "ŭe",
+  Cmavo @[18‥21) "naĭ",
+  Cmavo @[23‥25) "ŭa",
+  Cmavo @[25‥28) "naĭ",
+  Cmavo @[30‥32) "ŭi",
+  Cmavo @[32‥35) "naĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ŭo","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"ŭo","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"ŭo","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}},{"Bare":{"Cmavo":{"phonemes":"ŭe","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[18,21]}}},{"Bare":{"Cmavo":{"phonemes":"ŭa","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[30,32]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[32,35]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥35) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        WithIndicator {
-          WithIndicator {
-            WithIndicator {
-              WithIndicator {
-                Cmavo "ŭo",
-                indicator: Cmavo "ŭo",
+    Indicator @[1‥35) {
+      indicator: WithIndicator @[1‥35) {
+        WithIndicator @[1‥28) {
+          WithIndicator @[1‥21) {
+            WithIndicator @[1‥14) {
+              WithIndicator @[1‥7) {
+                Cmavo @[1‥3) "ŭo",
+                indicator: Cmavo @[5‥7) "ŭo",
               },
-              indicator: Cmavo "ŭo",
-              nai: Cmavo "naĭ",
+              indicator: Cmavo @[9‥11) "ŭo",
+              nai: Cmavo @[11‥14) "naĭ",
             },
-            indicator: Cmavo "ŭe",
-            nai: Cmavo "naĭ",
+            indicator: Cmavo @[16‥18) "ŭe",
+            nai: Cmavo @[18‥21) "naĭ",
           },
-          indicator: Cmavo "ŭa",
-          nai: Cmavo "naĭ",
+          indicator: Cmavo @[23‥25) "ŭa",
+          nai: Cmavo @[25‥28) "naĭ",
         },
-        indicator: Cmavo "ŭi",
-        nai: Cmavo "naĭ",
+        indicator: Cmavo @[30‥32) "ŭi",
+        nai: Cmavo @[32‥35) "naĭ",
       },
     },
   ],

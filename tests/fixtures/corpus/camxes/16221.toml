@@ -8,7 +8,7 @@ entry-id = "16221"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "keĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "noĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "frica" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "keĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "noĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "fríca" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,9 +18,9 @@ error = { position = 0, allowed-next = [] }
 brackets = "(keĭ noĭ fríca zo'o)"
 tree = """
 [
-  Cmavo "keĭ",
-  Cmavo "noĭ",
-  Gismu "fríca",
-  Cmavo "zo'o",
+  Cmavo @[0‥3) "keĭ",
+  Cmavo @[4‥7) "noĭ",
+  Gismu @[8‥13) "fríca",
+  Cmavo @[14‥18) "zo'o",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"keĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"noĭ","span":[4,7]}}},{"Bare":{"Gismu":{"phonemes":"frica","span":[8,13]}}},{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[14,18]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"keĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"noĭ","span":[4,7]}}},{"Bare":{"Gismu":{"phonemes":"fríca","span":[8,13]}}},{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[14,18]}}}]"""

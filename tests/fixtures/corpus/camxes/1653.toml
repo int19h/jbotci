@@ -18,64 +18,64 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(my [.i bu] ty sy [.u bu] by [.i bu] sy [y'y bu] [.i bu])"
 tree = """
 [
-  Cmavo "my",
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "my",
+  Letter @[5‥8) {
+    Cmavo @[5‥6) "i",
+    bu: Cmavo @[6‥8) "bu",
   },
-  Cmavo "ty",
-  Cmavo "sy",
-  Letter {
-    Cmavo "u",
-    bu: Cmavo "bu",
+  Cmavo @[9‥11) "ty",
+  Cmavo @[13‥15) "sy",
+  Letter @[18‥21) {
+    Cmavo @[18‥19) "u",
+    bu: Cmavo @[19‥21) "bu",
   },
-  Cmavo "by",
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Cmavo @[22‥24) "by",
+  Letter @[27‥30) {
+    Cmavo @[27‥28) "i",
+    bu: Cmavo @[28‥30) "bu",
   },
-  Cmavo "sy",
-  Letter {
-    Cmavo "y'y",
-    bu: Cmavo "bu",
+  Cmavo @[31‥33) "sy",
+  Letter @[36‥42) {
+    Cmavo @[36‥39) "y'y",
+    bu: Cmavo @[40‥42) "bu",
   },
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Letter @[44‥47) {
+    Cmavo @[44‥45) "i",
+    bu: Cmavo @[45‥47) "bu",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"my","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}},{"Bare":{"Cmavo":{"phonemes":"ty","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"sy","span":[13,15]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"u","span":[18,19]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[19,21]}}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[22,24]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[27,28]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[28,30]}}}},{"Bare":{"Cmavo":{"phonemes":"sy","span":[31,33]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y'y","span":[36,39]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[40,42]}}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[44,45]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[45,47]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥47) {
   terms: [
-    Letter {
+    Letter @[0‥47) {
       letter: [
-        Cmavo "my",
-        Letter {
-          Cmavo "i",
-          bu: Cmavo "bu",
+        Cmavo @[0‥2) "my",
+        Letter @[5‥8) {
+          Cmavo @[5‥6) "i",
+          bu: Cmavo @[6‥8) "bu",
         },
-        Cmavo "ty",
-        Cmavo "sy",
-        Letter {
-          Cmavo "u",
-          bu: Cmavo "bu",
+        Cmavo @[9‥11) "ty",
+        Cmavo @[13‥15) "sy",
+        Letter @[18‥21) {
+          Cmavo @[18‥19) "u",
+          bu: Cmavo @[19‥21) "bu",
         },
-        Cmavo "by",
-        Letter {
-          Cmavo "i",
-          bu: Cmavo "bu",
+        Cmavo @[22‥24) "by",
+        Letter @[27‥30) {
+          Cmavo @[27‥28) "i",
+          bu: Cmavo @[28‥30) "bu",
         },
-        Cmavo "sy",
-        Letter {
-          Cmavo "y'y",
-          bu: Cmavo "bu",
+        Cmavo @[31‥33) "sy",
+        Letter @[36‥42) {
+          Cmavo @[36‥39) "y'y",
+          bu: Cmavo @[40‥42) "bu",
         },
-        Letter {
-          Cmavo "i",
-          bu: Cmavo "bu",
+        Letter @[44‥47) {
+          Cmavo @[44‥45) "i",
+          bu: Cmavo @[45‥47) "bu",
         },
       ],
     },

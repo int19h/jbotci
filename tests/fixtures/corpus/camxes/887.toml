@@ -18,20 +18,20 @@ error = { position = 4, allowed-next = [] }
 brackets = "([la'o dy Goethe dy] cu me [la'o ly Homo sapiens ly] la'o)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "dy",
-    quoted_text: Verbatim "Goethe",
-    closing_delimiter: Cmavo "dy",
+  ZoiQuote @[0‥19) {
+    zoi: Cmavo @[0‥4) "la'o",
+    opening_delimiter: Cmavo @[5‥7) "dy",
+    quoted_text: Verbatim @[9‥15) "Goethe",
+    closing_delimiter: Cmavo @[17‥19) "dy",
   },
-  Cmavo "cu",
-  Cmavo "me",
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "ly",
-    quoted_text: Verbatim "Homo sapiens",
-    closing_delimiter: Cmavo "ly",
+  Cmavo @[21‥23) "cu",
+  Cmavo @[24‥26) "me",
+  ZoiQuote @[27‥52) {
+    zoi: Cmavo @[27‥31) "la'o",
+    opening_delimiter: Cmavo @[32‥34) "ly",
+    quoted_text: Verbatim @[36‥48) "Homo sapiens",
+    closing_delimiter: Cmavo @[50‥52) "ly",
   },
-  Cmavo "la'o",
+  Cmavo @[55‥59) "la'o",
 ]"""
 json = """[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"dy","span":[5,7]}},"quoted_text":{"span":[9,15],"text":"Goethe"},"closing_delimiter":{"Cmavo":{"phonemes":"dy","span":[17,19]}}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[24,26]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[27,31]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[32,34]}},"quoted_text":{"span":[36,48],"text":"Homo sapiens"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[50,52]}}}},{"Bare":{"Cmavo":{"phonemes":"la'o","span":[55,59]}}}]"""

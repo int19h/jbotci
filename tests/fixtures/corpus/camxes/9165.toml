@@ -19,15 +19,15 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = ".agaĭn."
 tree = """
 [
-  Cmevla "agaĭn",
+  Cmevla @[3‥8) "agaĭn",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"agaĭn","span":[3,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[3‥8) {
   leading_cmevla: [
-    Cmevla "agaĭn",
+    Cmevla @[3‥8) "agaĭn",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"agaĭn","span":[3,8]}}}}]}'

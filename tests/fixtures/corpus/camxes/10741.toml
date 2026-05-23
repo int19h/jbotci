@@ -8,7 +8,7 @@ entry-id = "10741"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bebna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }) }), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 11, char_start: 10, char_end: 11, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mabla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }) }), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "banzu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "y'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None }) })))]"""
+raw = """[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bébna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }) }), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 11, char_start: 10, char_end: 11, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mábla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }) }), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bánzu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "y'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,16 +18,16 @@ error = { position = 4, allowed-next = [] }
 brackets = "([zo bébna] .a [zo mábla] bánzu y'u)"
 tree = """
 [
-  ZoQuote {
-    zo: Cmavo "zo",
-    Gismu "bébna",
+  ZoQuote @[0‥8) {
+    zo: Cmavo @[0‥2) "zo",
+    Gismu @[3‥8) "bébna",
   },
-  Cmavo "a",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Gismu "mábla",
+  Cmavo @[10‥11) "a",
+  ZoQuote @[12‥20) {
+    zo: Cmavo @[12‥14) "zo",
+    Gismu @[15‥20) "mábla",
   },
-  Gismu "bánzu",
-  Cmavo "y'u",
+  Gismu @[21‥26) "bánzu",
+  Cmavo @[28‥31) "y'u",
 ]"""
-json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"bebna","span":[3,8]}}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[10,11]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[12,14]}},"word":{"Gismu":{"phonemes":"mabla","span":[15,20]}}}},{"Bare":{"Gismu":{"phonemes":"banzu","span":[21,26]}}},{"Bare":{"Cmavo":{"phonemes":"y'u","span":[28,31]}}}]"""
+json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"bébna","span":[3,8]}}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[10,11]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[12,14]}},"word":{"Gismu":{"phonemes":"mábla","span":[15,20]}}}},{"Bare":{"Gismu":{"phonemes":"bánzu","span":[21,26]}}},{"Bare":{"Cmavo":{"phonemes":"y'u","span":[28,31]}}}]"""

@@ -18,18 +18,18 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i deĭ)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "deĭ",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥6) "deĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"deĭ","span":[3,6]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Term {
+ParagraphStatement @[1‥6) {
+  i: Cmavo @[1‥2) "i",
+  Term @[3‥6) {
     terms: [
-      Cmavo "deĭ",
+      Cmavo @[3‥6) "deĭ",
     ],
   },
 }"""

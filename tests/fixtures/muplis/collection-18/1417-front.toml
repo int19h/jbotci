@@ -21,30 +21,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i la .emilin. cu mo)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "la",
-  Cmevla "emilin",
-  Cmavo "cu",
-  Cmavo "mo",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "la",
+  Cmevla @[7‥13) "emilin",
+  Cmavo @[15‥17) "cu",
+  Cmavo @[18‥20) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}},{"Bare":{"Cmevla":{"phonemes":"emilin","span":[7,13]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}}]'
 
 [expectations.output.gentufa]
 brackets = "(.i [{la .emilin.} cu mo])"
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Predicate {
+ParagraphStatement @[1‥20) {
+  i: Cmavo @[1‥2) "i",
+  Predicate @[3‥20) {
     leading_terms: [
-      Name {
-        la: Cmavo "la",
+      Name @[3‥13) {
+        la: Cmavo @[3‥5) "la",
         names: [
-          Cmevla "emilin",
+          Cmevla @[7‥13) "emilin",
         ],
       },
     ],
-    cu: Cmavo "cu",
-    Cmavo "mo",
+    cu: Cmavo @[15‥17) "cu",
+    Cmavo @[18‥20) "mo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"emilin","span":[7,13]}}}}]}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}}}}}}}}}}}]}]}'

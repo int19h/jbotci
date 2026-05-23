@@ -21,20 +21,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'eĭ se'a)"
 tree = """
 [
-  Cmavo "e'eĭ",
-  Cmavo "se'a",
+  Cmavo @[0‥4) "e'eĭ",
+  Cmavo @[5‥9) "se'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"e'eĭ","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"se'a","span":[5,9]}}}]"""
 
 [expectations.output.gentufa]
 brackets = ".e'eĭ-se'a"
 tree = """
-Text {
+Text @[0‥9) {
   leading_indicators: [
-    Indicator {
-      indicator: WithIndicator {
-        Cmavo "e'eĭ",
-        indicator: Cmavo "se'a",
+    Indicator @[0‥9) {
+      indicator: WithIndicator @[0‥9) {
+        Cmavo @[0‥4) "e'eĭ",
+        indicator: Cmavo @[5‥9) "se'a",
       },
     },
   ],

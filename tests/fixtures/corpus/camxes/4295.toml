@@ -8,7 +8,7 @@ entry-id = "4295"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "risna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "surla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 14, char_start: 13, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "risna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "surla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rísna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "súrla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 14, char_start: 13, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rísna" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "na" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "súrla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ error = { position = 5, allowed-next = [] }
 brackets = "(rísna súrla .e rísna na súrla)"
 tree = """
 [
-  Gismu "rísna",
-  Gismu "súrla",
-  Cmavo "e",
-  Gismu "rísna",
-  Cmavo "na",
-  Gismu "súrla",
+  Gismu @[0‥5) "rísna",
+  Gismu @[6‥11) "súrla",
+  Cmavo @[13‥14) "e",
+  Gismu @[15‥20) "rísna",
+  Cmavo @[21‥23) "na",
+  Gismu @[24‥29) "súrla",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"risna","span":[0,5]}}},{"Bare":{"Gismu":{"phonemes":"surla","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[13,14]}}},{"Bare":{"Gismu":{"phonemes":"risna","span":[15,20]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[21,23]}}},{"Bare":{"Gismu":{"phonemes":"surla","span":[24,29]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"rísna","span":[0,5]}}},{"Bare":{"Gismu":{"phonemes":"súrla","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[13,14]}}},{"Bare":{"Gismu":{"phonemes":"rísna","span":[15,20]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[21,23]}}},{"Bare":{"Gismu":{"phonemes":"súrla","span":[24,29]}}}]'

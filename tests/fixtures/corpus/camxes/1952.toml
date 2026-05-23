@@ -19,35 +19,35 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(xy xi veĭ by ce'o dy ve'o)"
 tree = """
 [
-  Cmavo "xy",
-  Cmavo "xi",
-  Cmavo "veĭ",
-  Cmavo "by",
-  Cmavo "ce'o",
-  Cmavo "dy",
-  Cmavo "ve'o",
+  Cmavo @[0‥2) "xy",
+  Cmavo @[4‥6) "xi",
+  Cmavo @[7‥10) "veĭ",
+  Cmavo @[11‥13) "by",
+  Cmavo @[15‥19) "ce'o",
+  Cmavo @[20‥22) "dy",
+  Cmavo @[25‥29) "ve'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"ce'o","span":[15,19]}}},{"Bare":{"Cmavo":{"phonemes":"dy","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"ve'o","span":[25,29]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥29) {
   terms: [
-    Letter {
+    Letter @[0‥29) {
       letter: [
-        Cmavo "xy",
+        Cmavo @[0‥2) "xy",
       ],
       free_modifiers: [
-        Xi {
-          xi: Cmavo "xi",
-          Vei {
-            vei: Cmavo "veĭ",
-            Connected {
-              left_expression: Cmavo "by",
-              connective: Cmavo "ce'o",
-              right_expression: Cmavo "dy",
+        Xi @[4‥29) {
+          xi: Cmavo @[4‥6) "xi",
+          Vei @[7‥29) {
+            vei: Cmavo @[7‥10) "veĭ",
+            Connected @[11‥22) {
+              left_expression: Cmavo @[11‥13) "by",
+              connective: Cmavo @[15‥19) "ce'o",
+              right_expression: Cmavo @[20‥22) "dy",
             },
-            veho: Cmavo "ve'o",
+            veho: Cmavo @[25‥29) "ve'o",
           },
         },
       ],

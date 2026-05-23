@@ -18,28 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([zo da] bu)"
 tree = """
 [
-  Letter {
-    ZoQuote {
-      zo: Cmavo "zo",
-      Cmavo "da",
+  Letter @[0‥8) {
+    ZoQuote @[0‥5) {
+      zo: Cmavo @[0‥2) "zo",
+      Cmavo @[3‥5) "da",
     },
-    bu: Cmavo "bu",
+    bu: Cmavo @[6‥8) "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"da","span":[3,5]}}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥8) {
   terms: [
-    Letter {
+    Letter @[0‥8) {
       letter: [
-        Letter {
-          ZoQuote {
-            zo: Cmavo "zo",
-            Cmavo "da",
+        Letter @[0‥8) {
+          ZoQuote @[0‥5) {
+            zo: Cmavo @[0‥2) "zo",
+            Cmavo @[3‥5) "da",
           },
-          bu: Cmavo "bu",
+          bu: Cmavo @[6‥8) "bu",
         },
       ],
     },

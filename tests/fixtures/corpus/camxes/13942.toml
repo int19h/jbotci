@@ -18,32 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .trans. .i do mo)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmevla "trans",
-  Cmavo "i",
-  Cmavo "do",
-  Cmavo "mo",
+  Cmavo @[0‥3) "coĭ",
+  Cmevla @[4‥9) "trans",
+  Cmavo @[11‥12) "i",
+  Cmavo @[13‥15) "do",
+  Cmavo @[16‥18) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"trans","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[11,12]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥18) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥9) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: Cmevla "trans",
+      argument: Cmevla @[4‥9) "trans",
     },
   ],
-  ParagraphStatement {
-    i: Cmavo "i",
-    Predicate {
+  ParagraphStatement @[11‥18) {
+    i: Cmavo @[11‥12) "i",
+    Predicate @[13‥18) {
       leading_terms: [
-        Cmavo "do",
+        Cmavo @[13‥15) "do",
       ],
-      Cmavo "mo",
+      Cmavo @[16‥18) "mo",
     },
   },
 }"""

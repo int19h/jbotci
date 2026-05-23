@@ -18,27 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(xa xi xa xi xa)"
 tree = """
 [
-  Cmavo "xa",
-  Cmavo "xi",
-  Cmavo "xa",
-  Cmavo "xi",
-  Cmavo "xa",
+  Cmavo @[0‥2) "xa",
+  Cmavo @[3‥5) "xi",
+  Cmavo @[6‥8) "xa",
+  Cmavo @[9‥11) "xi",
+  Cmavo @[12‥14) "xa",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"xa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[12,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "xa",
+Number @[0‥14) {
+  Cmavo @[0‥2) "xa",
   free_modifiers: [
-    Xi {
-      xi: Cmavo "xi",
-      Number {
-        Cmavo "xa",
+    Xi @[3‥14) {
+      xi: Cmavo @[3‥5) "xi",
+      Number @[6‥14) {
+        Cmavo @[6‥8) "xa",
         free_modifiers: [
-          Xi {
-            xi: Cmavo "xi",
-            Cmavo "xa",
+          Xi @[9‥14) {
+            xi: Cmavo @[9‥11) "xi",
+            Cmavo @[12‥14) "xa",
           },
         ],
       },

@@ -18,20 +18,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.and. ce'u)"
 tree = """
 [
-  Cmevla "and",
-  Cmavo "ce'u",
+  Cmevla @[0‥3) "and",
+  Cmavo @[4‥8) "ce'u",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"and","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"ce'u","span":[4,8]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥8) {
   leading_cmevla: [
-    Cmevla "and",
+    Cmevla @[0‥3) "and",
   ],
-  Term {
+  Term @[4‥8) {
     terms: [
-      Cmavo "ce'u",
+      Cmavo @[4‥8) "ce'u",
     ],
   },
 }"""

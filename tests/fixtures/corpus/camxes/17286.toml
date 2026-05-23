@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(do ca naĭ ca'a mo)"
 tree = """
 [
-  Cmavo "do",
-  Cmavo "ca",
-  Cmavo "naĭ",
-  Cmavo "ca'a",
-  Cmavo "mo",
+  Cmavo @[0‥2) "do",
+  Cmavo @[3‥5) "ca",
+  Cmavo @[5‥8) "naĭ",
+  Cmavo @[9‥13) "ca'a",
+  Cmavo @[14‥16) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"do","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"Bare":{"Cmavo":{"phonemes":"ca'a","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[14,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥16) {
   leading_terms: [
-    Cmavo "do",
+    Cmavo @[0‥2) "do",
   ],
-  TenseModal {
-    tense_modal: Composite {
-      Cmavo "ca",
-      Cmavo "naĭ",
-      Cmavo "ca'a",
+  TenseModal @[3‥16) {
+    tense_modal: Composite @[3‥13) {
+      Cmavo @[3‥5) "ca",
+      Cmavo @[5‥8) "naĭ",
+      Cmavo @[9‥13) "ca'a",
     },
-    Cmavo "mo",
+    Cmavo @[14‥16) "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ca'a","span":[9,13]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[14,16]}}}}}}}}}}}}}}]}]}"""

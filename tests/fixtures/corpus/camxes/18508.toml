@@ -18,21 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i .ĭe saĭ)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "ĭe",
-  Cmavo "saĭ",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥4) "ĭe",
+  Cmavo @[4‥7) "saĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"ĭe","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[4,7]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "ĭe",
+ParagraphStatement @[0‥7) {
+  i: WithIndicator @[0‥7) {
+    WithIndicator @[0‥4) {
+      Cmavo @[0‥1) "i",
+      indicator: Cmavo @[2‥4) "ĭe",
     },
-    indicator: Cmavo "saĭ",
+    indicator: Cmavo @[4‥7) "saĭ",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ĭe","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[4,7]}}}}}]}]}'

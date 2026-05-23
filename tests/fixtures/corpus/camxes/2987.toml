@@ -15,13 +15,13 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ré" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 106, byte_end: 108, char_start: 106, char_end: 108, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
-brackets = "re"
+brackets = "ré"
 tree = """
 [
-  Cmavo "re",
+  Cmavo @[106‥108) "ré",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ré","span":[106,108]}}}]'
 
 [expectations.output.gentufa]
-tree = 'Cmavo "re"'
+tree = 'Cmavo @[106‥108) "ré"'
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ré","span":[106,108]}}}}]}}}}}}]}]}'

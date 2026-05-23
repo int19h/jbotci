@@ -18,31 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭa [zoĭ gy Pirate gy])"
 tree = """
 [
-  Cmavo "ŭa",
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "Pirate",
-    closing_delimiter: Cmavo "gy",
+  Cmavo @[1‥3) "ŭa",
+  ZoiQuote @[4‥23) {
+    zoi: Cmavo @[4‥7) "zoĭ",
+    opening_delimiter: Cmavo @[9‥11) "gy",
+    quoted_text: Verbatim @[13‥19) "Pirate",
+    closing_delimiter: Cmavo @[21‥23) "gy",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[4,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[9,11]}},"quoted_text":{"span":[13,19],"text":"Pirate"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[21,23]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥23) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "ŭa",
+    Indicator @[1‥3) {
+      indicator: Cmavo @[1‥3) "ŭa",
     },
   ],
-  Term {
+  Term @[4‥23) {
     terms: [
-      ZoiQuote {
-        zoi: Cmavo "zoĭ",
-        opening_delimiter: Cmavo "gy",
-        quoted_text: Verbatim "Pirate",
-        closing_delimiter: Cmavo "gy",
+      ZoiQuote @[4‥23) {
+        zoi: Cmavo @[4‥7) "zoĭ",
+        opening_delimiter: Cmavo @[9‥11) "gy",
+        quoted_text: Verbatim @[13‥19) "Pirate",
+        closing_delimiter: Cmavo @[21‥23) "gy",
       },
     ],
   },

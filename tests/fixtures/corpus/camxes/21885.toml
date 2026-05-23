@@ -18,19 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(se zu'e)"
 tree = """
 [
-  Cmavo "se",
-  Cmavo "zu'e",
+  Cmavo @[0‥2) "se",
+  Cmavo @[2‥6) "zu'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"se","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"zu'e","span":[2,6]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥6) {
   terms: [
-    Tagged {
-      tense_modal: Simple {
-        se: Cmavo "se",
-        bai: Cmavo "zu'e",
+    Tagged @[0‥6) {
+      tense_modal: Simple @[0‥6) {
+        se: Cmavo @[0‥2) "se",
+        bai: Cmavo @[2‥6) "zu'e",
       },
       Zohe {},
     },

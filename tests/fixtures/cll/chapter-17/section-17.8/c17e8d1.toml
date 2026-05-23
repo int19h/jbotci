@@ -24,48 +24,48 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([y'y bu] [.a bu] ny vo zy [.i bu] vo)"
 tree = """
 [
-  Letter {
-    Cmavo "y'y",
-    bu: Cmavo "bu",
+  Letter @[1‥7) {
+    Cmavo @[1‥4) "y'y",
+    bu: Cmavo @[5‥7) "bu",
   },
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Letter @[9‥12) {
+    Cmavo @[9‥10) "a",
+    bu: Cmavo @[10‥12) "bu",
   },
-  Cmavo "ny",
-  Cmavo "vo",
-  Cmavo "zy",
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Cmavo @[13‥15) "ny",
+  Cmavo @[17‥19) "vo",
+  Cmavo @[20‥22) "zy",
+  Letter @[25‥28) {
+    Cmavo @[25‥26) "i",
+    bu: Cmavo @[26‥28) "bu",
   },
-  Cmavo "vo",
+  Cmavo @[29‥31) "vo",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"y'y","span":[1,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"zy","span":[20,22]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[25,26]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[26,28]}}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[29,31]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([y'y bu] [.a bu] ny vo zy [.i bu] vo)"
 tree = """
-Term {
+Term @[1‥31) {
   terms: [
-    Letter {
+    Letter @[1‥31) {
       letter: [
-        Letter {
-          Cmavo "y'y",
-          bu: Cmavo "bu",
+        Letter @[1‥7) {
+          Cmavo @[1‥4) "y'y",
+          bu: Cmavo @[5‥7) "bu",
         },
-        Letter {
-          Cmavo "a",
-          bu: Cmavo "bu",
+        Letter @[9‥12) {
+          Cmavo @[9‥10) "a",
+          bu: Cmavo @[10‥12) "bu",
         },
-        Cmavo "ny",
-        Cmavo "vo",
-        Cmavo "zy",
-        Letter {
-          Cmavo "i",
-          bu: Cmavo "bu",
+        Cmavo @[13‥15) "ny",
+        Cmavo @[17‥19) "vo",
+        Cmavo @[20‥22) "zy",
+        Letter @[25‥28) {
+          Cmavo @[25‥26) "i",
+          bu: Cmavo @[26‥28) "bu",
         },
-        Cmavo "vo",
+        Cmavo @[29‥31) "vo",
       ],
     },
   ],

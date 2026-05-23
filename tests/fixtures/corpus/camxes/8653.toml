@@ -8,7 +8,7 @@ entry-id = "8653"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xla" })), Rafsi(Phonemes(PhonemesData { text: "peĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "is" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "by" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "xlá" })), Rafsi(Phonemes(PhonemesData { text: "peĭ" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "is" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "fi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "by" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ error = { position = 1, allowed-next = [] }
 brackets = "(xlápeĭ .is. fi ne by me)"
 tree = """
 [
-  Lujvo "xlápeĭ",
-  Cmevla "is",
-  Cmavo "fi",
-  Cmavo "ne",
-  Cmavo "by",
-  Cmavo "me",
+  Lujvo @[0‥6) "xlápeĭ",
+  Cmevla @[7‥9) "is",
+  Cmavo @[10‥12) "fi",
+  Cmavo @[12‥14) "ne",
+  Cmavo @[15‥17) "by",
+  Cmavo @[18‥20) "me",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xla"},{"Rafsi":"peĭ"}],"span":[0,6]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"fi","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ne","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[18,20]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xlá"},{"Rafsi":"peĭ"}],"span":[0,6]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"fi","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ne","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[18,20]}}}]'

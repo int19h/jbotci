@@ -18,56 +18,56 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(me le me lo me le mo .i va'i coĭ ro do)"
 tree = """
 [
-  Cmavo "me",
-  Cmavo "le",
-  Cmavo "me",
-  Cmavo "lo",
-  Cmavo "me",
-  Cmavo "le",
-  Cmavo "mo",
-  Cmavo "i",
-  Cmavo "va'i",
-  Cmavo "coĭ",
-  Cmavo "ro",
-  Cmavo "do",
+  Cmavo @[0‥2) "me",
+  Cmavo @[3‥5) "le",
+  Cmavo @[6‥8) "me",
+  Cmavo @[9‥11) "lo",
+  Cmavo @[12‥14) "me",
+  Cmavo @[15‥17) "le",
+  Cmavo @[18‥20) "mo",
+  Cmavo @[22‥23) "i",
+  Cmavo @[24‥28) "va'i",
+  Cmavo @[29‥32) "coĭ",
+  Cmavo @[33‥35) "ro",
+  Cmavo @[35‥37) "do",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[22,23]}}},{"Bare":{"Cmavo":{"phonemes":"va'i","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[29,32]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[33,35]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[35,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Paragraph {
-  Me {
-    me: Cmavo "me",
-    Descriptor {
-      descriptor: Cmavo "le",
-      relation: Me {
-        me: Cmavo "me",
-        Descriptor {
-          descriptor: Cmavo "lo",
-          relation: Me {
-            me: Cmavo "me",
-            Descriptor {
-              descriptor: Cmavo "le",
-              relation: Cmavo "mo",
+Paragraph @[0‥37) {
+  Me @[0‥20) {
+    me: Cmavo @[0‥2) "me",
+    Descriptor @[3‥20) {
+      descriptor: Cmavo @[3‥5) "le",
+      relation: Me @[6‥20) {
+        me: Cmavo @[6‥8) "me",
+        Descriptor @[9‥20) {
+          descriptor: Cmavo @[9‥11) "lo",
+          relation: Me @[12‥20) {
+            me: Cmavo @[12‥14) "me",
+            Descriptor @[15‥20) {
+              descriptor: Cmavo @[15‥17) "le",
+              relation: Cmavo @[18‥20) "mo",
             },
           },
         },
       },
     },
   },
-  ParagraphStatement {
-    i: WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "va'i",
+  ParagraphStatement @[22‥37) {
+    i: WithIndicator @[22‥28) {
+      Cmavo @[22‥23) "i",
+      indicator: Cmavo @[24‥28) "va'i",
     },
     free_modifiers: [
-      Vocative {
+      Vocative @[29‥37) {
         vocative_markers: [
-          Cmavo "coĭ",
+          Cmavo @[29‥32) "coĭ",
         ],
-        argument: Quantified {
-          quantifier: Cmavo "ro",
-          Cmavo "do",
+        argument: Quantified @[33‥37) {
+          quantifier: Cmavo @[33‥35) "ro",
+          Cmavo @[35‥37) "do",
         },
       },
     ],

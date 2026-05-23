@@ -18,37 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i .u'i mi na du la .xod.)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "u'i",
-  Cmavo "mi",
-  Cmavo "na",
-  Cmavo "du",
-  Cmavo "la",
-  Cmevla "xod",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥5) "u'i",
+  Cmavo @[6‥8) "mi",
+  Cmavo @[9‥11) "na",
+  Cmavo @[12‥14) "du",
+  Cmavo @[15‥17) "la",
+  Cmevla @[18‥21) "xod",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"u'i","span":[2,5]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[15,17]}}},{"Bare":{"Cmevla":{"phonemes":"xod","span":[18,21]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    Cmavo "i",
-    indicator: Cmavo "u'i",
+ParagraphStatement @[0‥21) {
+  i: WithIndicator @[0‥5) {
+    Cmavo @[0‥1) "i",
+    indicator: Cmavo @[2‥5) "u'i",
   },
-  Predicate {
+  Predicate @[6‥21) {
     leading_terms: [
-      Cmavo "mi",
+      Cmavo @[6‥8) "mi",
     ],
-    Relation {
-      Na {
-        na: Cmavo "na",
-        Cmavo "du",
+    Relation @[9‥21) {
+      Na @[9‥14) {
+        na: Cmavo @[9‥11) "na",
+        Cmavo @[12‥14) "du",
       },
       terms: [
-        Name {
-          la: Cmavo "la",
+        Name @[15‥21) {
+          la: Cmavo @[15‥17) "la",
           names: [
-            Cmevla "xod",
+            Cmevla @[18‥21) "xod",
           ],
         },
       ],

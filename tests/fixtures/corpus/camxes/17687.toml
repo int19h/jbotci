@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(co'o ze mu ce'i)"
 tree = """
 [
-  Cmavo "co'o",
-  Cmavo "ze",
-  Cmavo "mu",
-  Cmavo "ce'i",
+  Cmavo @[0‥4) "co'o",
+  Cmavo @[5‥7) "ze",
+  Cmavo @[7‥9) "mu",
+  Cmavo @[9‥13) "ce'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"ce'i","span":[9,13]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥13) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥4) {
       vocative_markers: [
-        Cmavo "co'o",
+        Cmavo @[0‥4) "co'o",
       ],
     },
   ],
-  Number {
-    Cmavo "ze",
-    Cmavo "mu",
-    Cmavo "ce'i",
+  Number @[5‥13) {
+    Cmavo @[5‥7) "ze",
+    Cmavo @[7‥9) "mu",
+    Cmavo @[9‥13) "ce'i",
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}]}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[5,7]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[7,9]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ce'i","span":[9,13]}}}}]}}}}}}]}]}"""

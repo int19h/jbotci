@@ -24,40 +24,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([.i bu] ga'e vy [.a bu] ny to'a)"
 tree = """
 [
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Letter @[1‥4) {
+    Cmavo @[1‥2) "i",
+    bu: Cmavo @[2‥4) "bu",
   },
-  Cmavo "ga'e",
-  Cmavo "vy",
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Cmavo @[5‥9) "ga'e",
+  Cmavo @[10‥12) "vy",
+  Letter @[15‥18) {
+    Cmavo @[15‥16) "a",
+    bu: Cmavo @[16‥18) "bu",
   },
-  Cmavo "ny",
-  Cmavo "to'a",
+  Cmavo @[19‥21) "ny",
+  Cmavo @[23‥27) "to'a",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}},{"Bare":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"vy","span":[10,12]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([.i bu] ga'e vy [.a bu] ny to'a)"
 tree = """
-Term {
+Term @[1‥27) {
   terms: [
-    Letter {
+    Letter @[1‥27) {
       letter: [
-        Letter {
-          Cmavo "i",
-          bu: Cmavo "bu",
+        Letter @[1‥4) {
+          Cmavo @[1‥2) "i",
+          bu: Cmavo @[2‥4) "bu",
         },
-        Cmavo "ga'e",
-        Cmavo "vy",
-        Letter {
-          Cmavo "a",
-          bu: Cmavo "bu",
+        Cmavo @[5‥9) "ga'e",
+        Cmavo @[10‥12) "vy",
+        Letter @[15‥18) {
+          Cmavo @[15‥16) "a",
+          bu: Cmavo @[16‥18) "bu",
         },
-        Cmavo "ny",
-        Cmavo "to'a",
+        Cmavo @[19‥21) "ny",
+        Cmavo @[23‥27) "to'a",
       ],
     },
   ],

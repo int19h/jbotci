@@ -19,51 +19,51 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(li su'i pa boĭ re boĭ ci boĭ du li xa)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "su'i",
-  Cmavo "pa",
-  Cmavo "boĭ",
-  Cmavo "re",
-  Cmavo "boĭ",
-  Cmavo "ci",
-  Cmavo "boĭ",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "xa",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "su'i",
+  Cmavo @[8‥10) "pa",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "re",
+  Cmavo @[16‥19) "boĭ",
+  Cmavo @[20‥22) "ci",
+  Cmavo @[23‥26) "boĭ",
+  Cmavo @[28‥30) "du",
+  Cmavo @[31‥33) "li",
+  Cmavo @[34‥36) "xa",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[16,19]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[23,26]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[28,30]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[31,33]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[34,36]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥36) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Forethought {
-        operator: Cmavo "su'i",
+    MathExpression @[0‥26) {
+      li: Cmavo @[0‥2) "li",
+      Forethought @[3‥26) {
+        operator: Cmavo @[3‥7) "su'i",
         operands: [
-          Number {
-            Cmavo "pa",
-            boi: Cmavo "boĭ",
+          Number @[8‥13) {
+            Cmavo @[8‥10) "pa",
+            boi: Cmavo @[10‥13) "boĭ",
           },
-          Number {
-            Cmavo "re",
-            boi: Cmavo "boĭ",
+          Number @[14‥19) {
+            Cmavo @[14‥16) "re",
+            boi: Cmavo @[16‥19) "boĭ",
           },
-          Number {
-            Cmavo "ci",
-            boi: Cmavo "boĭ",
+          Number @[20‥26) {
+            Cmavo @[20‥22) "ci",
+            boi: Cmavo @[23‥26) "boĭ",
           },
         ],
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[28‥36) {
+    Cmavo @[28‥30) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "xa",
+      MathExpression @[31‥36) {
+        li: Cmavo @[31‥33) "li",
+        Cmavo @[34‥36) "xa",
       },
     ],
   },

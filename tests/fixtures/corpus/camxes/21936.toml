@@ -15,35 +15,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "doĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "kónsept" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None }) }))))], free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "pa" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }) }), dohu: None }] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
-brackets = "(doĭ .konsept. coĭ pa do)"
+brackets = "(doĭ .kónsept. coĭ pa do)"
 tree = """
 [
-  Cmavo "doĭ",
-  Cmevla "konsept",
-  Cmavo "coĭ",
-  Cmavo "pa",
-  Cmavo "do",
+  Cmavo @[0‥3) "doĭ",
+  Cmevla @[4‥11) "kónsept",
+  Cmavo @[12‥15) "coĭ",
+  Cmavo @[16‥18) "pa",
+  Cmavo @[18‥20) "do",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"kónsept","span":[4,11]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[12,15]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[18,20]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥20) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥20) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "doĭ",
       ],
-      argument: Cmevla {
-        Cmevla "konsept",
+      argument: Cmevla @[4‥20) {
+        Cmevla @[4‥11) "kónsept",
         free_modifiers: [
-          Vocative {
+          Vocative @[12‥20) {
             vocative_markers: [
-              Cmavo "coĭ",
+              Cmavo @[12‥15) "coĭ",
             ],
-            argument: Quantified {
-              quantifier: Cmavo "pa",
-              Cmavo "do",
+            argument: Quantified @[16‥20) {
+              quantifier: Cmavo @[16‥18) "pa",
+              Cmavo @[18‥20) "do",
             },
           },
         ],

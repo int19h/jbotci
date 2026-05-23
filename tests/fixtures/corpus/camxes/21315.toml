@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([zo mu] co'e)"
 tree = """
 [
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "mu",
+  ZoQuote @[0‥5) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[3‥5) "mu",
   },
-  Cmavo "co'e",
+  Cmavo @[6‥10) "co'e",
 ]"""
 json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mu","span":[3,5]}}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥10) {
   leading_terms: [
-    ZoQuote {
-      zo: Cmavo "zo",
-      Cmavo "mu",
+    ZoQuote @[0‥5) {
+      zo: Cmavo @[0‥2) "zo",
+      Cmavo @[3‥5) "mu",
     },
   ],
-  Cmavo "co'e",
+  Cmavo @[6‥10) "co'e",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mu","span":[3,5]}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'e","span":[6,10]}}}}}}}}}}}}]}]}"""

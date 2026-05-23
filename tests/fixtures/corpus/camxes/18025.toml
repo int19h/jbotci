@@ -18,19 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi mi mi)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "mi",
-  Cmavo "mi",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[2‥4) "mi",
+  Cmavo @[4‥6) "mi",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥6) {
   terms: [
-    Cmavo "mi",
-    Cmavo "mi",
-    Cmavo "mi",
+    Cmavo @[0‥2) "mi",
+    Cmavo @[2‥4) "mi",
+    Cmavo @[4‥6) "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}}}}]}}}}]}]}'

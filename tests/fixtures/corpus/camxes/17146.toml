@@ -18,31 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ki'e .i peĭ do)"
 tree = """
 [
-  Cmavo "ki'e",
-  Cmavo "i",
-  Cmavo "peĭ",
-  Cmavo "do",
+  Cmavo @[0‥4) "ki'e",
+  Cmavo @[6‥7) "i",
+  Cmavo @[8‥11) "peĭ",
+  Cmavo @[12‥14) "do",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[12,14]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥14) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥4) {
       vocative_markers: [
-        Cmavo "ki'e",
+        Cmavo @[0‥4) "ki'e",
       ],
     },
   ],
-  ParagraphStatement {
-    i: WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "peĭ",
+  ParagraphStatement @[6‥14) {
+    i: WithIndicator @[6‥11) {
+      Cmavo @[6‥7) "i",
+      indicator: Cmavo @[8‥11) "peĭ",
     },
-    Term {
+    Term @[12‥14) {
       terms: [
-        Cmavo "do",
+        Cmavo @[12‥14) "do",
       ],
     },
   },

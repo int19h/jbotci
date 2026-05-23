@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ko'i xi pa so)"
 tree = """
 [
-  Cmavo "ko'i",
-  Cmavo "xi",
-  Cmavo "pa",
-  Cmavo "so",
+  Cmavo @[0‥4) "ko'i",
+  Cmavo @[4‥6) "xi",
+  Cmavo @[6‥8) "pa",
+  Cmavo @[8‥10) "so",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ko'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"so","span":[8,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥10) {
   terms: [
-    Koha {
-      Cmavo "ko'i",
+    Koha @[0‥10) {
+      Cmavo @[0‥4) "ko'i",
       free_modifiers: [
-        Xi {
-          xi: Cmavo "xi",
-          Number {
-            Cmavo "pa",
-            Cmavo "so",
+        Xi @[4‥10) {
+          xi: Cmavo @[4‥6) "xi",
+          Number @[6‥10) {
+            Cmavo @[6‥8) "pa",
+            Cmavo @[8‥10) "so",
           },
         },
       ],

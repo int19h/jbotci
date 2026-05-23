@@ -18,51 +18,51 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li py su'i pe'o va'a ny ku'e su'i zy du li xy)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "py",
-  Cmavo "su'i",
-  Cmavo "pe'o",
-  Cmavo "va'a",
-  Cmavo "ny",
-  Cmavo "ku'e",
-  Cmavo "su'i",
-  Cmavo "zy",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "xy",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "py",
+  Cmavo @[7‥11) "su'i",
+  Cmavo @[12‥16) "pe'o",
+  Cmavo @[17‥21) "va'a",
+  Cmavo @[22‥24) "ny",
+  Cmavo @[26‥30) "ku'e",
+  Cmavo @[31‥35) "su'i",
+  Cmavo @[36‥38) "zy",
+  Cmavo @[39‥41) "du",
+  Cmavo @[42‥44) "li",
+  Cmavo @[45‥47) "xy",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"py","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[7,11]}}},{"Bare":{"Cmavo":{"phonemes":"pe'o","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"va'a","span":[17,21]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"ku'e","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[31,35]}}},{"Bare":{"Cmavo":{"phonemes":"zy","span":[36,38]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[39,41]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[42,44]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[45,47]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥47) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Binary {
-          left_expression: Cmavo "py",
-          operator: Cmavo "su'i",
-          right_expression: Forethought {
-            peho: Cmavo "pe'o",
-            operator: Cmavo "va'a",
+    MathExpression @[0‥38) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥38) {
+        left_expression: Binary @[3‥30) {
+          left_expression: Cmavo @[3‥5) "py",
+          operator: Cmavo @[7‥11) "su'i",
+          right_expression: Forethought @[12‥30) {
+            peho: Cmavo @[12‥16) "pe'o",
+            operator: Cmavo @[17‥21) "va'a",
             operands: [
-              Cmavo "ny",
+              Cmavo @[22‥24) "ny",
             ],
-            kuhe: Cmavo "ku'e",
+            kuhe: Cmavo @[26‥30) "ku'e",
           },
         },
-        operator: Cmavo "su'i",
-        right_expression: Cmavo "zy",
+        operator: Cmavo @[31‥35) "su'i",
+        right_expression: Cmavo @[36‥38) "zy",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[39‥47) {
+    Cmavo @[39‥41) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "xy",
+      MathExpression @[42‥47) {
+        li: Cmavo @[42‥44) "li",
+        Cmavo @[45‥47) "xy",
       },
     ],
   },

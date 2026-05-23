@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ca naĭ go'i)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "ca",
-  Cmavo "naĭ",
-  Cmavo "go'i",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥4) "ca",
+  Cmavo @[4‥7) "naĭ",
+  Cmavo @[8‥12) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  TenseModal {
-    tense_modal: Composite {
-      Cmavo "ca",
-      Cmavo "naĭ",
+ParagraphStatement @[0‥12) {
+  i: Cmavo @[0‥1) "i",
+  TenseModal @[2‥12) {
+    tense_modal: Composite @[2‥7) {
+      Cmavo @[2‥4) "ca",
+      Cmavo @[4‥7) "naĭ",
     },
-    Cmavo "go'i",
+    Cmavo @[8‥12) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ca","span":[2,4]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}}}}}}]}]}"""

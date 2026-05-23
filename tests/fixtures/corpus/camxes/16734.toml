@@ -18,19 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zu mo ki'a)"
 tree = """
 [
-  Cmavo "zu",
-  Cmavo "mo",
-  Cmavo "ki'a",
+  Cmavo @[0‥2) "zu",
+  Cmavo @[3‥5) "mo",
+  Cmavo @[6‥10) "ki'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"zu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"ki'a","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-TenseModal {
-  tense_modal: Cmavo "zu",
-  WithIndicator {
-    Cmavo "mo",
-    indicator: Cmavo "ki'a",
+TenseModal @[0‥10) {
+  tense_modal: Cmavo @[0‥2) "zu",
+  WithIndicator @[3‥10) {
+    Cmavo @[3‥5) "mo",
+    indicator: Cmavo @[6‥10) "ki'a",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zu","span":[0,2]}}}}}]}},"inner_relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[6,10]}}}}}}}}}}}}}}]}]}"""

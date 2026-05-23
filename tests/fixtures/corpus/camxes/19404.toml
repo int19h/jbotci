@@ -18,41 +18,41 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(cy goĭ la .cikagos. .e naĭ do)"
 tree = """
 [
-  Cmavo "cy",
-  Cmavo "goĭ",
-  Cmavo "la",
-  Cmevla "cikagos",
-  Cmavo "e",
-  Cmavo "naĭ",
-  Cmavo "do",
+  Cmavo @[0‥2) "cy",
+  Cmavo @[4‥7) "goĭ",
+  Cmavo @[8‥10) "la",
+  Cmevla @[11‥18) "cikagos",
+  Cmavo @[21‥22) "e",
+  Cmavo @[22‥25) "naĭ",
+  Cmavo @[26‥28) "do",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"cy","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[8,10]}}},{"Bare":{"Cmevla":{"phonemes":"cikagos","span":[11,18]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[21,22]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[22,25]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[26,28]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥28) {
   terms: [
-    RelativeClause {
-      base_argument: Letter {
+    RelativeClause @[0‥28) {
+      base_argument: Letter @[0‥2) {
         letter: [
-          Cmavo "cy",
+          Cmavo @[0‥2) "cy",
         ],
       },
       relative_clauses: [
-        GoiRelativeClause {
-          goi: Cmavo "goĭ",
-          Connected {
-            leading_argument: Name {
-              la: Cmavo "la",
+        GoiRelativeClause @[4‥28) {
+          goi: Cmavo @[4‥7) "goĭ",
+          Connected @[8‥28) {
+            leading_argument: Name @[8‥18) {
+              la: Cmavo @[8‥10) "la",
               names: [
-                Cmevla "cikagos",
+                Cmevla @[11‥18) "cikagos",
               ],
             },
-            connective: Afterthought {
-              Cmavo "e",
-              nai: Cmavo "naĭ",
+            connective: Afterthought @[21‥25) {
+              Cmavo @[21‥22) "e",
+              nai: Cmavo @[22‥25) "naĭ",
             },
-            trailing_argument: Cmavo "do",
+            trailing_argument: Cmavo @[26‥28) "do",
           },
         },
       ],

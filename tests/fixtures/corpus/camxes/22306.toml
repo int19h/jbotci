@@ -8,7 +8,7 @@ entry-id = "22306"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gerku" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "blanu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "gérku" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "blánu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,10 +18,10 @@ error = { position = 0, allowed-next = [] }
 brackets = "(co lo gérku cu blánu)"
 tree = """
 [
-  Cmavo "co",
-  Cmavo "lo",
-  Gismu "gérku",
-  Cmavo "cu",
-  Gismu "blánu",
+  Cmavo @[0‥2) "co",
+  Cmavo @[3‥5) "lo",
+  Gismu @[6‥11) "gérku",
+  Cmavo @[12‥14) "cu",
+  Gismu @[15‥20) "blánu",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"co","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"gerku","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[12,14]}}},{"Bare":{"Gismu":{"phonemes":"blanu","span":[15,20]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"co","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"lo","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"gérku","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[12,14]}}},{"Bare":{"Gismu":{"phonemes":"blánu","span":[15,20]}}}]'

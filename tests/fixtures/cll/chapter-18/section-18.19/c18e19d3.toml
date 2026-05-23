@@ -24,43 +24,43 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ni'u mu cu nu'a va'a li ma'u mu)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "ni'u",
-  Cmavo "mu",
-  Cmavo "cu",
-  Cmavo "nu'a",
-  Cmavo "va'a",
-  Cmavo "li",
-  Cmavo "ma'u",
-  Cmavo "mu",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "ni'u",
+  Cmavo @[7‥9) "mu",
+  Cmavo @[10‥12) "cu",
+  Cmavo @[13‥17) "nu'a",
+  Cmavo @[18‥22) "va'a",
+  Cmavo @[23‥25) "li",
+  Cmavo @[26‥30) "ma'u",
+  Cmavo @[30‥32) "mu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ni'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"nu'a","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"va'a","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"ma'u","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[30,32]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([li {ni'u mu}] cu [{nu'a va'a} {li (ma'u mu)}])"
 tree = """
-Predicate {
+Predicate @[0‥32) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Number {
-        Cmavo "ni'u",
-        Cmavo "mu",
+    MathExpression @[0‥9) {
+      li: Cmavo @[0‥2) "li",
+      Number @[3‥9) {
+        Cmavo @[3‥7) "ni'u",
+        Cmavo @[7‥9) "mu",
       },
     },
   ],
-  cu: Cmavo "cu",
-  Relation {
-    Nuha {
-      nuha: Cmavo "nu'a",
-      Cmavo "va'a",
+  cu: Cmavo @[10‥12) "cu",
+  Relation @[13‥32) {
+    Nuha @[13‥22) {
+      nuha: Cmavo @[13‥17) "nu'a",
+      Cmavo @[18‥22) "va'a",
     },
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "ma'u",
-          Cmavo "mu",
+      MathExpression @[23‥32) {
+        li: Cmavo @[23‥25) "li",
+        Number @[26‥32) {
+          Cmavo @[26‥30) "ma'u",
+          Cmavo @[30‥32) "mu",
         },
       },
     ],

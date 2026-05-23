@@ -24,58 +24,58 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(teĭ [.e bu] [.akut. bu] foĭ ty teĭ [.akut. bu] [.e bu] foĭ)"
 tree = """
 [
-  Cmavo "teĭ",
-  Letter {
-    Cmavo "e",
-    bu: Cmavo "bu",
+  Cmavo @[0‥3) "teĭ",
+  Letter @[5‥8) {
+    Cmavo @[5‥6) "e",
+    bu: Cmavo @[6‥8) "bu",
   },
-  Letter {
-    Cmevla "akut",
-    bu: Cmavo "bu",
+  Letter @[10‥17) {
+    Cmevla @[10‥14) "akut",
+    bu: Cmavo @[15‥17) "bu",
   },
-  Cmavo "foĭ",
-  Cmavo "ty",
-  Cmavo "teĭ",
-  Letter {
-    Cmevla "akut",
-    bu: Cmavo "bu",
+  Cmavo @[18‥21) "foĭ",
+  Cmavo @[22‥24) "ty",
+  Cmavo @[26‥29) "teĭ",
+  Letter @[31‥38) {
+    Cmevla @[31‥35) "akut",
+    bu: Cmavo @[36‥38) "bu",
   },
-  Letter {
-    Cmavo "e",
-    bu: Cmavo "bu",
+  Letter @[40‥43) {
+    Cmavo @[40‥41) "e",
+    bu: Cmavo @[41‥43) "bu",
   },
-  Cmavo "foĭ",
+  Cmavo @[44‥47) "foĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"teĭ","span":[0,3]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"e","span":[5,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"akut","span":[10,14]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}},{"Bare":{"Cmavo":{"phonemes":"foĭ","span":[18,21]}}},{"Bare":{"Cmavo":{"phonemes":"ty","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"teĭ","span":[26,29]}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"akut","span":[31,35]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[36,38]}}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"e","span":[40,41]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[41,43]}}}},{"Bare":{"Cmavo":{"phonemes":"foĭ","span":[44,47]}}}]'
 
 [expectations.output.gentufa]
 brackets = "(teĭ [.e bu] [.akut. bu] foĭ ty teĭ [.akut. bu] [.e bu] foĭ)"
 tree = """
-Term {
+Term @[0‥47) {
   terms: [
-    Letter {
+    Letter @[0‥47) {
       letter: [
-        Cmavo "teĭ",
-        Letter {
-          Cmavo "e",
-          bu: Cmavo "bu",
+        Cmavo @[0‥3) "teĭ",
+        Letter @[5‥8) {
+          Cmavo @[5‥6) "e",
+          bu: Cmavo @[6‥8) "bu",
         },
-        Letter {
-          Cmevla "akut",
-          bu: Cmavo "bu",
+        Letter @[10‥17) {
+          Cmevla @[10‥14) "akut",
+          bu: Cmavo @[15‥17) "bu",
         },
-        Cmavo "foĭ",
-        Cmavo "ty",
-        Cmavo "teĭ",
-        Letter {
-          Cmevla "akut",
-          bu: Cmavo "bu",
+        Cmavo @[18‥21) "foĭ",
+        Cmavo @[22‥24) "ty",
+        Cmavo @[26‥29) "teĭ",
+        Letter @[31‥38) {
+          Cmevla @[31‥35) "akut",
+          bu: Cmavo @[36‥38) "bu",
         },
-        Letter {
-          Cmavo "e",
-          bu: Cmavo "bu",
+        Letter @[40‥43) {
+          Cmavo @[40‥41) "e",
+          bu: Cmavo @[41‥43) "bu",
         },
-        Cmavo "foĭ",
+        Cmavo @[44‥47) "foĭ",
       ],
     },
   ],

@@ -18,32 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ro da zo'u da me da)"
 tree = """
 [
-  Cmavo "ro",
-  Cmavo "da",
-  Cmavo "zo'u",
-  Cmavo "da",
-  Cmavo "me",
-  Cmavo "da",
+  Cmavo @[0‥2) "ro",
+  Cmavo @[3‥5) "da",
+  Cmavo @[6‥10) "zo'u",
+  Cmavo @[11‥13) "da",
+  Cmavo @[14‥16) "me",
+  Cmavo @[17‥19) "da",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ro","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[17,19]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Prenex {
+Prenex @[0‥19) {
   prenex_terms: [
-    Quantified {
-      quantifier: Cmavo "ro",
-      Cmavo "da",
+    Quantified @[0‥5) {
+      quantifier: Cmavo @[0‥2) "ro",
+      Cmavo @[3‥5) "da",
     },
   ],
-  zohu: Cmavo "zo'u",
-  Predicate {
+  zohu: Cmavo @[6‥10) "zo'u",
+  Predicate @[11‥19) {
     leading_terms: [
-      Cmavo "da",
+      Cmavo @[11‥13) "da",
     ],
-    Me {
-      me: Cmavo "me",
-      Cmavo "da",
+    Me @[14‥19) {
+      me: Cmavo @[14‥16) "me",
+      Cmavo @[17‥19) "da",
     },
   },
 }"""

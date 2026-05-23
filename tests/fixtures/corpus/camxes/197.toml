@@ -18,24 +18,24 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(zoĭ gy %rm lojban.rats 41@#$oueo (&)HUgyTLE gy)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "%rm lojban.rats 41@#$oueo (&)HUgyTLE",
-    closing_delimiter: Cmavo "gy",
+  ZoiQuote @[0‥46) {
+    zoi: Cmavo @[0‥3) "zoĭ",
+    opening_delimiter: Cmavo @[4‥6) "gy",
+    quoted_text: Verbatim @[6‥43) "%rm lojban.rats 41@#$oueo (&)HUgyTLE",
+    closing_delimiter: Cmavo @[44‥46) "gy",
   },
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[6,43],"text":" %rm lojban.rats 41@#$oueo (&)HUgyTLE"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[44,46]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥46) {
   terms: [
-    ZoiQuote {
-      zoi: Cmavo "zoĭ",
-      opening_delimiter: Cmavo "gy",
-      quoted_text: Verbatim "%rm lojban.rats 41@#$oueo (&)HUgyTLE",
-      closing_delimiter: Cmavo "gy",
+    ZoiQuote @[0‥46) {
+      zoi: Cmavo @[0‥3) "zoĭ",
+      opening_delimiter: Cmavo @[4‥6) "gy",
+      quoted_text: Verbatim @[6‥43) "%rm lojban.rats 41@#$oueo (&)HUgyTLE",
+      closing_delimiter: Cmavo @[44‥46) "gy",
     },
   ],
 }"""

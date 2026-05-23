@@ -18,40 +18,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(paŭ fi'a ma mo peĭ ko xu)"
 tree = """
 [
-  Cmavo "paŭ",
-  Cmavo "fi'a",
-  Cmavo "ma",
-  Cmavo "mo",
-  Cmavo "peĭ",
-  Cmavo "ko",
-  Cmavo "xu",
+  Cmavo @[0‥3) "paŭ",
+  Cmavo @[4‥8) "fi'a",
+  Cmavo @[9‥11) "ma",
+  Cmavo @[12‥14) "mo",
+  Cmavo @[15‥18) "peĭ",
+  Cmavo @[19‥21) "ko",
+  Cmavo @[22‥24) "xu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"paŭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"fi'a","span":[4,8]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[15,18]}}},{"Bare":{"Cmavo":{"phonemes":"ko","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[22,24]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥24) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "paŭ",
+    Indicator @[0‥3) {
+      indicator: Cmavo @[0‥3) "paŭ",
     },
   ],
-  Predicate {
+  Predicate @[4‥24) {
     leading_terms: [
-      Fa {
-        fa: Cmavo "fi'a",
-        Cmavo "ma",
+      Fa @[4‥11) {
+        fa: Cmavo @[4‥8) "fi'a",
+        Cmavo @[9‥11) "ma",
       },
     ],
-    Relation {
-      WithIndicator {
-        Cmavo "mo",
-        indicator: Cmavo "peĭ",
+    Relation @[12‥24) {
+      WithIndicator @[12‥18) {
+        Cmavo @[12‥14) "mo",
+        indicator: Cmavo @[15‥18) "peĭ",
       },
       terms: [
-        WithIndicator {
-          Cmavo "ko",
-          indicator: Cmavo "xu",
+        WithIndicator @[19‥24) {
+          Cmavo @[19‥21) "ko",
+          indicator: Cmavo @[22‥24) "xu",
         },
       ],
     },

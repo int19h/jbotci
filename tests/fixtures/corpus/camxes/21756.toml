@@ -18,40 +18,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to ku'i baŭ la .gliban. toĭ)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "ku'i",
-  Cmavo "baŭ",
-  Cmavo "la",
-  Cmevla "gliban",
-  Cmavo "toĭ",
+  Cmavo @[0‥2) "to",
+  Cmavo @[3‥7) "ku'i",
+  Cmavo @[8‥11) "baŭ",
+  Cmavo @[12‥14) "la",
+  Cmevla @[15‥21) "gliban",
+  Cmavo @[22‥25) "toĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ku'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"baŭ","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"Bare":{"Cmevla":{"phonemes":"gliban","span":[15,21]}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[22,25]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥25) {
   leading_free_modifiers: [
-    To {
-      to: WithIndicator {
-        Cmavo "to",
-        indicator: Cmavo "ku'i",
+    To @[0‥25) {
+      to: WithIndicator @[0‥7) {
+        Cmavo @[0‥2) "to",
+        indicator: Cmavo @[3‥7) "ku'i",
       },
-      Term {
+      Term @[8‥21) {
         terms: [
-          Tagged {
-            tense_modal: Simple {
-              bai: Cmavo "baŭ",
+          Tagged @[8‥21) {
+            tense_modal: Simple @[8‥11) {
+              bai: Cmavo @[8‥11) "baŭ",
             },
-            Name {
-              la: Cmavo "la",
+            Name @[12‥21) {
+              la: Cmavo @[12‥14) "la",
               names: [
-                Cmevla "gliban",
+                Cmevla @[15‥21) "gliban",
               ],
             },
           },
         ],
       },
-      toi: Cmavo "toĭ",
+      toi: Cmavo @[22‥25) "toĭ",
     },
   ],
 }"""

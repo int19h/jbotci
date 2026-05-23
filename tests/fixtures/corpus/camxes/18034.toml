@@ -18,19 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .muxymus.)"
 tree = """
 [
-  Cmavo "la",
-  Cmevla "muxymus",
+  Cmavo @[0‥2) "la",
+  Cmevla @[3‥10) "muxymus",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"muxymus","span":[3,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥10) {
   terms: [
-    Name {
-      la: Cmavo "la",
+    Name @[0‥10) {
+      la: Cmavo @[0‥2) "la",
       names: [
-        Cmevla "muxymus",
+        Cmevla @[3‥10) "muxymus",
       ],
     },
   ],

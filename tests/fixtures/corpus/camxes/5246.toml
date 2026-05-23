@@ -8,7 +8,7 @@ entry-id = "5246"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "pritu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "xance" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "makes" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sense" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "prítu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "xánce" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "makes" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sénse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ error = { position = 2, allowed-next = [] }
 brackets = "(prítu xánce .makes. mo re sénse)"
 tree = """
 [
-  Gismu "prítu",
-  Gismu "xánce",
-  Cmevla "makes",
-  Cmavo "mo",
-  Cmavo "re",
-  Gismu "sénse",
+  Gismu @[0‥5) "prítu",
+  Gismu @[6‥11) "xánce",
+  Cmevla @[12‥17) "makes",
+  Cmavo @[18‥20) "mo",
+  Cmavo @[20‥22) "re",
+  Gismu @[23‥28) "sénse",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"pritu","span":[0,5]}}},{"Bare":{"Gismu":{"phonemes":"xance","span":[6,11]}}},{"Bare":{"Cmevla":{"phonemes":"makes","span":[12,17]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[20,22]}}},{"Bare":{"Gismu":{"phonemes":"sense","span":[23,28]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"prítu","span":[0,5]}}},{"Bare":{"Gismu":{"phonemes":"xánce","span":[6,11]}}},{"Bare":{"Cmevla":{"phonemes":"makes","span":[12,17]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[20,22]}}},{"Bare":{"Gismu":{"phonemes":"sénse","span":[23,28]}}}]'

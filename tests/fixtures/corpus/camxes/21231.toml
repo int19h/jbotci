@@ -18,30 +18,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'e .stevon. .i co'o)"
 tree = """
 [
-  Cmavo "mi'e",
-  Cmevla "stevon",
-  Cmavo "i",
-  Cmavo "co'o",
+  Cmavo @[0‥4) "mi'e",
+  Cmevla @[5‥11) "stevon",
+  Cmavo @[13‥14) "i",
+  Cmavo @[15‥19) "co'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}},{"Bare":{"Cmevla":{"phonemes":"stevon","span":[5,11]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[13,14]}}},{"Bare":{"Cmavo":{"phonemes":"co'o","span":[15,19]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥19) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥11) {
       vocative_markers: [
-        Cmavo "mi'e",
+        Cmavo @[0‥4) "mi'e",
       ],
-      argument: Cmevla "stevon",
+      argument: Cmevla @[5‥11) "stevon",
     },
   ],
-  ParagraphStatement {
-    i: Cmavo "i",
+  ParagraphStatement @[13‥19) {
+    i: Cmavo @[13‥14) "i",
     free_modifiers: [
-      Vocative {
+      Vocative @[15‥19) {
         vocative_markers: [
-          Cmavo "co'o",
+          Cmavo @[15‥19) "co'o",
         ],
       },
     ],

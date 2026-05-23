@@ -16,32 +16,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
-brackets = "(ti me la .nu,ĭork. me'u)"
+brackets = "(ti me la .nu,ĭórk. me'u)"
 tree = """
 [
-  Cmavo "ti",
-  Cmavo "me",
-  Cmavo "la",
-  Cmevla "nu,ĭork",
-  Cmavo "me'u",
+  Cmavo @[0‥2) "ti",
+  Cmavo @[3‥5) "me",
+  Cmavo @[6‥8) "la",
+  Cmevla @[9‥16) "nu,ĭórk",
+  Cmavo @[19‥23) "me'u",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ti","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}},{"Bare":{"Cmevla":{"phonemes":"nu,ĭórk","span":[9,16]}}},{"Bare":{"Cmavo":{"phonemes":"me'u","span":[19,23]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥23) {
   leading_terms: [
-    Cmavo "ti",
+    Cmavo @[0‥2) "ti",
   ],
-  Me {
-    me: Cmavo "me",
-    Name {
-      la: Cmavo "la",
+  Me @[3‥23) {
+    me: Cmavo @[3‥5) "me",
+    Name @[6‥16) {
+      la: Cmavo @[6‥8) "la",
       names: [
-        Cmevla "nu,ĭork",
+        Cmevla @[9‥16) "nu,ĭórk",
       ],
     },
-    mehu: Cmavo "me'u",
+    mehu: Cmavo @[19‥23) "me'u",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ti","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"Cmavo":{"phonemes":"me","span":[3,5]}}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"nu,ĭórk","span":[9,16]}}}}]}},"mehu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"me'u","span":[19,23]}}}}}}]}}}}}}}}]}]}"""

@@ -8,33 +8,33 @@ entry-id = "8307"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "broda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ceĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bróda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ceĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Cei { base: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "broda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), assignments: [CeiAssignmentSyntax { cei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ceĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, relation_unit: Goha { goha: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, raho: None } }] }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Cei { base: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bróda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), assignments: [CeiAssignmentSyntax { cei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ceĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, relation_unit: Goha { goha: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, raho: None } }] }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(bróda ceĭ co'e)"
 tree = """
 [
-  Gismu "bróda",
-  Cmavo "ceĭ",
-  Cmavo "co'e",
+  Gismu @[0‥5) "bróda",
+  Cmavo @[6‥9) "ceĭ",
+  Cmavo @[10‥14) "co'e",
 ]"""
-json = """[{"Bare":{"Gismu":{"phonemes":"broda","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"ceĭ","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[10,14]}}}]"""
+json = """[{"Bare":{"Gismu":{"phonemes":"bróda","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"ceĭ","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[10,14]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Cei {
-  Gismu "bróda",
+Cei @[0‥14) {
+  Gismu @[0‥5) "bróda",
   assignments: [
-    CeiAssignment {
-      cei: Cmavo "ceĭ",
-      Goha {
-        goha: Cmavo "co'e",
+    CeiAssignment @[6‥14) {
+      cei: Cmavo @[6‥9) "ceĭ",
+      Goha @[10‥14) {
+        goha: Cmavo @[10‥14) "co'e",
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Cei":{"base":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"broda","span":[0,5]}}}}},"assignments":[{"cei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ceĭ","span":[6,9]}}}},"relation_unit":{"Goha":{"goha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'e","span":[10,14]}}}}}}}]}}]}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Cei":{"base":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[0,5]}}}}},"assignments":[{"cei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ceĭ","span":[6,9]}}}},"relation_unit":{"Goha":{"goha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'e","span":[10,14]}}}}}}}]}}]}}}}}}}}]}]}"""

@@ -18,36 +18,36 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ .i .a'e naĭ ro'o ro'i)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "i",
-  Cmavo "a'e",
-  Cmavo "naĭ",
-  Cmavo "ro'o",
-  Cmavo "ro'i",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[5‥6) "i",
+  Cmavo @[7‥10) "a'e",
+  Cmavo @[10‥13) "naĭ",
+  Cmavo @[13‥17) "ro'o",
+  Cmavo @[17‥21) "ro'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}},{"Bare":{"Cmavo":{"phonemes":"a'e","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"ro'o","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"ro'i","span":[17,21]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥3) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
     },
   ],
-  ParagraphStatement {
-    i: WithIndicator {
-      WithIndicator {
-        WithIndicator {
-          Cmavo "i",
-          indicator: Cmavo "a'e",
-          nai: Cmavo "naĭ",
+  ParagraphStatement @[5‥21) {
+    i: WithIndicator @[5‥21) {
+      WithIndicator @[5‥17) {
+        WithIndicator @[5‥13) {
+          Cmavo @[5‥6) "i",
+          indicator: Cmavo @[7‥10) "a'e",
+          nai: Cmavo @[10‥13) "naĭ",
         },
-        indicator: Cmavo "ro'o",
+        indicator: Cmavo @[13‥17) "ro'o",
       },
-      indicator: Cmavo "ro'i",
+      indicator: Cmavo @[17‥21) "ro'i",
     },
   },
 }"""

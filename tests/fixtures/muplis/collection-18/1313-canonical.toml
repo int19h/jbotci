@@ -21,37 +21,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na ku zu'e ko zo'u co'e mi)"
 tree = """
 [
-  Cmavo "na",
-  Cmavo "ku",
-  Cmavo "zu'e",
-  Cmavo "ko",
-  Cmavo "zo'u",
-  Cmavo "co'e",
-  Cmavo "mi",
+  Cmavo @[0‥2) "na",
+  Cmavo @[3‥5) "ku",
+  Cmavo @[6‥10) "zu'e",
+  Cmavo @[11‥13) "ko",
+  Cmavo @[14‥18) "zo'u",
+  Cmavo @[19‥23) "co'e",
+  Cmavo @[24‥26) "mi",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ku","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"zu'e","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"ko","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[19,23]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[24,26]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([{na ku} {zu'e ko}] zo'u [co'e mi])"
 tree = """
-Prenex {
+Prenex @[0‥26) {
   prenex_terms: [
-    NaKu {
-      na: Cmavo "na",
-      na_ku: Cmavo "ku",
+    NaKu @[0‥5) {
+      na: Cmavo @[0‥2) "na",
+      na_ku: Cmavo @[3‥5) "ku",
     },
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "zu'e",
+    Tagged @[6‥13) {
+      tense_modal: Simple @[6‥10) {
+        bai: Cmavo @[6‥10) "zu'e",
       },
-      Cmavo "ko",
+      Cmavo @[11‥13) "ko",
     },
   ],
-  zohu: Cmavo "zo'u",
-  Relation {
-    Cmavo "co'e",
+  zohu: Cmavo @[14‥18) "zo'u",
+  Relation @[19‥26) {
+    Cmavo @[19‥23) "co'e",
     terms: [
-      Cmavo "mi",
+      Cmavo @[24‥26) "mi",
     ],
   },
 }"""

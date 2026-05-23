@@ -18,28 +18,28 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = "(.or. baĭ ri mi)"
 tree = """
 [
-  Cmevla "or",
-  Cmavo "baĭ",
-  Cmavo "ri",
-  Cmavo "mi",
+  Cmevla @[0‥2) "or",
+  Cmavo @[3‥6) "baĭ",
+  Cmavo @[7‥9) "ri",
+  Cmavo @[10‥12) "mi",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"baĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"ri","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥12) {
   leading_cmevla: [
-    Cmevla "or",
+    Cmevla @[0‥2) "or",
   ],
-  Term {
+  Term @[3‥12) {
     terms: [
-      Tagged {
-        tense_modal: Simple {
-          bai: Cmavo "baĭ",
+      Tagged @[3‥9) {
+        tense_modal: Simple @[3‥6) {
+          bai: Cmavo @[3‥6) "baĭ",
         },
-        Cmavo "ri",
+        Cmavo @[7‥9) "ri",
       },
-      Cmavo "mi",
+      Cmavo @[10‥12) "mi",
     ],
   },
 }"""

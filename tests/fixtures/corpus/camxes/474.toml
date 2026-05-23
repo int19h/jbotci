@@ -18,19 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba na go'i)"
 tree = """
 [
-  Cmavo "ba",
-  Cmavo "na",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "ba",
+  Cmavo @[3‥5) "na",
+  Cmavo @[6‥10) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ba","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-TenseModal {
-  tense_modal: Cmavo "ba",
-  Na {
-    na: Cmavo "na",
-    Cmavo "go'i",
+TenseModal @[0‥10) {
+  tense_modal: Cmavo @[0‥2) "ba",
+  Na @[3‥10) {
+    na: Cmavo @[3‥5) "na",
+    Cmavo @[6‥10) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ba","span":[0,2]}}}}}]}},"inner_relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}}}}}}}}}}}}}}]}]}"""

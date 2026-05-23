@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{TreeNode as MorphologyTreeNode, Word, WordLike};
+use jbotci_morphology::{PhonemeRenderOptions, TreeNode as MorphologyTreeNode, Word, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{
@@ -37,42 +37,58 @@ enum JsonFrame<N> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn morphology_json_value(words: &[WordLike]) -> Value {
-    Value::Array(words.iter().map(morphology_word_like_value).collect())
+pub(crate) fn morphology_json_value(words: &[WordLike], phonemes: PhonemeRenderOptions) -> Value {
+    Value::Array(
+        words
+            .iter()
+            .map(|word_like| morphology_word_like_value(word_like, phonemes))
+            .collect(),
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn syntax_json_value(tree: &TextSyntax) -> Value {
-    let mut builder = SyntaxJsonBuilder::default();
+pub(crate) fn syntax_json_value(tree: &TextSyntax, phonemes: PhonemeRenderOptions) -> Value {
+    let mut builder = SyntaxJsonBuilder::new(phonemes);
     tree.visit_in_order(&mut builder);
     builder.finish()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_word_like_value(word_like: &WordLike) -> Value {
-    let mut builder = MorphologyJsonBuilder::default();
+fn morphology_word_like_value(word_like: &WordLike, phonemes: PhonemeRenderOptions) -> Value {
+    let mut builder = MorphologyJsonBuilder::new(phonemes);
     word_like.visit_in_order(&mut builder);
     builder.finish()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_word_value(word: &Word) -> Value {
-    let mut builder = MorphologyJsonBuilder::default();
+fn morphology_word_value(word: &Word, phonemes: PhonemeRenderOptions) -> Value {
+    let mut builder = MorphologyJsonBuilder::new(phonemes);
     MorphologyTreeNode::visit_in_order(word, &mut builder);
     builder.finish()
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[invariant(true)]
 struct MorphologyJsonBuilder {
+    phonemes: PhonemeRenderOptions,
     stack: Vec<JsonFrame<MorphologyNodeInfo>>,
     root: Option<Value>,
 }
 
 impl MorphologyJsonBuilder {
+    #[requires(true)]
+    #[ensures(ret.phonemes == phonemes)]
+    fn new(phonemes: PhonemeRenderOptions) -> Self {
+        Self {
+            phonemes,
+            stack: Vec::new(),
+            root: None,
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn finish(self) -> Value {
@@ -174,7 +190,7 @@ impl<'tree> TreeVisitor<'tree> for MorphologyJsonBuilder {
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
             jbotci_morphology::AtomRef::Phonemes(phonemes) => {
-                Value::String(phonemes.as_str().to_owned())
+                Value::String(phonemes.render(self.phonemes))
             }
             jbotci_morphology::AtomRef::String(text) => Value::String(text.clone()),
             jbotci_morphology::AtomRef::SourceSpan(span) => span_value(span),
@@ -189,14 +205,25 @@ struct MorphologyNodeInfo {
     variant: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[invariant(true)]
 struct SyntaxJsonBuilder {
+    phonemes: PhonemeRenderOptions,
     stack: Vec<JsonFrame<SyntaxNodeInfo>>,
     root: Option<Value>,
 }
 
 impl SyntaxJsonBuilder {
+    #[requires(true)]
+    #[ensures(ret.phonemes == phonemes)]
+    fn new(phonemes: PhonemeRenderOptions) -> Self {
+        Self {
+            phonemes,
+            stack: Vec::new(),
+            root: None,
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn finish(self) -> Value {
@@ -304,8 +331,10 @@ impl<'tree> TreeVisitor<'tree> for SyntaxJsonBuilder {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => with_indicators_value(word),
-            SyntaxAtomRef::Word(word) => morphology_word_value(word),
+            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
+                with_indicators_value(word, self.phonemes)
+            }
+            SyntaxAtomRef::Word(word) => morphology_word_value(word, self.phonemes),
         });
     }
 }
@@ -471,19 +500,19 @@ fn constructor_value(constructor: &str, payload: Value) -> Value {
 
 #[requires(true)]
 #[ensures(true)]
-fn with_indicators_value(word: &WithIndicators<WordLike>) -> Value {
+fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRenderOptions) -> Value {
     match word {
         WithIndicators::Bare(word_like) => {
-            constructor_value("Bare", morphology_word_like_value(word_like))
+            constructor_value("Bare", morphology_word_like_value(word_like, phonemes))
         }
         WithIndicators::Emphasized { bahe, word_like } => constructor_value(
             "Emphasized",
             Value::Object(
                 [
-                    ("bahe".to_owned(), morphology_word_value(bahe)),
+                    ("bahe".to_owned(), morphology_word_value(bahe, phonemes)),
                     (
                         "word_like".to_owned(),
-                        morphology_word_like_value(word_like),
+                        morphology_word_like_value(word_like, phonemes),
                     ),
                 ]
                 .into_iter()
@@ -496,10 +525,13 @@ fn with_indicators_value(word: &WithIndicators<WordLike>) -> Value {
             nai,
         } => {
             let mut payload = Map::new();
-            payload.insert("base".to_owned(), with_indicators_value(base));
-            payload.insert("indicator".to_owned(), morphology_word_value(indicator));
+            payload.insert("base".to_owned(), with_indicators_value(base, phonemes));
+            payload.insert(
+                "indicator".to_owned(),
+                morphology_word_value(indicator, phonemes),
+            );
             if let Some(nai) = nai {
-                payload.insert("nai".to_owned(), morphology_word_value(nai));
+                payload.insert("nai".to_owned(), morphology_word_value(nai, phonemes));
             }
             constructor_value("WithIndicator", Value::Object(payload))
         }
@@ -539,7 +571,7 @@ mod tests {
         ] {
             let words = segment_words_with_modifiers(text).expect("morphology");
             assert_eq!(
-                morphology_json_value(&words),
+                morphology_json_value(&words, PhonemeRenderOptions::default()),
                 compact_json_value(&words).expect("serde compact JSON")
             );
         }
@@ -558,7 +590,7 @@ mod tests {
             let words = segment_words_with_modifiers(text).expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
             assert_eq!(
-                syntax_json_value(&parsed.parse_tree),
+                syntax_json_value(&parsed.parse_tree, PhonemeRenderOptions::default()),
                 compact_json_value(&parsed.parse_tree).expect("serde compact JSON")
             );
         }

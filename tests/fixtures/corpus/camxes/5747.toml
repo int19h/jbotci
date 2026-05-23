@@ -19,10 +19,10 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "ze"
 tree = """
 [
-  Cmavo "ze",
+  Cmavo @[7‥9) "ze",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ze","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
-tree = 'Cmavo "ze"'
+tree = 'Cmavo @[7‥9) "ze"'
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[7,9]}}}}]}}}}}}]}]}'

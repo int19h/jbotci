@@ -18,13 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "je"
 tree = """
 [
-  Cmavo "je",
+  Cmavo @[0‥2) "je",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"je","span":[0,2]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
-  leading_connective: Cmavo "je",
+Text @[0‥2) {
+  leading_connective: Cmavo @[0‥2) "je",
 }"""
 json = '{"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[0,2]}}}}]}}}'

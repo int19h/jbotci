@@ -18,44 +18,44 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ci no no ki'o ki'o du li bi geĭ ci)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "ci",
-  Cmavo "no",
-  Cmavo "no",
-  Cmavo "ki'o",
-  Cmavo "ki'o",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "bi",
-  Cmavo "geĭ",
-  Cmavo "ci",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "ci",
+  Cmavo @[5‥7) "no",
+  Cmavo @[7‥9) "no",
+  Cmavo @[9‥13) "ki'o",
+  Cmavo @[13‥17) "ki'o",
+  Cmavo @[18‥20) "du",
+  Cmavo @[21‥23) "li",
+  Cmavo @[24‥26) "bi",
+  Cmavo @[27‥30) "geĭ",
+  Cmavo @[31‥33) "ci",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"bi","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"geĭ","span":[27,30]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[31,33]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥33) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Number {
-        Cmavo "ci",
-        Cmavo "no",
-        Cmavo "no",
-        Cmavo "ki'o",
-        Cmavo "ki'o",
+    MathExpression @[0‥17) {
+      li: Cmavo @[0‥2) "li",
+      Number @[3‥17) {
+        Cmavo @[3‥5) "ci",
+        Cmavo @[5‥7) "no",
+        Cmavo @[7‥9) "no",
+        Cmavo @[9‥13) "ki'o",
+        Cmavo @[13‥17) "ki'o",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[18‥33) {
+    Cmavo @[18‥20) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Binary {
-          left_expression: Cmavo "bi",
-          operator: Cmavo "geĭ",
-          right_expression: Cmavo "ci",
+      MathExpression @[21‥33) {
+        li: Cmavo @[21‥23) "li",
+        Binary @[24‥33) {
+          left_expression: Cmavo @[24‥26) "bi",
+          operator: Cmavo @[27‥30) "geĭ",
+          right_expression: Cmavo @[31‥33) "ci",
         },
       },
     ],

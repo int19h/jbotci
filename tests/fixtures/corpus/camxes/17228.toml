@@ -18,21 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.er. co'o)"
 tree = """
 [
-  Cmevla "er",
-  Cmavo "co'o",
+  Cmevla @[0‥2) "er",
+  Cmavo @[3‥7) "co'o",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥7) {
   leading_cmevla: [
-    Cmevla "er",
+    Cmevla @[0‥2) "er",
   ],
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[3‥7) {
       vocative_markers: [
-        Cmavo "co'o",
+        Cmavo @[3‥7) "co'o",
       ],
     },
   ],

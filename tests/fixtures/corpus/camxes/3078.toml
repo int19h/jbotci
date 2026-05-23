@@ -18,26 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i je do ca mo)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "je",
-  Cmavo "do",
-  Cmavo "ca",
-  Cmavo "mo",
+  Cmavo @[0‥1) "i",
+  Cmavo @[1‥3) "je",
+  Cmavo @[4‥6) "do",
+  Cmavo @[7‥9) "ca",
+  Cmavo @[10‥12) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  connective: Cmavo "je",
-  Predicate {
+ParagraphStatement @[0‥12) {
+  i: Cmavo @[0‥1) "i",
+  connective: Cmavo @[1‥3) "je",
+  Predicate @[4‥12) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[4‥6) "do",
     ],
-    TenseModal {
-      tense_modal: Cmavo "ca",
-      Cmavo "mo",
+    TenseModal @[7‥12) {
+      tense_modal: Cmavo @[7‥9) "ca",
+      Cmavo @[10‥12) "mo",
     },
   },
 }"""

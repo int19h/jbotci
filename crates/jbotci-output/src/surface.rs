@@ -1,20 +1,33 @@
 use bityzba::{data, invariant, requires};
-use jbotci_morphology::{Phonemes, Word, WordKind, WordLike, WordLikeData};
-use jbotci_source::SourceSpan;
+use jbotci_morphology::{PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData};
 use jbotci_syntax::WithIndicators;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum SurfaceChunk {
     Word(String),
-    QuotedWords(Vec<Word>),
+    QuotedWords(Vec<String>),
     QuotedText(String),
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn format_with_indicators(word: &WithIndicators<WordLike>, source: &str) -> String {
-    render_surface_chunks(flatten_with_indicators_surface(word, source))
+pub(crate) fn format_with_indicators_with_options(
+    word: &WithIndicators<WordLike>,
+    source: &str,
+    options: PhonemeRenderOptions,
+) -> String {
+    render_surface_chunks(flatten_with_indicators_surface(word, source, options))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn format_word_like_with_options(
+    word_like: &WordLike,
+    source: &str,
+    options: PhonemeRenderOptions,
+) -> String {
+    render_surface_chunks(flatten_word_like_surface(word_like, source, options))
 }
 
 #[requires(true)]
@@ -39,12 +52,13 @@ pub(crate) fn is_compound_with_indicators(word: &WithIndicators<WordLike>) -> bo
 fn flatten_with_indicators_surface(
     word: &WithIndicators<WordLike>,
     source: &str,
+    options: PhonemeRenderOptions,
 ) -> Vec<SurfaceChunk> {
     match word {
-        WithIndicators::Bare(word_like) => flatten_word_like_surface(word_like, source),
+        WithIndicators::Bare(word_like) => flatten_word_like_surface(word_like, source, options),
         WithIndicators::Emphasized { bahe, word_like } => {
-            let mut chunks = vec![SurfaceChunk::Word(render_word(bahe))];
-            chunks.extend(flatten_word_like_surface(word_like, source));
+            let mut chunks = vec![SurfaceChunk::Word(render_word(bahe, options))];
+            chunks.extend(flatten_word_like_surface(word_like, source, options));
             chunks
         }
         WithIndicators::WithIndicator {
@@ -52,10 +66,10 @@ fn flatten_with_indicators_surface(
             indicator,
             nai,
         } => {
-            let mut chunks = flatten_with_indicators_surface(base, source);
-            chunks.push(SurfaceChunk::Word(render_word(indicator)));
+            let mut chunks = flatten_with_indicators_surface(base, source, options);
+            chunks.push(SurfaceChunk::Word(render_word(indicator, options)));
             if let Some(nai) = nai {
-                chunks.push(SurfaceChunk::Word(render_word(nai)));
+                chunks.push(SurfaceChunk::Word(render_word(nai, options)));
             }
             chunks
         }
@@ -64,12 +78,16 @@ fn flatten_with_indicators_surface(
 
 #[requires(true)]
 #[ensures(true)]
-fn flatten_word_like_surface(word_like: &WordLike, source: &str) -> Vec<SurfaceChunk> {
+fn flatten_word_like_surface(
+    word_like: &WordLike,
+    source: &str,
+    options: PhonemeRenderOptions,
+) -> Vec<SurfaceChunk> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => vec![SurfaceChunk::Word(render_word(word))],
+        data!(WordLike::Bare(word)) => vec![SurfaceChunk::Word(render_word(word, options))],
         data!(WordLike::ZoQuote { zo, word }) => vec![
-            SurfaceChunk::Word(render_word(zo)),
-            SurfaceChunk::QuotedWords(vec![(**word).clone()]),
+            SurfaceChunk::Word(render_word(zo, options)),
+            SurfaceChunk::QuotedWords(vec![render_word(word, options)]),
         ],
         data!(WordLike::ZoiQuote {
             zoi,
@@ -77,48 +95,44 @@ fn flatten_word_like_surface(word_like: &WordLike, source: &str) -> Vec<SurfaceC
             quoted_text,
             closing_delimiter,
         }) => vec![
-            SurfaceChunk::Word(render_word(zoi)),
-            SurfaceChunk::Word(render_word_without_pause(opening_delimiter)),
+            SurfaceChunk::Word(render_word(zoi, options)),
+            SurfaceChunk::Word(render_word_without_pause(opening_delimiter, options)),
             SurfaceChunk::QuotedText(drop_leading_zoi_separator(quoted_text.text.clone())),
-            SurfaceChunk::Word(render_word_without_pause(closing_delimiter)),
+            SurfaceChunk::Word(render_word_without_pause(closing_delimiter, options)),
         ],
         data!(WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
         }) => vec![
-            SurfaceChunk::Word(render_word(lohu)),
-            SurfaceChunk::QuotedWords(quoted_words.clone()),
-            SurfaceChunk::Word(render_word(lehu)),
+            SurfaceChunk::Word(render_word(lohu, options)),
+            SurfaceChunk::QuotedWords(
+                quoted_words
+                    .iter()
+                    .map(|word| render_word(word, options))
+                    .collect(),
+            ),
+            SurfaceChunk::Word(render_word(lehu, options)),
         ],
         data!(WordLike::SingleWordQuote {
             marker,
             quoted_text,
         }) => vec![
-            SurfaceChunk::Word(render_word(marker)),
+            SurfaceChunk::Word(render_word(marker, options)),
             SurfaceChunk::QuotedText(quoted_text.text.clone()),
         ],
         data!(WordLike::Letter { base, bu }) => {
-            let mut chunks = flatten_word_like_surface(base, source);
-            chunks.push(SurfaceChunk::Word(render_word(bu)));
+            let mut chunks = flatten_word_like_surface(base, source, options);
+            chunks.push(SurfaceChunk::Word(render_word(bu, options)));
             chunks
         }
         data!(WordLike::ZeiLujvo { left, zei, right }) => {
-            let mut chunks = flatten_word_like_surface(left, source);
-            chunks.push(SurfaceChunk::Word(render_word(zei)));
-            chunks.push(SurfaceChunk::Word(render_word(right)));
+            let mut chunks = flatten_word_like_surface(left, source, options);
+            chunks.push(SurfaceChunk::Word(render_word(zei, options)));
+            chunks.push(SurfaceChunk::Word(render_word(right, options)));
             chunks
         }
     }
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[ensures(true)]
-fn source_slice(source: &str, span: &SourceSpan) -> String {
-    source
-        .get(span.byte_start..span.byte_end)
-        .unwrap_or_default()
-        .to_owned()
 }
 
 #[requires(true)]
@@ -154,10 +168,7 @@ fn render_surface_chunks(chunks: Vec<SurfaceChunk>) -> String {
 fn render_surface_chunk(chunk: SurfaceChunk) -> String {
     match chunk {
         SurfaceChunk::Word(word) => word,
-        SurfaceChunk::QuotedWords(words) => format!(
-            "«{}»",
-            words.iter().map(render_word).collect::<Vec<_>>().join(" ")
-        ),
+        SurfaceChunk::QuotedWords(words) => format!("«{}»", words.join(" ")),
         SurfaceChunk::QuotedText(text) => format!("«{text}»"),
     }
 }
@@ -182,37 +193,38 @@ fn is_visible_pause_dot(ch: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_word(word: &Word) -> String {
-    render_visible_word_surface(word)
+fn render_word(word: &Word, options: PhonemeRenderOptions) -> String {
+    render_visible_word_surface(word, options)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_word_without_pause(word: &Word) -> String {
-    render_word_phonemes_without_pause(word.kind(), &word.phonemes())
+fn render_word_without_pause(word: &Word, options: PhonemeRenderOptions) -> String {
+    render_word_phonemes_without_pause_with_options(word.kind(), &word.phonemes(), options)
 }
 
 #[requires(!phonemes.as_str().is_empty())]
 #[ensures(true)]
 pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &Phonemes) -> String {
-    let phonemes = phonemes.as_str();
-    match kind {
-        WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(phonemes)),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(phonemes),
-    }
+    render_word_phonemes_without_pause_with_options(kind, phonemes, PhonemeRenderOptions::default())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_visible_word_surface(word: &Word) -> String {
+pub(crate) fn render_word_phonemes_without_pause_with_options(
+    _kind: WordKind,
+    phonemes: &Phonemes,
+    options: PhonemeRenderOptions,
+) -> String {
+    phonemes.render(options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_visible_word_surface(word: &Word, options: PhonemeRenderOptions) -> String {
     let phonemes = word.phonemes();
-    let mut rendered = match word.kind() {
-        WordKind::Cmavo => {
-            mark_falling_diphthong_glides(&strip_stress_accents(&add_diacritics(phonemes.as_str())))
-        }
-        WordKind::Cmevla => strip_stress_accents(&add_diacritics(phonemes.as_str())),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(phonemes.as_str()),
-    };
+    let mut rendered =
+        render_word_phonemes_without_pause_with_options(word.kind(), &phonemes, options);
     if needs_leading_pause(word) {
         rendered.insert(0, '.');
     }
@@ -230,124 +242,6 @@ fn needs_leading_pause(word: &Word) -> bool {
             .chars()
             .next()
             .is_some_and(|ch| matches!(ch, 'a' | 'e' | 'i' | 'o' | 'u'))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn add_diacritics(text: &str) -> String {
-    mark_stress(&normalize_uppercase_stress(text))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_uppercase_stress(text: &str) -> String {
-    text.chars()
-        .map(|ch| match ch {
-            'A' | 'Á' | 'À' | 'à' => 'á',
-            'E' | 'É' | 'È' | 'è' => 'é',
-            'I' | 'Í' | 'Ì' | 'ì' => 'í',
-            'O' | 'Ó' | 'Ò' | 'ò' => 'ó',
-            'U' | 'Ú' | 'Ù' | 'ù' => 'ú',
-            'Y' | 'Ý' | 'Ỳ' | 'ỳ' => 'ý',
-            other => other,
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn mark_falling_diphthong_glides(text: &str) -> String {
-    let mut rendered = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match (ch, chars.peek().copied()) {
-            ('a', Some('i')) | ('e', Some('i')) | ('o', Some('i')) => {
-                rendered.push(ch);
-                rendered.push('ĭ');
-                chars.next();
-            }
-            ('a', Some('u')) => {
-                rendered.push('a');
-                rendered.push('ŭ');
-                chars.next();
-            }
-            _ => rendered.push(ch),
-        }
-    }
-    rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn mark_stress(text: &str) -> String {
-    if has_explicit_stress(text) {
-        return text.to_owned();
-    }
-    let stressable = text
-        .char_indices()
-        .filter_map(|(index, ch)| is_full_vowel(ch).then_some(index))
-        .collect::<Vec<_>>();
-    let Some(&stress_index) = stressable.iter().rev().nth(1) else {
-        return text.to_owned();
-    };
-    let mut rendered = String::with_capacity(text.len() + 1);
-    for (index, ch) in text.char_indices() {
-        if index == stress_index {
-            rendered.push(acute_vowel(ch));
-        } else {
-            rendered.push(ch);
-        }
-    }
-    rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn has_explicit_stress(text: &str) -> bool {
-    text.chars().any(|ch| {
-        matches!(
-            ch,
-            'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý' | 'à' | 'è' | 'ì' | 'ò' | 'ù' | 'ỳ'
-        )
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_full_vowel(ch: char) -> bool {
-    matches!(
-        ch,
-        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú' | 'à' | 'è' | 'ì' | 'ò' | 'ù'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn acute_vowel(ch: char) -> char {
-    match ch {
-        'a' | 'á' | 'à' => 'á',
-        'e' | 'é' | 'è' => 'é',
-        'i' | 'í' | 'ì' => 'í',
-        'o' | 'ó' | 'ò' => 'ó',
-        'u' | 'ú' | 'ù' => 'ú',
-        other => other,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_stress_accents(text: &str) -> String {
-    text.chars()
-        .map(|ch| match ch {
-            'á' | 'à' => 'a',
-            'é' | 'è' => 'e',
-            'í' | 'ì' => 'i',
-            'ó' | 'ò' => 'o',
-            'ú' | 'ù' => 'u',
-            'ý' | 'ỳ' => 'y',
-            other => other,
-        })
-        .collect()
 }
 
 #[requires(true)]

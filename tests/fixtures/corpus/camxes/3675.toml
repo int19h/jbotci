@@ -18,13 +18,13 @@ error = { position = 5, allowed-next = [] }
 brackets = "(me la dy [.e bu] cy)"
 tree = """
 [
-  Cmavo "me",
-  Cmavo "la",
-  Cmavo "dy",
-  Letter {
-    Cmavo "e",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "me",
+  Cmavo @[3‥5) "la",
+  Cmavo @[6‥8) "dy",
+  Letter @[9‥12) {
+    Cmavo @[9‥10) "e",
+    bu: Cmavo @[10‥12) "bu",
   },
-  Cmavo "cy",
+  Cmavo @[13‥15) "cy",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"dy","span":[6,8]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"e","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[13,15]}}}]'

@@ -18,32 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zo'e co'e le su'u co'e zo'e)"
 tree = """
 [
-  Cmavo "zo'e",
-  Cmavo "co'e",
-  Cmavo "le",
-  Cmavo "su'u",
-  Cmavo "co'e",
-  Cmavo "zo'e",
+  Cmavo @[0‥4) "zo'e",
+  Cmavo @[5‥9) "co'e",
+  Cmavo @[10‥12) "le",
+  Cmavo @[13‥17) "su'u",
+  Cmavo @[18‥22) "co'e",
+  Cmavo @[23‥27) "zo'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"su'u","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"co'e","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[23,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥27) {
   leading_terms: [
-    Cmavo "zo'e",
+    Cmavo @[0‥4) "zo'e",
   ],
-  Relation {
-    Cmavo "co'e",
+  Relation @[5‥27) {
+    Cmavo @[5‥9) "co'e",
     terms: [
-      Descriptor {
-        descriptor: Cmavo "le",
-        relation: Abstraction {
-          nu: Cmavo "su'u",
-          Relation {
-            Cmavo "co'e",
+      Descriptor @[10‥27) {
+        descriptor: Cmavo @[10‥12) "le",
+        relation: Abstraction @[13‥27) {
+          nu: Cmavo @[13‥17) "su'u",
+          Relation @[18‥27) {
+            Cmavo @[18‥22) "co'e",
             terms: [
-              Cmavo "zo'e",
+              Cmavo @[23‥27) "zo'e",
             ],
           },
         },

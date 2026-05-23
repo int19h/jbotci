@@ -8,31 +8,31 @@ entry-id = "280"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "valsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }) })]'
+raw = '[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "válsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }) })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "valsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(Gismu { phonemes: Phonemes(PhonemesData { text: "válsi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(zo válsi)"
 tree = """
 [
-  ZoQuote {
-    zo: Cmavo "zo",
-    Gismu "válsi",
+  ZoQuote @[2‥14) {
+    zo: Cmavo @[2‥4) "zo",
+    Gismu @[9‥14) "válsi",
   },
 ]"""
-json = '[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"valsi","span":[9,14]}}}}]'
+json = '[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"válsi","span":[9,14]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[2‥14) {
   terms: [
-    ZoQuote {
-      zo: Cmavo "zo",
-      Gismu "válsi",
+    ZoQuote @[2‥14) {
+      zo: Cmavo @[2‥4) "zo",
+      Gismu @[9‥14) "válsi",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"valsi","span":[9,14]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"válsi","span":[9,14]}}}}}}}}]}}}}]}]}'

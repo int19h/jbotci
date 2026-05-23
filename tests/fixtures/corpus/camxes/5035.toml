@@ -18,13 +18,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "beĭ"
 tree = """
 [
-  Cmavo "beĭ",
+  Cmavo @[0‥3) "beĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"beĭ","span":[0,3]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-BeiLink {
-  bei: Cmavo "beĭ",
+BeiLink @[0‥3) {
+  bei: Cmavo @[0‥3) "beĭ",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeiLink":[{"bei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"beĭ","span":[0,3]}}}}}]}}}]}]}'

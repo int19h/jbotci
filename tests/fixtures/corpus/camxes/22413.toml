@@ -18,15 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(zi go'a)"
 tree = """
 [
-  Cmavo "zi",
-  Cmavo "go'a",
+  Cmavo @[0‥2) "zi",
+  Cmavo @[3‥7) "go'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"zi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"go'a","span":[3,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-TenseModal {
-  tense_modal: Cmavo "zi",
-  Cmavo "go'a",
+TenseModal @[0‥7) {
+  tense_modal: Cmavo @[0‥2) "zi",
+  Cmavo @[3‥7) "go'a",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zi","span":[0,2]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'a","span":[3,7]}}}}}}}}}}}}}}]}]}"""

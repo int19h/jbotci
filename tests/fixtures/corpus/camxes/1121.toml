@@ -18,46 +18,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa no pa no ju'u re du li pa no)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pa",
-  Cmavo "no",
-  Cmavo "pa",
-  Cmavo "no",
-  Cmavo "ju'u",
-  Cmavo "re",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "pa",
-  Cmavo "no",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[6‥8) "no",
+  Cmavo @[9‥11) "pa",
+  Cmavo @[12‥14) "no",
+  Cmavo @[15‥19) "ju'u",
+  Cmavo @[20‥22) "re",
+  Cmavo @[23‥25) "du",
+  Cmavo @[26‥28) "li",
+  Cmavo @[29‥31) "pa",
+  Cmavo @[32‥34) "no",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"ju'u","span":[15,19]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[20,22]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[23,25]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[32,34]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥34) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Number {
-          Cmavo "pa",
-          Cmavo "no",
-          Cmavo "pa",
-          Cmavo "no",
+    MathExpression @[0‥22) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥22) {
+        left_expression: Number @[3‥14) {
+          Cmavo @[3‥5) "pa",
+          Cmavo @[6‥8) "no",
+          Cmavo @[9‥11) "pa",
+          Cmavo @[12‥14) "no",
         },
-        operator: Cmavo "ju'u",
-        right_expression: Cmavo "re",
+        operator: Cmavo @[15‥19) "ju'u",
+        right_expression: Cmavo @[20‥22) "re",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[23‥34) {
+    Cmavo @[23‥25) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "pa",
-          Cmavo "no",
+      MathExpression @[26‥34) {
+        li: Cmavo @[26‥28) "li",
+        Number @[29‥34) {
+          Cmavo @[29‥31) "pa",
+          Cmavo @[32‥34) "no",
         },
       },
     ],

@@ -19,21 +19,21 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.i coĭ naĭ)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "coĭ",
-  Cmavo "naĭ",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥6) "coĭ",
+  Cmavo @[11‥14) "naĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
+ParagraphStatement @[1‥14) {
+  i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative {
+    Vocative @[3‥14) {
       vocative_markers: [
-        Cmavo "coĭ",
-        Cmavo "naĭ",
+        Cmavo @[3‥6) "coĭ",
+        Cmavo @[11‥14) "naĭ",
       ],
     },
   ],

@@ -18,37 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i peĭ xu cu'e xo ma mo)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "peĭ",
-  Cmavo "xu",
-  Cmavo "cu'e",
-  Cmavo "xo",
-  Cmavo "ma",
-  Cmavo "mo",
+  Cmavo @[0‥1) "i",
+  Cmavo @[2‥5) "peĭ",
+  Cmavo @[6‥8) "xu",
+  Cmavo @[9‥13) "cu'e",
+  Cmavo @[14‥16) "xo",
+  Cmavo @[17‥19) "ma",
+  Cmavo @[20‥22) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[2,5]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"cu'e","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"xo","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[20,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "peĭ",
+ParagraphStatement @[0‥22) {
+  i: WithIndicator @[0‥8) {
+    WithIndicator @[0‥5) {
+      Cmavo @[0‥1) "i",
+      indicator: Cmavo @[2‥5) "peĭ",
     },
-    indicator: Cmavo "xu",
+    indicator: Cmavo @[6‥8) "xu",
   },
-  Predicate {
+  Predicate @[9‥22) {
     leading_terms: [
-      Tagged {
-        tense_modal: Cmavo "cu'e",
-        Quantified {
-          quantifier: Cmavo "xo",
-          Cmavo "ma",
+      Tagged @[9‥19) {
+        tense_modal: Cmavo @[9‥13) "cu'e",
+        Quantified @[14‥19) {
+          quantifier: Cmavo @[14‥16) "xo",
+          Cmavo @[17‥19) "ma",
         },
       },
     ],
-    Cmavo "mo",
+    Cmavo @[20‥22) "mo",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[2,5]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[6,8]}}}},"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu'e","span":[9,13]}}}}}]}},"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"xo","span":[14,16]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[20,22]}}}}}}}}}}}}]}]}"""

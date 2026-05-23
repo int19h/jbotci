@@ -18,29 +18,29 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ mo fo)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "mo",
-  Cmavo "fo",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥6) "mo",
+  Cmavo @[6‥8) "fo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"fo","span":[6,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥8) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥6) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: RelationVocative {
-        relation: Cmavo "mo",
+      argument: RelationVocative @[4‥6) {
+        relation: Cmavo @[4‥6) "mo",
       },
     },
   ],
-  Term {
+  Term @[6‥8) {
     terms: [
-      Fa {
-        fa: Cmavo "fo",
+      Fa @[6‥8) {
+        fa: Cmavo @[6‥8) "fo",
         Zohe {},
       },
     ],

@@ -18,35 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa su'i pa du li re)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pa",
-  Cmavo "su'i",
-  Cmavo "pa",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "re",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[6‥10) "su'i",
+  Cmavo @[11‥13) "pa",
+  Cmavo @[14‥16) "du",
+  Cmavo @[17‥19) "li",
+  Cmavo @[20‥22) "re",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[20,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥22) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Cmavo "pa",
-        operator: Cmavo "su'i",
-        right_expression: Cmavo "pa",
+    MathExpression @[0‥13) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥13) {
+        left_expression: Cmavo @[3‥5) "pa",
+        operator: Cmavo @[6‥10) "su'i",
+        right_expression: Cmavo @[11‥13) "pa",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[14‥22) {
+    Cmavo @[14‥16) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "re",
+      MathExpression @[17‥22) {
+        li: Cmavo @[17‥19) "li",
+        Cmavo @[20‥22) "re",
       },
     ],
   },

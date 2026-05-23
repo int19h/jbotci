@@ -21,27 +21,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi'a du laĭ .borg.)"
 tree = """
 [
-  Cmavo "mi'a",
-  Cmavo "du",
-  Cmavo "laĭ",
-  Cmevla "borg",
+  Cmavo @[0‥4) "mi'a",
+  Cmavo @[5‥7) "du",
+  Cmavo @[8‥11) "laĭ",
+  Cmevla @[12‥16) "borg",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"laĭ","span":[8,11]}}},{"Bare":{"Cmevla":{"phonemes":"borg","span":[12,16]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(mi'a [du {laĭ .borg.}])"
 tree = """
-Predicate {
+Predicate @[0‥16) {
   leading_terms: [
-    Cmavo "mi'a",
+    Cmavo @[0‥4) "mi'a",
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[5‥16) {
+    Cmavo @[5‥7) "du",
     terms: [
-      Name {
-        la: Cmavo "laĭ",
+      Name @[8‥16) {
+        la: Cmavo @[8‥11) "laĭ",
         names: [
-          Cmevla "borg",
+          Cmevla @[12‥16) "borg",
         ],
       },
     ],

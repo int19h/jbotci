@@ -18,29 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(coĭ [la'o zoĭ jadenbane zoĭ])"
 tree = """
 [
-  Cmavo "coĭ",
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "zoĭ",
-    quoted_text: Verbatim "jadenbane",
-    closing_delimiter: Cmavo "zoĭ",
+  Cmavo @[0‥3) "coĭ",
+  ZoiQuote @[4‥26) {
+    zoi: Cmavo @[4‥8) "la'o",
+    opening_delimiter: Cmavo @[9‥12) "zoĭ",
+    quoted_text: Verbatim @[12‥22) "jadenbane",
+    closing_delimiter: Cmavo @[23‥26) "zoĭ",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[12,22],"text":" jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥26) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥26) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: ZoiQuote {
-        zoi: Cmavo "la'o",
-        opening_delimiter: Cmavo "zoĭ",
-        quoted_text: Verbatim "jadenbane",
-        closing_delimiter: Cmavo "zoĭ",
+      argument: ZoiQuote @[4‥26) {
+        zoi: Cmavo @[4‥8) "la'o",
+        opening_delimiter: Cmavo @[9‥12) "zoĭ",
+        quoted_text: Verbatim @[12‥22) "jadenbane",
+        closing_delimiter: Cmavo @[23‥26) "zoĭ",
       },
     },
   ],

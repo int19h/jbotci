@@ -86,6 +86,43 @@ pub enum WordKind {
     Cmevla,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum StressMark {
+    None,
+    Acute,
+    Caps,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum GlideMark {
+    None,
+    Breve,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub struct PhonemeRenderOptions {
+    pub mark_stress: StressMark,
+    pub mark_glides: GlideMark,
+}
+
+impl Default for PhonemeRenderOptions {
+    #[requires(true)]
+    #[ensures(ret.mark_stress == StressMark::Acute)]
+    #[ensures(ret.mark_glides == GlideMark::Breve)]
+    fn default() -> Self {
+        Self {
+            mark_stress: StressMark::Acute,
+            mark_glides: GlideMark::Breve,
+        }
+    }
+}
+
 #[invariant(is_valid_phonemes_text(&self.text), "phonemes must be canonical Lojban phoneme text")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -110,6 +147,61 @@ impl Phonemes {
     #[ensures(!ret.is_empty())]
     pub fn into_string(self) -> String {
         self.into_data().text
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn render(&self, options: PhonemeRenderOptions) -> String {
+        self.text
+            .chars()
+            .map(|ch| render_phoneme_char(ch, options))
+            .collect()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_phoneme_char(ch: char, options: PhonemeRenderOptions) -> char {
+    match ch {
+        'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý' => render_stressed_vowel(ch, options.mark_stress),
+        'ĭ' | 'ŭ' => render_glide(ch, options.mark_glides),
+        other => other,
+    }
+}
+
+#[requires(matches!(ch, 'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý'))]
+#[ensures(true)]
+fn render_stressed_vowel(ch: char, mark: StressMark) -> char {
+    match mark {
+        StressMark::Acute => ch,
+        StressMark::None => unstressed_vowel(ch),
+        StressMark::Caps => unstressed_vowel(ch).to_ascii_uppercase(),
+    }
+}
+
+#[requires(matches!(ch, 'ĭ' | 'ŭ'))]
+#[ensures(true)]
+fn render_glide(ch: char, mark: GlideMark) -> char {
+    match (ch, mark) {
+        ('ĭ', GlideMark::Breve) => 'ĭ',
+        ('ŭ', GlideMark::Breve) => 'ŭ',
+        ('ĭ', GlideMark::None) => 'i',
+        ('ŭ', GlideMark::None) => 'u',
+        _ => ch,
+    }
+}
+
+#[requires(matches!(ch, 'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý'))]
+#[ensures(matches!(ret, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
+fn unstressed_vowel(ch: char) -> char {
+    match ch {
+        'á' => 'a',
+        'é' => 'e',
+        'í' => 'i',
+        'ó' => 'o',
+        'ú' => 'u',
+        'ý' => 'y',
+        _ => ch,
     }
 }
 
@@ -519,8 +611,8 @@ impl fmt::Display for WordLike {
                 closing_delimiter,
             }) => write!(
                 f,
-                "{zoi}-{opening_delimiter}-<{} chars>-{closing_delimiter}",
-                quoted_text.span.char_len()
+                "{zoi}-{opening_delimiter}-{:?}-{closing_delimiter}",
+                quoted_text.text
             ),
             data!(WordLike::LohuQuote {
                 lohu,
@@ -539,7 +631,7 @@ impl fmt::Display for WordLike {
             data!(WordLike::SingleWordQuote {
                 marker,
                 quoted_text,
-            }) => write!(f, "{marker}-<{} chars>", quoted_text.span.char_len()),
+            }) => write!(f, "{marker}-{text:?}", text = quoted_text.text),
             data!(WordLike::Letter { base, bu }) => write!(f, "{base}-{bu}"),
             data!(WordLike::ZeiLujvo { left, zei, right }) => {
                 write!(f, "{left}-{zei}-{right}")
@@ -1228,7 +1320,7 @@ mod tests {
         assert_eq!(base_word(&words[0]).map(Word::kind), Some(WordKind::Cmavo));
         assert_eq!(base_phonemes(&words[0]).as_deref(), Some("mi"));
         assert_eq!(base_word(&words[1]).map(Word::kind), Some(WordKind::Gismu));
-        assert_eq!(base_phonemes(&words[1]).as_deref(), Some("klama"));
+        assert_eq!(base_phonemes(&words[1]).as_deref(), Some("kláma"));
         assert_eq!(base_word(&words[2]).map(Word::kind), Some(WordKind::Cmavo));
         assert_eq!(
             base_word(&words[2]).map(|word| word.span().char_start),
@@ -1267,6 +1359,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn phonemes_render_stress_and_glides() {
+        let phonemes = Phonemes::from_canonical("bródacoĭ".to_owned()).expect("valid phonemes");
+        assert_eq!(phonemes.render(PhonemeRenderOptions::default()), "bródacoĭ");
+        assert_eq!(
+            phonemes.render(PhonemeRenderOptions {
+                mark_stress: StressMark::None,
+                mark_glides: GlideMark::None,
+            }),
+            "brodacoi"
+        );
+        assert_eq!(
+            phonemes.render(PhonemeRenderOptions {
+                mark_stress: StressMark::Caps,
+                mark_glides: GlideMark::Breve,
+            }),
+            "brOdacoĭ"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn applies_cbm_dialect_to_morphology_options() {
         let dialect = jbotci_dialect::parse_dialect_definition("(cbm)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
@@ -1276,7 +1390,7 @@ mod tests {
             .iter()
             .map(|word| base_word(word).expect("base word").phonemes().into_string())
             .collect();
-        assert_eq!(phonemes, vec!["mi".to_owned(), "broda".to_owned()]);
+        assert_eq!(phonemes, vec!["mi".to_owned(), "bróda".to_owned()]);
     }
 
     #[test]
@@ -1299,7 +1413,7 @@ mod tests {
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words = segment_words_with_modifiers_with_options("NALSELTRO", &options)
             .expect("valid morphology");
-        assert_eq!(base_phonemes(&words[0]).as_deref(), Some("nalseltro"));
+        assert_eq!(base_phonemes(&words[0]).as_deref(), Some("nalséltro"));
     }
 
     #[test]

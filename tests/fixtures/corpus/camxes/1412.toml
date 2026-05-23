@@ -18,35 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi jo'u naĭ do cu re meĭ)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "jo'u",
-  Cmavo "naĭ",
-  Cmavo "do",
-  Cmavo "cu",
-  Cmavo "re",
-  Cmavo "meĭ",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥7) "jo'u",
+  Cmavo @[7‥10) "naĭ",
+  Cmavo @[11‥13) "do",
+  Cmavo @[14‥16) "cu",
+  Cmavo @[17‥19) "re",
+  Cmavo @[19‥22) "meĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"jo'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"meĭ","span":[19,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥22) {
   leading_terms: [
-    Connected {
-      leading_argument: Cmavo "mi",
-      connective: NonLogical {
-        Cmavo "jo'u",
-        nai: Cmavo "naĭ",
+    Connected @[0‥13) {
+      leading_argument: Cmavo @[0‥2) "mi",
+      connective: NonLogical @[3‥10) {
+        Cmavo @[3‥7) "jo'u",
+        nai: Cmavo @[7‥10) "naĭ",
       },
-      trailing_argument: Cmavo "do",
+      trailing_argument: Cmavo @[11‥13) "do",
     },
   ],
-  cu: Cmavo "cu",
-  Moi {
+  cu: Cmavo @[14‥16) "cu",
+  Moi @[17‥22) {
     number: [
-      Cmavo "re",
+      Cmavo @[17‥19) "re",
     ],
-    moi: Cmavo "meĭ",
+    moi: Cmavo @[19‥22) "meĭ",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"jo'u","span":[3,7]}}}}],"nai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}}}}},"trailing_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[11,13]}}}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[14,16]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[17,19]}}}}],"moi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"meĭ","span":[19,22]}}}}}}]}}}}}}}}]}]}"""

@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(fu tu ra ma)"
 tree = """
 [
-  Cmavo "fu",
-  Cmavo "tu",
-  Cmavo "ra",
-  Cmavo "ma",
+  Cmavo @[0‥2) "fu",
+  Cmavo @[2‥4) "tu",
+  Cmavo @[4‥6) "ra",
+  Cmavo @[6‥8) "ma",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"fu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"tu","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[6,8]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥8) {
   terms: [
-    Fa {
-      fa: Cmavo "fu",
-      Cmavo "tu",
+    Fa @[0‥4) {
+      fa: Cmavo @[0‥2) "fu",
+      Cmavo @[2‥4) "tu",
     },
-    Cmavo "ra",
-    Cmavo "ma",
+    Cmavo @[4‥6) "ra",
+    Cmavo @[6‥8) "ma",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Fa":{"fa":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fu","span":[0,2]}}}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"tu","span":[2,4]}}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ra","span":[4,6]}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ma","span":[6,8]}}}}}}]}}}}]}]}'

@@ -24,46 +24,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li re gu'e su'i gi pi'i re du li vo)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "re",
-  Cmavo "gu'e",
-  Cmavo "su'i",
-  Cmavo "gi",
-  Cmavo "pi'i",
-  Cmavo "re",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "vo",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "re",
+  Cmavo @[6‥10) "gu'e",
+  Cmavo @[11‥15) "su'i",
+  Cmavo @[16‥18) "gi",
+  Cmavo @[19‥23) "pi'i",
+  Cmavo @[24‥26) "re",
+  Cmavo @[27‥29) "du",
+  Cmavo @[30‥32) "li",
+  Cmavo @[33‥35) "vo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"gu'e","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"gi","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[19,23]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[30,32]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[33,35]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([li {re (gu'e su'i gi pi'i) re}] [du {li vo}])"
 tree = """
-Predicate {
+Predicate @[0‥35) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Cmavo "re",
-        operator: Connected {
-          left_operator: Cmavo "su'i",
-          connective: Forethought {
-            Cmavo "gu'e",
-            Cmavo "gi",
+    MathExpression @[0‥26) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥26) {
+        left_expression: Cmavo @[3‥5) "re",
+        operator: Connected @[6‥23) {
+          left_operator: Cmavo @[11‥15) "su'i",
+          connective: Forethought @[6‥18) {
+            Cmavo @[6‥10) "gu'e",
+            Cmavo @[16‥18) "gi",
           },
-          right_operator: Cmavo "pi'i",
+          right_operator: Cmavo @[19‥23) "pi'i",
         },
-        right_expression: Cmavo "re",
+        right_expression: Cmavo @[24‥26) "re",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[27‥35) {
+    Cmavo @[27‥29) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "vo",
+      MathExpression @[30‥35) {
+        li: Cmavo @[30‥32) "li",
+        Cmavo @[33‥35) "vo",
       },
     ],
   },

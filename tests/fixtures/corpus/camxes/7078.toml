@@ -18,15 +18,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pi so)"
 tree = """
 [
-  Cmavo "pi",
-  Cmavo "so",
+  Cmavo @[0‥2) "pi",
+  Cmavo @[2‥4) "so",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"pi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"so","span":[2,4]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "pi",
-  Cmavo "so",
+Number @[0‥4) {
+  Cmavo @[0‥2) "pi",
+  Cmavo @[2‥4) "so",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"so","span":[2,4]}}}}]}}}}}}]}]}'

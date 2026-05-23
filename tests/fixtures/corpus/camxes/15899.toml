@@ -18,86 +18,86 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i mo .i mo ma .i ma mo ma .i ma mo bo mo be ma beĭ ma beĭ ma be'o)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "mo",
-  Cmavo "i",
-  Cmavo "mo",
-  Cmavo "ma",
-  Cmavo "i",
-  Cmavo "ma",
-  Cmavo "mo",
-  Cmavo "ma",
-  Cmavo "i",
-  Cmavo "ma",
-  Cmavo "mo",
-  Cmavo "bo",
-  Cmavo "mo",
-  Cmavo "be",
-  Cmavo "ma",
-  Cmavo "beĭ",
-  Cmavo "ma",
-  Cmavo "beĭ",
-  Cmavo "ma",
-  Cmavo "be'o",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "mo",
+  Cmavo @[7‥8) "i",
+  Cmavo @[9‥11) "mo",
+  Cmavo @[12‥14) "ma",
+  Cmavo @[16‥17) "i",
+  Cmavo @[18‥20) "ma",
+  Cmavo @[21‥23) "mo",
+  Cmavo @[24‥26) "ma",
+  Cmavo @[28‥29) "i",
+  Cmavo @[30‥32) "ma",
+  Cmavo @[33‥35) "mo",
+  Cmavo @[36‥38) "bo",
+  Cmavo @[39‥41) "mo",
+  Cmavo @[42‥44) "be",
+  Cmavo @[45‥47) "ma",
+  Cmavo @[48‥51) "beĭ",
+  Cmavo @[52‥54) "ma",
+  Cmavo @[55‥58) "beĭ",
+  Cmavo @[59‥61) "ma",
+  Cmavo @[62‥66) "be'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[7,8]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[16,17]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[28,29]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[30,32]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[33,35]}}},{"Bare":{"Cmavo":{"phonemes":"bo","span":[36,38]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[39,41]}}},{"Bare":{"Cmavo":{"phonemes":"be","span":[42,44]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[45,47]}}},{"Bare":{"Cmavo":{"phonemes":"beĭ","span":[48,51]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[52,54]}}},{"Bare":{"Cmavo":{"phonemes":"beĭ","span":[55,58]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[59,61]}}},{"Bare":{"Cmavo":{"phonemes":"be'o","span":[62,66]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Paragraph {
-  ParagraphStatement {
-    i: Cmavo "i",
-    Cmavo "mo",
+Paragraph @[1‥66) {
+  ParagraphStatement @[1‥5) {
+    i: Cmavo @[1‥2) "i",
+    Cmavo @[3‥5) "mo",
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Relation {
-      Cmavo "mo",
+  ParagraphStatement @[7‥14) {
+    i: Cmavo @[7‥8) "i",
+    Relation @[9‥14) {
+      Cmavo @[9‥11) "mo",
       terms: [
-        Cmavo "ma",
+        Cmavo @[12‥14) "ma",
       ],
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Predicate {
+  ParagraphStatement @[16‥26) {
+    i: Cmavo @[16‥17) "i",
+    Predicate @[18‥26) {
       leading_terms: [
-        Cmavo "ma",
+        Cmavo @[18‥20) "ma",
       ],
-      Relation {
-        Cmavo "mo",
+      Relation @[21‥26) {
+        Cmavo @[21‥23) "mo",
         terms: [
-          Cmavo "ma",
+          Cmavo @[24‥26) "ma",
         ],
       },
     },
   },
-  ParagraphStatement {
-    i: Cmavo "i",
-    Predicate {
+  ParagraphStatement @[28‥66) {
+    i: Cmavo @[28‥29) "i",
+    Predicate @[30‥66) {
       leading_terms: [
-        Cmavo "ma",
+        Cmavo @[30‥32) "ma",
       ],
-      Bo {
-        leading_relation: Cmavo "mo",
-        bo: Cmavo "bo",
-        trailing_relation: Be {
-          Goha {
-            goha: Cmavo "mo",
+      Bo @[33‥66) {
+        leading_relation: Cmavo @[33‥35) "mo",
+        bo: Cmavo @[36‥38) "bo",
+        trailing_relation: Be @[39‥66) {
+          Goha @[39‥41) {
+            goha: Cmavo @[39‥41) "mo",
           },
-          be: Cmavo "be",
-          first_argument: Cmavo "ma",
+          be: Cmavo @[42‥44) "be",
+          first_argument: Cmavo @[45‥47) "ma",
           bei_links: [
-            BeiLink {
-              bei: Cmavo "beĭ",
-              argument: Cmavo "ma",
+            BeiLink @[48‥54) {
+              bei: Cmavo @[48‥51) "beĭ",
+              argument: Cmavo @[52‥54) "ma",
             },
-            BeiLink {
-              bei: Cmavo "beĭ",
-              argument: Cmavo "ma",
+            BeiLink @[55‥61) {
+              bei: Cmavo @[55‥58) "beĭ",
+              argument: Cmavo @[59‥61) "ma",
             },
           ],
-          beho: Cmavo "be'o",
+          beho: Cmavo @[62‥66) "be'o",
         },
       },
     },

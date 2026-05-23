@@ -24,27 +24,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ru'a doĭ .livinston.)"
 tree = """
 [
-  Cmavo "ru'a",
-  Cmavo "doĭ",
-  Cmevla "livinston",
+  Cmavo @[0‥4) "ru'a",
+  Cmavo @[5‥8) "doĭ",
+  Cmevla @[10‥19) "livinston",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[5,8]}}},{"Bare":{"Cmevla":{"phonemes":"livinston","span":[10,19]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(ru'a [doĭ .livinston.])"
 tree = """
-Text {
+Text @[0‥19) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "ru'a",
+    Indicator @[0‥4) {
+      indicator: Cmavo @[0‥4) "ru'a",
     },
   ],
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[5‥19) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[5‥8) "doĭ",
       ],
-      argument: Cmevla "livinston",
+      argument: Cmevla @[10‥19) "livinston",
     },
   ],
 }"""

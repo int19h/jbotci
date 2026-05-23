@@ -18,49 +18,49 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li fu'a bi boĭ ci boĭ geĭ du li vo)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "fu'a",
-  Cmavo "bi",
-  Cmavo "boĭ",
-  Cmavo "ci",
-  Cmavo "boĭ",
-  Cmavo "geĭ",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "vo",
+  Cmavo @[0‥2) "li",
+  Cmavo @[49‥53) "fu'a",
+  Cmavo @[54‥56) "bi",
+  Cmavo @[57‥60) "boĭ",
+  Cmavo @[61‥63) "ci",
+  Cmavo @[64‥67) "boĭ",
+  Cmavo @[68‥71) "geĭ",
+  Cmavo @[72‥74) "du",
+  Cmavo @[75‥77) "li",
+  Cmavo @[78‥80) "vo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"fu'a","span":[49,53]}}},{"Bare":{"Cmavo":{"phonemes":"bi","span":[54,56]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[57,60]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[61,63]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[64,67]}}},{"Bare":{"Cmavo":{"phonemes":"geĭ","span":[68,71]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[72,74]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[75,77]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[78,80]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥80) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      ReversePolish {
-        fuha: Cmavo "fu'a",
+    MathExpression @[0‥71) {
+      li: Cmavo @[0‥2) "li",
+      ReversePolish @[49‥71) {
+        fuha: Cmavo @[49‥53) "fu'a",
         operands: [
-          Number {
-            Cmavo "bi",
-            boi: Cmavo "boĭ",
+          Number @[54‥60) {
+            Cmavo @[54‥56) "bi",
+            boi: Cmavo @[57‥60) "boĭ",
           },
-          Number {
-            Cmavo "ci",
-            boi: Cmavo "boĭ",
+          Number @[61‥67) {
+            Cmavo @[61‥63) "ci",
+            boi: Cmavo @[64‥67) "boĭ",
           },
         ],
         operators: [
-          Cmavo "geĭ",
+          Cmavo @[68‥71) "geĭ",
         ],
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[72‥80) {
+    Cmavo @[72‥74) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "vo",
+      MathExpression @[75‥80) {
+        li: Cmavo @[75‥77) "li",
+        Cmavo @[78‥80) "vo",
       },
     ],
   },

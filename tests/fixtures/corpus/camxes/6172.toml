@@ -18,32 +18,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(me do do'e le nu mo)"
 tree = """
 [
-  Cmavo "me",
-  Cmavo "do",
-  Cmavo "do'e",
-  Cmavo "le",
-  Cmavo "nu",
-  Cmavo "mo",
+  Cmavo @[0‥2) "me",
+  Cmavo @[3‥5) "do",
+  Cmavo @[6‥10) "do'e",
+  Cmavo @[11‥13) "le",
+  Cmavo @[14‥16) "nu",
+  Cmavo @[17‥19) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"do'e","span":[6,10]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"nu","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[17,19]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Relation {
-  Me {
-    me: Cmavo "me",
-    Cmavo "do",
+Relation @[0‥19) {
+  Me @[0‥5) {
+    me: Cmavo @[0‥2) "me",
+    Cmavo @[3‥5) "do",
   },
   terms: [
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "do'e",
+    Tagged @[6‥19) {
+      tense_modal: Simple @[6‥10) {
+        bai: Cmavo @[6‥10) "do'e",
       },
-      Descriptor {
-        descriptor: Cmavo "le",
-        relation: Abstraction {
-          nu: Cmavo "nu",
-          Cmavo "mo",
+      Descriptor @[11‥19) {
+        descriptor: Cmavo @[11‥13) "le",
+        relation: Abstraction @[14‥19) {
+          nu: Cmavo @[14‥16) "nu",
+          Cmavo @[17‥19) "mo",
         },
       },
     },

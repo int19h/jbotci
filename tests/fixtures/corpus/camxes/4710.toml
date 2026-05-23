@@ -18,21 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(pa re ci vo mu)"
 tree = """
 [
-  Cmavo "pa",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "mu",
+  Cmavo @[0‥2) "pa",
+  Cmavo @[2‥4) "re",
+  Cmavo @[4‥6) "ci",
+  Cmavo @[6‥8) "vo",
+  Cmavo @[8‥10) "mu",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[8,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "pa",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "mu",
+Number @[0‥10) {
+  Cmavo @[0‥2) "pa",
+  Cmavo @[2‥4) "re",
+  Cmavo @[4‥6) "ci",
+  Cmavo @[6‥8) "vo",
+  Cmavo @[8‥10) "mu",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[2,4]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ci","span":[4,6]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[8,10]}}}}]}}}}}}]}]}'

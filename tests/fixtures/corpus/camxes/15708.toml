@@ -19,17 +19,17 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(do mi)"
 tree = """
 [
-  Cmavo "do",
-  Cmavo "mi",
+  Cmavo @[0‥2) "do",
+  Cmavo @[5‥7) "mi",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"do","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥7) {
   terms: [
-    Cmavo "do",
-    Cmavo "mi",
+    Cmavo @[0‥2) "do",
+    Cmavo @[5‥7) "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[0,2]}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}]}}}}]}]}'

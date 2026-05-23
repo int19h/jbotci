@@ -18,66 +18,66 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([.a bu] du ny .i je by du [.o bu])"
 tree = """
 [
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Letter @[0‥3) {
+    Cmavo @[0‥1) "a",
+    bu: Cmavo @[1‥3) "bu",
   },
-  Cmavo "du",
-  Cmavo "ny",
-  Cmavo "i",
-  Cmavo "je",
-  Cmavo "by",
-  Cmavo "du",
-  Letter {
-    Cmavo "o",
-    bu: Cmavo "bu",
+  Cmavo @[4‥6) "du",
+  Cmavo @[7‥9) "ny",
+  Cmavo @[11‥12) "i",
+  Cmavo @[12‥14) "je",
+  Cmavo @[15‥17) "by",
+  Cmavo @[18‥20) "du",
+  Letter @[21‥24) {
+    Cmavo @[21‥22) "o",
+    bu: Cmavo @[22‥24) "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[0,1]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[1,3]}}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[11,12]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"by","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[18,20]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"o","span":[21,22]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[22,24]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Connected {
-  leading_statement: Predicate {
+Connected @[0‥24) {
+  leading_statement: Predicate @[0‥9) {
     leading_terms: [
-      Letter {
+      Letter @[0‥3) {
         letter: [
-          Letter {
-            Cmavo "a",
-            bu: Cmavo "bu",
+          Letter @[0‥3) {
+            Cmavo @[0‥1) "a",
+            bu: Cmavo @[1‥3) "bu",
           },
         ],
       },
     ],
-    Relation {
-      Cmavo "du",
+    Relation @[4‥9) {
+      Cmavo @[4‥6) "du",
       terms: [
-        Letter {
+        Letter @[7‥9) {
           letter: [
-            Cmavo "ny",
+            Cmavo @[7‥9) "ny",
           ],
         },
       ],
     },
   },
-  i: Cmavo "i",
-  connective: Cmavo "je",
-  trailing_statement: Predicate {
+  i: Cmavo @[11‥12) "i",
+  connective: Cmavo @[12‥14) "je",
+  trailing_statement: Predicate @[15‥24) {
     leading_terms: [
-      Letter {
+      Letter @[15‥17) {
         letter: [
-          Cmavo "by",
+          Cmavo @[15‥17) "by",
         ],
       },
     ],
-    Relation {
-      Cmavo "du",
+    Relation @[18‥24) {
+      Cmavo @[18‥20) "du",
       terms: [
-        Letter {
+        Letter @[21‥24) {
           letter: [
-            Letter {
-              Cmavo "o",
-              bu: Cmavo "bu",
+            Letter @[21‥24) {
+              Cmavo @[21‥22) "o",
+              bu: Cmavo @[22‥24) "bu",
             },
           ],
         },

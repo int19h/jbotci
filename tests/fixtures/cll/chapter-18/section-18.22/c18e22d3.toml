@@ -24,48 +24,48 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li mo'e vo boĭ re no meĭ te'u su'i ze)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "mo'e",
-  Cmavo "vo",
-  Cmavo "boĭ",
-  Cmavo "re",
-  Cmavo "no",
-  Cmavo "meĭ",
-  Cmavo "te'u",
-  Cmavo "su'i",
-  Cmavo "ze",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "mo'e",
+  Cmavo @[8‥10) "vo",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "re",
+  Cmavo @[16‥18) "no",
+  Cmavo @[18‥21) "meĭ",
+  Cmavo @[22‥26) "te'u",
+  Cmavo @[27‥31) "su'i",
+  Cmavo @[32‥34) "ze",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo'e","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"meĭ","span":[18,21]}}},{"Bare":{"Cmavo":{"phonemes":"te'u","span":[22,26]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[27,31]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[32,34]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(li [{mo'e ([vo boĭ] [{re no} meĭ]) te'u} su'i ze])"
 tree = """
-Term {
+Term @[0‥34) {
   terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Mohe {
-          mohe: Cmavo "mo'e",
-          Descriptor {
+    MathExpression @[0‥34) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥34) {
+        left_expression: Mohe @[3‥26) {
+          mohe: Cmavo @[3‥7) "mo'e",
+          Descriptor @[8‥21) {
             tail_elements: [
-              Number {
-                Cmavo "vo",
-                boi: Cmavo "boĭ",
+              Number @[8‥13) {
+                Cmavo @[8‥10) "vo",
+                boi: Cmavo @[10‥13) "boĭ",
               },
             ],
-            relation: Moi {
+            relation: Moi @[14‥21) {
               number: [
-                Cmavo "re",
-                Cmavo "no",
+                Cmavo @[14‥16) "re",
+                Cmavo @[16‥18) "no",
               ],
-              moi: Cmavo "meĭ",
+              moi: Cmavo @[18‥21) "meĭ",
             },
           },
-          tehu: Cmavo "te'u",
+          tehu: Cmavo @[22‥26) "te'u",
         },
-        operator: Cmavo "su'i",
-        right_expression: Cmavo "ze",
+        operator: Cmavo @[27‥31) "su'i",
+        right_expression: Cmavo @[32‥34) "ze",
       },
     },
   ],

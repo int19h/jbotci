@@ -18,21 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i je'e ki'e)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "je'e",
-  Cmavo "ki'e",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥7) "je'e",
+  Cmavo @[8‥12) "ki'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"je'e","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
+ParagraphStatement @[1‥12) {
+  i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative {
+    Vocative @[3‥12) {
       vocative_markers: [
-        Cmavo "je'e",
-        Cmavo "ki'e",
+        Cmavo @[3‥7) "je'e",
+        Cmavo @[8‥12) "ki'e",
       ],
     },
   ],

@@ -18,60 +18,60 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(ga naĭ do me li mu mu mu gi mi me li xa xa xa)"
 tree = """
 [
-  Cmavo "ga",
-  Cmavo "naĭ",
-  Cmavo "do",
-  Cmavo "me",
-  Cmavo "li",
-  Cmavo "mu",
-  Cmavo "mu",
-  Cmavo "mu",
-  Cmavo "gi",
-  Cmavo "mi",
-  Cmavo "me",
-  Cmavo "li",
-  Cmavo "xa",
-  Cmavo "xa",
-  Cmavo "xa",
+  Cmavo @[0‥2) "ga",
+  Cmavo @[2‥5) "naĭ",
+  Cmavo @[6‥8) "do",
+  Cmavo @[9‥11) "me",
+  Cmavo @[12‥14) "li",
+  Cmavo @[15‥17) "mu",
+  Cmavo @[17‥19) "mu",
+  Cmavo @[19‥21) "mu",
+  Cmavo @[22‥24) "gi",
+  Cmavo @[25‥27) "mi",
+  Cmavo @[28‥30) "me",
+  Cmavo @[31‥33) "li",
+  Cmavo @[34‥36) "xa",
+  Cmavo @[36‥38) "xa",
+  Cmavo @[38‥40) "xa",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ga","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"gi","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[28,30]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[31,33]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[34,36]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[36,38]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[38,40]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Pair {
-  gek: Forethought {
-    Cmavo "ga",
-    nai: Cmavo "naĭ",
+Pair @[0‥40) {
+  gek: Forethought @[0‥5) {
+    Cmavo @[0‥2) "ga",
+    nai: Cmavo @[2‥5) "naĭ",
   },
-  first: Predicate {
+  first: Predicate @[6‥21) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[6‥8) "do",
     ],
-    Me {
-      me: Cmavo "me",
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "mu",
-          Cmavo "mu",
-          Cmavo "mu",
+    Me @[9‥21) {
+      me: Cmavo @[9‥11) "me",
+      MathExpression @[12‥21) {
+        li: Cmavo @[12‥14) "li",
+        Number @[15‥21) {
+          Cmavo @[15‥17) "mu",
+          Cmavo @[17‥19) "mu",
+          Cmavo @[19‥21) "mu",
         },
       },
     },
   },
-  gik: Cmavo "gi",
-  second: Predicate {
+  gik: Cmavo @[22‥24) "gi",
+  second: Predicate @[25‥40) {
     leading_terms: [
-      Cmavo "mi",
+      Cmavo @[25‥27) "mi",
     ],
-    Me {
-      me: Cmavo "me",
-      MathExpression {
-        li: Cmavo "li",
-        Number {
-          Cmavo "xa",
-          Cmavo "xa",
-          Cmavo "xa",
+    Me @[28‥40) {
+      me: Cmavo @[28‥30) "me",
+      MathExpression @[31‥40) {
+        li: Cmavo @[31‥33) "li",
+        Number @[34‥40) {
+          Cmavo @[34‥36) "xa",
+          Cmavo @[36‥38) "xa",
+          Cmavo @[38‥40) "xa",
         },
       },
     },

@@ -18,37 +18,37 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'a mi pu so'i roĭ go'i ra'o)"
 tree = """
 [
-  Cmavo "la'a",
-  Cmavo "mi",
-  Cmavo "pu",
-  Cmavo "so'i",
-  Cmavo "roĭ",
-  Cmavo "go'i",
-  Cmavo "ra'o",
+  Cmavo @[0‥4) "la'a",
+  Cmavo @[5‥7) "mi",
+  Cmavo @[8‥10) "pu",
+  Cmavo @[11‥15) "so'i",
+  Cmavo @[15‥18) "roĭ",
+  Cmavo @[19‥23) "go'i",
+  Cmavo @[24‥28) "ra'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"la'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"so'i","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[15,18]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[19,23]}}},{"Bare":{"Cmavo":{"phonemes":"ra'o","span":[24,28]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥28) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "la'a",
+    Indicator @[0‥4) {
+      indicator: Cmavo @[0‥4) "la'a",
     },
   ],
-  Predicate {
+  Predicate @[5‥28) {
     leading_terms: [
-      Cmavo "mi",
+      Cmavo @[5‥7) "mi",
     ],
-    TenseModal {
-      tense_modal: Composite {
-        Cmavo "pu",
-        Cmavo "so'i",
-        Cmavo "roĭ",
+    TenseModal @[8‥28) {
+      tense_modal: Composite @[8‥18) {
+        Cmavo @[8‥10) "pu",
+        Cmavo @[11‥15) "so'i",
+        Cmavo @[15‥18) "roĭ",
       },
-      Goha {
-        goha: Cmavo "go'i",
-        raho: Cmavo "ra'o",
+      Goha @[19‥28) {
+        goha: Cmavo @[19‥23) "go'i",
+        raho: Cmavo @[24‥28) "ra'o",
       },
     },
   },

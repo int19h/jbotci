@@ -8,7 +8,7 @@ entry-id = "3742"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "krefu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tcidu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "alis" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 30, char_start: 26, char_end: 30, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ca" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cab" })), Rafsi(Phonemes(PhonemesData { text: "nicte" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 42, char_start: 34, char_end: 42, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ba" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kréfu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tcídu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "alis" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 30, char_start: 26, char_end: 30, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ca" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cab" })), Rafsi(Phonemes(PhonemesData { text: "nícte" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 42, char_start: 34, char_end: 42, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,14 +18,14 @@ error = { position = 8, allowed-next = [] }
 brackets = "(mi ba kréfu tcídu la'e la .alis. ca cabnícte)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "ba",
-  Gismu "kréfu",
-  Gismu "tcídu",
-  Cmavo "la'e",
-  Cmavo "la",
-  Cmevla "alis",
-  Cmavo "ca",
-  Lujvo "cabnícte",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥5) "ba",
+  Gismu @[6‥11) "kréfu",
+  Gismu @[12‥17) "tcídu",
+  Cmavo @[18‥22) "la'e",
+  Cmavo @[23‥25) "la",
+  Cmevla @[26‥30) "alis",
+  Cmavo @[31‥33) "ca",
+  Lujvo @[34‥42) "cabnícte",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ba","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"krefu","span":[6,11]}}},{"Bare":{"Gismu":{"phonemes":"tcidu","span":[12,17]}}},{"Bare":{"Cmavo":{"phonemes":"la'e","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[23,25]}}},{"Bare":{"Cmevla":{"phonemes":"alis","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[31,33]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cab"},{"Rafsi":"nicte"}],"span":[34,42]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ba","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"kréfu","span":[6,11]}}},{"Bare":{"Gismu":{"phonemes":"tcídu","span":[12,17]}}},{"Bare":{"Cmavo":{"phonemes":"la'e","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[23,25]}}},{"Bare":{"Cmevla":{"phonemes":"alis","span":[26,30]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[31,33]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cab"},{"Rafsi":"nícte"}],"span":[34,42]}}}]"""

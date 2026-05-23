@@ -18,10 +18,10 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "so"
 tree = """
 [
-  Cmavo "so",
+  Cmavo @[0‥2) "so",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"so","span":[0,2]}}}]'
 
 [expectations.output.gentufa]
-tree = 'Cmavo "so"'
+tree = 'Cmavo @[0‥2) "so"'
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"so","span":[0,2]}}}}]}}}}}}]}]}'

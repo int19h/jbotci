@@ -18,63 +18,63 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li fu'a ci boĭ mu boĭ vu'u du li fu'a re boĭ tu'o va'a)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "fu'a",
-  Cmavo "ci",
-  Cmavo "boĭ",
-  Cmavo "mu",
-  Cmavo "boĭ",
-  Cmavo "vu'u",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "fu'a",
-  Cmavo "re",
-  Cmavo "boĭ",
-  Cmavo "tu'o",
-  Cmavo "va'a",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "fu'a",
+  Cmavo @[8‥10) "ci",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "mu",
+  Cmavo @[16‥19) "boĭ",
+  Cmavo @[20‥24) "vu'u",
+  Cmavo @[25‥27) "du",
+  Cmavo @[28‥30) "li",
+  Cmavo @[31‥35) "fu'a",
+  Cmavo @[36‥38) "re",
+  Cmavo @[38‥41) "boĭ",
+  Cmavo @[42‥46) "tu'o",
+  Cmavo @[47‥51) "va'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[16,19]}}},{"Bare":{"Cmavo":{"phonemes":"vu'u","span":[20,24]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[28,30]}}},{"Bare":{"Cmavo":{"phonemes":"fu'a","span":[31,35]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[36,38]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[38,41]}}},{"Bare":{"Cmavo":{"phonemes":"tu'o","span":[42,46]}}},{"Bare":{"Cmavo":{"phonemes":"va'a","span":[47,51]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥51) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      ReversePolish {
-        fuha: Cmavo "fu'a",
+    MathExpression @[0‥24) {
+      li: Cmavo @[0‥2) "li",
+      ReversePolish @[3‥24) {
+        fuha: Cmavo @[3‥7) "fu'a",
         operands: [
-          Number {
-            Cmavo "ci",
-            boi: Cmavo "boĭ",
+          Number @[8‥13) {
+            Cmavo @[8‥10) "ci",
+            boi: Cmavo @[10‥13) "boĭ",
           },
-          Number {
-            Cmavo "mu",
-            boi: Cmavo "boĭ",
+          Number @[14‥19) {
+            Cmavo @[14‥16) "mu",
+            boi: Cmavo @[16‥19) "boĭ",
           },
         ],
         operators: [
-          Cmavo "vu'u",
+          Cmavo @[20‥24) "vu'u",
         ],
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[25‥51) {
+    Cmavo @[25‥27) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        ReversePolish {
-          fuha: Cmavo "fu'a",
+      MathExpression @[28‥51) {
+        li: Cmavo @[28‥30) "li",
+        ReversePolish @[31‥51) {
+          fuha: Cmavo @[31‥35) "fu'a",
           operands: [
-            Number {
-              Cmavo "re",
-              boi: Cmavo "boĭ",
+            Number @[36‥41) {
+              Cmavo @[36‥38) "re",
+              boi: Cmavo @[38‥41) "boĭ",
             },
-            Cmavo "tu'o",
+            Cmavo @[42‥46) "tu'o",
           ],
           operators: [
-            Cmavo "va'a",
+            Cmavo @[47‥51) "va'a",
           ],
         },
       },

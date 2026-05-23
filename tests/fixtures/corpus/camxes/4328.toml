@@ -8,7 +8,7 @@ entry-id = "4328"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "incompre'ensible" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 16, char_start: 0, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "li" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "incompre'ensíble" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 16, char_start: 0, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "li" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ke" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,10 +18,10 @@ error = { position = 5, allowed-next = [] }
 brackets = "(.incompre'ensíble mo re li ke)"
 tree = """
 [
-  Fuhivla "incompre'ensíble",
-  Cmavo "mo",
-  Cmavo "re",
-  Cmavo "li",
-  Cmavo "ke",
+  Fuhivla @[0‥16) "incompre'ensíble",
+  Cmavo @[17‥19) "mo",
+  Cmavo @[19‥21) "re",
+  Cmavo @[22‥24) "li",
+  Cmavo @[24‥26) "ke",
 ]"""
-json = """[{"Bare":{"Fuhivla":{"phonemes":"incompre'ensible","span":[0,16]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[24,26]}}}]"""
+json = """[{"Bare":{"Fuhivla":{"phonemes":"incompre'ensíble","span":[0,16]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[24,26]}}}]"""

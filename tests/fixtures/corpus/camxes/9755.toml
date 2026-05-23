@@ -18,17 +18,17 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "baŭ"
 tree = """
 [
-  Cmavo "baŭ",
+  Cmavo @[0‥3) "baŭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"baŭ","span":[0,3]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥3) {
   terms: [
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "baŭ",
+    Tagged @[0‥3) {
+      tense_modal: Simple @[0‥3) {
+        bai: Cmavo @[0‥3) "baŭ",
       },
       Zohe {},
     },

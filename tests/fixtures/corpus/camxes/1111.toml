@@ -18,43 +18,43 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ma'u pa su'i ni'u pa du li no)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "ma'u",
-  Cmavo "pa",
-  Cmavo "su'i",
-  Cmavo "ni'u",
-  Cmavo "pa",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "no",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "ma'u",
+  Cmavo @[8‥10) "pa",
+  Cmavo @[11‥15) "su'i",
+  Cmavo @[16‥20) "ni'u",
+  Cmavo @[21‥23) "pa",
+  Cmavo @[24‥26) "du",
+  Cmavo @[27‥29) "li",
+  Cmavo @[30‥32) "no",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ma'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"ni'u","span":[16,20]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[30,32]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥32) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Number {
-          Cmavo "ma'u",
-          Cmavo "pa",
+    MathExpression @[0‥23) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥23) {
+        left_expression: Number @[3‥10) {
+          Cmavo @[3‥7) "ma'u",
+          Cmavo @[8‥10) "pa",
         },
-        operator: Cmavo "su'i",
-        right_expression: Number {
-          Cmavo "ni'u",
-          Cmavo "pa",
+        operator: Cmavo @[11‥15) "su'i",
+        right_expression: Number @[16‥23) {
+          Cmavo @[16‥20) "ni'u",
+          Cmavo @[21‥23) "pa",
         },
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[24‥32) {
+    Cmavo @[24‥26) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "no",
+      MathExpression @[27‥32) {
+        li: Cmavo @[27‥29) "li",
+        Cmavo @[30‥32) "no",
       },
     ],
   },

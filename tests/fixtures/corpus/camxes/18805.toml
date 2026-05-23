@@ -18,15 +18,15 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "no'i"
 tree = """
 [
-  Cmavo "no'i",
+  Cmavo @[0‥4) "no'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"no'i","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Paragraph {
+Paragraph @[0‥4) {
   niho: [
-    Cmavo "no'i",
+    Cmavo @[0‥4) "no'i",
   ],
 }"""
 json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"no'i","span":[0,4]}}}}]}]}"""

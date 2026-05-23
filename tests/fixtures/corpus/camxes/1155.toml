@@ -18,46 +18,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li zy du li pe'o ma'o fy boĭ xy ku'e)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "zy",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "pe'o",
-  Cmavo "ma'o",
-  Cmavo "fy",
-  Cmavo "boĭ",
-  Cmavo "xy",
-  Cmavo "ku'e",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "zy",
+  Cmavo @[6‥8) "du",
+  Cmavo @[9‥11) "li",
+  Cmavo @[12‥16) "pe'o",
+  Cmavo @[17‥21) "ma'o",
+  Cmavo @[22‥24) "fy",
+  Cmavo @[25‥28) "boĭ",
+  Cmavo @[29‥31) "xy",
+  Cmavo @[33‥37) "ku'e",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"zy","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"pe'o","span":[12,16]}}},{"Bare":{"Cmavo":{"phonemes":"ma'o","span":[17,21]}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[25,28]}}},{"Bare":{"Cmavo":{"phonemes":"xy","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"ku'e","span":[33,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥37) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Cmavo "zy",
+    MathExpression @[0‥5) {
+      li: Cmavo @[0‥2) "li",
+      Cmavo @[3‥5) "zy",
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[6‥37) {
+    Cmavo @[6‥8) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Forethought {
-          peho: Cmavo "pe'o",
-          operator: Maho {
-            maho: Cmavo "ma'o",
-            Letter {
-              Cmavo "fy",
-              boi: Cmavo "boĭ",
+      MathExpression @[9‥37) {
+        li: Cmavo @[9‥11) "li",
+        Forethought @[12‥37) {
+          peho: Cmavo @[12‥16) "pe'o",
+          operator: Maho @[17‥28) {
+            maho: Cmavo @[17‥21) "ma'o",
+            Letter @[22‥28) {
+              Cmavo @[22‥24) "fy",
+              boi: Cmavo @[25‥28) "boĭ",
             },
           },
           operands: [
-            Cmavo "xy",
+            Cmavo @[29‥31) "xy",
           ],
-          kuhe: Cmavo "ku'e",
+          kuhe: Cmavo @[33‥37) "ku'e",
         },
       },
     ],

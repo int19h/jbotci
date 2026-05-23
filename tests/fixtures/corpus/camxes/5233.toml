@@ -18,47 +18,47 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to ra goĭ tu'a [zo na] joĭ [zo na'e] toĭ)"
 tree = """
 [
-  Cmavo "to",
-  Cmavo "ra",
-  Cmavo "goĭ",
-  Cmavo "tu'a",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "na",
+  Cmavo @[0‥2) "to",
+  Cmavo @[3‥5) "ra",
+  Cmavo @[6‥9) "goĭ",
+  Cmavo @[10‥14) "tu'a",
+  ZoQuote @[15‥20) {
+    zo: Cmavo @[15‥17) "zo",
+    Cmavo @[18‥20) "na",
   },
-  Cmavo "joĭ",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "na'e",
+  Cmavo @[21‥24) "joĭ",
+  ZoQuote @[25‥32) {
+    zo: Cmavo @[25‥27) "zo",
+    Cmavo @[28‥32) "na'e",
   },
-  Cmavo "toĭ",
+  Cmavo @[33‥36) "toĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ra","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"goĭ","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"tu'a","span":[10,14]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[15,17]}},"word":{"Cmavo":{"phonemes":"na","span":[18,20]}}}},{"Bare":{"Cmavo":{"phonemes":"joĭ","span":[21,24]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[25,27]}},"word":{"Cmavo":{"phonemes":"na'e","span":[28,32]}}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[33,36]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥36) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
-      Term {
+    To @[0‥36) {
+      to: Cmavo @[0‥2) "to",
+      Term @[3‥32) {
         terms: [
-          RelativeClause {
-            base_argument: Cmavo "ra",
+          RelativeClause @[3‥32) {
+            base_argument: Cmavo @[3‥5) "ra",
             relative_clauses: [
-              GoiRelativeClause {
-                goi: Cmavo "goĭ",
-                Lahe {
-                  lahe: Cmavo "tu'a",
-                  Connected {
-                    leading_argument: ZoQuote {
-                      zo: Cmavo "zo",
-                      Cmavo "na",
+              GoiRelativeClause @[6‥32) {
+                goi: Cmavo @[6‥9) "goĭ",
+                Lahe @[10‥32) {
+                  lahe: Cmavo @[10‥14) "tu'a",
+                  Connected @[15‥32) {
+                    leading_argument: ZoQuote @[15‥20) {
+                      zo: Cmavo @[15‥17) "zo",
+                      Cmavo @[18‥20) "na",
                     },
-                    connective: Cmavo "joĭ",
-                    trailing_argument: ZoQuote {
-                      zo: Cmavo "zo",
-                      Cmavo "na'e",
+                    connective: Cmavo @[21‥24) "joĭ",
+                    trailing_argument: ZoQuote @[25‥32) {
+                      zo: Cmavo @[25‥27) "zo",
+                      Cmavo @[28‥32) "na'e",
                     },
                   },
                 },
@@ -67,7 +67,7 @@ Text {
           },
         ],
       },
-      toi: Cmavo "toĭ",
+      toi: Cmavo @[33‥36) "toĭ",
     },
   ],
 }"""

@@ -8,7 +8,7 @@ entry-id = "11906"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "grandega" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ge" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "grandéga" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 1, allowed-next = [] }
 brackets = "(.e ge grandéga)"
 tree = """
 [
-  Cmavo "e",
-  Cmavo "ge",
-  Fuhivla "grandéga",
+  Cmavo @[0‥1) "e",
+  Cmavo @[1‥3) "ge",
+  Fuhivla @[4‥12) "grandéga",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"e","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"ge","span":[1,3]}}},{"Bare":{"Fuhivla":{"phonemes":"grandega","span":[4,12]}}}]'
+json = '[{"Bare":{"Cmavo":{"phonemes":"e","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"ge","span":[1,3]}}},{"Bare":{"Fuhivla":{"phonemes":"grandéga","span":[4,12]}}}]'

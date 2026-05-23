@@ -18,21 +18,21 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i xu .ŭo)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "xu",
-  Cmavo "ŭo",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "xu",
+  Cmavo @[7‥9) "ŭo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"ŭo","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "xu",
+ParagraphStatement @[1‥9) {
+  i: WithIndicator @[1‥9) {
+    WithIndicator @[1‥5) {
+      Cmavo @[1‥2) "i",
+      indicator: Cmavo @[3‥5) "xu",
     },
-    indicator: Cmavo "ŭo",
+    indicator: Cmavo @[7‥9) "ŭo",
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"ŭo","span":[7,9]}}}}}]}]}'

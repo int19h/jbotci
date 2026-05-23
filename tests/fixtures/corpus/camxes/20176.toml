@@ -18,20 +18,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ .ŭogl.)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmevla "ŭogl",
+  Cmavo @[0‥3) "coĭ",
+  Cmevla @[5‥9) "ŭogl",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"ŭogl","span":[5,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥9) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥9) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: Cmevla "ŭogl",
+      argument: Cmevla @[5‥9) "ŭogl",
     },
   ],
 }"""

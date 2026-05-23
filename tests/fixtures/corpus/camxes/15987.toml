@@ -18,27 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 brackets = "(.ŭi me la .netsplit.)"
 tree = """
 [
-  Cmavo "ŭi",
-  Cmavo "me",
-  Cmavo "la",
-  Cmevla "netsplit",
+  Cmavo @[0‥2) "ŭi",
+  Cmavo @[3‥5) "me",
+  Cmavo @[6‥8) "la",
+  Cmevla @[9‥17) "netsplit",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}},{"Bare":{"Cmevla":{"phonemes":"netsplit","span":[9,17]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥17) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "ŭi",
+    Indicator @[0‥2) {
+      indicator: Cmavo @[0‥2) "ŭi",
     },
   ],
-  Me {
-    me: Cmavo "me",
-    Name {
-      la: Cmavo "la",
+  Me @[3‥17) {
+    me: Cmavo @[3‥5) "me",
+    Name @[6‥17) {
+      la: Cmavo @[6‥8) "la",
       names: [
-        Cmevla "netsplit",
+        Cmevla @[9‥17) "netsplit",
       ],
     },
   },

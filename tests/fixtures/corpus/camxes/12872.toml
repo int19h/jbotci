@@ -19,19 +19,19 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(la .oŭebe'osting.)"
 tree = """
 [
-  Cmavo "la",
-  Cmevla "oŭebe'osting",
+  Cmavo @[3‥5) "la",
+  Cmevla @[6‥18) "oŭebe'osting",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}},{"Bare":{"Cmevla":{"phonemes":"oŭebe'osting","span":[6,18]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[3‥18) {
   terms: [
-    Name {
-      la: Cmavo "la",
+    Name @[3‥18) {
+      la: Cmavo @[3‥5) "la",
       names: [
-        Cmevla "oŭebe'osting",
+        Cmevla @[6‥18) "oŭebe'osting",
       ],
     },
   ],

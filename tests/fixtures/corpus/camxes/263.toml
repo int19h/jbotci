@@ -18,53 +18,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "([yyyyy bu] fu'e .ŭi naĭ saĭ ro'i du li pa)"
 tree = """
 [
-  Letter {
-    Cmavo "yyyyy",
-    bu: Cmavo "bu",
+  Letter @[1‥10) {
+    Cmavo @[1‥6) "yyyyy",
+    bu: Cmavo @[8‥10) "bu",
   },
-  Cmavo "fu'e",
-  Cmavo "ŭi",
-  Cmavo "naĭ",
-  Cmavo "saĭ",
-  Cmavo "ro'i",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "pa",
+  Cmavo @[11‥15) "fu'e",
+  Cmavo @[16‥18) "ŭi",
+  Cmavo @[18‥21) "naĭ",
+  Cmavo @[21‥24) "saĭ",
+  Cmavo @[24‥28) "ro'i",
+  Cmavo @[29‥31) "du",
+  Cmavo @[32‥34) "li",
+  Cmavo @[35‥37) "pa",
 ]"""
 json = """[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"yyyyy","span":[1,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[8,10]}}}},{"Bare":{"Cmavo":{"phonemes":"fu'e","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[18,21]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[21,24]}}},{"Bare":{"Cmavo":{"phonemes":"ro'i","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[32,34]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[35,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[1‥37) {
   leading_terms: [
-    Letter {
+    Letter @[1‥28) {
       letter: [
-        WithIndicator {
-          WithIndicator {
-            WithIndicator {
-              WithIndicator {
-                Letter {
-                  Cmavo "yyyyy",
-                  bu: Cmavo "bu",
+        WithIndicator @[1‥28) {
+          WithIndicator @[1‥24) {
+            WithIndicator @[1‥21) {
+              WithIndicator @[1‥15) {
+                Letter @[1‥10) {
+                  Cmavo @[1‥6) "yyyyy",
+                  bu: Cmavo @[8‥10) "bu",
                 },
-                indicator: Cmavo "fu'e",
+                indicator: Cmavo @[11‥15) "fu'e",
               },
-              indicator: Cmavo "ŭi",
-              nai: Cmavo "naĭ",
+              indicator: Cmavo @[16‥18) "ŭi",
+              nai: Cmavo @[18‥21) "naĭ",
             },
-            indicator: Cmavo "saĭ",
+            indicator: Cmavo @[21‥24) "saĭ",
           },
-          indicator: Cmavo "ro'i",
+          indicator: Cmavo @[24‥28) "ro'i",
         },
       ],
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[29‥37) {
+    Cmavo @[29‥31) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "pa",
+      MathExpression @[32‥37) {
+        li: Cmavo @[32‥34) "li",
+        Cmavo @[35‥37) "pa",
       },
     ],
   },

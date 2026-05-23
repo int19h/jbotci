@@ -18,27 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i [zoĭ cy led-editor.sourceforge.net cy])"
 tree = """
 [
-  Cmavo "i",
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "cy",
-    quoted_text: Verbatim "led-editor.sourceforge.net",
-    closing_delimiter: Cmavo "cy",
+  Cmavo @[1‥2) "i",
+  ZoiQuote @[3‥42) {
+    zoi: Cmavo @[3‥6) "zoĭ",
+    opening_delimiter: Cmavo @[8‥10) "cy",
+    quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
+    closing_delimiter: Cmavo @[40‥42) "cy",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Term {
+ParagraphStatement @[1‥42) {
+  i: Cmavo @[1‥2) "i",
+  Term @[3‥42) {
     terms: [
-      ZoiQuote {
-        zoi: Cmavo "zoĭ",
-        opening_delimiter: Cmavo "cy",
-        quoted_text: Verbatim "led-editor.sourceforge.net",
-        closing_delimiter: Cmavo "cy",
+      ZoiQuote @[3‥42) {
+        zoi: Cmavo @[3‥6) "zoĭ",
+        opening_delimiter: Cmavo @[8‥10) "cy",
+        quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
+        closing_delimiter: Cmavo @[40‥42) "cy",
       },
     ],
   },

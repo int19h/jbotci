@@ -18,25 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([mi zeĭ co] mi)"
 tree = """
 [
-  ZeiLujvo {
-    left: Cmavo "mi",
-    zei: Cmavo "zeĭ",
-    Cmavo "co",
+  ZeiLujvo @[15‥24) {
+    left: Cmavo @[15‥17) "mi",
+    zei: Cmavo @[18‥21) "zeĭ",
+    Cmavo @[22‥24) "co",
   },
-  Cmavo "mi",
+  Cmavo @[25‥27) "mi",
 ]"""
 json = '[{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"mi","span":[15,17]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[18,21]}},"right":{"Cmavo":{"phonemes":"co","span":[22,24]}}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[25,27]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Relation {
-  ZeiLujvo {
-    left: Cmavo "mi",
-    zei: Cmavo "zeĭ",
-    Cmavo "co",
+Relation @[15‥27) {
+  ZeiLujvo @[15‥24) {
+    left: Cmavo @[15‥17) "mi",
+    zei: Cmavo @[18‥21) "zeĭ",
+    Cmavo @[22‥24) "co",
   },
   terms: [
-    Cmavo "mi",
+    Cmavo @[25‥27) "mi",
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"mi","span":[15,17]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[18,21]}},"right":{"Cmavo":{"phonemes":"co","span":[22,24]}}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[25,27]}}}}}}]}}}}}}}}]}]}'

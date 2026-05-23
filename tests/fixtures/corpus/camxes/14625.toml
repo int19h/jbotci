@@ -19,27 +19,27 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(.not. ca na da)"
 tree = """
 [
-  Cmevla "not",
-  Cmavo "ca",
-  Cmavo "na",
-  Cmavo "da",
+  Cmevla @[0‥3) "not",
+  Cmavo @[4‥6) "ca",
+  Cmavo @[6‥8) "na",
+  Cmavo @[8‥10) "da",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"not","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"da","span":[8,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥10) {
   leading_cmevla: [
-    Cmevla "not",
+    Cmevla @[0‥3) "not",
   ],
-  Term {
+  Term @[4‥10) {
     terms: [
-      Tagged {
-        tense_modal: Cmavo "ca",
+      Tagged @[4‥6) {
+        tense_modal: Cmavo @[4‥6) "ca",
         Zohe {},
       },
-      Cmavo "na",
-      Cmavo "da",
+      Cmavo @[6‥8) "na",
+      Cmavo @[8‥10) "da",
     ],
   },
 }"""

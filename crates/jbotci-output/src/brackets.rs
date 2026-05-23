@@ -9,6 +9,13 @@ use jbotci_tree::TreeVisitor;
 
 use crate::{BracketRenderOptions, OutputError, sexpr, surface};
 
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct BracketContext<'source> {
+    source: &'source str,
+    options: BracketRenderOptions,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub(crate) fn pretty_brackets_with_options(
@@ -16,7 +23,8 @@ pub(crate) fn pretty_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    let sexpr = text(tree, source);
+    let context = BracketContext { source, options };
+    let sexpr = text(tree, &context);
     Ok(sexpr::render_bracketed_with_options(
         &sexpr::flatten(sexpr),
         options,
@@ -30,10 +38,11 @@ pub(crate) fn pretty_morphology_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
+    let context = BracketContext { source, options };
     let sexpr = sexpr::node(
         words
             .iter()
-            .map(|word_like| word_like_brackets(word_like, source))
+            .map(|word_like| word_like_brackets(word_like, &context))
             .collect(),
     );
     Ok(sexpr::render_bracketed_with_options(
@@ -44,7 +53,7 @@ pub(crate) fn pretty_morphology_brackets_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn text(tree: &TextSyntax, source: &str) -> sexpr::SExpr {
+fn text(tree: &TextSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = Vec::new();
     if !tree.leading_nai.is_empty() {
         children.push(list_node(words(&tree.leading_nai, source)));
@@ -69,7 +78,7 @@ fn text(tree: &TextSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn paragraph(value: &ParagraphSyntax, source: &str) -> sexpr::SExpr {
+fn paragraph(value: &ParagraphSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = Vec::new();
     if let Some(i) = &value.i {
         children.push(word(i, source));
@@ -92,7 +101,10 @@ fn paragraph(value: &ParagraphSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn paragraph_statement(value: &ParagraphStatementSyntax, source: &str) -> sexpr::SExpr {
+fn paragraph_statement(
+    value: &ParagraphStatementSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     let mut children = Vec::new();
     if let Some(i) = &value.i {
         children.push(word(i, source));
@@ -114,7 +126,7 @@ fn paragraph_statement(value: &ParagraphStatementSyntax, source: &str) -> sexpr:
 
 #[requires(true)]
 #[ensures(true)]
-fn statement_syntax(value: &StatementSyntax, source: &str) -> sexpr::SExpr {
+fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         StatementSyntax::Tuhe {
             tense_modal,
@@ -190,7 +202,7 @@ fn statement_syntax(value: &StatementSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_syntax(value: &PredicateSyntax, source: &str) -> sexpr::SExpr {
+fn predicate_syntax(value: &PredicateSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![list_node(
         value
             .leading_terms
@@ -213,7 +225,7 @@ fn predicate_syntax(value: &PredicateSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail(value: &PredicateTailSyntax, source: &str) -> sexpr::SExpr {
+fn predicate_tail(value: &PredicateTailSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![predicate_tail1(&value.first, source)];
     if let Some(continuation) = &value.ke_continuation {
         children.push(ke_predicate_tail(continuation, source));
@@ -223,7 +235,7 @@ fn predicate_tail(value: &PredicateTailSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail1(value: &PredicateTail1Syntax, source: &str) -> sexpr::SExpr {
+fn predicate_tail1(value: &PredicateTail1Syntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![predicate_tail2(&value.first, source)];
     if !value.continuations.is_empty() {
         children.push(list_node(
@@ -239,7 +251,7 @@ fn predicate_tail1(value: &PredicateTail1Syntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail2(value: &PredicateTail2Syntax, source: &str) -> sexpr::SExpr {
+fn predicate_tail2(value: &PredicateTail2Syntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![predicate_tail3(&value.first, source)];
     if let Some(continuation) = &value.bo_continuation {
         children.push(bo_predicate_tail(continuation, source));
@@ -249,7 +261,7 @@ fn predicate_tail2(value: &PredicateTail2Syntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail3(value: &PredicateTail3Syntax, source: &str) -> sexpr::SExpr {
+fn predicate_tail3(value: &PredicateTail3Syntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         PredicateTail3Syntax::Relation {
             relation,
@@ -278,7 +290,7 @@ fn predicate_tail3(value: &PredicateTail3Syntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &str) -> sexpr::SExpr {
+fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![connective_syntax(&value.connective, source)];
     if let Some(tense_modal) = &value.tense_modal {
         children.push(tense_modal_syntax(tense_modal, source));
@@ -305,7 +317,7 @@ fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &str) -> sexpr::SExp
 #[ensures(true)]
 fn predicate_tail_continuation(
     value: &PredicateTailContinuationSyntax,
-    source: &str,
+    source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = vec![connective_syntax(&value.connective, source)];
     if let Some(tense_modal) = &value.tense_modal {
@@ -330,7 +342,7 @@ fn predicate_tail_continuation(
 
 #[requires(true)]
 #[ensures(true)]
-fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &str) -> sexpr::SExpr {
+fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![connective_syntax(&value.connective, source)];
     if let Some(tense_modal) = &value.tense_modal {
         children.push(tense_modal_syntax(tense_modal, source));
@@ -355,7 +367,7 @@ fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &str) -> sexpr::SExp
 
 #[requires(true)]
 #[ensures(true)]
-fn gek_sentence(value: &GekSentenceSyntax, source: &str) -> sexpr::SExpr {
+fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         GekSentenceSyntax::Pair {
             gek,
@@ -415,7 +427,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn subsentence(value: &SubsentenceSyntax, source: &str) -> sexpr::SExpr {
+fn subsentence(value: &SubsentenceSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         SubsentenceSyntax::Plain(predicate) => predicate_syntax(predicate, source),
         SubsentenceSyntax::Prenex {
@@ -434,7 +446,7 @@ fn subsentence(value: &SubsentenceSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn fragment_syntax(value: &FragmentSyntax, source: &str) -> sexpr::SExpr {
+fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
             connective_syntax(connective, source)
@@ -503,7 +515,7 @@ fn fragment_syntax(value: &FragmentSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn term(value: &TermSyntax, source: &str) -> sexpr::SExpr {
+fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         TermSyntax::Argument(argument) => argument_syntax(argument, source),
         TermSyntax::Tagged {
@@ -752,7 +764,7 @@ fn term(value: &TermSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_syntax(value: &ArgumentSyntax, source: &str) -> sexpr::SExpr {
+fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         ArgumentSyntax::Quote(quote) => quote_syntax(quote, source),
         ArgumentSyntax::MathExpression {
@@ -1015,7 +1027,7 @@ fn argument_syntax(value: &ArgumentSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_tag(value: &ArgumentTagSyntax, source: &str) -> sexpr::SExpr {
+fn argument_tag(value: &ArgumentTagSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal_syntax(tense_modal, source),
         ArgumentTagSyntax::Fa(fa) => with_free_word(fa, source),
@@ -1024,7 +1036,7 @@ fn argument_tag(value: &ArgumentTagSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn descriptor_syntax(value: &DescriptorSyntax, source: &str) -> sexpr::SExpr {
+fn descriptor_syntax(value: &DescriptorSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = Vec::new();
     if let Some(outer_quantifier) = &value.outer_quantifier {
         children.push(quantifier_syntax(outer_quantifier, source));
@@ -1068,7 +1080,10 @@ fn descriptor_syntax(value: &DescriptorSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn connected_descriptor(value: &ConnectedDescriptorSyntax, source: &str) -> sexpr::SExpr {
+fn connected_descriptor(
+    value: &ConnectedDescriptorSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     let mut children = vec![
         descriptor_head(&value.leading_descriptor_head, source),
         connective_syntax(&value.connective, source),
@@ -1100,13 +1115,16 @@ fn connected_descriptor(value: &ConnectedDescriptorSyntax, source: &str) -> sexp
 
 #[requires(true)]
 #[ensures(true)]
-fn descriptor_head(value: &DescriptorHeadSyntax, source: &str) -> sexpr::SExpr {
+fn descriptor_head(value: &DescriptorHeadSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     with_free_word(&value.descriptor, source)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_tail_element(value: &ArgumentTailElementSyntax, source: &str) -> sexpr::SExpr {
+fn argument_tail_element(
+    value: &ArgumentTailElementSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     match value {
         ArgumentTailElementSyntax::Argument(argument) => argument_syntax(argument, source),
         ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => sexpr::node(
@@ -1121,7 +1139,7 @@ fn argument_tail_element(value: &ArgumentTailElementSyntax, source: &str) -> sex
 
 #[requires(true)]
 #[ensures(true)]
-fn relative_clause(value: &RelativeClauseSyntax, source: &str) -> sexpr::SExpr {
+fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         RelativeClauseSyntax::Goi(goi) => {
             let mut children = vec![
@@ -1162,7 +1180,7 @@ fn relative_clause(value: &RelativeClauseSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn quote_syntax(value: &QuoteSyntax, source: &str) -> sexpr::SExpr {
+fn quote_syntax(value: &QuoteSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         QuoteSyntax::Lu { lu, text, lihu } => {
             let mut children = vec![word(&lu.value, source)];
@@ -1186,7 +1204,7 @@ fn quote_syntax(value: &QuoteSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn quantifier_syntax(value: &QuantifierSyntax, source: &str) -> sexpr::SExpr {
+fn quantifier_syntax(value: &QuantifierSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         QuantifierSyntax::Number { number, boi } => {
             let mut children = vec![with_free_words(number, source)];
@@ -1214,7 +1232,7 @@ fn quantifier_syntax(value: &QuantifierSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn math_expression(value: &MathExpressionSyntax, source: &str) -> sexpr::SExpr {
+fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         MathExpressionSyntax::Number(number) => quantifier_syntax(number, source),
         MathExpressionSyntax::Letter { letter, boi } => {
@@ -1378,7 +1396,7 @@ fn math_expression(value: &MathExpressionSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn math_operator(value: &MathOperatorSyntax, source: &str) -> sexpr::SExpr {
+fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         MathOperatorSyntax::Vuhu(word) => with_free_word(word, source),
         MathOperatorSyntax::Connected {
@@ -1472,7 +1490,7 @@ fn math_operator(value: &MathOperatorSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_syntax(value: &RelationSyntax, source: &str) -> sexpr::SExpr {
+fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         RelationSyntax::Base(value) => word(value, source),
         RelationSyntax::Compound(units) => sexpr::node(
@@ -1572,7 +1590,7 @@ fn relation_syntax(value: &RelationSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_unit(value: &RelationUnitSyntax, source: &str) -> sexpr::SExpr {
+fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         RelationUnitSyntax::Word(word) => with_free_word(word, source),
         RelationUnitSyntax::Goha { goha, raho } => {
@@ -1766,7 +1784,7 @@ fn be_link_node(
     first_argument: Option<&ArgumentSyntax>,
     bei_links: &[BeiLinkSyntax],
     beho: Option<&WithFreeModifiers<WithIndicators<WordLike>>>,
-    source: &str,
+    source: &BracketContext<'_>,
     preposed: bool,
 ) -> sexpr::SExpr {
     let mut link_children = vec![with_free_word(be, source)];
@@ -1792,7 +1810,7 @@ fn be_link_node(
 
 #[requires(true)]
 #[ensures(true)]
-fn bei_link(value: &BeiLinkSyntax, source: &str) -> sexpr::SExpr {
+fn bei_link(value: &BeiLinkSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![with_free_word(&value.bei, source)];
     if let Some(fa) = &value.fa {
         children.push(with_free_word(fa, source));
@@ -1805,7 +1823,7 @@ fn bei_link(value: &BeiLinkSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn abstraction_syntax(value: &AbstractionSyntax, source: &str) -> sexpr::SExpr {
+fn abstraction_syntax(value: &AbstractionSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![with_free_word(&value.nu, source)];
     if let Some(nai) = &value.nai {
         children.push(with_free_word(nai, source));
@@ -1829,7 +1847,7 @@ fn abstraction_syntax(value: &AbstractionSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
+fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         TenseModalSyntax::Fiho {
             fiho,
@@ -1925,7 +1943,10 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn composite_tense_modal_part(value: &CompositeTenseModalPartSyntax, source: &str) -> sexpr::SExpr {
+fn composite_tense_modal_part(
+    value: &CompositeTenseModalPartSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     match value {
         CompositeTenseModalPartSyntax::Word(part_word) => word(part_word, source),
         CompositeTenseModalPartSyntax::Fiho(fiho) => fiho_modal(fiho, source),
@@ -1934,7 +1955,7 @@ fn composite_tense_modal_part(value: &CompositeTenseModalPartSyntax, source: &st
 
 #[requires(true)]
 #[ensures(true)]
-fn fiho_modal(value: &FihoModalSyntax, source: &str) -> sexpr::SExpr {
+fn fiho_modal(value: &FihoModalSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = Vec::new();
     if let Some(nahe) = &value.nahe {
         children.push(word(nahe, source));
@@ -1949,7 +1970,7 @@ fn fiho_modal(value: &FihoModalSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn connective_syntax(value: &ConnectiveSyntax, source: &str) -> sexpr::SExpr {
+fn connective_syntax(value: &ConnectiveSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let (se, nahe, na, cmavo, nai) = connective_parts(value);
     let mut children = Vec::new();
     if let Some(se) = se {
@@ -1970,7 +1991,7 @@ fn connective_syntax(value: &ConnectiveSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(value.kind() == ConnectiveKind::Forethought)]
 #[ensures(true)]
-fn connective_prefix(value: &ConnectiveSyntax, source: &str) -> sexpr::SExpr {
+fn connective_prefix(value: &ConnectiveSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let (se, nahe, na, cmavo, nai) = connective_parts(value);
     let mut children = Vec::new();
     if let Some(se) = se {
@@ -2060,7 +2081,7 @@ fn connective_parts(value: &ConnectiveSyntax) -> ConnectivePartsRef<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn free_modifier(value: &FreeModifierSyntax, source: &str) -> sexpr::SExpr {
+fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     match value {
         FreeModifierSyntax::Sei {
             sei,
@@ -2154,14 +2175,19 @@ fn free_modifier(value: &FreeModifierSyntax, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn indicator(value: &Indicator, source: &str) -> sexpr::SExpr {
-    let mut rendered = surface::format_with_indicators(&value.indicator, source);
+fn indicator(value: &Indicator, source: &BracketContext<'_>) -> sexpr::SExpr {
+    let mut rendered = surface::format_with_indicators_with_options(
+        &value.indicator,
+        source.source,
+        source.options.phonemes,
+    );
     if let Some(nai) = &value.nai {
         rendered.push('-');
         rendered.push_str(&normalize_attached_surface(
-            surface::format_with_indicators(
+            surface::format_with_indicators_with_options(
                 &WithIndicators::bare(WordLike::bare((**nai).clone())),
-                source,
+                source.source,
+                source.options.phonemes,
             ),
         ));
     }
@@ -2170,7 +2196,7 @@ fn indicator(value: &Indicator, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn indicators(values: &[Indicator], source: &str) -> sexpr::SExpr {
+fn indicators(values: &[Indicator], source: &BracketContext<'_>) -> sexpr::SExpr {
     let rendered = values
         .iter()
         .map(|value| match indicator(value, source) {
@@ -2196,7 +2222,11 @@ fn indicators(values: &[Indicator], source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(ret == "." || ret == "-")]
-fn indicator_separator(previous: &Indicator, next: &Indicator, source: &str) -> &'static str {
+fn indicator_separator(
+    previous: &Indicator,
+    next: &Indicator,
+    source: &BracketContext<'_>,
+) -> &'static str {
     let Some(previous_end) = previous
         .words()
         .last()
@@ -2213,6 +2243,7 @@ fn indicator_separator(previous: &Indicator, next: &Indicator, source: &str) -> 
     };
     if previous_end <= next_start
         && source
+            .source
             .get(previous_end..next_start)
             .is_some_and(|text| text.contains('.'))
     {
@@ -2226,7 +2257,7 @@ fn indicator_separator(previous: &Indicator, next: &Indicator, source: &str) -> 
 #[ensures(true)]
 fn with_free_word(
     value: &WithFreeModifiers<WithIndicators<WordLike>>,
-    source: &str,
+    source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = vec![word(&value.value, source)];
     children.extend(
@@ -2242,7 +2273,7 @@ fn with_free_word(
 #[ensures(true)]
 fn with_free_words(
     value: &WithFreeModifiers<impl AsRef<[WithIndicators<WordLike>]>>,
-    source: &str,
+    source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = words(value.value.as_ref(), source);
     children.extend(
@@ -2258,7 +2289,7 @@ fn with_free_words(
 #[ensures(true)]
 fn with_free_word_no_leading_pause(
     value: &WithFreeModifiers<WithIndicators<WordLike>>,
-    source: &str,
+    source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = vec![word_no_leading_pause(&value.value, source)];
     children.extend(
@@ -2274,7 +2305,7 @@ fn with_free_word_no_leading_pause(
 #[ensures(true)]
 fn with_free_words_no_leading_pause(
     value: &WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    source: &str,
+    source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = value
         .value
@@ -2292,27 +2323,33 @@ fn with_free_words_no_leading_pause(
 
 #[requires(true)]
 #[ensures(true)]
-fn words(words: &[WithIndicators<WordLike>], source: &str) -> Vec<sexpr::SExpr> {
+fn words(words: &[WithIndicators<WordLike>], source: &BracketContext<'_>) -> Vec<sexpr::SExpr> {
     words.iter().map(|item| word(item, source)).collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word(word: &WithIndicators<WordLike>, source: &str) -> sexpr::SExpr {
+fn word(word: &WithIndicators<WordLike>, source: &BracketContext<'_>) -> sexpr::SExpr {
     with_indicators_brackets(word, source)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word_no_leading_pause(word: &WithIndicators<WordLike>, source: &str) -> sexpr::SExpr {
-    sexpr::leaf(normalize_attached_surface(surface::format_with_indicators(
-        word, source,
-    )))
+fn word_no_leading_pause(
+    word: &WithIndicators<WordLike>,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
+    sexpr::leaf(normalize_attached_surface(
+        surface::format_with_indicators_with_options(word, source.source, source.options.phonemes),
+    ))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn with_indicators_brackets(word: &WithIndicators<WordLike>, source: &str) -> sexpr::SExpr {
+fn with_indicators_brackets(
+    word: &WithIndicators<WordLike>,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     match word {
         WithIndicators::Bare(word_like) => word_like_brackets(word_like, source),
         WithIndicators::Emphasized { bahe, word_like } => sexpr::node(vec![
@@ -2338,7 +2375,7 @@ fn with_indicators_brackets(word: &WithIndicators<WordLike>, source: &str) -> se
 
 #[requires(true)]
 #[ensures(true)]
-fn word_like_brackets(word_like: &WordLike, source: &str) -> sexpr::SExpr {
+fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexpr::SExpr {
     match word_like.as_data() {
         data!(WordLike::Bare(word)) => word_leaf(word, source),
         data!(WordLike::ZoQuote { zo, word }) => {
@@ -2386,10 +2423,22 @@ fn word_like_brackets(word_like: &WordLike, source: &str) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn word_leaf(word: &Word, source: &str) -> sexpr::SExpr {
-    sexpr::leaf(surface::format_with_indicators(
+fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
+    if source.options.decompose_lujvo {
+        if let Some(parts) = word.lujvo_parts() {
+            return sexpr::leaf(
+                parts
+                    .iter()
+                    .map(|part| part.phonemes().render(source.options.phonemes))
+                    .collect::<Vec<_>>()
+                    .join("·"),
+            );
+        }
+    }
+    sexpr::leaf(surface::format_with_indicators_with_options(
         &WithIndicators::bare(WordLike::bare(word.clone())),
-        source,
+        source.source,
+        source.options.phonemes,
     ))
 }
 
@@ -2419,7 +2468,7 @@ fn list_node(children: Vec<sexpr::SExpr>) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn source_words_node<T>(value: &T, source: &str) -> sexpr::SExpr
+fn source_words_node<T>(value: &T, source: &BracketContext<'_>) -> sexpr::SExpr
 where
     T: TreeNode,
 {
@@ -2434,7 +2483,7 @@ where
 #[derive(Debug)]
 #[invariant(true)]
 struct SourceWordBracketVisitor<'source> {
-    source: &'source str,
+    source: &'source BracketContext<'source>,
     children: Vec<sexpr::SExpr>,
 }
 
@@ -2456,6 +2505,9 @@ impl<'tree> TreeVisitor<'tree> for SourceWordBracketVisitor<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn math_expression_syntax(value: &MathExpressionSyntax, source: &str) -> sexpr::SExpr {
+fn math_expression_syntax(
+    value: &MathExpressionSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     math_expression(value, source)
 }

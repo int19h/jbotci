@@ -18,28 +18,28 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(je'e .oĭ daĭ .ŭu)"
 tree = """
 [
-  Cmavo "je'e",
-  Cmavo "oĭ",
-  Cmavo "daĭ",
-  Cmavo "ŭu",
+  Cmavo @[0‥4) "je'e",
+  Cmavo @[5‥7) "oĭ",
+  Cmavo @[7‥10) "daĭ",
+  Cmavo @[11‥13) "ŭu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"oĭ","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"daĭ","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"ŭu","span":[11,13]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥13) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥13) {
       vocative_markers: [
-        WithIndicator {
-          WithIndicator {
-            WithIndicator {
-              Cmavo "je'e",
-              indicator: Cmavo "oĭ",
+        WithIndicator @[0‥13) {
+          WithIndicator @[0‥10) {
+            WithIndicator @[0‥7) {
+              Cmavo @[0‥4) "je'e",
+              indicator: Cmavo @[5‥7) "oĭ",
             },
-            indicator: Cmavo "daĭ",
+            indicator: Cmavo @[7‥10) "daĭ",
           },
-          indicator: Cmavo "ŭu",
+          indicator: Cmavo @[11‥13) "ŭu",
         },
       ],
     },

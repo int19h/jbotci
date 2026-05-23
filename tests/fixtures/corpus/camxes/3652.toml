@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la .indecent. mo)"
 tree = """
 [
-  Cmavo "la",
-  Cmevla "indecent",
-  Cmavo "mo",
+  Cmavo @[0‥2) "la",
+  Cmevla @[3‥11) "indecent",
+  Cmavo @[12‥14) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"indecent","span":[3,11]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥14) {
   leading_terms: [
-    Name {
-      la: Cmavo "la",
+    Name @[0‥11) {
+      la: Cmavo @[0‥2) "la",
       names: [
-        Cmevla "indecent",
+        Cmevla @[3‥11) "indecent",
       ],
     },
   ],
-  Cmavo "mo",
+  Cmavo @[12‥14) "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"indecent","span":[3,11]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}}}}}}}}}}]}]}'

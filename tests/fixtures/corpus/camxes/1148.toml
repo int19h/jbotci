@@ -19,86 +19,86 @@ xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camx
 brackets = "(li veĭ ny su'i pa ve'o pi'i veĭ ny su'i pa ve'o du li ny bi'e te'a re su'i re bi'e pi'i ny su'i pa)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "veĭ",
-  Cmavo "ny",
-  Cmavo "su'i",
-  Cmavo "pa",
-  Cmavo "ve'o",
-  Cmavo "pi'i",
-  Cmavo "veĭ",
-  Cmavo "ny",
-  Cmavo "su'i",
-  Cmavo "pa",
-  Cmavo "ve'o",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "ny",
-  Cmavo "bi'e",
-  Cmavo "te'a",
-  Cmavo "re",
-  Cmavo "su'i",
-  Cmavo "re",
-  Cmavo "bi'e",
-  Cmavo "pi'i",
-  Cmavo "ny",
-  Cmavo "su'i",
-  Cmavo "pa",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥6) "veĭ",
+  Cmavo @[7‥9) "ny",
+  Cmavo @[11‥15) "su'i",
+  Cmavo @[16‥18) "pa",
+  Cmavo @[19‥23) "ve'o",
+  Cmavo @[24‥28) "pi'i",
+  Cmavo @[29‥32) "veĭ",
+  Cmavo @[33‥35) "ny",
+  Cmavo @[37‥41) "su'i",
+  Cmavo @[42‥44) "pa",
+  Cmavo @[46‥50) "ve'o",
+  Cmavo @[52‥54) "du",
+  Cmavo @[55‥57) "li",
+  Cmavo @[58‥60) "ny",
+  Cmavo @[63‥67) "bi'e",
+  Cmavo @[69‥73) "te'a",
+  Cmavo @[74‥76) "re",
+  Cmavo @[77‥81) "su'i",
+  Cmavo @[82‥84) "re",
+  Cmavo @[85‥89) "bi'e",
+  Cmavo @[90‥94) "pi'i",
+  Cmavo @[95‥97) "ny",
+  Cmavo @[99‥103) "su'i",
+  Cmavo @[104‥106) "pa",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"ve'o","span":[19,23]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[29,32]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[33,35]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[37,41]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[42,44]}}},{"Bare":{"Cmavo":{"phonemes":"ve'o","span":[46,50]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[52,54]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[55,57]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[58,60]}}},{"Bare":{"Cmavo":{"phonemes":"bi'e","span":[63,67]}}},{"Bare":{"Cmavo":{"phonemes":"te'a","span":[69,73]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[74,76]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[77,81]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[82,84]}}},{"Bare":{"Cmavo":{"phonemes":"bi'e","span":[85,89]}}},{"Bare":{"Cmavo":{"phonemes":"pi'i","span":[90,94]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[95,97]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[99,103]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[104,106]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥106) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Vei {
-          vei: Cmavo "veĭ",
-          Binary {
-            left_expression: Cmavo "ny",
-            operator: Cmavo "su'i",
-            right_expression: Cmavo "pa",
+    MathExpression @[0‥50) {
+      li: Cmavo @[0‥2) "li",
+      Binary @[3‥50) {
+        left_expression: Vei @[3‥23) {
+          vei: Cmavo @[3‥6) "veĭ",
+          Binary @[7‥18) {
+            left_expression: Cmavo @[7‥9) "ny",
+            operator: Cmavo @[11‥15) "su'i",
+            right_expression: Cmavo @[16‥18) "pa",
           },
-          veho: Cmavo "ve'o",
+          veho: Cmavo @[19‥23) "ve'o",
         },
-        operator: Cmavo "pi'i",
-        right_expression: Vei {
-          vei: Cmavo "veĭ",
-          Binary {
-            left_expression: Cmavo "ny",
-            operator: Cmavo "su'i",
-            right_expression: Cmavo "pa",
+        operator: Cmavo @[24‥28) "pi'i",
+        right_expression: Vei @[29‥50) {
+          vei: Cmavo @[29‥32) "veĭ",
+          Binary @[33‥44) {
+            left_expression: Cmavo @[33‥35) "ny",
+            operator: Cmavo @[37‥41) "su'i",
+            right_expression: Cmavo @[42‥44) "pa",
           },
-          veho: Cmavo "ve'o",
+          veho: Cmavo @[46‥50) "ve'o",
         },
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[52‥106) {
+    Cmavo @[52‥54) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Binary {
-          left_expression: Binary {
-            left_expression: Bihe {
-              left_expression: Cmavo "ny",
-              bihe: Cmavo "bi'e",
-              operator: Cmavo "te'a",
-              right_expression: Cmavo "re",
+      MathExpression @[55‥106) {
+        li: Cmavo @[55‥57) "li",
+        Binary @[58‥106) {
+          left_expression: Binary @[58‥97) {
+            left_expression: Bihe @[58‥76) {
+              left_expression: Cmavo @[58‥60) "ny",
+              bihe: Cmavo @[63‥67) "bi'e",
+              operator: Cmavo @[69‥73) "te'a",
+              right_expression: Cmavo @[74‥76) "re",
             },
-            operator: Cmavo "su'i",
-            right_expression: Bihe {
-              left_expression: Cmavo "re",
-              bihe: Cmavo "bi'e",
-              operator: Cmavo "pi'i",
-              right_expression: Cmavo "ny",
+            operator: Cmavo @[77‥81) "su'i",
+            right_expression: Bihe @[82‥97) {
+              left_expression: Cmavo @[82‥84) "re",
+              bihe: Cmavo @[85‥89) "bi'e",
+              operator: Cmavo @[90‥94) "pi'i",
+              right_expression: Cmavo @[95‥97) "ny",
             },
           },
-          operator: Cmavo "su'i",
-          right_expression: Cmavo "pa",
+          operator: Cmavo @[99‥103) "su'i",
+          right_expression: Cmavo @[104‥106) "pa",
         },
       },
     ],

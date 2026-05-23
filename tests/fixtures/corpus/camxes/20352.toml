@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li pa xa go'u)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "pa",
-  Cmavo "xa",
-  Cmavo "go'u",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "pa",
+  Cmavo @[5‥7) "xa",
+  Cmavo @[8‥12) "go'u",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"go'u","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥12) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Number {
-        Cmavo "pa",
-        Cmavo "xa",
+    MathExpression @[0‥7) {
+      li: Cmavo @[0‥2) "li",
+      Number @[3‥7) {
+        Cmavo @[3‥5) "pa",
+        Cmavo @[5‥7) "xa",
       },
     },
   ],
-  Cmavo "go'u",
+  Cmavo @[8‥12) "go'u",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"xa","span":[5,7]}}}}]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'u","span":[8,12]}}}}}}}}}}}}]}]}"""

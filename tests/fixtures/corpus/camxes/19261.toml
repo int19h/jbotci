@@ -8,29 +8,29 @@ entry-id = "19261"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cma" })), Rafsi(Phonemes(PhonemesData { text: "ri'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "saske" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cma" })), Rafsi(Phonemes(PhonemesData { text: "rí'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sáske" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Emphasized { bahe: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), word_like: WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cma" })), Rafsi(Phonemes(PhonemesData { text: "ri'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }))) }, free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "saske" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Emphasized { bahe: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), word_like: WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "cma" })), Rafsi(Phonemes(PhonemesData { text: "rí'a" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }))) }, free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sáske" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(za'e cmarí'a sáske)"
 tree = """
 [
-  Cmavo "za'e",
-  Lujvo "cmarí'a",
-  Gismu "sáske",
+  Cmavo @[0‥4) "za'e",
+  Lujvo @[5‥12) "cmarí'a",
+  Gismu @[13‥18) "sáske",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"za'e","span":[0,4]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"ri'a"}],"span":[5,12]}}},{"Bare":{"Gismu":{"phonemes":"saske","span":[13,18]}}}]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"za'e","span":[0,4]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"rí'a"}],"span":[5,12]}}},{"Bare":{"Gismu":{"phonemes":"sáske","span":[13,18]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Compound {
-  Emphasized {
-    bahe: Cmavo "za'e",
-    Lujvo "cmarí'a",
+Compound @[0‥18) {
+  Emphasized @[0‥12) {
+    bahe: Cmavo @[0‥4) "za'e",
+    Lujvo @[5‥12) "cmarí'a",
   },
-  Gismu "sáske",
+  Gismu @[13‥18) "sáske",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[0,4]}},"word_like":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"ri'a"}],"span":[5,12]}}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"saske","span":[13,18]}}}}}]}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[0,4]}},"word_like":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"rí'a"}],"span":[5,12]}}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"sáske","span":[13,18]}}}}}]}}}}}}}}]}]}"""

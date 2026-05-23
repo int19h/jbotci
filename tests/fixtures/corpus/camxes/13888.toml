@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.e'u [zo seĭ])"
 tree = """
 [
-  Cmavo "e'u",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "seĭ",
+  Cmavo @[1‥4) "e'u",
+  ZoQuote @[5‥11) {
+    zo: Cmavo @[5‥7) "zo",
+    Cmavo @[8‥11) "seĭ",
   },
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"e'u","span":[1,4]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[1‥11) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "e'u",
+    Indicator @[1‥4) {
+      indicator: Cmavo @[1‥4) "e'u",
     },
   ],
-  Term {
+  Term @[5‥11) {
     terms: [
-      ZoQuote {
-        zo: Cmavo "zo",
-        Cmavo "seĭ",
+      ZoQuote @[5‥11) {
+        zo: Cmavo @[5‥7) "zo",
+        Cmavo @[8‥11) "seĭ",
       },
     ],
   },

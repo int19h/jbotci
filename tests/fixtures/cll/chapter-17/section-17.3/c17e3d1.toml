@@ -21,19 +21,19 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "iván" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
-brackets = ".ivan."
+brackets = ".iván."
 tree = """
 [
-  Cmevla "ivan",
+  Cmevla @[1‥5) "iván",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}]'
 
 [expectations.output.gentufa]
-brackets = ".ivan."
+brackets = ".iván."
 tree = """
-Text {
+Text @[1‥5) {
   leading_cmevla: [
-    Cmevla "ivan",
+    Cmevla @[1‥5) "iván",
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}}]}'

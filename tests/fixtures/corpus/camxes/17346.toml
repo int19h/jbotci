@@ -18,25 +18,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mo mo mo mo mo mo mo)"
 tree = """
 [
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
+  Cmavo @[0‥2) "mo",
+  Cmavo @[3‥5) "mo",
+  Cmavo @[6‥8) "mo",
+  Cmavo @[9‥11) "mo",
+  Cmavo @[12‥14) "mo",
+  Cmavo @[15‥17) "mo",
+  Cmavo @[18‥20) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"mo","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Compound {
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
-  Cmavo "mo",
+Compound @[0‥20) {
+  Cmavo @[0‥2) "mo",
+  Cmavo @[3‥5) "mo",
+  Cmavo @[6‥8) "mo",
+  Cmavo @[9‥11) "mo",
+  Cmavo @[12‥14) "mo",
+  Cmavo @[15‥17) "mo",
+  Cmavo @[18‥20) "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[0,2]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[6,8]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[9,11]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[15,17]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[18,20]}}}}}]}}}}}}}}]}]}'

@@ -8,7 +8,7 @@ entry-id = "4243"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lujvo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "confuse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "lújvo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Fuhivla { phonemes: Phonemes(PhonemesData { text: "confúse" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "me" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 3, allowed-next = [] }
 brackets = "(lújvo confúse me)"
 tree = """
 [
-  Gismu "lújvo",
-  Fuhivla "confúse",
-  Cmavo "me",
+  Gismu @[0‥5) "lújvo",
+  Fuhivla @[6‥13) "confúse",
+  Cmavo @[14‥16) "me",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"lujvo","span":[0,5]}}},{"Bare":{"Fuhivla":{"phonemes":"confuse","span":[6,13]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[14,16]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"lújvo","span":[0,5]}}},{"Bare":{"Fuhivla":{"phonemes":"confúse","span":[6,13]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[14,16]}}}]'

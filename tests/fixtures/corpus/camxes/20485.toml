@@ -18,18 +18,18 @@ raw = 'TextSyntax { leading_nai: [WithIndicator { base: Bare(WordLike(Bare(Word(
 brackets = "(naĭ saĭ)"
 tree = """
 [
-  Cmavo "naĭ",
-  Cmavo "saĭ",
+  Cmavo @[0‥3) "naĭ",
+  Cmavo @[3‥6) "saĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[3,6]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥6) {
   leading_nai: [
-    WithIndicator {
-      Cmavo "naĭ",
-      indicator: Cmavo "saĭ",
+    WithIndicator @[0‥6) {
+      Cmavo @[0‥3) "naĭ",
+      indicator: Cmavo @[3‥6) "saĭ",
     },
   ],
 }"""

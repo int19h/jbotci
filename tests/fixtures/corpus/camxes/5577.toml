@@ -18,31 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(la'e [zo nu] xi ci)"
 tree = """
 [
-  Cmavo "la'e",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "nu",
+  Cmavo @[0‥4) "la'e",
+  ZoQuote @[5‥10) {
+    zo: Cmavo @[5‥7) "zo",
+    Cmavo @[8‥10) "nu",
   },
-  Cmavo "xi",
-  Cmavo "ci",
+  Cmavo @[11‥13) "xi",
+  Cmavo @[14‥16) "ci",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Cmavo":{"phonemes":"nu","span":[8,10]}}}},{"Bare":{"Cmavo":{"phonemes":"xi","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥16) {
   terms: [
-    Lahe {
-      lahe: Cmavo "la'e",
-      Zo {
-        ZoQuote {
-          zo: Cmavo "zo",
-          Cmavo "nu",
+    Lahe @[0‥16) {
+      lahe: Cmavo @[0‥4) "la'e",
+      Zo @[5‥16) {
+        ZoQuote @[5‥10) {
+          zo: Cmavo @[5‥7) "zo",
+          Cmavo @[8‥10) "nu",
         },
         free_modifiers: [
-          Xi {
-            xi: Cmavo "xi",
-            Cmavo "ci",
+          Xi @[11‥16) {
+            xi: Cmavo @[11‥13) "xi",
+            Cmavo @[14‥16) "ci",
           },
         ],
       },

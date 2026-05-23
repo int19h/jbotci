@@ -18,32 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([zoĭ zoĭ That letter that you use between a user id and a host name in an e-mail address zoĭ] bu)"
 tree = """
 [
-  Letter {
-    ZoiQuote {
-      zoi: Cmavo "zoĭ",
-      opening_delimiter: Cmavo "zoĭ",
-      quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
-      closing_delimiter: Cmavo "zoĭ",
+  Letter @[0‥94) {
+    ZoiQuote @[0‥91) {
+      zoi: Cmavo @[0‥3) "zoĭ",
+      opening_delimiter: Cmavo @[4‥7) "zoĭ",
+      quoted_text: Verbatim @[7‥87) "That letter that you use between a user id and a host name in an e-mail address",
+      closing_delimiter: Cmavo @[88‥91) "zoĭ",
     },
-    bu: Cmavo "bu",
+    bu: Cmavo @[92‥94) "bu",
   },
 ]"""
 json = '[{"Letter":{"base":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[4,7]}},"quoted_text":{"span":[7,87],"text":" That letter that you use between a user id and a host name in an e-mail address"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[88,91]}}}},"bu":{"Cmavo":{"phonemes":"bu","span":[92,94]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥94) {
   terms: [
-    Letter {
+    Letter @[0‥94) {
       letter: [
-        Letter {
-          ZoiQuote {
-            zoi: Cmavo "zoĭ",
-            opening_delimiter: Cmavo "zoĭ",
-            quoted_text: Verbatim "That letter that you use between a user id and a host name in an e-mail address",
-            closing_delimiter: Cmavo "zoĭ",
+        Letter @[0‥94) {
+          ZoiQuote @[0‥91) {
+            zoi: Cmavo @[0‥3) "zoĭ",
+            opening_delimiter: Cmavo @[4‥7) "zoĭ",
+            quoted_text: Verbatim @[7‥87) "That letter that you use between a user id and a host name in an e-mail address",
+            closing_delimiter: Cmavo @[88‥91) "zoĭ",
           },
-          bu: Cmavo "bu",
+          bu: Cmavo @[92‥94) "bu",
         },
       ],
     },

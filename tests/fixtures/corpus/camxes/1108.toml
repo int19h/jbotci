@@ -18,45 +18,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li fu'a re boĭ ci su'i du li mu)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "fu'a",
-  Cmavo "re",
-  Cmavo "boĭ",
-  Cmavo "ci",
-  Cmavo "su'i",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "mu",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥7) "fu'a",
+  Cmavo @[8‥10) "re",
+  Cmavo @[10‥13) "boĭ",
+  Cmavo @[14‥16) "ci",
+  Cmavo @[17‥21) "su'i",
+  Cmavo @[22‥24) "du",
+  Cmavo @[25‥27) "li",
+  Cmavo @[28‥30) "mu",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[17,21]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[28,30]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥30) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      ReversePolish {
-        fuha: Cmavo "fu'a",
+    MathExpression @[0‥21) {
+      li: Cmavo @[0‥2) "li",
+      ReversePolish @[3‥21) {
+        fuha: Cmavo @[3‥7) "fu'a",
         operands: [
-          Number {
-            Cmavo "re",
-            boi: Cmavo "boĭ",
+          Number @[8‥13) {
+            Cmavo @[8‥10) "re",
+            boi: Cmavo @[10‥13) "boĭ",
           },
-          Cmavo "ci",
+          Cmavo @[14‥16) "ci",
         ],
         operators: [
-          Cmavo "su'i",
+          Cmavo @[17‥21) "su'i",
         ],
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[22‥30) {
+    Cmavo @[22‥24) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "mu",
+      MathExpression @[25‥30) {
+        li: Cmavo @[25‥27) "li",
+        Cmavo @[28‥30) "mu",
       },
     ],
   },

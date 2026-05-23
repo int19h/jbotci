@@ -18,19 +18,19 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = "(.not. .i)"
 tree = """
 [
-  Cmevla "not",
-  Cmavo "i",
+  Cmevla @[0‥3) "not",
+  Cmavo @[4‥5) "i",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"not","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[4,5]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥5) {
   leading_cmevla: [
-    Cmevla "not",
+    Cmevla @[0‥3) "not",
   ],
-  ParagraphStatement {
-    i: Cmavo "i",
+  ParagraphStatement @[4‥5) {
+    i: Cmavo @[4‥5) "i",
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"not","span":[0,3]}}}}],"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[4,5]}}}}}]}]}'

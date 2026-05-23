@@ -18,31 +18,31 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(mi mo baŭ la .lojban.)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "mo",
-  Cmavo "baŭ",
-  Cmavo "la",
-  Cmevla "lojban",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥5) "mo",
+  Cmavo @[6‥9) "baŭ",
+  Cmavo @[10‥12) "la",
+  Cmevla @[13‥19) "lojban",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"baŭ","span":[6,9]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[10,12]}}},{"Bare":{"Cmevla":{"phonemes":"lojban","span":[13,19]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥19) {
   leading_terms: [
-    Cmavo "mi",
+    Cmavo @[0‥2) "mi",
   ],
-  Relation {
-    Cmavo "mo",
+  Relation @[3‥19) {
+    Cmavo @[3‥5) "mo",
     terms: [
-      Tagged {
-        tense_modal: Simple {
-          bai: Cmavo "baŭ",
+      Tagged @[6‥19) {
+        tense_modal: Simple @[6‥9) {
+          bai: Cmavo @[6‥9) "baŭ",
         },
-        Name {
-          la: Cmavo "la",
+        Name @[10‥19) {
+          la: Cmavo @[10‥12) "la",
           names: [
-            Cmevla "lojban",
+            Cmevla @[13‥19) "lojban",
           ],
         },
       },

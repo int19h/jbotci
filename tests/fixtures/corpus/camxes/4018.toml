@@ -18,23 +18,23 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cm
 brackets = "(.or. ja va)"
 tree = """
 [
-  Cmevla "or",
-  Cmavo "ja",
-  Cmavo "va",
+  Cmevla @[0‥2) "or",
+  Cmavo @[3‥5) "ja",
+  Cmavo @[5‥7) "va",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ja","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"va","span":[5,7]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥7) {
   leading_cmevla: [
-    Cmevla "or",
+    Cmevla @[0‥2) "or",
   ],
-  leading_connective: Cmavo "ja",
-  Term {
+  leading_connective: Cmavo @[3‥5) "ja",
+  Term @[5‥7) {
     terms: [
-      Tagged {
-        tense_modal: Cmavo "va",
+      Tagged @[5‥7) {
+        tense_modal: Cmavo @[5‥7) "va",
         Zohe {},
       },
     ],

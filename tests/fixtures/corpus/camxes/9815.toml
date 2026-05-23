@@ -18,13 +18,13 @@ error = { position = 2, allowed-next = [] }
 brackets = "(.i .a [zoĭ zoĭ fracturer zoĭ])"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "a",
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "zoĭ",
-    quoted_text: Verbatim "fracturer",
-    closing_delimiter: Cmavo "zoĭ",
+  Cmavo @[1‥2) "i",
+  Cmavo @[4‥5) "a",
+  ZoiQuote @[6‥27) {
+    zoi: Cmavo @[6‥9) "zoĭ",
+    opening_delimiter: Cmavo @[10‥13) "zoĭ",
+    quoted_text: Verbatim @[13‥23) "fracturer",
+    closing_delimiter: Cmavo @[24‥27) "zoĭ",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[4,5]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[6,9]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[10,13]}},"quoted_text":{"span":[13,23],"text":" fracturer"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}}}}]'

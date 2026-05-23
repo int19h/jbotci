@@ -18,16 +18,16 @@ error = { position = 1, allowed-next = [] }
 brackets = "([{lo'u co co le'u} bu] co le'u)"
 tree = """
 [
-  Letter {
-    LohuQuote {
-      lohu: Cmavo "lo'u",
-      Cmavo "co",
-      Cmavo "co",
-      lehu: Cmavo "le'u",
+  Letter @[0‥18) {
+    LohuQuote @[0‥15) {
+      lohu: Cmavo @[0‥4) "lo'u",
+      Cmavo @[5‥7) "co",
+      Cmavo @[8‥10) "co",
+      lehu: Cmavo @[11‥15) "le'u",
     },
-    bu: Cmavo "bu",
+    bu: Cmavo @[16‥18) "bu",
   },
-  Cmavo "co",
-  Cmavo "le'u",
+  Cmavo @[19‥21) "co",
+  Cmavo @[22‥26) "le'u",
 ]"""
 json = """[{"Letter":{"base":{"LohuQuote":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"co","span":[5,7]}},{"Cmavo":{"phonemes":"co","span":[8,10]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[11,15]}}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}},{"Bare":{"Cmavo":{"phonemes":"co","span":[19,21]}}},{"Bare":{"Cmavo":{"phonemes":"le'u","span":[22,26]}}}]"""

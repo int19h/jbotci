@@ -18,17 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ci fi'u vo)"
 tree = """
 [
-  Cmavo "ci",
-  Cmavo "fi'u",
-  Cmavo "vo",
+  Cmavo @[0‥2) "ci",
+  Cmavo @[2‥6) "fi'u",
+  Cmavo @[6‥8) "vo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ci","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"fi'u","span":[2,6]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "ci",
-  Cmavo "fi'u",
-  Cmavo "vo",
+Number @[0‥8) {
+  Cmavo @[0‥2) "ci",
+  Cmavo @[2‥6) "fi'u",
+  Cmavo @[6‥8) "vo",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'u","span":[2,6]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[6,8]}}}}]}}}}}}]}]}"""

@@ -106,7 +106,7 @@ pub(crate) fn classify_word_with_options(
     if is_cmevla_with_options(normalized_word, options) {
         return Some((
             WordKind::Cmevla,
-            canonicalize_word_phonemes(normalized_word),
+            mark_predictable_stress(&canonicalize_word_phonemes(normalized_word)),
         ));
     }
 
@@ -143,10 +143,66 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
 #[ensures(!ret.is_empty() || normalized_word.is_empty())]
 #[requires(true)]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
-    canonicalize_word_phonemes(normalized_word)
+    mark_predictable_stress(
+        &canonicalize_word_phonemes(normalized_word)
+            .chars()
+            .filter(|value| *value != ',')
+            .collect::<String>(),
+    )
+}
+
+#[ensures(!ret.is_empty() || phonemes.is_empty())]
+#[requires(true)]
+fn mark_predictable_stress(phonemes: &str) -> String {
+    if has_explicit_stress(phonemes) {
+        return phonemes.to_owned();
+    }
+    let stressable = phonemes
+        .char_indices()
+        .filter_map(|(index, ch)| is_full_vowel(ch).then_some(index))
+        .collect::<Vec<_>>();
+    let Some(&stress_index) = stressable.iter().rev().nth(1) else {
+        return phonemes.to_owned();
+    };
+    let mut out = String::with_capacity(phonemes.len() + 1);
+    for (index, ch) in phonemes.char_indices() {
+        if index == stress_index {
+            out.push(acute_vowel(ch));
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_explicit_stress(phonemes: &str) -> bool {
+    phonemes
         .chars()
-        .filter(|value| *value != ',')
-        .collect()
+        .any(|ch| matches!(ch, 'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý'))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_full_vowel(ch: char) -> bool {
+    matches!(
+        ch,
+        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú'
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn acute_vowel(ch: char) -> char {
+    match ch {
+        'a' | 'á' => 'á',
+        'e' | 'é' => 'é',
+        'i' | 'í' => 'í',
+        'o' | 'ó' => 'ó',
+        'u' | 'ú' => 'ú',
+        other => other,
+    }
 }
 
 #[requires(true)]

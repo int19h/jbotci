@@ -18,41 +18,41 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na go'i .i je na'e go'i .i je na'i go'i)"
 tree = """
 [
-  Cmavo "na",
-  Cmavo "go'i",
-  Cmavo "i",
-  Cmavo "je",
-  Cmavo "na'e",
-  Cmavo "go'i",
-  Cmavo "i",
-  Cmavo "je",
-  Cmavo "na'i",
-  Cmavo "go'i",
+  Cmavo @[0‥2) "na",
+  Cmavo @[3‥7) "go'i",
+  Cmavo @[9‥10) "i",
+  Cmavo @[10‥12) "je",
+  Cmavo @[13‥17) "na'e",
+  Cmavo @[18‥22) "go'i",
+  Cmavo @[24‥25) "i",
+  Cmavo @[25‥27) "je",
+  Cmavo @[28‥32) "na'i",
+  Cmavo @[33‥37) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[9,10]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"na'e","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[24,25]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"na'i","span":[28,32]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[33,37]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Connected {
-  leading_statement: Connected {
-    leading_statement: Na {
-      na: Cmavo "na",
-      Cmavo "go'i",
+Connected @[0‥37) {
+  leading_statement: Connected @[0‥22) {
+    leading_statement: Na @[0‥7) {
+      na: Cmavo @[0‥2) "na",
+      Cmavo @[3‥7) "go'i",
     },
-    i: Cmavo "i",
-    connective: Cmavo "je",
-    trailing_statement: Nahe {
-      nahe: Cmavo "na'e",
-      Goha {
-        goha: Cmavo "go'i",
+    i: Cmavo @[9‥10) "i",
+    connective: Cmavo @[10‥12) "je",
+    trailing_statement: Nahe @[13‥22) {
+      nahe: Cmavo @[13‥17) "na'e",
+      Goha @[18‥22) {
+        goha: Cmavo @[18‥22) "go'i",
       },
     },
   },
-  i: Cmavo "i",
-  connective: WithIndicator {
-    Cmavo "je",
-    indicator: Cmavo "na'i",
+  i: Cmavo @[24‥25) "i",
+  connective: WithIndicator @[25‥32) {
+    Cmavo @[25‥27) "je",
+    indicator: Cmavo @[28‥32) "na'i",
   },
-  trailing_statement: Cmavo "go'i",
+  trailing_statement: Cmavo @[33‥37) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}}}}}}}}}},"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[9,10]}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[10,12]}}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na'e","span":[13,17]}}}},"inner_unit":{"Goha":{"goha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}}}}}}}]}}}}}}}}},"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[24,25]}}}},"connective":{"Relation":{"cmavo":[{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[25,27]}}}},"indicator":{"Cmavo":{"phonemes":"na'i","span":[28,32]}}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[33,37]}}}}}}}}}}}}}}]}]}"""

@@ -18,46 +18,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(lu la me [.i bu] ry cy li'u)"
 tree = """
 [
-  Cmavo "lu",
-  Cmavo "la",
-  Cmavo "me",
-  Letter {
-    Cmavo "i",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "lu",
+  Cmavo @[3‥5) "la",
+  Cmavo @[6‥8) "me",
+  Letter @[9‥12) {
+    Cmavo @[9‥10) "i",
+    bu: Cmavo @[10‥12) "bu",
   },
-  Cmavo "ry",
-  Cmavo "cy",
-  Cmavo "li'u",
+  Cmavo @[13‥15) "ry",
+  Cmavo @[17‥19) "cy",
+  Cmavo @[21‥25) "li'u",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[6,8]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"i","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}},{"Bare":{"Cmavo":{"phonemes":"ry","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"li'u","span":[21,25]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥25) {
   terms: [
-    Lu {
-      lu: Cmavo "lu",
-      Term {
+    Lu @[0‥25) {
+      lu: Cmavo @[0‥2) "lu",
+      Term @[3‥19) {
         terms: [
-          Descriptor {
-            descriptor: Cmavo "la",
-            relation: Me {
-              me: Cmavo "me",
-              Letter {
+          Descriptor @[3‥19) {
+            descriptor: Cmavo @[3‥5) "la",
+            relation: Me @[6‥19) {
+              me: Cmavo @[6‥8) "me",
+              Letter @[9‥19) {
                 letter: [
-                  Letter {
-                    Cmavo "i",
-                    bu: Cmavo "bu",
+                  Letter @[9‥12) {
+                    Cmavo @[9‥10) "i",
+                    bu: Cmavo @[10‥12) "bu",
                   },
-                  Cmavo "ry",
-                  Cmavo "cy",
+                  Cmavo @[13‥15) "ry",
+                  Cmavo @[17‥19) "cy",
                 ],
               },
             },
           },
         ],
       },
-      lihu: Cmavo "li'u",
+      lihu: Cmavo @[21‥25) "li'u",
     },
   ],
 }"""

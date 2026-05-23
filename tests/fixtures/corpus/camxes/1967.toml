@@ -18,57 +18,57 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ze'e ro roĭ ve'e fe'e ro roĭ ku li re su'i re du li vo)"
 tree = """
 [
-  Cmavo "ze'e",
-  Cmavo "ro",
-  Cmavo "roĭ",
-  Cmavo "ve'e",
-  Cmavo "fe'e",
-  Cmavo "ro",
-  Cmavo "roĭ",
-  Cmavo "ku",
-  Cmavo "li",
-  Cmavo "re",
-  Cmavo "su'i",
-  Cmavo "re",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "vo",
+  Cmavo @[0‥4) "ze'e",
+  Cmavo @[5‥7) "ro",
+  Cmavo @[7‥10) "roĭ",
+  Cmavo @[11‥15) "ve'e",
+  Cmavo @[16‥20) "fe'e",
+  Cmavo @[21‥23) "ro",
+  Cmavo @[23‥26) "roĭ",
+  Cmavo @[27‥29) "ku",
+  Cmavo @[30‥32) "li",
+  Cmavo @[33‥35) "re",
+  Cmavo @[36‥40) "su'i",
+  Cmavo @[41‥43) "re",
+  Cmavo @[44‥46) "du",
+  Cmavo @[47‥49) "li",
+  Cmavo @[50‥52) "vo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ze'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"ve'e","span":[11,15]}}},{"Bare":{"Cmavo":{"phonemes":"fe'e","span":[16,20]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[21,23]}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[23,26]}}},{"Bare":{"Cmavo":{"phonemes":"ku","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[30,32]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[33,35]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[36,40]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[41,43]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[44,46]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[47,49]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[50,52]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥52) {
   leading_terms: [
-    Tagged {
-      tense_modal: Composite {
-        Cmavo "ze'e",
-        Cmavo "ro",
-        Cmavo "roĭ",
-        Cmavo "ve'e",
-        Cmavo "fe'e",
-        Cmavo "ro",
-        Cmavo "roĭ",
+    Tagged @[0‥29) {
+      tense_modal: Composite @[0‥26) {
+        Cmavo @[0‥4) "ze'e",
+        Cmavo @[5‥7) "ro",
+        Cmavo @[7‥10) "roĭ",
+        Cmavo @[11‥15) "ve'e",
+        Cmavo @[16‥20) "fe'e",
+        Cmavo @[21‥23) "ro",
+        Cmavo @[23‥26) "roĭ",
       },
-      Zohe {
-        maybe_ku: Cmavo "ku",
+      Zohe @[27‥29) {
+        maybe_ku: Cmavo @[27‥29) "ku",
       },
     },
-    MathExpression {
-      li: Cmavo "li",
-      Binary {
-        left_expression: Cmavo "re",
-        operator: Cmavo "su'i",
-        right_expression: Cmavo "re",
+    MathExpression @[30‥43) {
+      li: Cmavo @[30‥32) "li",
+      Binary @[33‥43) {
+        left_expression: Cmavo @[33‥35) "re",
+        operator: Cmavo @[36‥40) "su'i",
+        right_expression: Cmavo @[41‥43) "re",
       },
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[44‥52) {
+    Cmavo @[44‥46) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Cmavo "vo",
+      MathExpression @[47‥52) {
+        li: Cmavo @[47‥49) "li",
+        Cmavo @[50‥52) "vo",
       },
     ],
   },

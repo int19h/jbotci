@@ -18,12 +18,12 @@ error = { position = 1, allowed-next = [] }
 brackets = "([zoĭ zo da da da da zo] co)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "zo",
-    quoted_text: Verbatim "da da da da",
-    closing_delimiter: Cmavo "zo",
+  ZoiQuote @[0‥21) {
+    zoi: Cmavo @[0‥3) "zoĭ",
+    opening_delimiter: Cmavo @[4‥6) "zo",
+    quoted_text: Verbatim @[6‥18) "da da da da",
+    closing_delimiter: Cmavo @[19‥21) "zo",
   },
-  Cmavo "co",
+  Cmavo @[22‥24) "co",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[6,18],"text":" da da da da"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[19,21]}}}},{"Bare":{"Cmavo":{"phonemes":"co","span":[22,24]}}}]'

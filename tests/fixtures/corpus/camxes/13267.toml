@@ -18,34 +18,34 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(to [la'o gy size one gy] toĭ)"
 tree = """
 [
-  Cmavo "to",
-  ZoiQuote {
-    zoi: Cmavo "la'o",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "size one",
-    closing_delimiter: Cmavo "gy",
+  Cmavo @[0‥2) "to",
+  ZoiQuote @[3‥23) {
+    zoi: Cmavo @[3‥7) "la'o",
+    opening_delimiter: Cmavo @[8‥10) "gy",
+    quoted_text: Verbatim @[10‥19) "size one",
+    closing_delimiter: Cmavo @[21‥23) "gy",
   },
-  Cmavo "toĭ",
+  Cmavo @[24‥27) "toĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[8,10]}},"quoted_text":{"span":[10,19],"text":" size one"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[21,23]}}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[24,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥27) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
-      Term {
+    To @[0‥27) {
+      to: Cmavo @[0‥2) "to",
+      Term @[3‥23) {
         terms: [
-          ZoiQuote {
-            zoi: Cmavo "la'o",
-            opening_delimiter: Cmavo "gy",
-            quoted_text: Verbatim "size one",
-            closing_delimiter: Cmavo "gy",
+          ZoiQuote @[3‥23) {
+            zoi: Cmavo @[3‥7) "la'o",
+            opening_delimiter: Cmavo @[8‥10) "gy",
+            quoted_text: Verbatim @[10‥19) "size one",
+            closing_delimiter: Cmavo @[21‥23) "gy",
           },
         ],
       },
-      toi: Cmavo "toĭ",
+      toi: Cmavo @[24‥27) "toĭ",
     },
   ],
 }"""

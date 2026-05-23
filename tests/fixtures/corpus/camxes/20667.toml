@@ -18,30 +18,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(to [zo bo] toĭ)"
 tree = """
 [
-  Cmavo "to",
-  ZoQuote {
-    zo: Cmavo "zo",
-    Cmavo "bo",
+  Cmavo @[0‥2) "to",
+  ZoQuote @[3‥8) {
+    zo: Cmavo @[3‥5) "zo",
+    Cmavo @[6‥8) "bo",
   },
-  Cmavo "toĭ",
+  Cmavo @[9‥12) "toĭ",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmavo":{"phonemes":"bo","span":[6,8]}}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[9,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥12) {
   leading_free_modifiers: [
-    To {
-      to: Cmavo "to",
-      Term {
+    To @[0‥12) {
+      to: Cmavo @[0‥2) "to",
+      Term @[3‥8) {
         terms: [
-          ZoQuote {
-            zo: Cmavo "zo",
-            Cmavo "bo",
+          ZoQuote @[3‥8) {
+            zo: Cmavo @[3‥5) "zo",
+            Cmavo @[6‥8) "bo",
           },
         ],
       },
-      toi: Cmavo "toĭ",
+      toi: Cmavo @[9‥12) "toĭ",
     },
   ],
 }"""

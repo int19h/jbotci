@@ -18,29 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i doĭ .eĭmis. za'a go'i)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "doĭ",
-  Cmevla "eĭmis",
-  Cmavo "za'a",
-  Cmavo "go'i",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥6) "doĭ",
+  Cmevla @[8‥13) "eĭmis",
+  Cmavo @[15‥19) "za'a",
+  Cmavo @[20‥24) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}},{"Bare":{"Cmevla":{"phonemes":"eĭmis","span":[8,13]}}},{"Bare":{"Cmavo":{"phonemes":"za'a","span":[15,19]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[20,24]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
+ParagraphStatement @[1‥24) {
+  i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative {
+    Vocative @[3‥19) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[3‥6) "doĭ",
       ],
-      argument: WithIndicator {
-        Cmevla "eĭmis",
-        indicator: Cmavo "za'a",
+      argument: WithIndicator @[8‥19) {
+        Cmevla @[8‥13) "eĭmis",
+        indicator: Cmavo @[15‥19) "za'a",
       },
     },
   ],
-  Cmavo "go'i",
+  Cmavo @[20‥24) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}],"argument":{"Cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmevla":{"phonemes":"eĭmis","span":[8,13]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[15,19]}}}}]}}}],"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[20,24]}}}}}}}}}}}}]}]}"""

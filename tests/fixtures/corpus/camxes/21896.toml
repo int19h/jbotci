@@ -8,7 +8,7 @@ entry-id = "21896"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "ciska" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ter" })), Rafsi(Phonemes(PhonemesData { text: "ciska" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "sel" })), Rafsi(Phonemes(PhonemesData { text: "císka" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "ter" })), Rafsi(Phonemes(PhonemesData { text: "císka" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 1, allowed-next = [] }
 brackets = "(selcíska .or. tercíska)"
 tree = """
 [
-  Lujvo "selcíska",
-  Cmevla "or",
-  Lujvo "tercíska",
+  Lujvo @[0‥8) "selcíska",
+  Cmevla @[9‥11) "or",
+  Lujvo @[12‥20) "tercíska",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"ciska"}],"span":[0,8]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"ciska"}],"span":[12,20]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"císka"}],"span":[0,8]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"císka"}],"span":[12,20]}}}]'

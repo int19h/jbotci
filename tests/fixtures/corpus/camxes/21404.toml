@@ -18,48 +18,48 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(le [.ŭi zeĭ coĭ] na du le [.ŭi zeĭ caĭ])"
 tree = """
 [
-  Cmavo "le",
-  ZeiLujvo {
-    left: Cmavo "ŭi",
-    zei: Cmavo "zeĭ",
-    Cmavo "coĭ",
+  Cmavo @[0‥2) "le",
+  ZeiLujvo @[3‥13) {
+    left: Cmavo @[3‥5) "ŭi",
+    zei: Cmavo @[6‥9) "zeĭ",
+    Cmavo @[10‥13) "coĭ",
   },
-  Cmavo "na",
-  Cmavo "du",
-  Cmavo "le",
-  ZeiLujvo {
-    left: Cmavo "ŭi",
-    zei: Cmavo "zeĭ",
-    Cmavo "caĭ",
+  Cmavo @[14‥16) "na",
+  Cmavo @[16‥18) "du",
+  Cmavo @[19‥21) "le",
+  ZeiLujvo @[22‥32) {
+    left: Cmavo @[22‥24) "ŭi",
+    zei: Cmavo @[25‥28) "zeĭ",
+    Cmavo @[29‥32) "caĭ",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[3,5]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[6,9]}},"right":{"Cmavo":{"phonemes":"coĭ","span":[10,13]}}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[19,21]}}},{"ZeiLujvo":{"left":{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[22,24]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[25,28]}},"right":{"Cmavo":{"phonemes":"caĭ","span":[29,32]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥32) {
   leading_terms: [
-    Descriptor {
-      descriptor: Cmavo "le",
-      relation: ZeiLujvo {
-        left: Cmavo "ŭi",
-        zei: Cmavo "zeĭ",
-        Cmavo "coĭ",
+    Descriptor @[0‥13) {
+      descriptor: Cmavo @[0‥2) "le",
+      relation: ZeiLujvo @[3‥13) {
+        left: Cmavo @[3‥5) "ŭi",
+        zei: Cmavo @[6‥9) "zeĭ",
+        Cmavo @[10‥13) "coĭ",
       },
     },
   ],
-  Relation {
-    Na {
-      na: Cmavo "na",
-      Cmavo "du",
+  Relation @[14‥32) {
+    Na @[14‥18) {
+      na: Cmavo @[14‥16) "na",
+      Cmavo @[16‥18) "du",
     },
     terms: [
-      Descriptor {
-        descriptor: Cmavo "le",
-        relation: ZeiLujvo {
-          left: Cmavo "ŭi",
-          zei: Cmavo "zeĭ",
-          Cmavo "caĭ",
+      Descriptor @[19‥32) {
+        descriptor: Cmavo @[19‥21) "le",
+        relation: ZeiLujvo @[22‥32) {
+          left: Cmavo @[22‥24) "ŭi",
+          zei: Cmavo @[25‥28) "zeĭ",
+          Cmavo @[29‥32) "caĭ",
         },
       },
     ],

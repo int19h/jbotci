@@ -24,13 +24,13 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(la me dy ny [.a bu])"
 tree = """
 [
-  Cmavo "la",
-  Cmavo "me",
-  Cmavo "dy",
-  Cmavo "ny",
-  Letter {
-    Cmavo "a",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "la",
+  Cmavo @[3‥5) "me",
+  Cmavo @[6‥8) "dy",
+  Cmavo @[9‥11) "ny",
+  Letter @[14‥17) {
+    Cmavo @[14‥15) "a",
+    bu: Cmavo @[15‥17) "bu",
   },
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"me","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"dy","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[9,11]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"a","span":[14,15]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}]'
@@ -38,19 +38,19 @@ json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmavo":{"ph
 [expectations.output.gentufa]
 brackets = "(la [me {dy ny (.a bu)}])"
 tree = """
-Term {
+Term @[0‥17) {
   terms: [
-    Descriptor {
-      descriptor: Cmavo "la",
-      relation: Me {
-        me: Cmavo "me",
-        Letter {
+    Descriptor @[0‥17) {
+      descriptor: Cmavo @[0‥2) "la",
+      relation: Me @[3‥17) {
+        me: Cmavo @[3‥5) "me",
+        Letter @[6‥17) {
           letter: [
-            Cmavo "dy",
-            Cmavo "ny",
-            Letter {
-              Cmavo "a",
-              bu: Cmavo "bu",
+            Cmavo @[6‥8) "dy",
+            Cmavo @[9‥11) "ny",
+            Letter @[14‥17) {
+              Cmavo @[14‥15) "a",
+              bu: Cmavo @[15‥17) "bu",
             },
           ],
         },

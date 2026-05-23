@@ -8,7 +8,7 @@ entry-id = "6465"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tanru" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "tánru" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "re" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 3, allowed-next = [] }
 brackets = "(tánru .a re)"
 tree = """
 [
-  Gismu "tánru",
-  Cmavo "a",
-  Cmavo "re",
+  Gismu @[0‥5) "tánru",
+  Cmavo @[6‥7) "a",
+  Cmavo @[7‥9) "re",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"tanru","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[6,7]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"tánru","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[6,7]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[7,9]}}}]'

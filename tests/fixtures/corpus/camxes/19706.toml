@@ -18,33 +18,33 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mu'i ma go'a doĭ .xod.)"
 tree = """
 [
-  Cmavo "mu'i",
-  Cmavo "ma",
-  Cmavo "go'a",
-  Cmavo "doĭ",
-  Cmevla "xod",
+  Cmavo @[0‥4) "mu'i",
+  Cmavo @[5‥7) "ma",
+  Cmavo @[8‥12) "go'a",
+  Cmavo @[13‥16) "doĭ",
+  Cmevla @[17‥20) "xod",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mu'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"go'a","span":[8,12]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[13,16]}}},{"Bare":{"Cmevla":{"phonemes":"xod","span":[17,20]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥20) {
   leading_terms: [
-    Tagged {
-      tense_modal: Simple {
-        bai: Cmavo "mu'i",
+    Tagged @[0‥7) {
+      tense_modal: Simple @[0‥4) {
+        bai: Cmavo @[0‥4) "mu'i",
       },
-      Cmavo "ma",
+      Cmavo @[5‥7) "ma",
     },
   ],
-  Goha {
-    goha: Cmavo "go'a",
+  Goha @[8‥20) {
+    goha: Cmavo @[8‥12) "go'a",
     free_modifiers: [
-      Vocative {
+      Vocative @[13‥20) {
         vocative_markers: [
-          Cmavo "doĭ",
+          Cmavo @[13‥16) "doĭ",
         ],
-        argument: Cmevla "xod",
+        argument: Cmevla @[17‥20) "xod",
       },
     ],
   },

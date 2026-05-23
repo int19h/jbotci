@@ -8,7 +8,7 @@ entry-id = "9258"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbe" })), Rafsi(Phonemes(PhonemesData { text: "det" })), Rafsi(Phonemes(PhonemesData { text: "nun" })), Rafsi(Phonemes(PhonemesData { text: "sla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 12, char_start: 0, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbe" })), Rafsi(Phonemes(PhonemesData { text: "sla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbe" })), Rafsi(Phonemes(PhonemesData { text: "det" })), Rafsi(Phonemes(PhonemesData { text: "nún" })), Rafsi(Phonemes(PhonemesData { text: "sla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 12, char_start: 0, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "or" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "jbé" })), Rafsi(Phonemes(PhonemesData { text: "sla" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,8 +18,8 @@ error = { position = 1, allowed-next = [] }
 brackets = "(jbedetnúnsla .or. jbésla)"
 tree = """
 [
-  Lujvo "jbedetnúnsla",
-  Cmevla "or",
-  Lujvo "jbésla",
+  Lujvo @[0‥12) "jbedetnúnsla",
+  Cmevla @[13‥15) "or",
+  Lujvo @[16‥22) "jbésla",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbe"},{"Rafsi":"det"},{"Rafsi":"nun"},{"Rafsi":"sla"}],"span":[0,12]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[13,15]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbe"},{"Rafsi":"sla"}],"span":[16,22]}}}]'
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbe"},{"Rafsi":"det"},{"Rafsi":"nún"},{"Rafsi":"sla"}],"span":[0,12]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[13,15]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbé"},{"Rafsi":"sla"}],"span":[16,22]}}}]'

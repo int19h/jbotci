@@ -18,23 +18,23 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i ju'o ru'e go'i)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "ju'o",
-  Cmavo "ru'e",
-  Cmavo "go'i",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥7) "ju'o",
+  Cmavo @[7‥11) "ru'e",
+  Cmavo @[12‥16) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ru'e","span":[7,11]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[12,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "ju'o",
+ParagraphStatement @[1‥16) {
+  i: WithIndicator @[1‥11) {
+    WithIndicator @[1‥7) {
+      Cmavo @[1‥2) "i",
+      indicator: Cmavo @[3‥7) "ju'o",
     },
-    indicator: Cmavo "ru'e",
+    indicator: Cmavo @[7‥11) "ru'e",
   },
-  Cmavo "go'i",
+  Cmavo @[12‥16) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[7,11]}}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[12,16]}}}}}}}}}}}}]}]}"""

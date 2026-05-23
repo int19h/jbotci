@@ -24,16 +24,16 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na gi'o)"
 tree = """
 [
-  Cmavo "na",
-  Cmavo "gi'o",
+  Cmavo @[0‥2) "na",
+  Cmavo @[2‥6) "gi'o",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"gi'o","span":[2,6]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(na gi'o)"
 tree = """
-PredicateTail {
-  na: Cmavo "na",
-  Cmavo "gi'o",
+PredicateTail @[0‥6) {
+  na: Cmavo @[0‥2) "na",
+  Cmavo @[2‥6) "gi'o",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"gi'o","span":[2,6]}}}}]}}}}}]}]}"""

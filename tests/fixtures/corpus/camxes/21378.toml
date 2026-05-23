@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(di'u zo'u do go'i)"
 tree = """
 [
-  Cmavo "di'u",
-  Cmavo "zo'u",
-  Cmavo "do",
-  Cmavo "go'i",
+  Cmavo @[0‥4) "di'u",
+  Cmavo @[5‥9) "zo'u",
+  Cmavo @[10‥12) "do",
+  Cmavo @[13‥17) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"di'u","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[13,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Prenex {
+Prenex @[0‥17) {
   prenex_terms: [
-    Cmavo "di'u",
+    Cmavo @[0‥4) "di'u",
   ],
-  zohu: Cmavo "zo'u",
-  Predicate {
+  zohu: Cmavo @[5‥9) "zo'u",
+  Predicate @[10‥17) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[10‥12) "do",
     ],
-    Cmavo "go'i",
+    Cmavo @[13‥17) "go'i",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"di'u","span":[0,4]}}}}}}],"zohu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[5,9]}}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[10,12]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[13,17]}}}}}}}}}}}}}}]}]}"""

@@ -18,25 +18,25 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ci pi'e re re pi'e vo no)"
 tree = """
 [
-  Cmavo "ci",
-  Cmavo "pi'e",
-  Cmavo "re",
-  Cmavo "re",
-  Cmavo "pi'e",
-  Cmavo "vo",
-  Cmavo "no",
+  Cmavo @[0‥2) "ci",
+  Cmavo @[3‥7) "pi'e",
+  Cmavo @[8‥10) "re",
+  Cmavo @[10‥12) "re",
+  Cmavo @[13‥17) "pi'e",
+  Cmavo @[18‥20) "vo",
+  Cmavo @[20‥22) "no",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ci","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"no","span":[20,22]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "ci",
-  Cmavo "pi'e",
-  Cmavo "re",
-  Cmavo "re",
-  Cmavo "pi'e",
-  Cmavo "vo",
-  Cmavo "no",
+Number @[0‥22) {
+  Cmavo @[0‥2) "ci",
+  Cmavo @[3‥7) "pi'e",
+  Cmavo @[8‥10) "re",
+  Cmavo @[10‥12) "re",
+  Cmavo @[13‥17) "pi'e",
+  Cmavo @[18‥20) "vo",
+  Cmavo @[20‥22) "no",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[3,7]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[10,12]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi'e","span":[13,17]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[18,20]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[20,22]}}}}]}}}}}}]}]}"""

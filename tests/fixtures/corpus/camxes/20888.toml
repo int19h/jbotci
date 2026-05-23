@@ -8,7 +8,7 @@ entry-id = "20888"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rotsu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "for" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 12, char_start: 11, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))]'
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "rótsu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "for" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 12, char_start: 11, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ne" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,9 +18,9 @@ error = { position = 1, allowed-next = [] }
 brackets = "(rótsu .for. .o ne)"
 tree = """
 [
-  Gismu "rótsu",
-  Cmevla "for",
-  Cmavo "o",
-  Cmavo "ne",
+  Gismu @[0‥5) "rótsu",
+  Cmevla @[7‥10) "for",
+  Cmavo @[11‥12) "o",
+  Cmavo @[12‥14) "ne",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"rotsu","span":[0,5]}}},{"Bare":{"Cmevla":{"phonemes":"for","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"o","span":[11,12]}}},{"Bare":{"Cmavo":{"phonemes":"ne","span":[12,14]}}}]'
+json = '[{"Bare":{"Gismu":{"phonemes":"rótsu","span":[0,5]}}},{"Bare":{"Cmevla":{"phonemes":"for","span":[7,10]}}},{"Bare":{"Cmavo":{"phonemes":"o","span":[11,12]}}},{"Bare":{"Cmavo":{"phonemes":"ne","span":[12,14]}}}]'

@@ -8,29 +8,29 @@ entry-id = "22508"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "kre" })), Rafsi(Phonemes(PhonemesData { text: "pelxu" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ŭi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) })))]"""
+raw = """[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "kre" })), Rafsi(Phonemes(PhonemesData { text: "pélxu" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ŭi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) })))]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "kre" })), Rafsi(Phonemes(PhonemesData { text: "pelxu" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ŭi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }), nai: None }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "kre" })), Rafsi(Phonemes(PhonemesData { text: "pélxu" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ŭi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }), nai: None }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(krepélxu .ŭi ro'u)"
 tree = """
 [
-  Lujvo "krepélxu",
-  Cmavo "ŭi",
-  Cmavo "ro'u",
+  Lujvo @[0‥8) "krepélxu",
+  Cmavo @[9‥11) "ŭi",
+  Cmavo @[11‥15) "ro'u",
 ]"""
-json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kre"},{"Rafsi":"pelxu"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"ro'u","span":[11,15]}}}]"""
+json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kre"},{"Rafsi":"pélxu"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"ro'u","span":[11,15]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-WithIndicator {
-  WithIndicator {
-    Lujvo "krepélxu",
-    indicator: Cmavo "ŭi",
+WithIndicator @[0‥15) {
+  WithIndicator @[0‥11) {
+    Lujvo @[0‥8) "krepélxu",
+    indicator: Cmavo @[9‥11) "ŭi",
   },
-  indicator: Cmavo "ro'u",
+  indicator: Cmavo @[11‥15) "ro'u",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kre"},{"Rafsi":"pelxu"}],"span":[0,8]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"ro'u","span":[11,15]}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kre"},{"Rafsi":"pélxu"}],"span":[0,8]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"ro'u","span":[11,15]}}}}}}}}}}}}]}]}"""

@@ -18,19 +18,19 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.a'o go'i)"
 tree = """
 [
-  Cmavo "a'o",
-  Cmavo "go'i",
+  Cmavo @[0‥3) "a'o",
+  Cmavo @[4‥8) "go'i",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[4,8]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥8) {
   leading_indicators: [
-    Indicator {
-      indicator: Cmavo "a'o",
+    Indicator @[0‥3) {
+      indicator: Cmavo @[0‥3) "a'o",
     },
   ],
-  Cmavo "go'i",
+  Cmavo @[4‥8) "go'i",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[4,8]}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}}}}]}"""

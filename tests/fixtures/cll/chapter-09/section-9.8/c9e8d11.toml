@@ -24,53 +24,53 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(li ny du li ni'i gi veĭ re su'i re ve'o gi vo)"
 tree = """
 [
-  Cmavo "li",
-  Cmavo "ny",
-  Cmavo "du",
-  Cmavo "li",
-  Cmavo "ni'i",
-  Cmavo "gi",
-  Cmavo "veĭ",
-  Cmavo "re",
-  Cmavo "su'i",
-  Cmavo "re",
-  Cmavo "ve'o",
-  Cmavo "gi",
-  Cmavo "vo",
+  Cmavo @[0‥2) "li",
+  Cmavo @[3‥5) "ny",
+  Cmavo @[7‥9) "du",
+  Cmavo @[10‥12) "li",
+  Cmavo @[13‥17) "ni'i",
+  Cmavo @[17‥19) "gi",
+  Cmavo @[20‥23) "veĭ",
+  Cmavo @[24‥26) "re",
+  Cmavo @[27‥31) "su'i",
+  Cmavo @[32‥34) "re",
+  Cmavo @[35‥39) "ve'o",
+  Cmavo @[40‥42) "gi",
+  Cmavo @[43‥45) "vo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"ni'i","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"gi","span":[17,19]}}},{"Bare":{"Cmavo":{"phonemes":"veĭ","span":[20,23]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[24,26]}}},{"Bare":{"Cmavo":{"phonemes":"su'i","span":[27,31]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[32,34]}}},{"Bare":{"Cmavo":{"phonemes":"ve'o","span":[35,39]}}},{"Bare":{"Cmavo":{"phonemes":"gi","span":[40,42]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[43,45]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "([li ny] [du {li ([ni'i gi] [veĭ {re su'i re} ve'o] gi vo)}])"
 tree = """
-Predicate {
+Predicate @[0‥45) {
   leading_terms: [
-    MathExpression {
-      li: Cmavo "li",
-      Cmavo "ny",
+    MathExpression @[0‥5) {
+      li: Cmavo @[0‥2) "li",
+      Cmavo @[3‥5) "ny",
     },
   ],
-  Relation {
-    Cmavo "du",
+  Relation @[7‥45) {
+    Cmavo @[7‥9) "du",
     terms: [
-      MathExpression {
-        li: Cmavo "li",
-        Gek {
-          gek: Forethought {
-            Cmavo "ni'i",
-            Cmavo "gi",
+      MathExpression @[10‥45) {
+        li: Cmavo @[10‥12) "li",
+        Gek @[13‥45) {
+          gek: Forethought @[13‥19) {
+            Cmavo @[13‥17) "ni'i",
+            Cmavo @[17‥19) "gi",
           },
-          left_expression: Vei {
-            vei: Cmavo "veĭ",
-            Binary {
-              left_expression: Cmavo "re",
-              operator: Cmavo "su'i",
-              right_expression: Cmavo "re",
+          left_expression: Vei @[20‥39) {
+            vei: Cmavo @[20‥23) "veĭ",
+            Binary @[24‥34) {
+              left_expression: Cmavo @[24‥26) "re",
+              operator: Cmavo @[27‥31) "su'i",
+              right_expression: Cmavo @[32‥34) "re",
             },
-            veho: Cmavo "ve'o",
+            veho: Cmavo @[35‥39) "ve'o",
           },
-          gik: Cmavo "gi",
-          right_expression: Cmavo "vo",
+          gik: Cmavo @[40‥42) "gi",
+          right_expression: Cmavo @[43‥45) "vo",
         },
       },
     ],

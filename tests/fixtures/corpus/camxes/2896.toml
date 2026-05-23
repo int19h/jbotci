@@ -18,36 +18,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(doĭ .paŭl. do pu zi mo)"
 tree = """
 [
-  Cmavo "doĭ",
-  Cmevla "paŭl",
-  Cmavo "do",
-  Cmavo "pu",
-  Cmavo "zi",
-  Cmavo "mo",
+  Cmavo @[0‥3) "doĭ",
+  Cmevla @[4‥9) "paŭl",
+  Cmavo @[10‥12) "do",
+  Cmavo @[13‥15) "pu",
+  Cmavo @[16‥18) "zi",
+  Cmavo @[19‥21) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Cmevla":{"phonemes":"paŭl","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[13,15]}}},{"Bare":{"Cmavo":{"phonemes":"zi","span":[16,18]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[19,21]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥9) {
       vocative_markers: [
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "doĭ",
       ],
-      argument: Cmevla "paŭl",
+      argument: Cmevla @[4‥9) "paŭl",
     },
   ],
-  Predicate {
+  Predicate @[10‥21) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[10‥12) "do",
     ],
-    TenseModal {
-      tense_modal: Composite {
-        Cmavo "pu",
-        Cmavo "zi",
+    TenseModal @[13‥21) {
+      tense_modal: Composite @[13‥18) {
+        Cmavo @[13‥15) "pu",
+        Cmavo @[16‥18) "zi",
       },
-      Cmavo "mo",
+      Cmavo @[19‥21) "mo",
     },
   },
 }"""

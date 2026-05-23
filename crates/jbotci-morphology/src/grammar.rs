@@ -1313,7 +1313,7 @@ mod tests {
             segment_words_with_modifiers("mi klama do", &MorphologyOptions::default(), None)
                 .expect("valid morphology");
 
-        assert_eq!(bare_phonemes(&words), ["mi", "klama", "do"]);
+        assert_eq!(bare_phonemes(&words), ["mi", "kláma", "do"]);
         assert_eq!(bare_span(&words[1]).map(|span| span.byte_start), Some(3));
         assert_eq!(bare_span(&words[1]).map(|span| span.byte_end), Some(8));
     }

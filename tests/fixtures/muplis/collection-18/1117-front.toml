@@ -21,30 +21,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ do do mo)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "do",
-  Cmavo "do",
-  Cmavo "mo",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥6) "do",
+  Cmavo @[7‥9) "do",
+  Cmavo @[10‥12) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[10,12]}}}]'
 
 [expectations.output.gentufa]
 brackets = "([coĭ do] [do mo])"
 tree = """
-Text {
+Text @[0‥12) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥6) {
       vocative_markers: [
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
       ],
-      argument: Cmavo "do",
+      argument: Cmavo @[4‥6) "do",
     },
   ],
-  Predicate {
+  Predicate @[7‥12) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[7‥9) "do",
     ],
-    Cmavo "mo",
+    Cmavo @[10‥12) "mo",
   },
 }"""
 json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[10,12]}}}}}}}}}}}}]}]}'

@@ -18,32 +18,32 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(.i peĭ xu se mo ma)"
 tree = """
 [
-  Cmavo "i",
-  Cmavo "peĭ",
-  Cmavo "xu",
-  Cmavo "se",
-  Cmavo "mo",
-  Cmavo "ma",
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥6) "peĭ",
+  Cmavo @[7‥9) "xu",
+  Cmavo @[10‥12) "se",
+  Cmavo @[12‥14) "mo",
+  Cmavo @[15‥17) "ma",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[15,17]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: WithIndicator {
-    WithIndicator {
-      Cmavo "i",
-      indicator: Cmavo "peĭ",
+ParagraphStatement @[1‥17) {
+  i: WithIndicator @[1‥9) {
+    WithIndicator @[1‥6) {
+      Cmavo @[1‥2) "i",
+      indicator: Cmavo @[3‥6) "peĭ",
     },
-    indicator: Cmavo "xu",
+    indicator: Cmavo @[7‥9) "xu",
   },
-  Relation {
-    Se {
-      se: Cmavo "se",
-      Cmavo "mo",
+  Relation @[10‥17) {
+    Se @[10‥14) {
+      se: Cmavo @[10‥12) "se",
+      Cmavo @[12‥14) "mo",
     },
     terms: [
-      Cmavo "ma",
+      Cmavo @[15‥17) "ma",
     ],
   },
 }"""

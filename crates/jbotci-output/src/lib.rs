@@ -8,6 +8,7 @@ mod tree;
 
 use bityzba::{invariant, requires};
 use jbotci_morphology::WordLike;
+pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_syntax::ast::TextSyntax;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -77,19 +78,26 @@ pub enum OutputError {
 #[invariant(true)]
 pub struct BracketRenderOptions {
     pub color: bool,
+    pub phonemes: PhonemeRenderOptions,
+    pub decompose_lujvo: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct JsonRenderOptions {
     pub indent: usize,
+    pub phonemes: PhonemeRenderOptions,
 }
 
 impl Default for JsonRenderOptions {
     #[requires(true)]
     #[ensures(ret.indent == 2)]
+    #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
     fn default() -> Self {
-        Self { indent: 2 }
+        Self {
+            indent: 2,
+            phonemes: PhonemeRenderOptions::default(),
+        }
     }
 }
 
@@ -98,16 +106,25 @@ impl Default for JsonRenderOptions {
 pub struct TreeRenderOptions {
     pub color: bool,
     pub indent: usize,
+    pub phonemes: PhonemeRenderOptions,
+    pub show_spans: bool,
+    pub decompose_lujvo: bool,
 }
 
 impl Default for TreeRenderOptions {
     #[requires(true)]
     #[ensures(!ret.color)]
     #[ensures(ret.indent == 2)]
+    #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
+    #[ensures(!ret.show_spans)]
+    #[ensures(!ret.decompose_lujvo)]
     fn default() -> Self {
         Self {
             color: false,
             indent: 2,
+            phonemes: PhonemeRenderOptions::default(),
+            show_spans: false,
+            decompose_lujvo: false,
         }
     }
 }
@@ -148,7 +165,10 @@ pub fn compact_json_string_with_options<T: Serialize>(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_morphology_json_value(words: &[WordLike]) -> Result<Value, OutputError> {
-    Ok(json::morphology_json_value(words))
+    Ok(json::morphology_json_value(
+        words,
+        PhonemeRenderOptions::default(),
+    ))
 }
 
 #[requires(true)]
@@ -158,7 +178,7 @@ pub fn compact_morphology_json_string_with_options(
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
     Ok(format_compact_json_value(
-        &compact_morphology_json_value(words)?,
+        &json::morphology_json_value(words, options.phonemes),
         0,
         options,
     ))
@@ -167,7 +187,10 @@ pub fn compact_morphology_json_string_with_options(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
-    Ok(json::syntax_json_value(tree))
+    Ok(json::syntax_json_value(
+        tree,
+        PhonemeRenderOptions::default(),
+    ))
 }
 
 #[requires(true)]
@@ -177,7 +200,7 @@ pub fn compact_syntax_json_string_with_options(
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
     Ok(format_compact_json_value(
-        &compact_syntax_json_value(tree)?,
+        &json::syntax_json_value(tree, options.phonemes),
         0,
         options,
     ))
@@ -219,6 +242,16 @@ pub fn pretty_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_tree_with_options(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn plain_morphology_word_with_options(
+    word: &WordLike,
+    source: &str,
+    options: PhonemeRenderOptions,
+) -> String {
+    surface::format_word_like_with_options(word, source, options)
 }
 
 #[requires(true)]

@@ -18,26 +18,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ coĭ coĭ doĭ .drugas.)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "coĭ",
-  Cmavo "coĭ",
-  Cmavo "doĭ",
-  Cmevla "drugas",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥7) "coĭ",
+  Cmavo @[8‥11) "coĭ",
+  Cmavo @[12‥15) "doĭ",
+  Cmevla @[16‥22) "drugas",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[4,7]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[8,11]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[12,15]}}},{"Bare":{"Cmevla":{"phonemes":"drugas","span":[16,22]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥22) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥22) {
       vocative_markers: [
-        Cmavo "coĭ",
-        Cmavo "coĭ",
-        Cmavo "coĭ",
-        Cmavo "doĭ",
+        Cmavo @[0‥3) "coĭ",
+        Cmavo @[4‥7) "coĭ",
+        Cmavo @[8‥11) "coĭ",
+        Cmavo @[12‥15) "doĭ",
       ],
-      argument: Cmevla "drugas",
+      argument: Cmevla @[16‥22) "drugas",
     },
   ],
 }"""

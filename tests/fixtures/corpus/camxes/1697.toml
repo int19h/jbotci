@@ -18,29 +18,29 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa ki'o re ci vo ki'o mu xa ze)"
 tree = """
 [
-  Cmavo "pa",
-  Cmavo "ki'o",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "ki'o",
-  Cmavo "mu",
-  Cmavo "xa",
-  Cmavo "ze",
+  Cmavo @[0‥2) "pa",
+  Cmavo @[3‥7) "ki'o",
+  Cmavo @[8‥10) "re",
+  Cmavo @[11‥13) "ci",
+  Cmavo @[14‥16) "vo",
+  Cmavo @[17‥21) "ki'o",
+  Cmavo @[22‥24) "mu",
+  Cmavo @[25‥27) "xa",
+  Cmavo @[28‥30) "ze",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"ci","span":[11,13]}}},{"Bare":{"Cmavo":{"phonemes":"vo","span":[14,16]}}},{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[17,21]}}},{"Bare":{"Cmavo":{"phonemes":"mu","span":[22,24]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[25,27]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[28,30]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Number {
-  Cmavo "pa",
-  Cmavo "ki'o",
-  Cmavo "re",
-  Cmavo "ci",
-  Cmavo "vo",
-  Cmavo "ki'o",
-  Cmavo "mu",
-  Cmavo "xa",
-  Cmavo "ze",
+Number @[0‥30) {
+  Cmavo @[0‥2) "pa",
+  Cmavo @[3‥7) "ki'o",
+  Cmavo @[8‥10) "re",
+  Cmavo @[11‥13) "ci",
+  Cmavo @[14‥16) "vo",
+  Cmavo @[17‥21) "ki'o",
+  Cmavo @[22‥24) "mu",
+  Cmavo @[25‥27) "xa",
+  Cmavo @[28‥30) "ze",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[3,7]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ci","span":[11,13]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"vo","span":[14,16]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'o","span":[17,21]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu","span":[22,24]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"xa","span":[25,27]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[28,30]}}}}]}}}}}}]}]}"""

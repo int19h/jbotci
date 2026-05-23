@@ -18,17 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 brackets = "(.or. bu'a)"
 tree = """
 [
-  Cmevla "or",
-  Cmavo "bu'a",
+  Cmevla @[0‥2) "or",
+  Cmavo @[3‥7) "bu'a",
 ]"""
 json = """[{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[3,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥7) {
   leading_cmevla: [
-    Cmevla "or",
+    Cmevla @[0‥2) "or",
   ],
-  Cmavo "bu'a",
+  Cmavo @[3‥7) "bu'a",
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"bu'a","span":[3,7]}}}}}}}}}}}}]}]}"""

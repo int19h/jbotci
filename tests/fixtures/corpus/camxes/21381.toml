@@ -8,35 +8,35 @@ entry-id = "21381"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Letter { base: WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "slaka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) })]'
+raw = '[WordLike(Letter { base: WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sláka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "slaka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "sláka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(sláka bu)"
 tree = """
 [
-  Letter {
-    Gismu "sláka",
-    bu: Cmavo "bu",
+  Letter @[0‥8) {
+    Gismu @[0‥5) "sláka",
+    bu: Cmavo @[6‥8) "bu",
   },
 ]"""
-json = '[{"Letter":{"base":{"Bare":{"Gismu":{"phonemes":"slaka","span":[0,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}]'
+json = '[{"Letter":{"base":{"Bare":{"Gismu":{"phonemes":"sláka","span":[0,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥8) {
   terms: [
-    Letter {
+    Letter @[0‥8) {
       letter: [
-        Letter {
-          Gismu "sláka",
-          bu: Cmavo "bu",
+        Letter @[0‥8) {
+          Gismu @[0‥5) "sláka",
+          bu: Cmavo @[6‥8) "bu",
         },
       ],
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"Gismu":{"phonemes":"slaka","span":[0,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}}]}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"Gismu":{"phonemes":"sláka","span":[0,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}}]}}}]}}}}]}]}'

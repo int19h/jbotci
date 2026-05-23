@@ -18,17 +18,17 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(na gi'e naĭ)"
 tree = """
 [
-  Cmavo "na",
-  Cmavo "gi'e",
-  Cmavo "naĭ",
+  Cmavo @[0‥2) "na",
+  Cmavo @[2‥6) "gi'e",
+  Cmavo @[6‥9) "naĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[2,6]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-PredicateTail {
-  na: Cmavo "na",
-  Cmavo "gi'e",
-  nai: Cmavo "naĭ",
+PredicateTail @[0‥9) {
+  na: Cmavo @[0‥2) "na",
+  Cmavo @[2‥6) "gi'e",
+  nai: Cmavo @[6‥9) "naĭ",
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"gi'e","span":[2,6]}}}}],"nai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}}}}}}}]}]}"""

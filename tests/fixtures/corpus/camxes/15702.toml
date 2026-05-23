@@ -18,27 +18,27 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(by py fy ky mo)"
 tree = """
 [
-  Cmavo "by",
-  Cmavo "py",
-  Cmavo "fy",
-  Cmavo "ky",
-  Cmavo "mo",
+  Cmavo @[0‥2) "by",
+  Cmavo @[3‥5) "py",
+  Cmavo @[6‥8) "fy",
+  Cmavo @[9‥11) "ky",
+  Cmavo @[12‥14) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"by","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"py","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"fy","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ky","span":[9,11]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate {
+Predicate @[0‥14) {
   leading_terms: [
-    Letter {
+    Letter @[0‥11) {
       letter: [
-        Cmavo "by",
-        Cmavo "py",
-        Cmavo "fy",
-        Cmavo "ky",
+        Cmavo @[0‥2) "by",
+        Cmavo @[3‥5) "py",
+        Cmavo @[6‥8) "fy",
+        Cmavo @[9‥11) "ky",
       ],
     },
   ],
-  Cmavo "mo",
+  Cmavo @[12‥14) "mo",
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"by","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"py","span":[3,5]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"fy","span":[6,8]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"ky","span":[9,11]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[12,14]}}}}}}}}}}}}]}]}'

@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(ba le nu go'i mo)"
 tree = """
 [
-  Cmavo "ba",
-  Cmavo "le",
-  Cmavo "nu",
-  Cmavo "go'i",
-  Cmavo "mo",
+  Cmavo @[0‥2) "ba",
+  Cmavo @[3‥5) "le",
+  Cmavo @[6‥8) "nu",
+  Cmavo @[9‥13) "go'i",
+  Cmavo @[14‥16) "mo",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"ba","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"nu","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"go'i","span":[9,13]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[14,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥16) {
   terms: [
-    Tagged {
-      tense_modal: Cmavo "ba",
-      Descriptor {
-        descriptor: Cmavo "le",
-        relation: Abstraction {
-          nu: Cmavo "nu",
-          Compound {
-            Cmavo "go'i",
-            Cmavo "mo",
+    Tagged @[0‥16) {
+      tense_modal: Cmavo @[0‥2) "ba",
+      Descriptor @[3‥16) {
+        descriptor: Cmavo @[3‥5) "le",
+        relation: Abstraction @[6‥16) {
+          nu: Cmavo @[6‥8) "nu",
+          Compound @[9‥16) {
+            Cmavo @[9‥13) "go'i",
+            Cmavo @[14‥16) "mo",
           },
         },
       },

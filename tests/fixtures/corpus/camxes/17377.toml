@@ -18,31 +18,31 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(.i [zoĭ gy wow gy] ki'a)"
 tree = """
 [
-  Cmavo "i",
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "wow",
-    closing_delimiter: Cmavo "gy",
+  Cmavo @[0‥1) "i",
+  ZoiQuote @[2‥15) {
+    zoi: Cmavo @[2‥5) "zoĭ",
+    opening_delimiter: Cmavo @[6‥8) "gy",
+    quoted_text: Verbatim @[8‥12) "wow",
+    closing_delimiter: Cmavo @[13‥15) "gy",
   },
-  Cmavo "ki'a",
+  Cmavo @[16‥20) "ki'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[2,5]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[6,8]}},"quoted_text":{"span":[8,12],"text":" wow"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}},{"Bare":{"Cmavo":{"phonemes":"ki'a","span":[16,20]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement {
-  i: Cmavo "i",
-  Term {
+ParagraphStatement @[0‥20) {
+  i: Cmavo @[0‥1) "i",
+  Term @[2‥20) {
     terms: [
-      WithIndicator {
-        ZoiQuote {
-          zoi: Cmavo "zoĭ",
-          opening_delimiter: Cmavo "gy",
-          quoted_text: Verbatim "wow",
-          closing_delimiter: Cmavo "gy",
+      WithIndicator @[2‥20) {
+        ZoiQuote @[2‥15) {
+          zoi: Cmavo @[2‥5) "zoĭ",
+          opening_delimiter: Cmavo @[6‥8) "gy",
+          quoted_text: Verbatim @[8‥12) "wow",
+          closing_delimiter: Cmavo @[13‥15) "gy",
         },
-        indicator: Cmavo "ki'a",
+        indicator: Cmavo @[16‥20) "ki'a",
       },
     ],
   },

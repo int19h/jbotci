@@ -18,49 +18,49 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "([zoĭ gy broda gy] .e [zoĭ ly ly] ly ly ly)"
 tree = """
 [
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "gy",
-    quoted_text: Verbatim "broda",
-    closing_delimiter: Cmavo "gy",
+  ZoiQuote @[0‥15) {
+    zoi: Cmavo @[0‥3) "zoĭ",
+    opening_delimiter: Cmavo @[4‥6) "gy",
+    quoted_text: Verbatim @[6‥12) "broda",
+    closing_delimiter: Cmavo @[13‥15) "gy",
   },
-  Cmavo "e",
-  ZoiQuote {
-    zoi: Cmavo "zoĭ",
-    opening_delimiter: Cmavo "ly",
-    quoted_text: Verbatim "",
-    closing_delimiter: Cmavo "ly",
+  Cmavo @[17‥18) "e",
+  ZoiQuote @[19‥27) {
+    zoi: Cmavo @[19‥22) "zoĭ",
+    opening_delimiter: Cmavo @[22‥24) "ly",
+    quoted_text: Verbatim @[24‥24) "",
+    closing_delimiter: Cmavo @[25‥27) "ly",
   },
-  Cmavo "ly",
-  Cmavo "ly",
-  Cmavo "ly",
+  Cmavo @[27‥29) "ly",
+  Cmavo @[29‥31) "ly",
+  Cmavo @[32‥34) "ly",
 ]"""
 json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[6,12],"text":" broda"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[17,18]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[19,22]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[22,24]}},"quoted_text":{"span":[24,24],"text":""},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[25,27]}}}},{"Bare":{"Cmavo":{"phonemes":"ly","span":[27,29]}}},{"Bare":{"Cmavo":{"phonemes":"ly","span":[29,31]}}},{"Bare":{"Cmavo":{"phonemes":"ly","span":[32,34]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥34) {
   terms: [
-    Connected {
-      leading_argument: ZoiQuote {
-        zoi: Cmavo "zoĭ",
-        opening_delimiter: Cmavo "gy",
-        quoted_text: Verbatim "broda",
-        closing_delimiter: Cmavo "gy",
+    Connected @[0‥27) {
+      leading_argument: ZoiQuote @[0‥15) {
+        zoi: Cmavo @[0‥3) "zoĭ",
+        opening_delimiter: Cmavo @[4‥6) "gy",
+        quoted_text: Verbatim @[6‥12) "broda",
+        closing_delimiter: Cmavo @[13‥15) "gy",
       },
-      connective: Cmavo "e",
-      trailing_argument: ZoiQuote {
-        zoi: Cmavo "zoĭ",
-        opening_delimiter: Cmavo "ly",
-        quoted_text: Verbatim "",
-        closing_delimiter: Cmavo "ly",
+      connective: Cmavo @[17‥18) "e",
+      trailing_argument: ZoiQuote @[19‥27) {
+        zoi: Cmavo @[19‥22) "zoĭ",
+        opening_delimiter: Cmavo @[22‥24) "ly",
+        quoted_text: Verbatim @[24‥24) "",
+        closing_delimiter: Cmavo @[25‥27) "ly",
       },
     },
-    Letter {
+    Letter @[27‥34) {
       letter: [
-        Cmavo "ly",
-        Cmavo "ly",
-        Cmavo "ly",
+        Cmavo @[27‥29) "ly",
+        Cmavo @[29‥31) "ly",
+        Cmavo @[32‥34) "ly",
       ],
     },
   ],

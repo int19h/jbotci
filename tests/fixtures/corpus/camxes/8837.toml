@@ -18,27 +18,27 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(pa [su'i bu] roĭ)"
 tree = """
 [
-  Cmavo "pa",
-  Letter {
-    Cmavo "su'i",
-    bu: Cmavo "bu",
+  Cmavo @[0‥2) "pa",
+  Letter @[3‥9) {
+    Cmavo @[3‥7) "su'i",
+    bu: Cmavo @[7‥9) "bu",
   },
-  Cmavo "roĭ",
+  Cmavo @[10‥13) "roĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"su'i","span":[3,7]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[7,9]}}}},{"Bare":{"Cmavo":{"phonemes":"roĭ","span":[10,13]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term {
+Term @[0‥13) {
   terms: [
-    Tagged {
-      tense_modal: Composite {
-        Cmavo "pa",
-        Letter {
-          Cmavo "su'i",
-          bu: Cmavo "bu",
+    Tagged @[0‥13) {
+      tense_modal: Composite @[0‥13) {
+        Cmavo @[0‥2) "pa",
+        Letter @[3‥9) {
+          Cmavo @[3‥7) "su'i",
+          bu: Cmavo @[7‥9) "bu",
         },
-        Cmavo "roĭ",
+        Cmavo @[10‥13) "roĭ",
       },
       Zohe {},
     },

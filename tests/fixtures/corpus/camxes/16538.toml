@@ -18,21 +18,21 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(mi zo'u .i'a)"
 tree = """
 [
-  Cmavo "mi",
-  Cmavo "zo'u",
-  Cmavo "i'a",
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥7) "zo'u",
+  Cmavo @[9‥12) "i'a",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"i'a","span":[9,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Prenex {
+Prenex @[0‥12) {
   terms: [
-    Cmavo "mi",
+    Cmavo @[0‥2) "mi",
   ],
-  zohu: WithIndicator {
-    Cmavo "zo'u",
-    indicator: Cmavo "i'a",
+  zohu: WithIndicator @[3‥12) {
+    Cmavo @[3‥7) "zo'u",
+    indicator: Cmavo @[9‥12) "i'a",
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Prenex":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"zohu":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"i'a","span":[9,12]}}}}}}}}]}]}"""

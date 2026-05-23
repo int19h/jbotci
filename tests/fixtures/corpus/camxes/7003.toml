@@ -18,10 +18,10 @@ error = { position = 5, allowed-next = [] }
 brackets = "(.or. ta ke mo re)"
 tree = """
 [
-  Cmevla "or",
-  Cmavo "ta",
-  Cmavo "ke",
-  Cmavo "mo",
-  Cmavo "re",
+  Cmevla @[0‥2) "or",
+  Cmavo @[3‥5) "ta",
+  Cmavo @[5‥7) "ke",
+  Cmavo @[8‥10) "mo",
+  Cmavo @[10‥12) "re",
 ]"""
 json = '[{"Bare":{"Cmevla":{"phonemes":"or","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ta","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"ke","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[10,12]}}}]'

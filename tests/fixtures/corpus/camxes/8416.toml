@@ -18,34 +18,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 brackets = "(coĭ coĭ .bancus. do ca mo)"
 tree = """
 [
-  Cmavo "coĭ",
-  Cmavo "coĭ",
-  Cmevla "bancus",
-  Cmavo "do",
-  Cmavo "ca",
-  Cmavo "mo",
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[4‥7) "coĭ",
+  Cmevla @[8‥14) "bancus",
+  Cmavo @[15‥17) "do",
+  Cmavo @[18‥20) "ca",
+  Cmavo @[21‥23) "mo",
 ]"""
 json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[4,7]}}},{"Bare":{"Cmevla":{"phonemes":"bancus","span":[8,14]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[15,17]}}},{"Bare":{"Cmavo":{"phonemes":"ca","span":[18,20]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[21,23]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥23) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥14) {
       vocative_markers: [
-        Cmavo "coĭ",
-        Cmavo "coĭ",
+        Cmavo @[0‥3) "coĭ",
+        Cmavo @[4‥7) "coĭ",
       ],
-      argument: Cmevla "bancus",
+      argument: Cmevla @[8‥14) "bancus",
     },
   ],
-  Predicate {
+  Predicate @[15‥23) {
     leading_terms: [
-      Cmavo "do",
+      Cmavo @[15‥17) "do",
     ],
-    TenseModal {
-      tense_modal: Cmavo "ca",
-      Cmavo "mo",
+    TenseModal @[18‥23) {
+      tense_modal: Cmavo @[18‥20) "ca",
+      Cmavo @[21‥23) "mo",
     },
   },
 }"""

@@ -18,35 +18,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 brackets = "(fi'i la .frank. .e la .djordj.)"
 tree = """
 [
-  Cmavo "fi'i",
-  Cmavo "la",
-  Cmevla "frank",
-  Cmavo "e",
-  Cmavo "la",
-  Cmevla "djordj",
+  Cmavo @[0‥4) "fi'i",
+  Cmavo @[5‥7) "la",
+  Cmevla @[8‥13) "frank",
+  Cmavo @[16‥17) "e",
+  Cmavo @[18‥20) "la",
+  Cmevla @[21‥27) "djordj",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"Bare":{"Cmevla":{"phonemes":"frank","span":[8,13]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[16,17]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[18,20]}}},{"Bare":{"Cmevla":{"phonemes":"djordj","span":[21,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Text {
+Text @[0‥27) {
   leading_free_modifiers: [
-    Vocative {
+    Vocative @[0‥27) {
       vocative_markers: [
-        Cmavo "fi'i",
+        Cmavo @[0‥4) "fi'i",
       ],
-      argument: Connected {
-        leading_argument: Name {
-          la: Cmavo "la",
+      argument: Connected @[5‥27) {
+        leading_argument: Name @[5‥13) {
+          la: Cmavo @[5‥7) "la",
           names: [
-            Cmevla "frank",
+            Cmevla @[8‥13) "frank",
           ],
         },
-        connective: Cmavo "e",
-        trailing_argument: Name {
-          la: Cmavo "la",
+        connective: Cmavo @[16‥17) "e",
+        trailing_argument: Name @[18‥27) {
+          la: Cmavo @[18‥20) "la",
           names: [
-            Cmevla "djordj",
+            Cmevla @[21‥27) "djordj",
           ],
         },
       },
