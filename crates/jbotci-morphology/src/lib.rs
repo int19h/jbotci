@@ -1,5 +1,6 @@
 //! Lojban morphology model.
 
+mod cmavo;
 mod grammar;
 mod segment;
 mod syntax_eq;
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vec1::Vec1;
 
+pub use cmavo::{Cmavo, Selmaho};
 pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
     AtomRef, Jvopau, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
@@ -122,7 +124,8 @@ impl Default for PhonemeRenderOptions {
     }
 }
 
-#[invariant(is_valid_phonemes_text(&self.text), "phonemes must be canonical Lojban phoneme text")]
+#[invariant(!text.is_empty(), "phoneme text must not be empty")]
+#[invariant(text.chars().all(is_valid_phoneme), "phonemes must use canonical Lojban phoneme characters")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Phonemes {
@@ -336,7 +339,7 @@ impl Word {
 
     #[requires(true)]
     #[ensures(ret == (self.kind() == WordKind::Cmavo))]
-    pub fn is_cmavo(&self) -> bool {
+    pub fn is_cmavo_word(&self) -> bool {
         self.kind() == WordKind::Cmavo
     }
 
@@ -355,16 +358,44 @@ impl Word {
         self.kind() == WordKind::Cmevla
     }
 
+    #[requires(true)]
+    #[ensures(ret.is_some() -> self.kind() == WordKind::Cmavo)]
+    pub fn cmavo(&self) -> Option<Cmavo> {
+        if self.is_cmavo_word() {
+            Cmavo::from_text(self.phonemes().as_str())
+        } else {
+            None
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.cmavo() == Some(cmavo)))]
+    pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.cmavo() == Some(cmavo)
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(ret == self.cmavo().is_some_and(|actual| cmavo.contains(&actual)))]
+    pub fn is_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.cmavo().is_some_and(|actual| cmavo.contains(&actual))
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo)))]
+    pub fn is_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo))
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(true)]
     pub fn is_cmavo_text(&self, text: &str) -> bool {
-        self.is_cmavo() && canonical_text_eq(self.phonemes().as_str(), text)
+        self.is_cmavo_word() && canonical_text_eq(self.phonemes().as_str(), text)
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn selmaho(&self) -> Option<&'static str> {
-        if self.is_cmavo() {
+        if self.is_cmavo_word() {
             selmaho(self.phonemes().as_str())
         } else {
             None
@@ -502,6 +533,33 @@ impl WordLike {
             data!(WordLike::Bare(word)) => word.is_cmavo_text(text),
             _ => false,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.cmavo().is_some()))]
+    pub fn cmavo(&self) -> Option<Cmavo> {
+        match self.as_data() {
+            data!(WordLike::Bare(word)) => word.cmavo(),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.cmavo() == Some(cmavo)))]
+    pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.cmavo() == Some(cmavo)
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(ret == self.cmavo().is_some_and(|actual| cmavo.contains(&actual)))]
+    pub fn is_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.cmavo().is_some_and(|actual| cmavo.contains(&actual))
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo)))]
+    pub fn is_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo))
     }
 
     #[requires(true)]
@@ -1036,48 +1094,45 @@ fn single_constructor(
 }
 
 #[requires(true)]
-#[ensures(ret -> !text.is_empty())]
-pub fn is_valid_phonemes_text(text: &str) -> bool {
-    !text.is_empty()
-        && text.chars().all(|value| {
-            matches!(
-                value,
-                'a' | 'á'
-                    | 'e'
-                    | 'é'
-                    | 'i'
-                    | 'í'
-                    | 'ĭ'
-                    | 'o'
-                    | 'ó'
-                    | 'u'
-                    | 'ú'
-                    | 'ŭ'
-                    | 'y'
-                    | 'ý'
-                    | '\''
-                    | ','
-                    | '0'..='9'
-            ) || matches!(
-                value,
-                'b' | 'c'
-                    | 'd'
-                    | 'f'
-                    | 'g'
-                    | 'j'
-                    | 'k'
-                    | 'l'
-                    | 'm'
-                    | 'n'
-                    | 'p'
-                    | 'r'
-                    | 's'
-                    | 't'
-                    | 'v'
-                    | 'x'
-                    | 'z'
-            )
-        })
+#[ensures(true)]
+pub fn is_valid_phoneme(value: char) -> bool {
+    matches!(
+        value,
+        'a' | 'á'
+            | 'e'
+            | 'é'
+            | 'i'
+            | 'í'
+            | 'ĭ'
+            | 'o'
+            | 'ó'
+            | 'u'
+            | 'ú'
+            | 'ŭ'
+            | 'y'
+            | 'ý'
+            | '\''
+            | ','
+            | '0'..='9'
+    ) || matches!(
+        value,
+        'b' | 'c'
+            | 'd'
+            | 'f'
+            | 'g'
+            | 'j'
+            | 'k'
+            | 'l'
+            | 'm'
+            | 'n'
+            | 'p'
+            | 'r'
+            | 's'
+            | 't'
+            | 'v'
+            | 'x'
+            | 'z'
+    )
 }
 
 #[ensures(!ret.is_empty() || text.is_empty())]
@@ -1443,11 +1498,7 @@ mod tests {
         )
         .expect_err("empty phoneme text must be rejected");
 
-        assert!(
-            error
-                .to_string()
-                .contains("phonemes must be canonical Lojban phoneme text")
-        );
+        assert!(error.to_string().contains("phoneme text must not be empty"));
     }
 
     #[test]
@@ -1515,6 +1566,36 @@ mod tests {
             );
         });
         assert!(panic.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_cmavo_parsing_is_canonical_and_multi_class() {
+        assert_eq!(Cmavo::from_text("NÁ'E"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::Nahe.canonical_text(), "na'e");
+        assert!(Selmaho::Nahe.contains(Cmavo::Nahe));
+
+        assert!(Selmaho::Bai.contains(Cmavo::Lahei));
+        assert!(Selmaho::Le.contains(Cmavo::Lahei));
+        assert!(Selmaho::Ui.contains(Cmavo::Lahei));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_cmavo_checks_are_only_for_bare_cmavo_words() {
+        let cmavo = test_word(WordKind::Cmavo, "zo", 0);
+        let quoted = test_word(WordKind::Cmavo, "coi", 3);
+        let word_like = WordLike::zo_quote(cmavo, quoted);
+
+        assert_eq!(word_like.cmavo(), None);
+        assert!(!word_like.is_cmavo(Cmavo::Zo));
+        assert!(!word_like.is_selmaho(Selmaho::Zo));
+
+        let bare = WordLike::bare(test_word(WordKind::Cmavo, "zo", 0));
+        assert!(bare.is_cmavo(Cmavo::Zo));
+        assert!(bare.is_selmaho(Selmaho::Zo));
     }
 
     #[requires(!phonemes.is_empty())]
