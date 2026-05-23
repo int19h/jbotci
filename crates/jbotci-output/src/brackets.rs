@@ -127,13 +127,13 @@ fn paragraph_statement(
 #[requires(true)]
 #[ensures(true)]
 fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        StatementSyntax::Tuhe {
+    match value.as_data() {
+        data!(StatementSyntax::Tuhe {
             tense_modal,
             tuhe,
             text: inner,
             tuhu,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tense_modal) = tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -145,43 +145,43 @@ fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        StatementSyntax::Prenex {
+        data!(StatementSyntax::Prenex {
             prenex_terms,
             zohu,
             inner_statement,
-        } => prenex(
+        }) => prenex(
             prenex_terms.iter().map(|item| term(item, source)).collect(),
             with_free_word(zohu, source),
             statement_syntax(inner_statement, source),
         ),
-        StatementSyntax::Predicate(predicate) => predicate_syntax(predicate, source),
-        StatementSyntax::Connected {
+        data!(StatementSyntax::Predicate(predicate)) => predicate_syntax(predicate, source),
+        data!(StatementSyntax::Connected {
             i,
             connective,
             leading_statement,
             trailing_statement,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             statement_syntax(leading_statement, source),
             word(i, source),
             connective_syntax(connective, source),
             statement_syntax(trailing_statement, source),
         ]),
-        StatementSyntax::PreIConnected {
+        data!(StatementSyntax::PreIConnected {
             connective,
             i,
             leading_statement,
             trailing_statement,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             statement_syntax(leading_statement, source),
             connective_syntax(connective, source),
             word(i, source),
             statement_syntax(trailing_statement, source),
         ]),
-        StatementSyntax::Iau {
+        data!(StatementSyntax::Iau {
             inner_statement,
             iau,
             reset_terms,
-        } => {
+        }) => {
             let mut children = vec![
                 statement_syntax(inner_statement, source),
                 with_free_word(iau, source),
@@ -189,14 +189,14 @@ fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sex
             children.extend(reset_terms.iter().map(|item| term(item, source)));
             sexpr::node(children)
         }
-        StatementSyntax::ExperimentalPredicateContinuation {
+        data!(StatementSyntax::ExperimentalPredicateContinuation {
             leading_statement,
             continuation,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             statement_syntax(leading_statement, source),
             source_words_node(continuation, source),
         ]),
-        StatementSyntax::Fragment(fragment) => fragment_syntax(fragment, source),
+        data!(StatementSyntax::Fragment(fragment)) => fragment_syntax(fragment, source),
     }
 }
 
@@ -262,13 +262,13 @@ fn predicate_tail2(value: &PredicateTail2Syntax, source: &BracketContext<'_>) ->
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tail3(value: &PredicateTail3Syntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        PredicateTail3Syntax::Relation {
+    match value.as_data() {
+        data!(PredicateTail3Syntax::Relation {
             relation,
             terms,
             vau,
             free_modifiers,
-        } => {
+        }) => {
             let mut children = vec![relation_syntax(relation, source)];
             children.push(list_node(
                 terms.iter().map(|item| term(item, source)).collect(),
@@ -284,7 +284,7 @@ fn predicate_tail3(value: &PredicateTail3Syntax, source: &BracketContext<'_>) ->
             ));
             sexpr::node(children)
         }
-        PredicateTail3Syntax::GekSentence(gek) => gek_sentence(gek, source),
+        data!(PredicateTail3Syntax::GekSentence(gek)) => gek_sentence(gek, source),
     }
 }
 
@@ -368,8 +368,8 @@ fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &BracketContext<'_>)
 #[requires(true)]
 #[ensures(true)]
 fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        GekSentenceSyntax::Pair {
+    match value.as_data() {
+        data!(GekSentenceSyntax::Pair {
             gek,
             first,
             gik,
@@ -378,7 +378,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             tail_terms,
             vau,
             free_modifiers,
-        } => {
+        }) => {
             let mut children = vec![
                 connective_syntax(gek, source),
                 subsentence(first, source),
@@ -401,12 +401,12 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             );
             sexpr::node(children)
         }
-        GekSentenceSyntax::Ke {
+        data!(GekSentenceSyntax::Ke {
             tense_modal,
             ke,
             inner,
             kehe,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tense_modal) = tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -418,7 +418,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        GekSentenceSyntax::Na { na, inner } => sexpr::node(vec![
+        data!(GekSentenceSyntax::Na { na, inner }) => sexpr::node(vec![
             with_free_word(na, source),
             gek_sentence(inner, source),
         ]),
@@ -428,13 +428,13 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
 #[requires(true)]
 #[ensures(true)]
 fn subsentence(value: &SubsentenceSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        SubsentenceSyntax::Plain(predicate) => predicate_syntax(predicate, source),
-        SubsentenceSyntax::Prenex {
+    match value.as_data() {
+        data!(SubsentenceSyntax::Plain(predicate)) => predicate_syntax(predicate, source),
+        data!(SubsentenceSyntax::Prenex {
             prenex_terms,
             zohu,
             inner_subsentence,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             sexpr::node(vec![
                 list_node(prenex_terms.iter().map(|item| term(item, source)).collect()),
                 with_free_word(zohu, source),
@@ -447,15 +447,15 @@ fn subsentence(value: &SubsentenceSyntax, source: &BracketContext<'_>) -> sexpr:
 #[requires(true)]
 #[ensures(true)]
 fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
+    match value.as_data() {
+        data!(FragmentSyntax::Ek(connective)) | data!(FragmentSyntax::Gihek(connective)) => {
             connective_syntax(connective, source)
         }
-        FragmentSyntax::Other(words) => with_free_words(words, source),
-        FragmentSyntax::Ijek { i, connective } => {
+        data!(FragmentSyntax::Other(words)) => with_free_words(words, source),
+        data!(FragmentSyntax::Ijek { i, connective }) => {
             sexpr::node(vec![word(i, source), connective_syntax(connective, source)])
         }
-        FragmentSyntax::Prenex { terms, zohu } => {
+        data!(FragmentSyntax::Prenex { terms, zohu }) => {
             let header = terms
                 .iter()
                 .map(|item| term(item, source))
@@ -465,13 +465,13 @@ fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr
                 with_free_word(zohu, source),
             ])])
         }
-        FragmentSyntax::BeLink {
+        data!(FragmentSyntax::BeLink {
             be,
             fa,
             first_argument,
             bei_links,
             beho,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(be, source)];
             if let Some(fa) = fa {
                 children.push(with_free_word(fa, source));
@@ -490,17 +490,17 @@ fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        FragmentSyntax::BeiLink(links) => {
+        data!(FragmentSyntax::BeiLink(links)) => {
             list_node(links.iter().map(|item| bei_link(item, source)).collect())
         }
-        FragmentSyntax::RelativeClause(relative_clauses) => list_node(
+        data!(FragmentSyntax::RelativeClause(relative_clauses)) => list_node(
             relative_clauses
                 .iter()
                 .map(|item| relative_clause(item, source))
                 .collect(),
         ),
-        FragmentSyntax::MathExpression(expression) => math_expression(expression, source),
-        FragmentSyntax::Term { terms, vau } => {
+        data!(FragmentSyntax::MathExpression(expression)) => math_expression(expression, source),
+        data!(FragmentSyntax::Term { terms, vau }) => {
             let mut children = vec![list_node(
                 terms.iter().map(|item| term(item, source)).collect(),
             )];
@@ -509,19 +509,19 @@ fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        FragmentSyntax::Relation(relation) => relation_syntax(relation, source),
+        data!(FragmentSyntax::Relation(relation)) => relation_syntax(relation, source),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        TermSyntax::Argument(argument) => argument_syntax(argument, source),
-        TermSyntax::Tagged {
+    match value.as_data() {
+        data!(TermSyntax::Argument(argument)) => argument_syntax(argument, source),
+        data!(TermSyntax::Tagged {
             tense_modal,
             argument,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tense_modal) = tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -529,7 +529,7 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             children.push(argument_syntax(argument, source));
             sexpr::node(children)
         }
-        TermSyntax::JaiTagged { jai, tag, argument } => {
+        data!(TermSyntax::JaiTagged { jai, tag, argument }) => {
             let mut children = vec![with_free_word(jai, source)];
             if let Some(tag) = tag {
                 children.push(tense_modal_syntax(tag, source));
@@ -537,7 +537,7 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             children.push(argument_syntax(argument, source));
             sexpr::node(children)
         }
-        TermSyntax::Fa { fa, argument, ku } => {
+        data!(TermSyntax::Fa { fa, argument, ku }) => {
             let mut children = vec![
                 with_free_word(fa, source),
                 argument_syntax(argument, source),
@@ -547,15 +547,15 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        TermSyntax::NaKu { na, na_ku } => {
+        data!(TermSyntax::NaKu { na, na_ku }) => {
             sexpr::node(vec![word(na, source), with_free_word(na_ku, source)])
         }
-        TermSyntax::BareNa(na) => with_free_word(na, source),
-        TermSyntax::NuhiTermset {
+        data!(TermSyntax::BareNa(na)) => with_free_word(na, source),
+        data!(TermSyntax::NuhiTermset {
             nuhi,
             termset,
             nuhu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(nuhi, source),
                 list_node(termset.iter().map(|item| term(item, source)).collect()),
@@ -565,7 +565,7 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        TermSyntax::GekNuhiTermset {
+        data!(TermSyntax::GekNuhiTermset {
             m_nuhi,
             gek,
             terms,
@@ -574,7 +574,7 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             gik_terms,
             gihi,
             gik_nuhu,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(nuhi) = m_nuhi {
                 children.push(with_free_word(nuhi, source));
@@ -598,11 +598,11 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        TermSyntax::Cehe {
+        data!(TermSyntax::Cehe {
             leading_terms,
             cehe,
             trailing_terms,
-        } => {
+        }) => {
             let mut children = vec![list_node(
                 leading_terms
                     .iter()
@@ -618,12 +618,12 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             ));
             sexpr::node(children)
         }
-        TermSyntax::Pehe {
+        data!(TermSyntax::Pehe {
             leading_terms,
             pehe,
             connective,
             trailing_terms,
-        } => {
+        }) => {
             let mut children = vec![list_node(
                 leading_terms
                     .iter()
@@ -640,11 +640,11 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             ));
             sexpr::node(children)
         }
-        TermSyntax::Connected {
+        data!(TermSyntax::Connected {
             leading_terms,
             connective,
             trailing_terms,
-        } => {
+        }) => {
             let mut children = vec![list_node(
                 leading_terms
                     .iter()
@@ -660,13 +660,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             ));
             sexpr::node(children)
         }
-        TermSyntax::BoConnected {
+        data!(TermSyntax::BoConnected {
             leading_terms,
             bo_connective,
             tense_modal,
             bo,
             trailing_term,
-        } => {
+        }) => {
             let mut children = vec![list_node(
                 leading_terms
                     .iter()
@@ -683,13 +683,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             children.push(term(trailing_term, source));
             sexpr::node(children)
         }
-        TermSyntax::NoihaAdverbial {
+        data!(TermSyntax::NoihaAdverbial {
             noiha,
             tail_elements,
             relation,
             relative_clauses,
             fehu,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(noiha, source)];
             children.push(list_node(
                 tail_elements
@@ -711,13 +711,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        TermSyntax::PoihaBrigahi {
+        data!(TermSyntax::PoihaBrigahi {
             poiha,
             tail_elements,
             relation,
             relative_clauses,
             brigahi_ku,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(poiha, source)];
             children.push(list_node(
                 tail_elements
@@ -737,22 +737,22 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             children.push(with_free_word(brigahi_ku, source));
             sexpr::node(children)
         }
-        TermSyntax::FihoiAdverbial {
+        data!(TermSyntax::FihoiAdverbial {
             fihoi,
             subsentence: inner,
             fihau,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(fihoi, source), subsentence(inner, source)];
             if let Some(fihau) = fihau {
                 children.push(with_free_word(fihau, source));
             }
             sexpr::node(children)
         }
-        TermSyntax::SoiAdverbial {
+        data!(TermSyntax::SoiAdverbial {
             soi,
             subsentence: inner,
             sehu,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(soi, source), subsentence(inner, source)];
             if let Some(sehu) = sehu {
                 children.push(with_free_word(sehu, source));
@@ -765,13 +765,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
 #[requires(true)]
 #[ensures(true)]
 fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        ArgumentSyntax::Quote(quote) => quote_syntax(quote, source),
-        ArgumentSyntax::MathExpression {
+    match value.as_data() {
+        data!(ArgumentSyntax::Quote(quote)) => quote_syntax(quote, source),
+        data!(ArgumentSyntax::MathExpression {
             li,
             expression,
             loho,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(li, source),
                 math_expression(expression, source),
@@ -781,41 +781,43 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Letter { letter, boi } => {
+        data!(ArgumentSyntax::Letter { letter, boi }) => {
             let mut children = vec![with_free_words(letter, source)];
             if let Some(boi) = boi {
                 children.push(with_free_word(boi, source));
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Quantified {
+        data!(ArgumentSyntax::Quantified {
             quantifier,
             inner_argument,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             quantifier_syntax(quantifier, source),
             argument_syntax(inner_argument, source),
         ]),
-        ArgumentSyntax::Connected {
+        data!(ArgumentSyntax::Connected {
             leading_argument,
             connective,
             trailing_argument,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             argument_syntax(leading_argument, source),
             connective_syntax(connective, source),
             argument_syntax(trailing_argument, source),
         ]),
-        ArgumentSyntax::Descriptor(descriptor) => descriptor_syntax(descriptor, source),
-        ArgumentSyntax::ConnectedDescriptor(descriptor) => connected_descriptor(descriptor, source),
-        ArgumentSyntax::Name { la, names } => sexpr::node(vec![
+        data!(ArgumentSyntax::Descriptor(descriptor)) => descriptor_syntax(descriptor, source),
+        data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => {
+            connected_descriptor(descriptor, source)
+        }
+        data!(ArgumentSyntax::Name { la, names }) => sexpr::node(vec![
             with_free_word(la, source),
             with_free_words(names, source),
         ]),
-        ArgumentSyntax::Cmevla(words) => with_free_words(words, source),
-        ArgumentSyntax::RelativeClause {
+        data!(ArgumentSyntax::Cmevla(words)) => with_free_words(words, source),
+        data!(ArgumentSyntax::RelativeClause {
             base_argument,
             vuho,
             relative_clauses,
-        } => {
+        }) => {
             let mut children = vec![argument_syntax(base_argument, source)];
             if let Some(vuho) = vuho {
                 children.push(with_free_word(vuho, source));
@@ -827,12 +829,12 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             );
             sexpr::node(children)
         }
-        ArgumentSyntax::Vuho {
+        data!(ArgumentSyntax::Vuho {
             base_argument,
             vuho_marker,
             relative_clauses,
             connected_argument,
-        } => {
+        }) => {
             let mut children = vec![
                 argument_syntax(base_argument, source),
                 with_free_word(vuho_marker, source),
@@ -850,33 +852,33 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::BridiDescription {
+        data!(ArgumentSyntax::BridiDescription {
             lohoi,
             subsentence: inner,
             kuhau,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(lohoi, source), subsentence(inner, source)];
             if let Some(kuhau) = kuhau {
                 children.push(with_free_word(kuhau, source));
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::NaKu { na, ku } => {
+        data!(ArgumentSyntax::NaKu { na, ku }) => {
             sexpr::node(vec![word(na, source), with_free_word(ku, source)])
         }
-        ArgumentSyntax::Tagged {
+        data!(ArgumentSyntax::Tagged {
             tag,
             inner_argument,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             argument_tag(tag, source),
             argument_syntax(inner_argument, source),
         ]),
-        ArgumentSyntax::NaheBo {
+        data!(ArgumentSyntax::NaheBo {
             nahe,
             bo,
             inner_argument,
             luhu,
-        } => {
+        }) => {
             let mut children = vec![
                 word(nahe, source),
                 with_free_word(bo, source),
@@ -887,11 +889,11 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Nahe {
+        data!(ArgumentSyntax::Nahe {
             nahe,
             inner_argument,
             luhu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(nahe, source),
                 argument_syntax(inner_argument, source),
@@ -901,13 +903,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::TermWrapped {
+        data!(ArgumentSyntax::TermWrapped {
             wrapper,
             wrapper_bo,
             inner_term,
             luhu,
             ..
-        } => {
+        }) => {
             let mut children = vec![with_free_word(wrapper, source)];
             if let Some(wrapper_bo) = wrapper_bo {
                 children.push(with_free_word(wrapper_bo, source));
@@ -918,12 +920,12 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Koha(koha) => with_free_word(koha, source),
-        ArgumentSyntax::Zohe {
+        data!(ArgumentSyntax::Koha(koha)) => with_free_word(koha, source),
+        data!(ArgumentSyntax::Zohe {
             tag,
             maybe_ku,
             free_modifiers,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tag) = tag {
                 children.push(argument_tag(tag, source));
@@ -938,12 +940,12 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             );
             sexpr::node(children)
         }
-        ArgumentSyntax::Lahe {
+        data!(ArgumentSyntax::Lahe {
             lahe,
             relative_clauses,
             inner_argument,
             luhu,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(lahe, source)];
             children.extend(
                 relative_clauses
@@ -956,11 +958,11 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Ke {
+        data!(ArgumentSyntax::Ke {
             ke,
             inner_argument,
             kehe,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(ke, source),
                 argument_syntax(inner_argument, source),
@@ -970,13 +972,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        ArgumentSyntax::Bo {
+        data!(ArgumentSyntax::Bo {
             leading_argument,
             bo_connective,
             bo_tense_modal,
             bo,
             trailing_argument,
-        } => {
+        }) => {
             let mut children = vec![argument_syntax(leading_argument, source)];
             if let Some(connective) = bo_connective {
                 children.push(connective_syntax(connective, source));
@@ -988,13 +990,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             children.push(argument_syntax(trailing_argument, source));
             sexpr::node(children)
         }
-        ArgumentSyntax::Gek {
+        data!(ArgumentSyntax::Gek {
             gek,
             leading_argument,
             gik,
             trailing_argument,
             gihi,
-        } => sexpr::node(
+        }) => sexpr::node(
             vec![
                 connective_syntax(gek, source),
                 argument_syntax(leading_argument, source),
@@ -1005,11 +1007,11 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             .chain(gihi.iter().map(|gihi| word(gihi, source)))
             .collect(),
         ),
-        ArgumentSyntax::RelationVocative {
+        data!(ArgumentSyntax::RelationVocative {
             leading_relative_clauses,
             relation,
             trailing_relative_clauses,
-        } => {
+        }) => {
             let mut children = leading_relative_clauses
                 .iter()
                 .map(|item| relative_clause(item, source))
@@ -1028,9 +1030,11 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
 #[requires(true)]
 #[ensures(true)]
 fn argument_tag(value: &ArgumentTagSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal_syntax(tense_modal, source),
-        ArgumentTagSyntax::Fa(fa) => with_free_word(fa, source),
+    match value.as_data() {
+        data!(ArgumentTagSyntax::TenseModal(tense_modal)) => {
+            tense_modal_syntax(tense_modal, source)
+        }
+        data!(ArgumentTagSyntax::Fa(fa)) => with_free_word(fa, source),
     }
 }
 
@@ -1125,23 +1129,25 @@ fn argument_tail_element(
     value: &ArgumentTailElementSyntax,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
-    match value {
-        ArgumentTailElementSyntax::Argument(argument) => argument_syntax(argument, source),
-        ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => sexpr::node(
+    match value.as_data() {
+        data!(ArgumentTailElementSyntax::Argument(argument)) => argument_syntax(argument, source),
+        data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => sexpr::node(
             relative_clauses
                 .iter()
                 .map(|item| relative_clause(item, source))
                 .collect(),
         ),
-        ArgumentTailElementSyntax::Quantifier(quantifier) => quantifier_syntax(quantifier, source),
+        data!(ArgumentTailElementSyntax::Quantifier(quantifier)) => {
+            quantifier_syntax(quantifier, source)
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        RelativeClauseSyntax::Goi(goi) => {
+    match value.as_data() {
+        data!(RelativeClauseSyntax::Goi(goi)) => {
             let mut children = vec![
                 with_free_word(&goi.goi, source),
                 argument_syntax(&goi.argument, source),
@@ -1151,27 +1157,27 @@ fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        RelativeClauseSyntax::Noi {
+        data!(RelativeClauseSyntax::Noi {
             noi,
             subsentence: inner,
             kuho,
-        }
-        | RelativeClauseSyntax::Poi {
+        })
+        | data!(RelativeClauseSyntax::Poi {
             poi: noi,
             subsentence: inner,
             kuho,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(noi, source), subsentence(inner, source)];
             if let Some(kuho) = kuho {
                 children.push(with_free_word(kuho, source));
             }
             sexpr::node(children)
         }
-        RelativeClauseSyntax::Zihe { zihe, inner } => sexpr::node(vec![
+        data!(RelativeClauseSyntax::Zihe { zihe, inner }) => sexpr::node(vec![
             with_free_word(zihe, source),
             relative_clause(inner, source),
         ]),
-        RelativeClauseSyntax::Connected { connective, inner } => sexpr::node(vec![
+        data!(RelativeClauseSyntax::Connected { connective, inner }) => sexpr::node(vec![
             connective_syntax(connective, source),
             relative_clause(inner, source),
         ]),
@@ -1181,8 +1187,8 @@ fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) ->
 #[requires(true)]
 #[ensures(true)]
 fn quote_syntax(value: &QuoteSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        QuoteSyntax::Lu { lu, text, lihu } => {
+    match value.as_data() {
+        data!(QuoteSyntax::Lu { lu, text, lihu }) => {
             let mut children = vec![word(&lu.value, source)];
             children.extend(
                 lu.free_modifiers
@@ -1195,29 +1201,29 @@ fn quote_syntax(value: &QuoteSyntax, source: &BracketContext<'_>) -> sexpr::SExp
             }
             sexpr::node(children)
         }
-        QuoteSyntax::Zo(zo)
-        | QuoteSyntax::ZohOi(zo)
-        | QuoteSyntax::Zoi(zo)
-        | QuoteSyntax::Lohu(zo) => with_free_word(zo, source),
+        data!(QuoteSyntax::Zo(zo))
+        | data!(QuoteSyntax::ZohOi(zo))
+        | data!(QuoteSyntax::Zoi(zo))
+        | data!(QuoteSyntax::Lohu(zo)) => with_free_word(zo, source),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn quantifier_syntax(value: &QuantifierSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        QuantifierSyntax::Number { number, boi } => {
+    match value.as_data() {
+        data!(QuantifierSyntax::Number { number, boi }) => {
             let mut children = vec![with_free_words(number, source)];
             if let Some(boi) = boi {
                 children.push(with_free_word(boi, source));
             }
             sexpr::node(children)
         }
-        QuantifierSyntax::Vei {
+        data!(QuantifierSyntax::Vei {
             vei,
             math_expression,
             veho,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(vei, source),
                 self::math_expression(math_expression, source),
@@ -1233,38 +1239,38 @@ fn quantifier_syntax(value: &QuantifierSyntax, source: &BracketContext<'_>) -> s
 #[requires(true)]
 #[ensures(true)]
 fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        MathExpressionSyntax::Number(number) => quantifier_syntax(number, source),
-        MathExpressionSyntax::Letter { letter, boi } => {
+    match value.as_data() {
+        data!(MathExpressionSyntax::Number(number)) => quantifier_syntax(number, source),
+        data!(MathExpressionSyntax::Letter { letter, boi }) => {
             let mut children = vec![with_free_words(letter, source)];
             if let Some(boi) = boi {
                 children.push(with_free_word(boi, source));
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Binary {
+        data!(MathExpressionSyntax::Binary {
             operator,
             left_expression,
             right_expression,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             self::math_expression(left_expression, source),
             math_operator(operator, source),
             self::math_expression(right_expression, source),
         ]),
-        MathExpressionSyntax::Connected {
+        data!(MathExpressionSyntax::Connected {
             left_expression,
             connective,
             right_expression,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             self::math_expression(left_expression, source),
             connective_syntax(connective, source),
             self::math_expression(right_expression, source),
         ]),
-        MathExpressionSyntax::Vei {
+        data!(MathExpressionSyntax::Vei {
             vei,
             inner_expression,
             veho,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word_no_leading_pause(vei, source),
                 self::math_expression(inner_expression, source),
@@ -1274,23 +1280,23 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Gek {
+        data!(MathExpressionSyntax::Gek {
             gek,
             left_expression,
             gik,
             right_expression,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             connective_syntax(gek, source),
             self::math_expression(left_expression, source),
             connective_syntax(gik, source),
             self::math_expression(right_expression, source),
         ]),
-        MathExpressionSyntax::Forethought {
+        data!(MathExpressionSyntax::Forethought {
             peho,
             operator,
             operands,
             kuhe,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(peho) = peho {
                 children.push(with_free_word(peho, source));
@@ -1307,11 +1313,11 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::ReversePolish {
+        data!(MathExpressionSyntax::ReversePolish {
             fuha,
             operands,
             operators,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(fuha, source)];
             children.extend(
                 operands
@@ -1321,11 +1327,11 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             children.extend(operators.iter().map(|item| math_operator(item, source)));
             sexpr::node(children)
         }
-        MathExpressionSyntax::Nihe {
+        data!(MathExpressionSyntax::Nihe {
             nihe,
             relation,
             tehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(nihe, source),
                 relation_syntax(relation, source),
@@ -1335,11 +1341,11 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Mohe {
+        data!(MathExpressionSyntax::Mohe {
             mohe,
             argument,
             tehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(mohe, source),
                 argument_syntax(argument, source),
@@ -1349,11 +1355,11 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Johi {
+        data!(MathExpressionSyntax::Johi {
             johi,
             expressions,
             tehu,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(johi, source)];
             children.push(list_node(
                 expressions
@@ -1366,11 +1372,11 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Lahe {
+        data!(MathExpressionSyntax::Lahe {
             markers,
             inner_expression,
             luhu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_words(markers, source),
                 self::math_expression(inner_expression, source),
@@ -1380,12 +1386,12 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
             }
             sexpr::node(children)
         }
-        MathExpressionSyntax::Bihe {
+        data!(MathExpressionSyntax::Bihe {
             left_expression,
             bihe,
             operator,
             right_expression,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             self::math_expression(left_expression, source),
             with_free_word_no_leading_pause(bihe, source),
             math_operator(operator, source),
@@ -1397,13 +1403,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
 #[requires(true)]
 #[ensures(true)]
 fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        MathOperatorSyntax::Vuhu(word) => with_free_word(word, source),
-        MathOperatorSyntax::Connected {
+    match value.as_data() {
+        data!(MathOperatorSyntax::Vuhu(word)) => with_free_word(word, source),
+        data!(MathOperatorSyntax::Connected {
             left_operator,
             connective,
             right_operator,
-        } => {
+        }) => {
             if connective.kind() == ConnectiveKind::Forethought
                 && connective.cmavo().value.len() >= 2
             {
@@ -1424,11 +1430,11 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
                 ])
             }
         }
-        MathOperatorSyntax::Maho {
+        data!(MathOperatorSyntax::Maho {
             maho,
             math_expression,
             tehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(maho, source),
                 self::math_expression(math_expression, source),
@@ -1438,19 +1444,19 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        MathOperatorSyntax::Se { se, inner_operator }
-        | MathOperatorSyntax::Nahe {
+        data!(MathOperatorSyntax::Se { se, inner_operator })
+        | data!(MathOperatorSyntax::Nahe {
             nahe: se,
             inner_operator,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             with_free_word(se, source),
             math_operator(inner_operator, source),
         ]),
-        MathOperatorSyntax::Nahu {
+        data!(MathOperatorSyntax::Nahu {
             nahu,
             relation,
             tehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(nahu, source),
                 relation_syntax(relation, source),
@@ -1460,11 +1466,11 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        MathOperatorSyntax::Ke {
+        data!(MathOperatorSyntax::Ke {
             ke,
             inner_operator,
             kehe,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(ke, source),
                 math_operator(inner_operator, source),
@@ -1474,12 +1480,12 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        MathOperatorSyntax::Bo {
+        data!(MathOperatorSyntax::Bo {
             left_operator,
             connective,
             bo,
             right_operator,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             math_operator(left_operator, source),
             connective_syntax(connective, source),
             with_free_word(bo, source),
@@ -1491,39 +1497,39 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
 #[requires(true)]
 #[ensures(true)]
 fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        RelationSyntax::Base(value) => word(value, source),
-        RelationSyntax::Compound(units) => sexpr::node(
+    match value.as_data() {
+        data!(RelationSyntax::Base(value)) => word(value, source),
+        data!(RelationSyntax::Compound(units)) => sexpr::node(
             units
                 .iter()
                 .map(|unit| relation_unit(unit, source))
                 .collect(),
         ),
-        RelationSyntax::Connected {
+        data!(RelationSyntax::Connected {
             connective,
             leading_relation,
             trailing_relation,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             relation_syntax(leading_relation, source),
             connective_syntax(connective, source),
             relation_syntax(trailing_relation, source),
         ]),
-        RelationSyntax::Co {
+        data!(RelationSyntax::Co {
             leading_relation,
             co,
             trailing_relation,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             relation_syntax(leading_relation, source),
             with_free_word(co, source),
             relation_syntax(trailing_relation, source),
         ]),
-        RelationSyntax::Bo {
+        data!(RelationSyntax::Bo {
             leading_relation,
             bo_connective,
             bo_tense_modal,
             bo,
             trailing_relation,
-        } => {
+        }) => {
             let mut children = vec![relation_syntax(leading_relation, source)];
             if let Some(connective) = bo_connective {
                 children.push(connective_syntax(connective, source));
@@ -1535,20 +1541,20 @@ fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr
             children.push(relation_syntax(trailing_relation, source));
             sexpr::node(children)
         }
-        RelationSyntax::Na { na, inner_relation } => sexpr::node(vec![
+        data!(RelationSyntax::Na { na, inner_relation }) => sexpr::node(vec![
             with_free_word(na, source),
             relation_syntax(inner_relation, source),
         ]),
-        RelationSyntax::Se { se, inner_relation } => sexpr::node(vec![
+        data!(RelationSyntax::Se { se, inner_relation }) => sexpr::node(vec![
             with_free_word(se, source),
             relation_syntax(inner_relation, source),
         ]),
-        RelationSyntax::Ke {
+        data!(RelationSyntax::Ke {
             ke_tense_modal,
             ke,
             relation,
             kehe,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tense_modal) = ke_tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -1560,20 +1566,20 @@ fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr
             }
             sexpr::node(children)
         }
-        RelationSyntax::TenseModal {
+        data!(RelationSyntax::TenseModal {
             tense_modal,
             inner_relation,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             tense_modal_syntax(tense_modal, source),
             relation_syntax(inner_relation, source),
         ]),
-        RelationSyntax::Guha {
+        data!(RelationSyntax::Guha {
             guhek,
             leading_predicate,
             gik,
             trailing_predicate,
             gihi,
-        } => sexpr::node(
+        }) => sexpr::node(
             vec![
                 connective_syntax(guhek, source),
                 predicate_syntax(leading_predicate, source),
@@ -1584,32 +1590,32 @@ fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr
             .chain(gihi.iter().map(|gihi| word(gihi, source)))
             .collect(),
         ),
-        RelationSyntax::Abstraction(abstraction) => abstraction_syntax(abstraction, source),
+        data!(RelationSyntax::Abstraction(abstraction)) => abstraction_syntax(abstraction, source),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        RelationUnitSyntax::Word(word) => with_free_word(word, source),
-        RelationUnitSyntax::Goha { goha, raho } => {
+    match value.as_data() {
+        data!(RelationUnitSyntax::Word(word)) => with_free_word(word, source),
+        data!(RelationUnitSyntax::Goha { goha, raho }) => {
             let mut children = vec![with_free_word(goha, source)];
             if let Some(raho) = raho {
                 children.push(with_free_word(raho, source));
             }
             sexpr::node(children)
         }
-        RelationUnitSyntax::Se { se, inner_unit } => sexpr::node(vec![
+        data!(RelationUnitSyntax::Se { se, inner_unit }) => sexpr::node(vec![
             with_free_word(se, source),
             relation_unit(inner_unit, source),
         ]),
-        RelationUnitSyntax::Ke {
+        data!(RelationUnitSyntax::Ke {
             ke_tense_modal,
             ke,
             relation,
             kehe,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(tense_modal) = ke_tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -1621,17 +1627,17 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        RelationUnitSyntax::Nahe { nahe, inner_unit } => sexpr::node(vec![
+        data!(RelationUnitSyntax::Nahe { nahe, inner_unit }) => sexpr::node(vec![
             with_free_word(nahe, source),
             relation_unit(inner_unit, source),
         ]),
-        RelationUnitSyntax::Bo {
+        data!(RelationUnitSyntax::Bo {
             leading_unit,
             bo_connective,
             bo_tense_modal,
             bo,
             trailing_unit,
-        } => {
+        }) => {
             let mut children = vec![relation_unit(leading_unit, source)];
             if let Some(connective) = bo_connective {
                 children.push(connective_syntax(connective, source));
@@ -1643,21 +1649,21 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             children.push(relation_unit(trailing_unit, source));
             sexpr::node(children)
         }
-        RelationUnitSyntax::Connected {
+        data!(RelationUnitSyntax::Connected {
             leading_unit,
             connective,
             trailing_unit,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             relation_unit(leading_unit, source),
             connective_syntax(connective, source),
             relation_unit(trailing_unit, source),
         ]),
-        RelationUnitSyntax::Wrapped(relation) => relation_syntax(relation, source),
-        RelationUnitSyntax::Jai {
+        data!(RelationUnitSyntax::Wrapped(relation)) => relation_syntax(relation, source),
+        data!(RelationUnitSyntax::Jai {
             jai,
             tense_modal,
             inner_unit,
-        } => {
+        }) => {
             let mut children = vec![with_free_word(jai, source)];
             if let Some(tense_modal) = tense_modal {
                 children.push(tense_modal_syntax(tense_modal, source));
@@ -1665,14 +1671,14 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             children.push(relation_unit(inner_unit, source));
             sexpr::node(children)
         }
-        RelationUnitSyntax::Be {
+        data!(RelationUnitSyntax::Be {
             base,
             be,
             fa,
             first_argument,
             bei_links,
             beho,
-        } => be_link_node(
+        }) => be_link_node(
             relation_unit(base, source),
             be,
             fa.as_ref(),
@@ -1682,14 +1688,14 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             source,
             false,
         ),
-        RelationUnitSyntax::PreposedBe {
+        data!(RelationUnitSyntax::PreposedBe {
             be,
             fa,
             first_argument,
             bei_links,
             beho,
             base,
-        } => be_link_node(
+        }) => be_link_node(
             relation_unit(base, source),
             be,
             fa.as_ref(),
@@ -1699,13 +1705,15 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             source,
             true,
         ),
-        RelationUnitSyntax::Abstraction(abstraction) => abstraction_syntax(abstraction, source),
-        RelationUnitSyntax::Me {
+        data!(RelationUnitSyntax::Abstraction(abstraction)) => {
+            abstraction_syntax(abstraction, source)
+        }
+        data!(RelationUnitSyntax::Me {
             me,
             argument,
             mehu,
             moi_marker,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(me, source),
                 argument_syntax(argument, source),
@@ -1718,33 +1726,33 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        RelationUnitSyntax::Mehoi(mehoi) => with_free_word(mehoi, source),
-        RelationUnitSyntax::Gohoi(gohoi) => with_free_word(gohoi, source),
-        RelationUnitSyntax::Muhoi(muhoi) => with_free_word(muhoi, source),
-        RelationUnitSyntax::Luhei { luhei, text, liau } => {
+        data!(RelationUnitSyntax::Mehoi(mehoi)) => with_free_word(mehoi, source),
+        data!(RelationUnitSyntax::Gohoi(gohoi)) => with_free_word(gohoi, source),
+        data!(RelationUnitSyntax::Muhoi(muhoi)) => with_free_word(muhoi, source),
+        data!(RelationUnitSyntax::Luhei { luhei, text, liau }) => {
             let mut children = vec![with_free_word(luhei, source), self::text(text, source)];
             if let Some(liau) = liau {
                 children.push(with_free_word(liau, source));
             }
             sexpr::node(children)
         }
-        RelationUnitSyntax::Moi { number, moi } => {
+        data!(RelationUnitSyntax::Moi { number, moi }) => {
             let mut children = vec![list_node(words(number, source))];
             children.push(with_free_word(moi, source));
             sexpr::node(children)
         }
-        RelationUnitSyntax::Nuha {
+        data!(RelationUnitSyntax::Nuha {
             nuha,
             math_operator: operator,
-        } => sexpr::node(vec![
+        }) => sexpr::node(vec![
             with_free_word(nuha, source),
             math_operator(operator, source),
         ]),
-        RelationUnitSyntax::Xohi { xohi, tag } => sexpr::node(vec![
+        data!(RelationUnitSyntax::Xohi { xohi, tag }) => sexpr::node(vec![
             with_free_word(xohi, source),
             tense_modal_syntax(tag, source),
         ]),
-        RelationUnitSyntax::Cei { base, assignments } => {
+        data!(RelationUnitSyntax::Cei { base, assignments }) => {
             let mut children = vec![relation_unit(base, source)];
             children.extend(assignments.iter().map(|assignment| {
                 sexpr::node(vec![
@@ -1754,10 +1762,10 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             }));
             sexpr::node(children)
         }
-        RelationUnitSyntax::SelbriRelativeClause {
+        data!(RelationUnitSyntax::SelbriRelativeClause {
             base,
             selbri_relative_clauses,
-        } => {
+        }) => {
             let mut children = vec![relation_unit(base, source)];
             children.extend(selbri_relative_clauses.iter().map(|item| {
                 let mut items = vec![
@@ -1848,12 +1856,12 @@ fn abstraction_syntax(value: &AbstractionSyntax, source: &BracketContext<'_>) ->
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        TenseModalSyntax::Fiho {
+    match value.as_data() {
+        data!(TenseModalSyntax::Fiho {
             fiho,
             relation,
             fehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(fiho, source),
                 relation_syntax(relation, source),
@@ -1863,13 +1871,13 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> 
             }
             sexpr::node(children)
         }
-        TenseModalSyntax::Simple {
+        data!(TenseModalSyntax::Simple {
             nahe,
             se,
             bai,
             nai,
             ki,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(nahe) = nahe {
                 children.push(with_free_word(nahe, source));
@@ -1886,35 +1894,35 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> 
             }
             sexpr::node(children)
         }
-        TenseModalSyntax::Pu(word)
-        | TenseModalSyntax::TimeInterval(word)
-        | TenseModalSyntax::SpaceDistance(word)
-        | TenseModalSyntax::SpaceDirection(word)
-        | TenseModalSyntax::Ki(word)
-        | TenseModalSyntax::Caha(word) => with_free_word(word, source),
-        TenseModalSyntax::PuDistance { pu, distance } => {
+        data!(TenseModalSyntax::Pu(word))
+        | data!(TenseModalSyntax::TimeInterval(word))
+        | data!(TenseModalSyntax::SpaceDistance(word))
+        | data!(TenseModalSyntax::SpaceDirection(word))
+        | data!(TenseModalSyntax::Ki(word))
+        | data!(TenseModalSyntax::Caha(word)) => with_free_word(word, source),
+        data!(TenseModalSyntax::PuDistance { pu, distance }) => {
             sexpr::node(vec![word(pu, source), with_free_word(distance, source)])
         }
-        TenseModalSyntax::PuCaha { pu, caha } => {
+        data!(TenseModalSyntax::PuCaha { pu, caha }) => {
             sexpr::node(vec![word(pu, source), with_free_word(caha, source)])
         }
-        TenseModalSyntax::SpaceMovement {
+        data!(TenseModalSyntax::SpaceMovement {
             mohi,
             direction,
             distance,
-        } => {
+        }) => {
             let mut children = vec![word(mohi, source), with_free_word(direction, source)];
             if let Some(distance) = distance {
                 children.push(with_free_word(distance, source));
             }
             sexpr::node(children)
         }
-        TenseModalSyntax::Zaho(words) => with_free_words(words, source),
-        TenseModalSyntax::Interval {
+        data!(TenseModalSyntax::Zaho(words)) => with_free_words(words, source),
+        data!(TenseModalSyntax::Interval {
             number,
             roi_or_tahe,
             nai,
-        } => {
+        }) => {
             let mut children = number
                 .as_ref()
                 .map_or_else(Vec::new, |number| words(number, source));
@@ -1924,7 +1932,7 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> 
             }
             sexpr::node(children)
         }
-        TenseModalSyntax::Composite { parts } => {
+        data!(TenseModalSyntax::Composite { parts }) => {
             let mut children = parts
                 .value
                 .iter()
@@ -1947,9 +1955,9 @@ fn composite_tense_modal_part(
     value: &CompositeTenseModalPartSyntax,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
-    match value {
-        CompositeTenseModalPartSyntax::Word(part_word) => word(part_word, source),
-        CompositeTenseModalPartSyntax::Fiho(fiho) => fiho_modal(fiho, source),
+    match value.as_data() {
+        data!(CompositeTenseModalPartSyntax::Word(part_word)) => word(part_word, source),
+        data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => fiho_modal(fiho, source),
     }
 }
 
@@ -2033,63 +2041,63 @@ type ConnectivePartsRef<'a> = (
 #[requires(true)]
 #[ensures(true)]
 fn connective_parts(value: &ConnectiveSyntax) -> ConnectivePartsRef<'_> {
-    match value {
-        ConnectiveSyntax::Afterthought {
+    match value.as_data() {
+        data!(ConnectiveSyntax::Afterthought {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        }
-        | ConnectiveSyntax::Relation {
+        })
+        | data!(ConnectiveSyntax::Relation {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        }
-        | ConnectiveSyntax::PredicateTail {
+        })
+        | data!(ConnectiveSyntax::PredicateTail {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        }
-        | ConnectiveSyntax::Forethought {
+        })
+        | data!(ConnectiveSyntax::Forethought {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        }
-        | ConnectiveSyntax::NonLogical {
+        })
+        | data!(ConnectiveSyntax::NonLogical {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        }
-        | ConnectiveSyntax::Interval {
+        })
+        | data!(ConnectiveSyntax::Interval {
             se,
             nahe,
             na,
             cmavo,
             nai,
-        } => (se.as_ref(), nahe.as_ref(), na.as_ref(), cmavo, nai.as_ref()),
+        }) => (se.as_ref(), nahe.as_ref(), na.as_ref(), cmavo, nai.as_ref()),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
-    match value {
-        FreeModifierSyntax::Sei {
+    match value.as_data() {
+        data!(FreeModifierSyntax::Sei {
             sei,
             terms,
             cu,
             relation,
             sehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(sei, source),
                 list_node(terms.iter().map(|item| term(item, source)).collect()),
@@ -2103,28 +2111,28 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        FreeModifierSyntax::To { to, text, toi } => {
+        data!(FreeModifierSyntax::To { to, text, toi }) => {
             let mut children = vec![with_free_word(to, source), self::text(text, source)];
             if let Some(toi) = toi {
                 children.push(with_free_word(toi, source));
             }
             sexpr::node(children)
         }
-        FreeModifierSyntax::Xi { xi, expression } => sexpr::node(vec![
+        data!(FreeModifierSyntax::Xi { xi, expression }) => sexpr::node(vec![
             with_free_word(xi, source),
             math_expression(expression, source),
         ]),
-        FreeModifierSyntax::Mai { number, mai } => {
+        data!(FreeModifierSyntax::Mai { number, mai }) => {
             let mut children = vec![list_node(words(number, source))];
             children.push(with_free_word(mai, source));
             sexpr::node(children)
         }
-        FreeModifierSyntax::Soi {
+        data!(FreeModifierSyntax::Soi {
             soi,
             leading_argument,
             trailing_argument,
             sehu,
-        } => {
+        }) => {
             let mut children = vec![
                 with_free_word(soi, source),
                 argument_syntax(leading_argument, source),
@@ -2137,11 +2145,11 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        FreeModifierSyntax::Vocative {
+        data!(FreeModifierSyntax::Vocative {
             vocative_markers,
             argument,
             dohu,
-        } => {
+        }) => {
             let mut children = vec![with_free_words(vocative_markers, source)];
             if let Some(argument) = argument {
                 children.push(argument_syntax(argument, source));
@@ -2151,13 +2159,13 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
             }
             sexpr::node(children)
         }
-        FreeModifierSyntax::Replacement {
+        data!(FreeModifierSyntax::Replacement {
             lohai,
             old_words,
             sahai,
             new_words,
             lehai,
-        } => {
+        }) => {
             let mut children = Vec::new();
             if let Some(lohai) = lohai {
                 children.push(word(lohai, source));

@@ -429,14 +429,14 @@ pub struct ParseErrorExpectation {
     pub message: Option<String>,
 }
 
+#[invariant(true)]
+#[invariant(::Cmavo => !text.is_empty())]
+#[invariant(::CmavoOf => !selmaho.is_empty() && !values.is_empty() && values.iter().all(|value| !value.is_empty()))]
+#[invariant(::SingleWordQuote => !markers.is_empty() && markers.iter().all(|marker| !marker.is_empty()))]
+#[invariant(::Negative => true)]
+#[invariant(::Other => !name.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-#[invariant(true)]
-#[invariant(::Cmavo => true)]
-#[invariant(::CmavoOf => true)]
-#[invariant(::SingleWordQuote => true)]
-#[invariant(::Negative => true)]
-#[invariant(::Other => true)]
 pub enum AllowedNextExpectation {
     Cmavo {
         text: String,

@@ -1,21 +1,27 @@
 use crate::WithIndicators;
-use bityzba::{invariant, requires};
+use bityzba::{data, invariant, new, requires};
 use jbotci_morphology::WordLike;
 
 use super::ast::{
-    CompositeTenseModalPartSyntax, FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax,
-    SimpleTenseModalSyntax, SpaceTenseSyntax, TenseModalSyntax, TimeTenseSyntax, WithFreeModifiers,
+    CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, FihoModalSyntax,
+    FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax, SpaceTenseSyntax,
+    TenseModalSyntax, TenseModalSyntaxData, TimeTenseSyntax, WithFreeModifiers,
 };
 use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmavo_text_matches};
 
 #[requires(true)]
 #[ensures(true)]
 fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
-    match tense_modal {
-        TenseModalSyntax::Composite { parts } => parts
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts
             .value
             .iter()
-            .filter(|part| matches!(part, CompositeTenseModalPartSyntax::Word(_)))
+            .filter(|part| {
+                matches!(
+                    part.as_data(),
+                    data!(CompositeTenseModalPartSyntax::Word(_))
+                )
+            })
             .count(),
         _ => 0,
     }
@@ -26,43 +32,44 @@ fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
 fn parts_from_leaves(leaves: Vec<WithIndicators<WordLike>>) -> Vec<CompositeTenseModalPartSyntax> {
     leaves
         .into_iter()
-        .map(CompositeTenseModalPartSyntax::Word)
+        .map(|leaf| new!(CompositeTenseModalPartSyntax::Word(leaf)))
         .collect()
 }
 
 #[requires(true)]
-#[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
+#[ensures(matches!(ret.as_data(), data!(TenseModalSyntax::Composite { .. })))]
 #[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
 pub(super) fn tense_modal_from_leaves(
     leaves: Vec<WithIndicators<WordLike>>,
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> TenseModalSyntax {
-    TenseModalSyntax::Composite {
+    new!(TenseModalSyntax::Composite {
         parts: WithFreeModifiers::new(parts_from_leaves(leaves), free_modifiers),
-    }
+    })
 }
 
 #[requires(true)]
-#[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
+#[ensures(matches!(ret.as_data(), data!(TenseModalSyntax::Composite { .. })))]
 pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseModalSyntax {
-    match tense_modal {
-        composite @ TenseModalSyntax::Composite { .. } => composite,
-        TenseModalSyntax::Fiho {
+    match tense_modal.into_data() {
+        data!(TenseModalSyntax::Composite { parts }) => new!(TenseModalSyntax::Composite { parts }),
+        data!(TenseModalSyntax::Fiho {
             fiho,
             relation,
             fehu,
-        } => TenseModalSyntax::Composite {
+        }) => new!(TenseModalSyntax::Composite {
             parts: WithFreeModifiers::new(
-                vec![CompositeTenseModalPartSyntax::Fiho(FihoModalSyntax {
+                vec![new!(CompositeTenseModalPartSyntax::Fiho(FihoModalSyntax {
                     nahe: None,
                     fiho,
                     relation: *relation,
                     fehu,
-                })],
+                }))],
                 Vec::new(),
             ),
-        },
+        }),
         other => {
+            let other = TenseModalSyntax::from_data(other);
             let (leaves, free_modifiers) = other.leaf_words_and_free_modifiers();
             tense_modal_from_leaves(leaves, free_modifiers)
         }
@@ -70,14 +77,14 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
 }
 
 #[requires(true)]
-#[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
+#[ensures(matches!(ret.as_data(), data!(TenseModalSyntax::Composite { .. })))]
 #[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
 pub(super) fn connective_tense_modal_from_leaves(
     leaves: Vec<WithIndicators<WordLike>>,
 ) -> TenseModalSyntax {
-    TenseModalSyntax::Composite {
+    new!(TenseModalSyntax::Composite {
         parts: WithFreeModifiers::new(parts_from_leaves(leaves), Vec::new()),
-    }
+    })
 }
 
 #[requires(!texts.is_empty())]
@@ -161,13 +168,13 @@ impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn composite_fiho(&self) -> Vec<FihoModalSyntax> {
-        match self {
-            TenseModalSyntax::Composite { parts } => parts
+        match self.as_data() {
+            data!(TenseModalSyntax::Composite { parts }) => parts
                 .value
                 .iter()
-                .filter_map(|part| match part {
-                    CompositeTenseModalPartSyntax::Fiho(fiho) => Some(fiho.clone()),
-                    CompositeTenseModalPartSyntax::Word(_) => None,
+                .filter_map(|part| match part.as_data() {
+                    data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => Some(fiho.clone()),
+                    data!(CompositeTenseModalPartSyntax::Word(_)) => None,
                 })
                 .collect(),
             _ => Vec::new(),
@@ -206,12 +213,12 @@ struct CompositeTenseModalClassification {
 #[requires(true)]
 #[ensures(true)]
 fn classify_composite(tense_modal: &TenseModalSyntax) -> Option<CompositeTenseModalClassification> {
-    let TenseModalSyntax::Composite { parts } = tense_modal else {
+    let data!(TenseModalSyntax::Composite { parts }) = tense_modal.as_data() else {
         return None;
     };
     let mut classification = CompositeTenseModalClassification::default();
     for part in &parts.value {
-        let CompositeTenseModalPartSyntax::Word(leaf) = part else {
+        let data!(CompositeTenseModalPartSyntax::Word(leaf)) = part.as_data() else {
             continue;
         };
         classify_composite_leaf(leaf, &mut classification);

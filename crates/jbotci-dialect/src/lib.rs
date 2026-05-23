@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -108,11 +108,11 @@ impl fmt::Display for DialectFeature {
     }
 }
 
+#[invariant(true)]
+#[invariant(::Swap => is_normalized_cmavo(left) && is_normalized_cmavo(right))]
+#[invariant(::Expansion => is_normalized_cmavo(source) && !replacement.is_empty() && replacement.iter().all(|word| is_normalized_cmavo(word)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
-#[invariant(true)]
-#[invariant(::Swap => true)]
-#[invariant(::Expansion => true)]
 pub enum CmavoDialectEntry {
     Swap {
         left: String,
@@ -126,19 +126,21 @@ pub enum CmavoDialectEntry {
 
 impl CmavoDialectEntry {
     #[requires(true)]
-    #[ensures(ret -> match self {
-        Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
-        Self::Expansion { source, replacement } => is_normalized_cmavo(source)
+    #[ensures(ret -> match self.as_data() {
+        data!(CmavoDialectEntry::Swap { left, right }) => is_normalized_cmavo(left) && is_normalized_cmavo(right),
+        data!(CmavoDialectEntry::Expansion { source, replacement }) => is_normalized_cmavo(source)
             && !replacement.is_empty()
             && replacement.iter().all(|word| is_normalized_cmavo(word)),
     })]
     pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
-            Self::Expansion {
+        match self.as_data() {
+            data!(CmavoDialectEntry::Swap { left, right }) => {
+                is_normalized_cmavo(left) && is_normalized_cmavo(right)
+            }
+            data!(CmavoDialectEntry::Expansion {
                 source,
                 replacement,
-            } => {
+            }) => {
                 is_normalized_cmavo(source)
                     && !replacement.is_empty()
                     && replacement.iter().all(|word| is_normalized_cmavo(word))
@@ -342,10 +344,12 @@ fn parse_entry<'a>(
                 DialectToken::CloseParen,
                 after_entry @ ..,
             ] => Ok((
-                vec![DialectDefinitionEntry::Cmavo(CmavoDialectEntry::Swap {
-                    left: normalize_dialect_word(lhs)?,
-                    right: normalize_dialect_word(rhs)?,
-                })],
+                vec![DialectDefinitionEntry::Cmavo(new!(
+                    CmavoDialectEntry::Swap {
+                        left: normalize_dialect_word(lhs)?,
+                        right: normalize_dialect_word(rhs)?,
+                    }
+                ))],
                 after_entry,
             )),
             _ => Err(DialectError::new(
@@ -367,15 +371,15 @@ fn parse_entry<'a>(
                         ));
                     }
                     Ok((
-                        vec![DialectDefinitionEntry::Cmavo(
+                        vec![DialectDefinitionEntry::Cmavo(new!(
                             CmavoDialectEntry::Expansion {
                                 source: normalize_dialect_word(lhs)?,
                                 replacement: rhs_words
                                     .iter()
                                     .map(|word| normalize_dialect_word(word))
                                     .collect::<Result<_, _>>()?,
-                            },
-                        )],
+                            }
+                        ))],
                         after_entry,
                     ))
                 }
@@ -1094,14 +1098,14 @@ mod tests {
         assert_eq!(
             dialect.cmavo_entries,
             vec![
-                CmavoDialectEntry::Swap {
+                new!(CmavoDialectEntry::Swap {
                     left: "ce'u".into(),
                     right: "ce".into(),
-                },
-                CmavoDialectEntry::Expansion {
+                }),
+                new!(CmavoDialectEntry::Expansion {
                     source: "la'u".into(),
                     replacement: vec!["la'e".into(), "di'u".into()],
-                },
+                }),
             ]
         );
     }
@@ -1114,26 +1118,26 @@ mod tests {
         assert_eq!(
             dialect.cmavo_entries,
             vec![
-                CmavoDialectEntry::Swap {
+                new!(CmavoDialectEntry::Swap {
                     left: "ce'u".into(),
                     right: "ce".into(),
-                },
-                CmavoDialectEntry::Swap {
+                }),
+                new!(CmavoDialectEntry::Swap {
                     left: "ke'a".into(),
                     right: "ki".into(),
-                },
-                CmavoDialectEntry::Swap {
+                }),
+                new!(CmavoDialectEntry::Swap {
                     left: "tu'a".into(),
                     right: "taŭ".into(),
-                },
-                CmavoDialectEntry::Swap {
+                }),
+                new!(CmavoDialectEntry::Swap {
                     left: "su'o".into(),
                     right: "su".into(),
-                },
-                CmavoDialectEntry::Swap {
+                }),
+                new!(CmavoDialectEntry::Swap {
                     left: "jo'u".into(),
                     right: "jaŭ".into(),
-                },
+                }),
             ]
         );
     }

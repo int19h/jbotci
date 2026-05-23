@@ -8,7 +8,9 @@ pub mod tree;
 use std::fmt;
 
 use bityzba::{data, ensures, invariant, new, requires, try_new};
-pub use jbotci_dialect::{CmavoDialectEntry, DialectDefinition, DialectFeature};
+pub use jbotci_dialect::{
+    CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
+};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -1413,10 +1415,10 @@ mod tests {
     fn invalid_morphology_options_are_rejected() {
         let panic = std::panic::catch_unwind(|| {
             let _ = MorphologyOptions::default().with_data(data! {
-                cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
+                cmavo_dialect_entries: vec![new!(CmavoDialectEntry::Expansion {
                     source: "mi".to_owned(),
                     replacement: Vec::new(),
-                }],
+                })],
             });
         });
         assert!(panic.is_err());

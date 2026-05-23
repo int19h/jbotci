@@ -4,7 +4,7 @@ pub use crate::tree::*;
 
 use crate::WithIndicators;
 #[allow(unused_imports)]
-use bityzba::{ensures, requires};
+use bityzba::{data, ensures, new, requires};
 use jbotci_morphology::WordLike;
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
@@ -196,13 +196,13 @@ impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            StatementSyntax::Tuhe {
+        match self.into_data() {
+            data!(StatementSyntax::Tuhe {
                 tense_modal,
                 tuhe,
                 text,
                 tuhu,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
@@ -214,11 +214,11 @@ impl StatementSyntax {
                 }
                 words
             }
-            StatementSyntax::Prenex {
+            data!(StatementSyntax::Prenex {
                 prenex_terms,
                 zohu,
                 inner_statement,
-            } => {
+            }) => {
                 let mut words = prenex_terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
@@ -227,36 +227,36 @@ impl StatementSyntax {
                 words.extend(inner_statement.words());
                 words
             }
-            StatementSyntax::Predicate(predicate) => predicate.words(),
-            StatementSyntax::Connected {
+            data!(StatementSyntax::Predicate(predicate)) => predicate.words(),
+            data!(StatementSyntax::Connected {
                 i,
                 connective,
                 leading_statement,
                 trailing_statement,
-            } => {
+            }) => {
                 let mut words = leading_statement.words();
                 words.push(i);
                 words.extend(connective.words());
                 words.extend(trailing_statement.words());
                 words
             }
-            StatementSyntax::PreIConnected {
+            data!(StatementSyntax::PreIConnected {
                 connective,
                 i,
                 leading_statement,
                 trailing_statement,
-            } => {
+            }) => {
                 let mut words = leading_statement.words();
                 words.extend(connective.words());
                 words.push(i);
                 words.extend(trailing_statement.words());
                 words
             }
-            StatementSyntax::Iau {
+            data!(StatementSyntax::Iau {
                 inner_statement,
                 iau,
                 reset_terms,
-            } => {
+            }) => {
                 let mut words = inner_statement.words();
                 words.extend(iau.words());
                 for term in reset_terms {
@@ -264,15 +264,15 @@ impl StatementSyntax {
                 }
                 words
             }
-            StatementSyntax::ExperimentalPredicateContinuation {
+            data!(StatementSyntax::ExperimentalPredicateContinuation {
                 leading_statement,
                 continuation,
-            } => {
+            }) => {
                 let mut words = leading_statement.words();
                 words.extend(continuation.words());
                 words
             }
-            StatementSyntax::Fragment(fragment) => fragment.words(),
+            data!(StatementSyntax::Fragment(fragment)) => fragment.words(),
         }
     }
 }
@@ -285,12 +285,12 @@ impl PredicateStatementContinuationSyntax {
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
         }
-        match self.marker {
-            PredicateStatementContinuationMarkerSyntax::Bo(bo) => {
+        match self.marker.into_data() {
+            data!(PredicateStatementContinuationMarkerSyntax::Bo(bo)) => {
                 words.extend(bo.words());
                 words.extend(self.trailing_subsentence.words());
             }
-            PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe } => {
+            data!(PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe }) => {
                 words.extend(ke.words());
                 words.extend(self.trailing_subsentence.words());
                 if let Some(kehe) = kehe {
@@ -362,14 +362,14 @@ impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            FreeModifierSyntax::Sei {
+        match self.into_data() {
+            data!(FreeModifierSyntax::Sei {
                 sei,
                 terms,
                 cu,
                 relation,
                 sehu,
-            } => {
+            }) => {
                 let mut words = sei.words();
                 for term in terms {
                     words.extend(term.words());
@@ -383,7 +383,7 @@ impl FreeModifierSyntax {
                 }
                 words
             }
-            FreeModifierSyntax::To { to, text, toi } => {
+            data!(FreeModifierSyntax::To { to, text, toi }) => {
                 let mut words = to.words();
                 words.extend(text.words());
                 if let Some(toi) = toi {
@@ -391,22 +391,22 @@ impl FreeModifierSyntax {
                 }
                 words
             }
-            FreeModifierSyntax::Xi { xi, expression } => {
+            data!(FreeModifierSyntax::Xi { xi, expression }) => {
                 let mut words = xi.words();
                 words.extend(expression.words());
                 words
             }
-            FreeModifierSyntax::Mai { number, mai } => {
+            data!(FreeModifierSyntax::Mai { number, mai }) => {
                 let mut words = number.into_vec();
                 words.extend(mai.words());
                 words
             }
-            FreeModifierSyntax::Soi {
+            data!(FreeModifierSyntax::Soi {
                 soi,
                 leading_argument,
                 trailing_argument,
                 sehu,
-            } => {
+            }) => {
                 let mut words = soi.words();
                 words.extend(leading_argument.words());
                 if let Some(argument) = trailing_argument {
@@ -417,11 +417,11 @@ impl FreeModifierSyntax {
                 }
                 words
             }
-            FreeModifierSyntax::Vocative {
+            data!(FreeModifierSyntax::Vocative {
                 vocative_markers,
                 argument,
                 dohu,
-            } => {
+            }) => {
                 let mut words = vocative_markers.words();
                 if let Some(argument) = argument {
                     words.extend(argument.words());
@@ -431,13 +431,13 @@ impl FreeModifierSyntax {
                 }
                 words
             }
-            FreeModifierSyntax::Replacement {
+            data!(FreeModifierSyntax::Replacement {
                 lohai,
                 old_words,
                 sahai,
                 new_words,
                 lehai,
-            } => {
+            }) => {
                 let mut words = lohai.into_iter().collect::<Vec<_>>();
                 words.extend(old_words);
                 words.extend(sahai);
@@ -585,13 +585,13 @@ impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            PredicateTail3Syntax::Relation {
+        match self.into_data() {
+            data!(PredicateTail3Syntax::Relation {
                 relation,
                 terms,
                 vau,
                 free_modifiers,
-            } => {
+            }) => {
                 let mut words = relation.words();
                 for term in terms {
                     words.extend(term.words());
@@ -604,7 +604,7 @@ impl PredicateTail3Syntax {
                 }
                 words
             }
-            PredicateTail3Syntax::GekSentence(gek_sentence) => gek_sentence.words(),
+            data!(PredicateTail3Syntax::GekSentence(gek_sentence)) => gek_sentence.words(),
         }
     }
 }
@@ -613,8 +613,8 @@ impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            GekSentenceSyntax::Pair {
+        match self.into_data() {
+            data!(GekSentenceSyntax::Pair {
                 gek,
                 first,
                 gik,
@@ -623,7 +623,7 @@ impl GekSentenceSyntax {
                 tail_terms,
                 vau,
                 free_modifiers,
-            } => {
+            }) => {
                 let mut words = gek.words();
                 words.extend(first.words());
                 words.extend(gik.words());
@@ -642,12 +642,12 @@ impl GekSentenceSyntax {
                 }
                 words
             }
-            GekSentenceSyntax::Ke {
+            data!(GekSentenceSyntax::Ke {
                 tense_modal,
                 ke,
                 inner,
                 kehe,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
@@ -659,7 +659,7 @@ impl GekSentenceSyntax {
                 }
                 words
             }
-            GekSentenceSyntax::Na { na, inner } => {
+            data!(GekSentenceSyntax::Na { na, inner }) => {
                 let mut words = na.words();
                 words.extend(inner.words());
                 words
@@ -672,13 +672,13 @@ impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            SubsentenceSyntax::Plain(predicate) => predicate.visit_words(visitor),
-            SubsentenceSyntax::Prenex {
+        match self.as_data() {
+            data!(SubsentenceSyntax::Plain(predicate)) => predicate.visit_words(visitor),
+            data!(SubsentenceSyntax::Prenex {
                 prenex_terms,
                 zohu,
                 inner_subsentence,
-            } => {
+            }) => {
                 for term in prenex_terms {
                     term.visit_words(visitor);
                 }
@@ -693,28 +693,28 @@ impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
+        match self.as_data() {
+            data!(FragmentSyntax::Ek(connective)) | data!(FragmentSyntax::Gihek(connective)) => {
                 connective.visit_words(visitor);
             }
-            FragmentSyntax::Other(words) => words.visit_words(visitor),
-            FragmentSyntax::Ijek { i, connective } => {
+            data!(FragmentSyntax::Other(words)) => words.visit_words(visitor),
+            data!(FragmentSyntax::Ijek { i, connective }) => {
                 visitor(i);
                 connective.visit_words(visitor);
             }
-            FragmentSyntax::Prenex { terms, zohu } => {
+            data!(FragmentSyntax::Prenex { terms, zohu }) => {
                 for term in terms {
                     term.visit_words(visitor);
                 }
                 zohu.visit_words(visitor);
             }
-            FragmentSyntax::BeLink {
+            data!(FragmentSyntax::BeLink {
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
-            } => {
+            }) => {
                 be.visit_words(visitor);
                 if let Some(fa) = fa {
                     fa.visit_words(visitor);
@@ -729,18 +729,20 @@ impl FragmentSyntax {
                     beho.visit_words(visitor);
                 }
             }
-            FragmentSyntax::BeiLink(bei_only_links) => {
+            data!(FragmentSyntax::BeiLink(bei_only_links)) => {
                 for bei_link in bei_only_links {
                     bei_link.visit_words(visitor);
                 }
             }
-            FragmentSyntax::RelativeClause(relative_clauses) => {
+            data!(FragmentSyntax::RelativeClause(relative_clauses)) => {
                 for relative_clause in relative_clauses {
                     relative_clause.visit_words(visitor);
                 }
             }
-            FragmentSyntax::MathExpression(math_expression) => math_expression.visit_words(visitor),
-            FragmentSyntax::Term { terms, vau } => {
+            data!(FragmentSyntax::MathExpression(math_expression)) => {
+                math_expression.visit_words(visitor)
+            }
+            data!(FragmentSyntax::Term { terms, vau }) => {
                 for term in terms {
                     term.visit_words(visitor);
                 }
@@ -748,7 +750,7 @@ impl FragmentSyntax {
                     vau.visit_words(visitor);
                 }
             }
-            FragmentSyntax::Relation(relation) => relation.visit_words(visitor),
+            data!(FragmentSyntax::Relation(relation)) => relation.visit_words(visitor),
         }
     }
 }
@@ -757,12 +759,12 @@ impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            TermSyntax::NuhiTermset {
+        match self.as_data() {
+            data!(TermSyntax::NuhiTermset {
                 nuhi,
                 termset,
                 nuhu,
-            } => {
+            }) => {
                 nuhi.visit_words(visitor);
                 for term in termset {
                     term.visit_words(visitor);
@@ -771,7 +773,7 @@ impl TermSyntax {
                     nuhu.visit_words(visitor);
                 }
             }
-            TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::GekNuhiTermset {
                 m_nuhi,
                 gek,
                 terms,
@@ -780,7 +782,7 @@ impl TermSyntax {
                 gik_terms,
                 gihi,
                 gik_nuhu,
-            } => {
+            }) => {
                 if let Some(nuhi) = m_nuhi {
                     nuhi.visit_words(visitor);
                 }
@@ -802,11 +804,11 @@ impl TermSyntax {
                     nuhu.visit_words(visitor);
                 }
             }
-            TermSyntax::Cehe {
+            data!(TermSyntax::Cehe {
                 leading_terms,
                 cehe,
                 trailing_terms,
-            } => {
+            }) => {
                 for term in leading_terms {
                     term.visit_words(visitor);
                 }
@@ -815,12 +817,12 @@ impl TermSyntax {
                     term.visit_words(visitor);
                 }
             }
-            TermSyntax::Pehe {
+            data!(TermSyntax::Pehe {
                 leading_terms,
                 pehe,
                 connective,
                 trailing_terms,
-            } => {
+            }) => {
                 for term in leading_terms {
                     term.visit_words(visitor);
                 }
@@ -830,26 +832,26 @@ impl TermSyntax {
                     term.visit_words(visitor);
                 }
             }
-            TermSyntax::Argument(argument) => argument.visit_words(visitor),
-            TermSyntax::Fa { fa, argument, ku } => {
+            data!(TermSyntax::Argument(argument)) => argument.visit_words(visitor),
+            data!(TermSyntax::Fa { fa, argument, ku }) => {
                 fa.visit_words(visitor);
                 argument.visit_words(visitor);
                 if let Some(ku) = ku {
                     ku.visit_words(visitor);
                 }
             }
-            TermSyntax::NaKu { na, na_ku } => {
+            data!(TermSyntax::NaKu { na, na_ku }) => {
                 visitor(na);
                 na_ku.visit_words(visitor);
             }
-            TermSyntax::BareNa(na) => na.visit_words(visitor),
-            TermSyntax::NoihaAdverbial {
+            data!(TermSyntax::BareNa(na)) => na.visit_words(visitor),
+            data!(TermSyntax::NoihaAdverbial {
                 noiha,
                 tail_elements,
                 relation,
                 relative_clauses,
                 fehu,
-            } => {
+            }) => {
                 noiha.visit_words(visitor);
                 for tail_element in tail_elements {
                     tail_element.visit_words(visitor);
@@ -864,13 +866,13 @@ impl TermSyntax {
                     fehu.visit_words(visitor);
                 }
             }
-            TermSyntax::PoihaBrigahi {
+            data!(TermSyntax::PoihaBrigahi {
                 poiha,
                 tail_elements,
                 relation,
                 relative_clauses,
                 brigahi_ku,
-            } => {
+            }) => {
                 poiha.visit_words(visitor);
                 for tail_element in tail_elements {
                     tail_element.visit_words(visitor);
@@ -883,49 +885,49 @@ impl TermSyntax {
                 }
                 brigahi_ku.visit_words(visitor);
             }
-            TermSyntax::FihoiAdverbial {
+            data!(TermSyntax::FihoiAdverbial {
                 fihoi,
                 subsentence,
                 fihau,
-            } => {
+            }) => {
                 fihoi.visit_words(visitor);
                 subsentence.visit_words(visitor);
                 if let Some(fihau) = fihau {
                     fihau.visit_words(visitor);
                 }
             }
-            TermSyntax::SoiAdverbial {
+            data!(TermSyntax::SoiAdverbial {
                 soi,
                 subsentence,
                 sehu,
-            } => {
+            }) => {
                 soi.visit_words(visitor);
                 subsentence.visit_words(visitor);
                 if let Some(sehu) = sehu {
                     sehu.visit_words(visitor);
                 }
             }
-            TermSyntax::JaiTagged { jai, tag, argument } => {
+            data!(TermSyntax::JaiTagged { jai, tag, argument }) => {
                 jai.visit_words(visitor);
                 if let Some(tag) = tag {
                     tag.visit_words(visitor);
                 }
                 argument.visit_words(visitor);
             }
-            TermSyntax::Tagged {
+            data!(TermSyntax::Tagged {
                 tense_modal,
                 argument,
-            } => {
+            }) => {
                 if let Some(tense_modal) = tense_modal {
                     tense_modal.visit_words(visitor);
                 }
                 argument.visit_words(visitor);
             }
-            TermSyntax::Connected {
+            data!(TermSyntax::Connected {
                 leading_terms,
                 connective,
                 trailing_terms,
-            } => {
+            }) => {
                 for term in leading_terms {
                     term.visit_words(visitor);
                 }
@@ -934,13 +936,13 @@ impl TermSyntax {
                     term.visit_words(visitor);
                 }
             }
-            TermSyntax::BoConnected {
+            data!(TermSyntax::BoConnected {
                 leading_terms,
                 bo_connective,
                 tense_modal,
                 bo,
                 trailing_term,
-            } => {
+            }) => {
                 for term in leading_terms {
                     term.visit_words(visitor);
                 }
@@ -961,9 +963,9 @@ impl ArgumentTagSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal.visit_words(visitor),
-            ArgumentTagSyntax::Fa(fa) => fa.visit_words(visitor),
+        match self.as_data() {
+            data!(ArgumentTagSyntax::TenseModal(tense_modal)) => tense_modal.visit_words(visitor),
+            data!(ArgumentTagSyntax::Fa(fa)) => fa.visit_words(visitor),
         }
     }
 }
@@ -972,42 +974,42 @@ impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            MathExpressionSyntax::Number(quantifier) => quantifier.visit_words(visitor),
-            MathExpressionSyntax::Letter { letter, boi } => {
+        match self.as_data() {
+            data!(MathExpressionSyntax::Number(quantifier)) => quantifier.visit_words(visitor),
+            data!(MathExpressionSyntax::Letter { letter, boi }) => {
                 letter.visit_words(visitor);
                 if let Some(boi) = boi {
                     boi.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Vei {
+            data!(MathExpressionSyntax::Vei {
                 vei,
                 inner_expression,
                 veho,
-            } => {
+            }) => {
                 vei.visit_words(visitor);
                 inner_expression.visit_words(visitor);
                 if let Some(veho) = veho {
                     veho.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Gek {
+            data!(MathExpressionSyntax::Gek {
                 gek,
                 left_expression,
                 gik,
                 right_expression,
-            } => {
+            }) => {
                 gek.visit_words(visitor);
                 left_expression.visit_words(visitor);
                 gik.visit_words(visitor);
                 right_expression.visit_words(visitor);
             }
-            MathExpressionSyntax::Forethought {
+            data!(MathExpressionSyntax::Forethought {
                 peho,
                 operator,
                 operands,
                 kuhe,
-            } => {
+            }) => {
                 if let Some(peho) = peho {
                     peho.visit_words(visitor);
                 }
@@ -1019,11 +1021,11 @@ impl MathExpressionSyntax {
                     kuhe.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::ReversePolish {
+            data!(MathExpressionSyntax::ReversePolish {
                 fuha,
                 operands,
                 operators,
-            } => {
+            }) => {
                 fuha.visit_words(visitor);
                 for operand in operands {
                     operand.visit_words(visitor);
@@ -1032,33 +1034,33 @@ impl MathExpressionSyntax {
                     operator.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Nihe {
+            data!(MathExpressionSyntax::Nihe {
                 nihe,
                 relation,
                 tehu,
-            } => {
+            }) => {
                 nihe.visit_words(visitor);
                 relation.visit_words(visitor);
                 if let Some(tehu) = tehu {
                     tehu.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Mohe {
+            data!(MathExpressionSyntax::Mohe {
                 mohe,
                 argument,
                 tehu,
-            } => {
+            }) => {
                 mohe.visit_words(visitor);
                 argument.visit_words(visitor);
                 if let Some(tehu) = tehu {
                     tehu.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Johi {
+            data!(MathExpressionSyntax::Johi {
                 johi,
                 expressions,
                 tehu,
-            } => {
+            }) => {
                 johi.visit_words(visitor);
                 for expression in expressions {
                     expression.visit_words(visitor);
@@ -1067,41 +1069,41 @@ impl MathExpressionSyntax {
                     tehu.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Lahe {
+            data!(MathExpressionSyntax::Lahe {
                 markers,
                 inner_expression,
                 luhu,
-            } => {
+            }) => {
                 markers.visit_words(visitor);
                 inner_expression.visit_words(visitor);
                 if let Some(luhu) = luhu {
                     luhu.visit_words(visitor);
                 }
             }
-            MathExpressionSyntax::Connected {
+            data!(MathExpressionSyntax::Connected {
                 left_expression,
                 connective,
                 right_expression,
-            } => {
+            }) => {
                 left_expression.visit_words(visitor);
                 connective.visit_words(visitor);
                 right_expression.visit_words(visitor);
             }
-            MathExpressionSyntax::Binary {
+            data!(MathExpressionSyntax::Binary {
                 operator,
                 left_expression,
                 right_expression,
-            } => {
+            }) => {
                 left_expression.visit_words(visitor);
                 operator.visit_words(visitor);
                 right_expression.visit_words(visitor);
             }
-            MathExpressionSyntax::Bihe {
+            data!(MathExpressionSyntax::Bihe {
                 left_expression,
                 bihe,
                 operator,
                 right_expression,
-            } => {
+            }) => {
                 left_expression.visit_words(visitor);
                 bihe.visit_words(visitor);
                 operator.visit_words(visitor);
@@ -1115,37 +1117,37 @@ impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            ArgumentSyntax::Quote(quote) => quote.visit_words(visitor),
-            ArgumentSyntax::MathExpression {
+        match self.as_data() {
+            data!(ArgumentSyntax::Quote(quote)) => quote.visit_words(visitor),
+            data!(ArgumentSyntax::MathExpression {
                 li,
                 expression,
                 loho,
-            } => {
+            }) => {
                 li.visit_words(visitor);
                 expression.visit_words(visitor);
                 if let Some(loho) = loho {
                     loho.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Letter { letter, boi } => {
+            data!(ArgumentSyntax::Letter { letter, boi }) => {
                 letter.visit_words(visitor);
                 if let Some(boi) = boi {
                     boi.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Quantified {
+            data!(ArgumentSyntax::Quantified {
                 quantifier,
                 inner_argument,
-            } => {
+            }) => {
                 quantifier.visit_words(visitor);
                 inner_argument.visit_words(visitor);
             }
-            ArgumentSyntax::RelativeClause {
+            data!(ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho,
                 relative_clauses,
-            } => {
+            }) => {
                 base_argument.visit_words(visitor);
                 if let Some(vuho) = vuho {
                     vuho.visit_words(visitor);
@@ -1154,12 +1156,12 @@ impl ArgumentSyntax {
                     relative_clause.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Vuho {
+            data!(ArgumentSyntax::Vuho {
                 base_argument,
                 vuho_marker,
                 relative_clauses,
                 connected_argument,
-            } => {
+            }) => {
                 base_argument.visit_words(visitor);
                 vuho_marker.visit_words(visitor);
                 for relative_clause in relative_clauses {
@@ -1170,34 +1172,34 @@ impl ArgumentSyntax {
                     connected_argument.argument.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::BridiDescription {
+            data!(ArgumentSyntax::BridiDescription {
                 lohoi,
                 subsentence,
                 kuhau,
-            } => {
+            }) => {
                 lohoi.visit_words(visitor);
                 subsentence.visit_words(visitor);
                 if let Some(kuhau) = kuhau {
                     kuhau.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::NaKu { na, ku } => {
+            data!(ArgumentSyntax::NaKu { na, ku }) => {
                 visitor(na);
                 ku.visit_words(visitor);
             }
-            ArgumentSyntax::Tagged {
+            data!(ArgumentSyntax::Tagged {
                 tag,
                 inner_argument,
-            } => {
+            }) => {
                 tag.visit_words(visitor);
                 inner_argument.visit_words(visitor);
             }
-            ArgumentSyntax::NaheBo {
+            data!(ArgumentSyntax::NaheBo {
                 nahe,
                 bo,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 visitor(nahe);
                 bo.visit_words(visitor);
                 inner_argument.visit_words(visitor);
@@ -1205,24 +1207,24 @@ impl ArgumentSyntax {
                     luhu.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Nahe {
+            data!(ArgumentSyntax::Nahe {
                 nahe,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 nahe.visit_words(visitor);
                 inner_argument.visit_words(visitor);
                 if let Some(luhu) = luhu {
                     luhu.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::TermWrapped {
+            data!(ArgumentSyntax::TermWrapped {
                 wrapper,
                 wrapper_bo,
                 inner_term,
                 luhu,
                 ..
-            } => {
+            }) => {
                 wrapper.visit_words(visitor);
                 if let Some(wrapper_bo) = wrapper_bo {
                     wrapper_bo.visit_words(visitor);
@@ -1232,12 +1234,12 @@ impl ArgumentSyntax {
                     luhu.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Koha(koha) => koha.visit_words(visitor),
-            ArgumentSyntax::Zohe {
+            data!(ArgumentSyntax::Koha(koha)) => koha.visit_words(visitor),
+            data!(ArgumentSyntax::Zohe {
                 tag,
                 maybe_ku,
                 free_modifiers,
-            } => {
+            }) => {
                 if let Some(tag) = tag {
                     tag.visit_words(visitor);
                 }
@@ -1248,12 +1250,12 @@ impl ArgumentSyntax {
                     free_modifier.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Lahe {
+            data!(ArgumentSyntax::Lahe {
                 lahe,
                 relative_clauses,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 lahe.visit_words(visitor);
                 for relative_clause in relative_clauses {
                     relative_clause.visit_words(visitor);
@@ -1263,33 +1265,33 @@ impl ArgumentSyntax {
                     luhu.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Connected {
+            data!(ArgumentSyntax::Connected {
                 leading_argument,
                 connective,
                 trailing_argument,
-            } => {
+            }) => {
                 leading_argument.visit_words(visitor);
                 connective.visit_words(visitor);
                 trailing_argument.visit_words(visitor);
             }
-            ArgumentSyntax::Ke {
+            data!(ArgumentSyntax::Ke {
                 ke,
                 inner_argument,
                 kehe,
-            } => {
+            }) => {
                 ke.visit_words(visitor);
                 inner_argument.visit_words(visitor);
                 if let Some(kehe) = kehe {
                     kehe.visit_words(visitor);
                 }
             }
-            ArgumentSyntax::Bo {
+            data!(ArgumentSyntax::Bo {
                 leading_argument,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_argument,
-            } => {
+            }) => {
                 leading_argument.visit_words(visitor);
                 if let Some(connective) = bo_connective {
                     connective.visit_words(visitor);
@@ -1300,13 +1302,13 @@ impl ArgumentSyntax {
                 bo.visit_words(visitor);
                 trailing_argument.visit_words(visitor);
             }
-            ArgumentSyntax::Gek {
+            data!(ArgumentSyntax::Gek {
                 gek,
                 leading_argument,
                 gik,
                 trailing_argument,
                 gihi,
-            } => {
+            }) => {
                 gek.visit_words(visitor);
                 leading_argument.visit_words(visitor);
                 gik.visit_words(visitor);
@@ -1315,20 +1317,20 @@ impl ArgumentSyntax {
                     visitor(gihi);
                 }
             }
-            ArgumentSyntax::Descriptor(descriptor) => descriptor.visit_words(visitor),
-            ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
+            data!(ArgumentSyntax::Descriptor(descriptor)) => descriptor.visit_words(visitor),
+            data!(ArgumentSyntax::ConnectedDescriptor(connected_descriptor)) => {
                 connected_descriptor.visit_words(visitor);
             }
-            ArgumentSyntax::Name { la, names } => {
+            data!(ArgumentSyntax::Name { la, names }) => {
                 la.visit_words(visitor);
                 names.visit_words(visitor);
             }
-            ArgumentSyntax::Cmevla(cmevla) => cmevla.visit_words(visitor),
-            ArgumentSyntax::RelationVocative {
+            data!(ArgumentSyntax::Cmevla(cmevla)) => cmevla.visit_words(visitor),
+            data!(ArgumentSyntax::RelationVocative {
                 leading_relative_clauses,
                 relation,
                 trailing_relative_clauses,
-            } => {
+            }) => {
                 for relative_clause in leading_relative_clauses {
                     relative_clause.visit_words(visitor);
                 }
@@ -1369,29 +1371,31 @@ impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            RelativeClauseSyntax::Goi(relative_clause) => relative_clause.visit_words(visitor),
-            RelativeClauseSyntax::Noi {
+        match self.as_data() {
+            data!(RelativeClauseSyntax::Goi(relative_clause)) => {
+                relative_clause.visit_words(visitor)
+            }
+            data!(RelativeClauseSyntax::Noi {
                 noi,
                 subsentence,
                 kuho,
-            }
-            | RelativeClauseSyntax::Poi {
+            })
+            | data!(RelativeClauseSyntax::Poi {
                 poi: noi,
                 subsentence,
                 kuho,
-            } => {
+            }) => {
                 noi.visit_words(visitor);
                 subsentence.visit_words(visitor);
                 if let Some(kuho) = kuho {
                     kuho.visit_words(visitor);
                 }
             }
-            RelativeClauseSyntax::Zihe { zihe, inner } => {
+            data!(RelativeClauseSyntax::Zihe { zihe, inner }) => {
                 zihe.visit_words(visitor);
                 inner.visit_words(visitor);
             }
-            RelativeClauseSyntax::Connected { connective, inner } => {
+            data!(RelativeClauseSyntax::Connected { connective, inner }) => {
                 connective.visit_words(visitor);
                 inner.visit_words(visitor);
             }
@@ -1403,17 +1407,17 @@ impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            QuoteSyntax::Lu { lu, text, lihu } => {
+        match self.as_data() {
+            data!(QuoteSyntax::Lu { lu, text, lihu }) => {
                 lu.visit_words(visitor);
                 text.visit_words(visitor);
                 if let Some(lihu) = lihu {
                     lihu.visit_words(visitor);
                 }
             }
-            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) => zo.visit_words(visitor),
-            QuoteSyntax::ZohOi(zohoi) => zohoi.visit_words(visitor),
-            QuoteSyntax::Lohu(lohu) => lohu.visit_words(visitor),
+            data!(QuoteSyntax::Zo(zo)) | data!(QuoteSyntax::Zoi(zo)) => zo.visit_words(visitor),
+            data!(QuoteSyntax::ZohOi(zohoi)) => zohoi.visit_words(visitor),
+            data!(QuoteSyntax::Lohu(lohu)) => lohu.visit_words(visitor),
         }
     }
 }
@@ -1485,74 +1489,74 @@ impl ConnectiveSyntax {
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     ) -> Self {
         match kind {
-            ConnectiveKind::Afterthought => Self::Afterthought {
+            ConnectiveKind::Afterthought => new!(ConnectiveSyntax::Afterthought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
-            ConnectiveKind::Relation => Self::Relation {
+            }),
+            ConnectiveKind::Relation => new!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
-            ConnectiveKind::PredicateTail => Self::PredicateTail {
+            }),
+            ConnectiveKind::PredicateTail => new!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
-            ConnectiveKind::Forethought => Self::Forethought {
+            }),
+            ConnectiveKind::Forethought => new!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
-            ConnectiveKind::NonLogical => Self::NonLogical {
+            }),
+            ConnectiveKind::NonLogical => new!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
-            ConnectiveKind::Interval => Self::Interval {
+            }),
+            ConnectiveKind::Interval => new!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            },
+            }),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn kind(&self) -> ConnectiveKind {
-        match self {
-            Self::Afterthought { .. } => ConnectiveKind::Afterthought,
-            Self::Relation { .. } => ConnectiveKind::Relation,
-            Self::PredicateTail { .. } => ConnectiveKind::PredicateTail,
-            Self::Forethought { .. } => ConnectiveKind::Forethought,
-            Self::NonLogical { .. } => ConnectiveKind::NonLogical,
-            Self::Interval { .. } => ConnectiveKind::Interval,
+        match self.as_data() {
+            data!(ConnectiveSyntax::Afterthought { .. }) => ConnectiveKind::Afterthought,
+            data!(ConnectiveSyntax::Relation { .. }) => ConnectiveKind::Relation,
+            data!(ConnectiveSyntax::PredicateTail { .. }) => ConnectiveKind::PredicateTail,
+            data!(ConnectiveSyntax::Forethought { .. }) => ConnectiveKind::Forethought,
+            data!(ConnectiveSyntax::NonLogical { .. }) => ConnectiveKind::NonLogical,
+            data!(ConnectiveSyntax::Interval { .. }) => ConnectiveKind::Interval,
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn cmavo(&self) -> &WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
-        match self {
-            Self::Afterthought { cmavo, .. }
-            | Self::Relation { cmavo, .. }
-            | Self::PredicateTail { cmavo, .. }
-            | Self::Forethought { cmavo, .. }
-            | Self::NonLogical { cmavo, .. }
-            | Self::Interval { cmavo, .. } => cmavo,
+        match self.as_data() {
+            data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+            | data!(ConnectiveSyntax::Relation { cmavo, .. })
+            | data!(ConnectiveSyntax::PredicateTail { cmavo, .. })
+            | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+            | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+            | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo,
         }
     }
 
@@ -1568,98 +1572,98 @@ impl ConnectiveSyntax {
         WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     ) {
-        match self {
-            Self::Afterthought {
+        match self.into_data() {
+            data!(ConnectiveSyntax::Afterthought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai),
-            Self::Relation {
+            }) => (ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai),
+            data!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::Relation, se, nahe, na, cmavo, nai),
-            Self::PredicateTail {
+            }) => (ConnectiveKind::Relation, se, nahe, na, cmavo, nai),
+            data!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::PredicateTail, se, nahe, na, cmavo, nai),
-            Self::Forethought {
+            }) => (ConnectiveKind::PredicateTail, se, nahe, na, cmavo, nai),
+            data!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::Forethought, se, nahe, na, cmavo, nai),
-            Self::NonLogical {
+            }) => (ConnectiveKind::Forethought, se, nahe, na, cmavo, nai),
+            data!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::NonLogical, se, nahe, na, cmavo, nai),
-            Self::Interval {
+            }) => (ConnectiveKind::NonLogical, se, nahe, na, cmavo, nai),
+            data!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (ConnectiveKind::Interval, se, nahe, na, cmavo, nai),
+            }) => (ConnectiveKind::Interval, se, nahe, na, cmavo, nai),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        let (se, nahe, na, cmavo, nai) = match self {
-            Self::Afterthought {
+        let (se, nahe, na, cmavo, nai) = match self.as_data() {
+            data!(ConnectiveSyntax::Afterthought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }
-            | Self::Relation {
+            })
+            | data!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }
-            | Self::PredicateTail {
+            })
+            | data!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }
-            | Self::Forethought {
+            })
+            | data!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }
-            | Self::NonLogical {
+            })
+            | data!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }
-            | Self::Interval {
+            })
+            | data!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            } => (se, nahe, na, cmavo, nai),
+            }) => (se, nahe, na, cmavo, nai),
         };
         if let Some(se) = se {
             visitor(se);
@@ -1695,14 +1699,16 @@ impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            ArgumentTailElementSyntax::Argument(argument) => argument.visit_words(visitor),
-            ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => {
+        match self.as_data() {
+            data!(ArgumentTailElementSyntax::Argument(argument)) => argument.visit_words(visitor),
+            data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => {
                 for relative_clause in relative_clauses {
                     relative_clause.visit_words(visitor);
                 }
             }
-            ArgumentTailElementSyntax::Quantifier(quantifier) => quantifier.visit_words(visitor),
+            data!(ArgumentTailElementSyntax::Quantifier(quantifier)) => {
+                quantifier.visit_words(visitor);
+            }
         }
     }
 }
@@ -1711,18 +1717,18 @@ impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            QuantifierSyntax::Number { number, boi } => {
+        match self.as_data() {
+            data!(QuantifierSyntax::Number { number, boi }) => {
                 number.visit_words(visitor);
                 if let Some(boi) = boi {
                     boi.visit_words(visitor);
                 }
             }
-            QuantifierSyntax::Vei {
+            data!(QuantifierSyntax::Vei {
                 vei,
                 math_expression,
                 veho,
-            } => {
+            }) => {
                 vei.visit_words(visitor);
                 math_expression.visit_words(visitor);
                 if let Some(veho) = veho {
@@ -1737,68 +1743,68 @@ impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            MathOperatorSyntax::Vuhu(vuhu) => vuhu.visit_words(visitor),
-            MathOperatorSyntax::Maho {
+        match self.as_data() {
+            data!(MathOperatorSyntax::Vuhu(vuhu)) => vuhu.visit_words(visitor),
+            data!(MathOperatorSyntax::Maho {
                 maho,
                 math_expression,
                 tehu,
-            } => {
+            }) => {
                 maho.visit_words(visitor);
                 math_expression.visit_words(visitor);
                 if let Some(tehu) = tehu {
                     tehu.visit_words(visitor);
                 }
             }
-            MathOperatorSyntax::Se { se, inner_operator } => {
+            data!(MathOperatorSyntax::Se { se, inner_operator }) => {
                 se.visit_words(visitor);
                 inner_operator.visit_words(visitor);
             }
-            MathOperatorSyntax::Nahe {
+            data!(MathOperatorSyntax::Nahe {
                 nahe,
                 inner_operator,
-            } => {
+            }) => {
                 nahe.visit_words(visitor);
                 inner_operator.visit_words(visitor);
             }
-            MathOperatorSyntax::Nahu {
+            data!(MathOperatorSyntax::Nahu {
                 nahu,
                 relation,
                 tehu,
-            } => {
+            }) => {
                 nahu.visit_words(visitor);
                 relation.visit_words(visitor);
                 if let Some(tehu) = tehu {
                     tehu.visit_words(visitor);
                 }
             }
-            MathOperatorSyntax::Ke {
+            data!(MathOperatorSyntax::Ke {
                 ke,
                 inner_operator,
                 kehe,
-            } => {
+            }) => {
                 ke.visit_words(visitor);
                 inner_operator.visit_words(visitor);
                 if let Some(kehe) = kehe {
                     kehe.visit_words(visitor);
                 }
             }
-            MathOperatorSyntax::Bo {
+            data!(MathOperatorSyntax::Bo {
                 left_operator,
                 connective,
                 bo,
                 right_operator,
-            } => {
+            }) => {
                 left_operator.visit_words(visitor);
                 connective.visit_words(visitor);
                 bo.visit_words(visitor);
                 right_operator.visit_words(visitor);
             }
-            MathOperatorSyntax::Connected {
+            data!(MathOperatorSyntax::Connected {
                 left_operator,
                 connective,
                 right_operator,
-            } => {
+            }) => {
                 left_operator.visit_words(visitor);
                 connective.visit_words(visitor);
                 right_operator.visit_words(visitor);
@@ -1811,32 +1817,32 @@ impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            RelationSyntax::Connected {
+        match self.as_data() {
+            data!(RelationSyntax::Connected {
                 connective,
                 leading_relation,
                 trailing_relation,
-            } => {
+            }) => {
                 leading_relation.visit_words(visitor);
                 connective.visit_words(visitor);
                 trailing_relation.visit_words(visitor);
             }
-            RelationSyntax::Co {
+            data!(RelationSyntax::Co {
                 leading_relation,
                 co,
                 trailing_relation,
-            } => {
+            }) => {
                 leading_relation.visit_words(visitor);
                 co.visit_words(visitor);
                 trailing_relation.visit_words(visitor);
             }
-            RelationSyntax::Bo {
+            data!(RelationSyntax::Bo {
                 leading_relation,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_relation,
-            } => {
+            }) => {
                 leading_relation.visit_words(visitor);
                 if let Some(connective) = bo_connective {
                     connective.visit_words(visitor);
@@ -1847,38 +1853,41 @@ impl RelationSyntax {
                 bo.visit_words(visitor);
                 trailing_relation.visit_words(visitor);
             }
-            RelationSyntax::Na { na, inner_relation } => {
+            data!(RelationSyntax::Na { na, inner_relation }) => {
                 na.visit_words(visitor);
                 inner_relation.visit_words(visitor);
             }
-            RelationSyntax::Base(word) => visitor(word),
-            RelationSyntax::Se { se, inner_relation } => {
+            data!(RelationSyntax::Base(word)) => visitor(word),
+            data!(RelationSyntax::Se { se, inner_relation }) => {
                 se.visit_words(visitor);
                 inner_relation.visit_words(visitor);
             }
-            RelationSyntax::Ke {
-                ke, relation, kehe, ..
-            } => {
+            data!(RelationSyntax::Ke {
+                ke,
+                relation,
+                kehe,
+                ..
+            }) => {
                 ke.visit_words(visitor);
                 relation.visit_words(visitor);
                 if let Some(kehe) = kehe {
                     kehe.visit_words(visitor);
                 }
             }
-            RelationSyntax::TenseModal {
+            data!(RelationSyntax::TenseModal {
                 tense_modal,
                 inner_relation,
-            } => {
+            }) => {
                 tense_modal.visit_words(visitor);
                 inner_relation.visit_words(visitor);
             }
-            RelationSyntax::Guha {
+            data!(RelationSyntax::Guha {
                 guhek,
                 leading_predicate,
                 gik,
                 trailing_predicate,
                 gihi,
-            } => {
+            }) => {
                 guhek.visit_words(visitor);
                 leading_predicate.visit_words(visitor);
                 gik.visit_words(visitor);
@@ -1887,8 +1896,8 @@ impl RelationSyntax {
                     visitor(gihi);
                 }
             }
-            RelationSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
-            RelationSyntax::Compound(units) => {
+            data!(RelationSyntax::Abstraction(abstraction)) => abstraction.visit_words(visitor),
+            data!(RelationSyntax::Compound(units)) => {
                 for unit in units.iter() {
                     unit.visit_words(visitor);
                 }
@@ -1909,38 +1918,41 @@ impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            RelationUnitSyntax::Word(word) => word.visit_words(visitor),
-            RelationUnitSyntax::Goha { goha, raho } => {
+        match self.as_data() {
+            data!(RelationUnitSyntax::Word(word)) => word.visit_words(visitor),
+            data!(RelationUnitSyntax::Goha { goha, raho }) => {
                 goha.visit_words(visitor);
                 if let Some(raho) = raho {
                     raho.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Se { se, inner_unit } => {
+            data!(RelationUnitSyntax::Se { se, inner_unit }) => {
                 se.visit_words(visitor);
                 inner_unit.visit_words(visitor);
             }
-            RelationUnitSyntax::Ke {
-                ke, relation, kehe, ..
-            } => {
+            data!(RelationUnitSyntax::Ke {
+                ke,
+                relation,
+                kehe,
+                ..
+            }) => {
                 ke.visit_words(visitor);
                 relation.visit_words(visitor);
                 if let Some(kehe) = kehe {
                     kehe.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Nahe { nahe, inner_unit } => {
+            data!(RelationUnitSyntax::Nahe { nahe, inner_unit }) => {
                 nahe.visit_words(visitor);
                 inner_unit.visit_words(visitor);
             }
-            RelationUnitSyntax::Bo {
+            data!(RelationUnitSyntax::Bo {
                 leading_unit,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_unit,
-            } => {
+            }) => {
                 leading_unit.visit_words(visitor);
                 if let Some(connective) = bo_connective {
                     connective.visit_words(visitor);
@@ -1951,44 +1963,44 @@ impl RelationUnitSyntax {
                 bo.visit_words(visitor);
                 trailing_unit.visit_words(visitor);
             }
-            RelationUnitSyntax::Connected {
+            data!(RelationUnitSyntax::Connected {
                 leading_unit,
                 connective,
                 trailing_unit,
-            } => {
+            }) => {
                 leading_unit.visit_words(visitor);
                 connective.visit_words(visitor);
                 trailing_unit.visit_words(visitor);
             }
-            RelationUnitSyntax::SelbriRelativeClause {
+            data!(RelationUnitSyntax::SelbriRelativeClause {
                 base,
                 selbri_relative_clauses,
-            } => {
+            }) => {
                 base.visit_words(visitor);
                 for selbri_relative_clause in selbri_relative_clauses {
                     selbri_relative_clause.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Wrapped(relation) => relation.visit_words(visitor),
-            RelationUnitSyntax::Jai {
+            data!(RelationUnitSyntax::Wrapped(relation)) => relation.visit_words(visitor),
+            data!(RelationUnitSyntax::Jai {
                 jai,
                 tense_modal,
                 inner_unit,
-            } => {
+            }) => {
                 jai.visit_words(visitor);
                 if let Some(tense_modal) = tense_modal {
                     tense_modal.visit_words(visitor);
                 }
                 inner_unit.visit_words(visitor);
             }
-            RelationUnitSyntax::Be {
+            data!(RelationUnitSyntax::Be {
                 base,
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
-            } => {
+            }) => {
                 base.visit_words(visitor);
                 be.visit_words(visitor);
                 if let Some(fa) = fa {
@@ -2004,14 +2016,14 @@ impl RelationUnitSyntax {
                     beho.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::PreposedBe {
+            data!(RelationUnitSyntax::PreposedBe {
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
                 base,
-            } => {
+            }) => {
                 be.visit_words(visitor);
                 if let Some(fa) = fa {
                     fa.visit_words(visitor);
@@ -2027,13 +2039,13 @@ impl RelationUnitSyntax {
                 }
                 base.visit_words(visitor);
             }
-            RelationUnitSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
-            RelationUnitSyntax::Me {
+            data!(RelationUnitSyntax::Abstraction(abstraction)) => abstraction.visit_words(visitor),
+            data!(RelationUnitSyntax::Me {
                 me,
                 argument,
                 mehu,
                 moi_marker,
-            } => {
+            }) => {
                 me.visit_words(visitor);
                 argument.visit_words(visitor);
                 if let Some(mehu) = mehu {
@@ -2043,32 +2055,32 @@ impl RelationUnitSyntax {
                     moi_marker.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Mehoi(mehoi) => mehoi.visit_words(visitor),
-            RelationUnitSyntax::Gohoi(gohoi) => gohoi.visit_words(visitor),
-            RelationUnitSyntax::Muhoi(muhoi) => muhoi.visit_words(visitor),
-            RelationUnitSyntax::Luhei { luhei, text, liau } => {
+            data!(RelationUnitSyntax::Mehoi(mehoi)) => mehoi.visit_words(visitor),
+            data!(RelationUnitSyntax::Gohoi(gohoi)) => gohoi.visit_words(visitor),
+            data!(RelationUnitSyntax::Muhoi(muhoi)) => muhoi.visit_words(visitor),
+            data!(RelationUnitSyntax::Luhei { luhei, text, liau }) => {
                 luhei.visit_words(visitor);
                 text.visit_words(visitor);
                 if let Some(liau) = liau {
                     liau.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Moi { number, moi } => {
+            data!(RelationUnitSyntax::Moi { number, moi }) => {
                 visit_word_slice(number, visitor);
                 moi.visit_words(visitor);
             }
-            RelationUnitSyntax::Nuha {
+            data!(RelationUnitSyntax::Nuha {
                 nuha,
                 math_operator,
-            } => {
+            }) => {
                 nuha.visit_words(visitor);
                 math_operator.visit_words(visitor);
             }
-            RelationUnitSyntax::Xohi { xohi, tag } => {
+            data!(RelationUnitSyntax::Xohi { xohi, tag }) => {
                 xohi.visit_words(visitor);
                 tag.visit_words(visitor);
             }
-            RelationUnitSyntax::Cei { base, assignments } => {
+            data!(RelationUnitSyntax::Cei { base, assignments }) => {
                 base.visit_words(visitor);
                 for assignment in assignments {
                     assignment.cei.visit_words(visitor);
@@ -2113,9 +2125,9 @@ impl CompositeTenseModalPartSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn extend_leaf_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
-        match self {
-            CompositeTenseModalPartSyntax::Word(word) => out.push(word),
-            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+        match self.into_data() {
+            data!(CompositeTenseModalPartSyntax::Word(word)) => out.push(word),
+            data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
                 out.push(fiho.fiho.value);
                 out.extend(fiho.relation.words());
                 if let Some(fehu) = fiho.fehu {
@@ -2128,9 +2140,9 @@ impl CompositeTenseModalPartSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            CompositeTenseModalPartSyntax::Word(word) => visitor(word),
-            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+        match self.as_data() {
+            data!(CompositeTenseModalPartSyntax::Word(word)) => visitor(word),
+            data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
                 fiho.fiho.visit_words(visitor);
                 fiho.relation.visit_words(visitor);
                 if let Some(fehu) = &fiho.fehu {
@@ -2143,9 +2155,9 @@ impl CompositeTenseModalPartSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            CompositeTenseModalPartSyntax::Word(word) => vec![word],
-            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+        match self.into_data() {
+            data!(CompositeTenseModalPartSyntax::Word(word)) => vec![word],
+            data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
                 let mut words = vec![fiho.fiho.value];
                 words.extend(fiho.relation.words());
                 if let Some(fehu) = fiho.fehu {
@@ -2171,8 +2183,8 @@ impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            TenseModalSyntax::Composite { parts } => {
+        match self.as_data() {
+            data!(TenseModalSyntax::Composite { parts }) => {
                 for part in &parts.value {
                     part.visit_words(visitor);
                 }
@@ -2180,37 +2192,37 @@ impl TenseModalSyntax {
                     free_modifier.visit_words(visitor);
                 }
             }
-            TenseModalSyntax::Pu(word)
-            | TenseModalSyntax::TimeInterval(word)
-            | TenseModalSyntax::SpaceDistance(word)
-            | TenseModalSyntax::SpaceDirection(word)
-            | TenseModalSyntax::Caha(word) => word.visit_words(visitor),
-            TenseModalSyntax::PuDistance { pu, distance } => {
+            data!(TenseModalSyntax::Pu(word))
+            | data!(TenseModalSyntax::TimeInterval(word))
+            | data!(TenseModalSyntax::SpaceDistance(word))
+            | data!(TenseModalSyntax::SpaceDirection(word))
+            | data!(TenseModalSyntax::Caha(word)) => word.visit_words(visitor),
+            data!(TenseModalSyntax::PuDistance { pu, distance }) => {
                 visitor(pu);
                 distance.visit_words(visitor);
             }
-            TenseModalSyntax::PuCaha { pu, caha } => {
+            data!(TenseModalSyntax::PuCaha { pu, caha }) => {
                 visitor(pu);
                 caha.visit_words(visitor);
             }
-            TenseModalSyntax::SpaceMovement {
+            data!(TenseModalSyntax::SpaceMovement {
                 mohi,
                 direction,
                 distance,
-            } => {
+            }) => {
                 visitor(mohi);
                 direction.visit_words(visitor);
                 if let Some(distance) = distance {
                     distance.visit_words(visitor);
                 }
             }
-            TenseModalSyntax::Simple {
+            data!(TenseModalSyntax::Simple {
                 nahe,
                 se,
                 bai,
                 nai,
                 ki,
-            } => {
+            }) => {
                 if let Some(nahe) = nahe {
                     nahe.visit_words(visitor);
                 }
@@ -2225,24 +2237,24 @@ impl TenseModalSyntax {
                     ki.visit_words(visitor);
                 }
             }
-            TenseModalSyntax::Ki(ki) => ki.visit_words(visitor),
-            TenseModalSyntax::Fiho {
+            data!(TenseModalSyntax::Ki(ki)) => ki.visit_words(visitor),
+            data!(TenseModalSyntax::Fiho {
                 fiho,
                 relation,
                 fehu,
-            } => {
+            }) => {
                 fiho.visit_words(visitor);
                 relation.visit_words(visitor);
                 if let Some(fehu) = fehu {
                     fehu.visit_words(visitor);
                 }
             }
-            TenseModalSyntax::Zaho(words) => words.visit_words(visitor),
-            TenseModalSyntax::Interval {
+            data!(TenseModalSyntax::Zaho(words)) => words.visit_words(visitor),
+            data!(TenseModalSyntax::Interval {
                 number,
                 roi_or_tahe,
                 nai,
-            } => {
+            }) => {
                 if let Some(number) = number {
                     visit_word_slice(number, visitor);
                 }
@@ -2267,13 +2279,13 @@ impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            SubsentenceSyntax::Plain(predicate) => predicate.words(),
-            SubsentenceSyntax::Prenex {
+        match self.into_data() {
+            data!(SubsentenceSyntax::Plain(predicate)) => predicate.words(),
+            data!(SubsentenceSyntax::Prenex {
                 prenex_terms,
                 zohu,
                 inner_subsentence,
-            } => {
+            }) => {
                 let mut words = prenex_terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
@@ -2290,17 +2302,17 @@ impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
+        match self.into_data() {
+            data!(FragmentSyntax::Ek(connective)) | data!(FragmentSyntax::Gihek(connective)) => {
                 connective.words()
             }
-            FragmentSyntax::Other(words) => words.words(),
-            FragmentSyntax::Ijek { i, connective } => {
+            data!(FragmentSyntax::Other(words)) => words.words(),
+            data!(FragmentSyntax::Ijek { i, connective }) => {
                 let mut words = vec![i];
                 words.extend(connective.words());
                 words
             }
-            FragmentSyntax::Prenex { terms, zohu } => {
+            data!(FragmentSyntax::Prenex { terms, zohu }) => {
                 let mut words = terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
@@ -2308,13 +2320,13 @@ impl FragmentSyntax {
                 words.extend(zohu.words());
                 words
             }
-            FragmentSyntax::BeLink {
+            data!(FragmentSyntax::BeLink {
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
-            } => {
+            }) => {
                 let mut words = be.words();
                 if let Some(fa) = fa {
                     words.extend(fa.words());
@@ -2328,16 +2340,16 @@ impl FragmentSyntax {
                 }
                 words
             }
-            FragmentSyntax::BeiLink(bei_only_links) => bei_only_links
+            data!(FragmentSyntax::BeiLink(bei_only_links)) => bei_only_links
                 .into_iter()
                 .flat_map(BeiLinkSyntax::words)
                 .collect(),
-            FragmentSyntax::RelativeClause(relative_clauses) => relative_clauses
+            data!(FragmentSyntax::RelativeClause(relative_clauses)) => relative_clauses
                 .into_iter()
                 .flat_map(RelativeClauseSyntax::words)
                 .collect(),
-            FragmentSyntax::MathExpression(math_expression) => math_expression.words(),
-            FragmentSyntax::Term { terms, vau } => {
+            data!(FragmentSyntax::MathExpression(math_expression)) => math_expression.words(),
+            data!(FragmentSyntax::Term { terms, vau }) => {
                 let mut words = Vec::new();
                 for term in terms {
                     words.extend(term.words());
@@ -2347,7 +2359,7 @@ impl FragmentSyntax {
                 }
                 words
             }
-            FragmentSyntax::Relation(relation) => relation.words(),
+            data!(FragmentSyntax::Relation(relation)) => relation.words(),
         }
     }
 }
@@ -2356,12 +2368,12 @@ impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            TermSyntax::NuhiTermset {
+        match self.into_data() {
+            data!(TermSyntax::NuhiTermset {
                 nuhi,
                 termset,
                 nuhu,
-            } => {
+            }) => {
                 let mut words = nuhi.words();
                 for term in termset {
                     words.extend(term.words());
@@ -2371,7 +2383,7 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::GekNuhiTermset {
                 m_nuhi,
                 gek,
                 terms,
@@ -2380,7 +2392,7 @@ impl TermSyntax {
                 gik_terms,
                 gihi,
                 gik_nuhu,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 if let Some(nuhi) = m_nuhi {
                     words.extend(nuhi.words());
@@ -2404,11 +2416,11 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::Cehe {
+            data!(TermSyntax::Cehe {
                 leading_terms,
                 cehe,
                 trailing_terms,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 for term in leading_terms {
                     words.extend(term.words());
@@ -2419,12 +2431,12 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::Pehe {
+            data!(TermSyntax::Pehe {
                 leading_terms,
                 pehe,
                 connective,
                 trailing_terms,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 for term in leading_terms {
                     words.extend(term.words());
@@ -2436,8 +2448,8 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::Argument(argument) => argument.words(),
-            TermSyntax::Fa { fa, argument, ku } => {
+            data!(TermSyntax::Argument(argument)) => argument.words(),
+            data!(TermSyntax::Fa { fa, argument, ku }) => {
                 let mut words = fa.words();
                 words.extend(argument.words());
                 if let Some(ku) = ku {
@@ -2445,19 +2457,19 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::NaKu { na, na_ku } => {
+            data!(TermSyntax::NaKu { na, na_ku }) => {
                 let mut words = vec![na];
                 words.extend(na_ku.words());
                 words
             }
-            TermSyntax::BareNa(na) => na.words(),
-            TermSyntax::NoihaAdverbial {
+            data!(TermSyntax::BareNa(na)) => na.words(),
+            data!(TermSyntax::NoihaAdverbial {
                 noiha,
                 tail_elements,
                 relation,
                 relative_clauses,
                 fehu,
-            } => {
+            }) => {
                 let mut words = noiha.words();
                 for tail_element in tail_elements {
                     words.extend(tail_element.words());
@@ -2473,13 +2485,13 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::PoihaBrigahi {
+            data!(TermSyntax::PoihaBrigahi {
                 poiha,
                 tail_elements,
                 relation,
                 relative_clauses,
                 brigahi_ku,
-            } => {
+            }) => {
                 let mut words = poiha.words();
                 for tail_element in tail_elements {
                     words.extend(tail_element.words());
@@ -2493,11 +2505,11 @@ impl TermSyntax {
                 words.extend(brigahi_ku.words());
                 words
             }
-            TermSyntax::FihoiAdverbial {
+            data!(TermSyntax::FihoiAdverbial {
                 fihoi,
                 subsentence,
                 fihau,
-            } => {
+            }) => {
                 let mut words = fihoi.words();
                 words.extend(subsentence.words());
                 if let Some(fihau) = fihau {
@@ -2505,11 +2517,11 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::SoiAdverbial {
+            data!(TermSyntax::SoiAdverbial {
                 soi,
                 subsentence,
                 sehu,
-            } => {
+            }) => {
                 let mut words = soi.words();
                 words.extend(subsentence.words());
                 if let Some(sehu) = sehu {
@@ -2517,7 +2529,7 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::JaiTagged { jai, tag, argument } => {
+            data!(TermSyntax::JaiTagged { jai, tag, argument }) => {
                 let mut words = jai.words();
                 if let Some(tag) = tag {
                     words.extend(tag.words());
@@ -2525,10 +2537,10 @@ impl TermSyntax {
                 words.extend(argument.words());
                 words
             }
-            TermSyntax::Tagged {
+            data!(TermSyntax::Tagged {
                 tense_modal,
                 argument,
-            } => {
+            }) => {
                 let mut words = tense_modal
                     .into_iter()
                     .flat_map(TenseModalSyntax::words)
@@ -2536,11 +2548,11 @@ impl TermSyntax {
                 words.extend(argument.words());
                 words
             }
-            TermSyntax::Connected {
+            data!(TermSyntax::Connected {
                 leading_terms,
                 connective,
                 trailing_terms,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 for term in leading_terms {
                     words.extend(term.words());
@@ -2551,13 +2563,13 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::BoConnected {
+            data!(TermSyntax::BoConnected {
                 leading_terms,
                 bo_connective,
                 tense_modal,
                 bo,
                 trailing_term,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 for term in leading_terms {
                     words.extend(term.words());
@@ -2580,9 +2592,9 @@ impl ArgumentTagSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal.words(),
-            ArgumentTagSyntax::Fa(fa) => fa.words(),
+        match self.into_data() {
+            data!(ArgumentTagSyntax::TenseModal(tense_modal)) => tense_modal.words(),
+            data!(ArgumentTagSyntax::Fa(fa)) => fa.words(),
         }
     }
 }
@@ -2591,20 +2603,20 @@ impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            MathExpressionSyntax::Number(quantifier) => quantifier.words(),
-            MathExpressionSyntax::Letter { letter, boi } => {
+        match self.into_data() {
+            data!(MathExpressionSyntax::Number(quantifier)) => quantifier.words(),
+            data!(MathExpressionSyntax::Letter { letter, boi }) => {
                 let mut words = letter.words();
                 if let Some(boi) = boi {
                     words.extend(boi.words());
                 }
                 words
             }
-            MathExpressionSyntax::Vei {
+            data!(MathExpressionSyntax::Vei {
                 vei,
                 inner_expression,
                 veho,
-            } => {
+            }) => {
                 let mut words = vei.words();
                 words.extend(inner_expression.words());
                 if let Some(veho) = veho {
@@ -2612,24 +2624,24 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Gek {
+            data!(MathExpressionSyntax::Gek {
                 gek,
                 left_expression,
                 gik,
                 right_expression,
-            } => {
+            }) => {
                 let mut words = gek.words();
                 words.extend(left_expression.words());
                 words.extend(gik.words());
                 words.extend(right_expression.words());
                 words
             }
-            MathExpressionSyntax::Forethought {
+            data!(MathExpressionSyntax::Forethought {
                 peho,
                 operator,
                 operands,
                 kuhe,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 if let Some(peho) = peho {
                     words.extend(peho.words());
@@ -2643,11 +2655,11 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::ReversePolish {
+            data!(MathExpressionSyntax::ReversePolish {
                 fuha,
                 operands,
                 operators,
-            } => {
+            }) => {
                 let mut words = fuha.words();
                 for operand in operands {
                     words.extend(operand.words());
@@ -2657,11 +2669,11 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Nihe {
+            data!(MathExpressionSyntax::Nihe {
                 nihe,
                 relation,
                 tehu,
-            } => {
+            }) => {
                 let mut words = nihe.words();
                 words.extend(relation.words());
                 if let Some(tehu) = tehu {
@@ -2669,11 +2681,11 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Mohe {
+            data!(MathExpressionSyntax::Mohe {
                 mohe,
                 argument,
                 tehu,
-            } => {
+            }) => {
                 let mut words = mohe.words();
                 words.extend(argument.words());
                 if let Some(tehu) = tehu {
@@ -2681,11 +2693,11 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Johi {
+            data!(MathExpressionSyntax::Johi {
                 johi,
                 expressions,
                 tehu,
-            } => {
+            }) => {
                 let mut words = johi.words();
                 for expression in expressions {
                     words.extend(expression.words());
@@ -2695,11 +2707,11 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Lahe {
+            data!(MathExpressionSyntax::Lahe {
                 markers,
                 inner_expression,
                 luhu,
-            } => {
+            }) => {
                 let mut words = markers.words();
                 words.extend(inner_expression.words());
                 if let Some(luhu) = luhu {
@@ -2707,32 +2719,32 @@ impl MathExpressionSyntax {
                 }
                 words
             }
-            MathExpressionSyntax::Connected {
+            data!(MathExpressionSyntax::Connected {
                 left_expression,
                 connective,
                 right_expression,
-            } => {
+            }) => {
                 let mut words = left_expression.words();
                 words.extend(connective.words());
                 words.extend(right_expression.words());
                 words
             }
-            MathExpressionSyntax::Binary {
+            data!(MathExpressionSyntax::Binary {
                 operator,
                 left_expression,
                 right_expression,
-            } => {
+            }) => {
                 let mut words = left_expression.words();
                 words.extend(operator.words());
                 words.extend(right_expression.words());
                 words
             }
-            MathExpressionSyntax::Bihe {
+            data!(MathExpressionSyntax::Bihe {
                 left_expression,
                 bihe,
                 operator,
                 right_expression,
-            } => {
+            }) => {
                 let mut words = left_expression.words();
                 words.extend(bihe.words());
                 words.extend(operator.words());
@@ -2747,13 +2759,13 @@ impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            ArgumentSyntax::Quote(quote) => quote.words(),
-            ArgumentSyntax::MathExpression {
+        match self.into_data() {
+            data!(ArgumentSyntax::Quote(quote)) => quote.words(),
+            data!(ArgumentSyntax::MathExpression {
                 li,
                 expression,
                 loho,
-            } => {
+            }) => {
                 let mut words = li.words();
                 words.extend(expression.words());
                 if let Some(loho) = loho {
@@ -2761,26 +2773,26 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Letter { letter, boi } => {
+            data!(ArgumentSyntax::Letter { letter, boi }) => {
                 let mut words = letter.words();
                 if let Some(boi) = boi {
                     words.extend(boi.words());
                 }
                 words
             }
-            ArgumentSyntax::Quantified {
+            data!(ArgumentSyntax::Quantified {
                 quantifier,
                 inner_argument,
-            } => {
+            }) => {
                 let mut words = quantifier.words();
                 words.extend(inner_argument.words());
                 words
             }
-            ArgumentSyntax::RelativeClause {
+            data!(ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho,
                 relative_clauses,
-            } => {
+            }) => {
                 let mut words = base_argument.words();
                 if let Some(vuho) = vuho {
                     words.extend(vuho.words());
@@ -2790,12 +2802,12 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Vuho {
+            data!(ArgumentSyntax::Vuho {
                 base_argument,
                 vuho_marker,
                 relative_clauses,
                 connected_argument,
-            } => {
+            }) => {
                 let mut words = base_argument.words();
                 words.extend(vuho_marker.words());
                 for relative_clause in relative_clauses {
@@ -2807,11 +2819,11 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::BridiDescription {
+            data!(ArgumentSyntax::BridiDescription {
                 lohoi,
                 subsentence,
                 kuhau,
-            } => {
+            }) => {
                 let mut words = lohoi.words();
                 words.extend(subsentence.words());
                 if let Some(kuhau) = kuhau {
@@ -2819,25 +2831,25 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::NaKu { na, ku } => {
+            data!(ArgumentSyntax::NaKu { na, ku }) => {
                 let mut words = vec![na];
                 words.extend(ku.words());
                 words
             }
-            ArgumentSyntax::Tagged {
+            data!(ArgumentSyntax::Tagged {
                 tag,
                 inner_argument,
-            } => {
+            }) => {
                 let mut words = tag.words();
                 words.extend(inner_argument.words());
                 words
             }
-            ArgumentSyntax::NaheBo {
+            data!(ArgumentSyntax::NaheBo {
                 nahe,
                 bo,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 let mut words = vec![nahe];
                 words.extend(bo.words());
                 words.extend(inner_argument.words());
@@ -2846,11 +2858,11 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Nahe {
+            data!(ArgumentSyntax::Nahe {
                 nahe,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 let mut words = nahe.words();
                 words.extend(inner_argument.words());
                 if let Some(luhu) = luhu {
@@ -2858,13 +2870,13 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::TermWrapped {
+            data!(ArgumentSyntax::TermWrapped {
                 wrapper,
                 wrapper_bo,
                 inner_term,
                 luhu,
                 ..
-            } => {
+            }) => {
                 let mut words = wrapper.words();
                 if let Some(wrapper_bo) = wrapper_bo {
                     words.extend(wrapper_bo.words());
@@ -2875,12 +2887,12 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Koha(koha) => koha.words(),
-            ArgumentSyntax::Zohe {
+            data!(ArgumentSyntax::Koha(koha)) => koha.words(),
+            data!(ArgumentSyntax::Zohe {
                 tag,
                 maybe_ku,
                 free_modifiers,
-            } => {
+            }) => {
                 let mut words = tag
                     .into_iter()
                     .flat_map(ArgumentTagSyntax::words)
@@ -2893,12 +2905,12 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Lahe {
+            data!(ArgumentSyntax::Lahe {
                 lahe,
                 relative_clauses,
                 inner_argument,
                 luhu,
-            } => {
+            }) => {
                 let mut words = lahe.words();
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
@@ -2909,21 +2921,21 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Connected {
+            data!(ArgumentSyntax::Connected {
                 leading_argument,
                 connective,
                 trailing_argument,
-            } => {
+            }) => {
                 let mut words = leading_argument.words();
                 words.extend(connective.words());
                 words.extend(trailing_argument.words());
                 words
             }
-            ArgumentSyntax::Ke {
+            data!(ArgumentSyntax::Ke {
                 ke,
                 inner_argument,
                 kehe,
-            } => {
+            }) => {
                 let mut words = ke.words();
                 words.extend(inner_argument.words());
                 if let Some(kehe) = kehe {
@@ -2931,13 +2943,13 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Bo {
+            data!(ArgumentSyntax::Bo {
                 leading_argument,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_argument,
-            } => {
+            }) => {
                 let mut words = leading_argument.words();
                 if let Some(connective) = bo_connective {
                     words.extend(connective.words());
@@ -2949,13 +2961,13 @@ impl ArgumentSyntax {
                 words.extend(trailing_argument.words());
                 words
             }
-            ArgumentSyntax::Gek {
+            data!(ArgumentSyntax::Gek {
                 gek,
                 leading_argument,
                 gik,
                 trailing_argument,
                 gihi,
-            } => {
+            }) => {
                 let mut words = gek.words();
                 words.extend(leading_argument.words());
                 words.extend(gik.words());
@@ -2965,21 +2977,21 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Descriptor(descriptor) => descriptor.words(),
-            ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
+            data!(ArgumentSyntax::Descriptor(descriptor)) => descriptor.words(),
+            data!(ArgumentSyntax::ConnectedDescriptor(connected_descriptor)) => {
                 connected_descriptor.words()
             }
-            ArgumentSyntax::Name { la, names } => {
+            data!(ArgumentSyntax::Name { la, names }) => {
                 let mut words = la.words();
                 words.extend(names.words());
                 words
             }
-            ArgumentSyntax::Cmevla(cmevla) => cmevla.words(),
-            ArgumentSyntax::RelationVocative {
+            data!(ArgumentSyntax::Cmevla(cmevla)) => cmevla.words(),
+            data!(ArgumentSyntax::RelationVocative {
                 leading_relative_clauses,
                 relation,
                 trailing_relative_clauses,
-            } => {
+            }) => {
                 let mut words = leading_relative_clauses
                     .into_iter()
                     .flat_map(RelativeClauseSyntax::words)
@@ -3026,13 +3038,13 @@ impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
-            RelativeClauseSyntax::Noi {
+        match self.into_data() {
+            data!(RelativeClauseSyntax::Goi(relative_clause)) => relative_clause.words(),
+            data!(RelativeClauseSyntax::Noi {
                 noi,
                 subsentence,
                 kuho,
-            } => {
+            }) => {
                 let mut words = noi.words();
                 words.extend(subsentence.words());
                 if let Some(kuho) = kuho {
@@ -3040,11 +3052,11 @@ impl RelativeClauseSyntax {
                 }
                 words
             }
-            RelativeClauseSyntax::Poi {
+            data!(RelativeClauseSyntax::Poi {
                 poi,
                 subsentence,
                 kuho,
-            } => {
+            }) => {
                 let mut words = poi.words();
                 words.extend(subsentence.words());
                 if let Some(kuho) = kuho {
@@ -3052,12 +3064,12 @@ impl RelativeClauseSyntax {
                 }
                 words
             }
-            RelativeClauseSyntax::Zihe { zihe, inner } => {
+            data!(RelativeClauseSyntax::Zihe { zihe, inner }) => {
                 let mut words = zihe.words();
                 words.extend(inner.words());
                 words
             }
-            RelativeClauseSyntax::Connected { connective, inner } => {
+            data!(RelativeClauseSyntax::Connected { connective, inner }) => {
                 let mut words = connective.words();
                 words.extend(inner.words());
                 words
@@ -3070,8 +3082,8 @@ impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            QuoteSyntax::Lu { lu, text, lihu } => {
+        match self.into_data() {
+            data!(QuoteSyntax::Lu { lu, text, lihu }) => {
                 let mut words = lu.words();
                 words.extend(text.words());
                 if let Some(lihu) = lihu {
@@ -3079,9 +3091,9 @@ impl QuoteSyntax {
                 }
                 words
             }
-            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) => zo.words(),
-            QuoteSyntax::ZohOi(zohoi) => zohoi.words(),
-            QuoteSyntax::Lohu(lohu) => lohu.words(),
+            data!(QuoteSyntax::Zo(zo)) | data!(QuoteSyntax::Zoi(zo)) => zo.words(),
+            data!(QuoteSyntax::ZohOi(zohoi)) => zohoi.words(),
+            data!(QuoteSyntax::Lohu(lohu)) => lohu.words(),
         }
     }
 }
@@ -3187,13 +3199,13 @@ impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            ArgumentTailElementSyntax::Argument(argument) => argument.words(),
-            ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => relative_clauses
+        match self.into_data() {
+            data!(ArgumentTailElementSyntax::Argument(argument)) => argument.words(),
+            data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => relative_clauses
                 .into_iter()
                 .flat_map(RelativeClauseSyntax::words)
                 .collect(),
-            ArgumentTailElementSyntax::Quantifier(quantifier) => quantifier.words(),
+            data!(ArgumentTailElementSyntax::Quantifier(quantifier)) => quantifier.words(),
         }
     }
 }
@@ -3202,19 +3214,19 @@ impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            QuantifierSyntax::Number { number, boi } => {
+        match self.into_data() {
+            data!(QuantifierSyntax::Number { number, boi }) => {
                 let mut words = number.words();
                 if let Some(boi) = boi {
                     words.extend(boi.words());
                 }
                 words
             }
-            QuantifierSyntax::Vei {
+            data!(QuantifierSyntax::Vei {
                 vei,
                 math_expression,
                 veho,
-            } => {
+            }) => {
                 let mut words = vei.words();
                 words.extend(math_expression.words());
                 if let Some(veho) = veho {
@@ -3230,13 +3242,13 @@ impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            MathOperatorSyntax::Vuhu(vuhu) => vuhu.words(),
-            MathOperatorSyntax::Maho {
+        match self.into_data() {
+            data!(MathOperatorSyntax::Vuhu(vuhu)) => vuhu.words(),
+            data!(MathOperatorSyntax::Maho {
                 maho,
                 math_expression,
                 tehu,
-            } => {
+            }) => {
                 let mut words = maho.words();
                 words.extend(math_expression.words());
                 if let Some(tehu) = tehu {
@@ -3244,24 +3256,24 @@ impl MathOperatorSyntax {
                 }
                 words
             }
-            MathOperatorSyntax::Se { se, inner_operator } => {
+            data!(MathOperatorSyntax::Se { se, inner_operator }) => {
                 let mut words = se.words();
                 words.extend(inner_operator.words());
                 words
             }
-            MathOperatorSyntax::Nahe {
+            data!(MathOperatorSyntax::Nahe {
                 nahe,
                 inner_operator,
-            } => {
+            }) => {
                 let mut words = nahe.words();
                 words.extend(inner_operator.words());
                 words
             }
-            MathOperatorSyntax::Nahu {
+            data!(MathOperatorSyntax::Nahu {
                 nahu,
                 relation,
                 tehu,
-            } => {
+            }) => {
                 let mut words = nahu.words();
                 words.extend(relation.words());
                 if let Some(tehu) = tehu {
@@ -3269,11 +3281,11 @@ impl MathOperatorSyntax {
                 }
                 words
             }
-            MathOperatorSyntax::Ke {
+            data!(MathOperatorSyntax::Ke {
                 ke,
                 inner_operator,
                 kehe,
-            } => {
+            }) => {
                 let mut words = ke.words();
                 words.extend(inner_operator.words());
                 if let Some(kehe) = kehe {
@@ -3281,23 +3293,23 @@ impl MathOperatorSyntax {
                 }
                 words
             }
-            MathOperatorSyntax::Bo {
+            data!(MathOperatorSyntax::Bo {
                 left_operator,
                 connective,
                 bo,
                 right_operator,
-            } => {
+            }) => {
                 let mut words = left_operator.words();
                 words.extend(connective.words());
                 words.extend(bo.words());
                 words.extend(right_operator.words());
                 words
             }
-            MathOperatorSyntax::Connected {
+            data!(MathOperatorSyntax::Connected {
                 left_operator,
                 connective,
                 right_operator,
-            } => {
+            }) => {
                 let mut words = left_operator.words();
                 words.extend(connective.words());
                 words.extend(right_operator.words());
@@ -3311,34 +3323,34 @@ impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            RelationSyntax::Connected {
+        match self.into_data() {
+            data!(RelationSyntax::Connected {
                 connective,
                 leading_relation,
                 trailing_relation,
-            } => {
+            }) => {
                 let mut words = leading_relation.words();
                 words.extend(connective.words());
                 words.extend(trailing_relation.words());
                 words
             }
-            RelationSyntax::Co {
+            data!(RelationSyntax::Co {
                 leading_relation,
                 co,
                 trailing_relation,
-            } => {
+            }) => {
                 let mut words = leading_relation.words();
                 words.extend(co.words());
                 words.extend(trailing_relation.words());
                 words
             }
-            RelationSyntax::Bo {
+            data!(RelationSyntax::Bo {
                 leading_relation,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_relation,
-            } => {
+            }) => {
                 let mut words = leading_relation.words();
                 if let Some(connective) = bo_connective {
                     words.extend(connective.words());
@@ -3350,20 +3362,23 @@ impl RelationSyntax {
                 words.extend(trailing_relation.words());
                 words
             }
-            RelationSyntax::Na { na, inner_relation } => {
+            data!(RelationSyntax::Na { na, inner_relation }) => {
                 let mut words = na.words();
                 words.extend(inner_relation.words());
                 words
             }
-            RelationSyntax::Base(word) => vec![word],
-            RelationSyntax::Se { se, inner_relation } => {
+            data!(RelationSyntax::Base(word)) => vec![word],
+            data!(RelationSyntax::Se { se, inner_relation }) => {
                 let mut words = se.words();
                 words.extend(inner_relation.words());
                 words
             }
-            RelationSyntax::Ke {
-                ke, relation, kehe, ..
-            } => {
+            data!(RelationSyntax::Ke {
+                ke,
+                relation,
+                kehe,
+                ..
+            }) => {
                 let mut words = ke.words();
                 words.extend(relation.words());
                 if let Some(kehe) = kehe {
@@ -3371,21 +3386,21 @@ impl RelationSyntax {
                 }
                 words
             }
-            RelationSyntax::TenseModal {
+            data!(RelationSyntax::TenseModal {
                 tense_modal,
                 inner_relation,
-            } => {
+            }) => {
                 let mut words = tense_modal.words();
                 words.extend(inner_relation.words());
                 words
             }
-            RelationSyntax::Guha {
+            data!(RelationSyntax::Guha {
                 guhek,
                 leading_predicate,
                 gik,
                 trailing_predicate,
                 gihi,
-            } => {
+            }) => {
                 let mut words = guhek.words();
                 words.extend(leading_predicate.words());
                 words.extend(gik.words());
@@ -3395,8 +3410,8 @@ impl RelationSyntax {
                 }
                 words
             }
-            RelationSyntax::Abstraction(abstraction) => abstraction.words(),
-            RelationSyntax::Compound(units) => units
+            data!(RelationSyntax::Abstraction(abstraction)) => abstraction.words(),
+            data!(RelationSyntax::Compound(units)) => units
                 .into_smallvec()
                 .into_iter()
                 .flat_map(RelationUnitSyntax::words)
@@ -3409,23 +3424,26 @@ impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        match self {
-            RelationUnitSyntax::Word(word) => word.words(),
-            RelationUnitSyntax::Goha { goha, raho } => {
+        match self.into_data() {
+            data!(RelationUnitSyntax::Word(word)) => word.words(),
+            data!(RelationUnitSyntax::Goha { goha, raho }) => {
                 let mut words = goha.words();
                 if let Some(raho) = raho {
                     words.extend(raho.words());
                 }
                 words
             }
-            RelationUnitSyntax::Se { se, inner_unit } => {
+            data!(RelationUnitSyntax::Se { se, inner_unit }) => {
                 let mut words = se.words();
                 words.extend(inner_unit.words());
                 words
             }
-            RelationUnitSyntax::Ke {
-                ke, relation, kehe, ..
-            } => {
+            data!(RelationUnitSyntax::Ke {
+                ke,
+                relation,
+                kehe,
+                ..
+            }) => {
                 let mut words = ke.words();
                 words.extend(relation.words());
                 if let Some(kehe) = kehe {
@@ -3433,18 +3451,18 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Nahe { nahe, inner_unit } => {
+            data!(RelationUnitSyntax::Nahe { nahe, inner_unit }) => {
                 let mut words = nahe.words();
                 words.extend(inner_unit.words());
                 words
             }
-            RelationUnitSyntax::Bo {
+            data!(RelationUnitSyntax::Bo {
                 leading_unit,
                 bo_connective,
                 bo_tense_modal,
                 bo,
                 trailing_unit,
-            } => {
+            }) => {
                 let mut words = leading_unit.words();
                 if let Some(connective) = bo_connective {
                     words.extend(connective.words());
@@ -3456,32 +3474,32 @@ impl RelationUnitSyntax {
                 words.extend(trailing_unit.words());
                 words
             }
-            RelationUnitSyntax::Connected {
+            data!(RelationUnitSyntax::Connected {
                 leading_unit,
                 connective,
                 trailing_unit,
-            } => {
+            }) => {
                 let mut words = leading_unit.words();
                 words.extend(connective.words());
                 words.extend(trailing_unit.words());
                 words
             }
-            RelationUnitSyntax::SelbriRelativeClause {
+            data!(RelationUnitSyntax::SelbriRelativeClause {
                 base,
                 selbri_relative_clauses,
-            } => {
+            }) => {
                 let mut words = base.words();
                 for selbri_relative_clause in selbri_relative_clauses {
                     words.extend(selbri_relative_clause.words());
                 }
                 words
             }
-            RelationUnitSyntax::Wrapped(relation) => relation.words(),
-            RelationUnitSyntax::Jai {
+            data!(RelationUnitSyntax::Wrapped(relation)) => relation.words(),
+            data!(RelationUnitSyntax::Jai {
                 jai,
                 tense_modal,
                 inner_unit,
-            } => {
+            }) => {
                 let mut words = jai.words();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
@@ -3489,14 +3507,14 @@ impl RelationUnitSyntax {
                 words.extend(inner_unit.words());
                 words
             }
-            RelationUnitSyntax::Be {
+            data!(RelationUnitSyntax::Be {
                 base,
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
-            } => {
+            }) => {
                 let mut words = base.words();
                 words.extend(be.words());
                 if let Some(fa) = fa {
@@ -3511,14 +3529,14 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::PreposedBe {
+            data!(RelationUnitSyntax::PreposedBe {
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
                 base,
-            } => {
+            }) => {
                 let mut words = be.words();
                 if let Some(fa) = fa {
                     words.extend(fa.words());
@@ -3533,13 +3551,13 @@ impl RelationUnitSyntax {
                 words.extend(base.words());
                 words
             }
-            RelationUnitSyntax::Abstraction(abstraction) => abstraction.words(),
-            RelationUnitSyntax::Me {
+            data!(RelationUnitSyntax::Abstraction(abstraction)) => abstraction.words(),
+            data!(RelationUnitSyntax::Me {
                 me,
                 argument,
                 mehu,
                 moi_marker,
-            } => {
+            }) => {
                 let mut words = me.words();
                 words.extend(argument.words());
                 if let Some(mehu) = mehu {
@@ -3550,10 +3568,10 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Mehoi(mehoi) => mehoi.words(),
-            RelationUnitSyntax::Gohoi(gohoi) => gohoi.words(),
-            RelationUnitSyntax::Muhoi(muhoi) => muhoi.words(),
-            RelationUnitSyntax::Luhei { luhei, text, liau } => {
+            data!(RelationUnitSyntax::Mehoi(mehoi)) => mehoi.words(),
+            data!(RelationUnitSyntax::Gohoi(gohoi)) => gohoi.words(),
+            data!(RelationUnitSyntax::Muhoi(muhoi)) => muhoi.words(),
+            data!(RelationUnitSyntax::Luhei { luhei, text, liau }) => {
                 let mut words = luhei.words();
                 words.extend(text.words());
                 if let Some(liau) = liau {
@@ -3561,25 +3579,25 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Moi { number, moi } => {
+            data!(RelationUnitSyntax::Moi { number, moi }) => {
                 let mut words = number.into_vec();
                 words.extend(moi.words());
                 words
             }
-            RelationUnitSyntax::Nuha {
+            data!(RelationUnitSyntax::Nuha {
                 nuha,
                 math_operator,
-            } => {
+            }) => {
                 let mut words = nuha.words();
                 words.extend(math_operator.words());
                 words
             }
-            RelationUnitSyntax::Xohi { xohi, tag } => {
+            data!(RelationUnitSyntax::Xohi { xohi, tag }) => {
                 let mut words = xohi.words();
                 words.extend(tag.words());
                 words
             }
-            RelationUnitSyntax::Cei { base, assignments } => {
+            data!(RelationUnitSyntax::Cei { base, assignments }) => {
                 let mut words = base.words();
                 for assignment in assignments {
                     words.extend(assignment.cei.words());
@@ -3627,31 +3645,31 @@ impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn free_modifier_count(&self) -> usize {
-        match self {
-            TenseModalSyntax::Composite { parts } => parts.free_modifiers.len(),
-            TenseModalSyntax::Pu(word)
-            | TenseModalSyntax::TimeInterval(word)
-            | TenseModalSyntax::SpaceDistance(word)
-            | TenseModalSyntax::SpaceDirection(word)
-            | TenseModalSyntax::Caha(word) => word.free_modifiers.len(),
-            TenseModalSyntax::PuDistance { distance, .. } => distance.free_modifiers.len(),
-            TenseModalSyntax::PuCaha { caha, .. } => caha.free_modifiers.len(),
-            TenseModalSyntax::SpaceMovement {
+        match self.as_data() {
+            data!(TenseModalSyntax::Composite { parts }) => parts.free_modifiers.len(),
+            data!(TenseModalSyntax::Pu(word))
+            | data!(TenseModalSyntax::TimeInterval(word))
+            | data!(TenseModalSyntax::SpaceDistance(word))
+            | data!(TenseModalSyntax::SpaceDirection(word))
+            | data!(TenseModalSyntax::Caha(word)) => word.free_modifiers.len(),
+            data!(TenseModalSyntax::PuDistance { distance, .. }) => distance.free_modifiers.len(),
+            data!(TenseModalSyntax::PuCaha { caha, .. }) => caha.free_modifiers.len(),
+            data!(TenseModalSyntax::SpaceMovement {
                 direction,
                 distance,
                 ..
-            } => distance
+            }) => distance
                 .as_ref()
                 .map_or(direction.free_modifiers.len(), |distance| {
                     distance.free_modifiers.len()
                 }),
-            TenseModalSyntax::Simple {
+            data!(TenseModalSyntax::Simple {
                 nahe,
                 se,
                 bai,
                 nai,
                 ki,
-            } => {
+            }) => {
                 if let Some(ki) = ki {
                     ki.free_modifiers.len()
                 } else if let Some(nai) = nai {
@@ -3666,14 +3684,16 @@ impl TenseModalSyntax {
                     bai.free_modifiers.len()
                 }
             }
-            TenseModalSyntax::Ki(ki) => ki.free_modifiers.len(),
-            TenseModalSyntax::Fiho { fiho, fehu, .. } => fehu
+            data!(TenseModalSyntax::Ki(ki)) => ki.free_modifiers.len(),
+            data!(TenseModalSyntax::Fiho { fiho, fehu, .. }) => fehu
                 .as_ref()
                 .map_or(fiho.free_modifiers.len(), |fehu| fehu.free_modifiers.len()),
-            TenseModalSyntax::Zaho(words) => words.free_modifiers.len(),
-            TenseModalSyntax::Interval {
-                roi_or_tahe, nai, ..
-            } => nai
+            data!(TenseModalSyntax::Zaho(words)) => words.free_modifiers.len(),
+            data!(TenseModalSyntax::Interval {
+                roi_or_tahe,
+                nai,
+                ..
+            }) => nai
                 .as_ref()
                 .map_or(roi_or_tahe.free_modifiers.len(), |nai| {
                     nai.free_modifiers.len()
@@ -3686,29 +3706,33 @@ impl TenseModalSyntax {
     pub fn leaf_words_and_free_modifiers(
         self,
     ) -> (Vec<WithIndicators<WordLike>>, Vec<FreeModifierSyntax>) {
-        match self {
-            TenseModalSyntax::Composite { parts } => {
+        match self.into_data() {
+            data!(TenseModalSyntax::Composite { parts }) => {
                 let mut words = Vec::new();
                 for part in parts.value {
                     part.extend_leaf_words_into(&mut words);
                 }
                 (words, parts.free_modifiers)
             }
-            TenseModalSyntax::Pu(word) | TenseModalSyntax::Caha(word) => {
+            data!(TenseModalSyntax::Pu(word)) | data!(TenseModalSyntax::Caha(word)) => {
                 (vec![word.value], word.free_modifiers)
             }
-            TenseModalSyntax::PuDistance { pu, distance } => {
+            data!(TenseModalSyntax::PuDistance { pu, distance }) => {
                 (vec![pu, distance.value], distance.free_modifiers)
             }
-            TenseModalSyntax::TimeInterval(word) => (vec![word.value], word.free_modifiers),
-            TenseModalSyntax::PuCaha { pu, caha } => (vec![pu, caha.value], caha.free_modifiers),
-            TenseModalSyntax::SpaceDistance(word) => (vec![word.value], word.free_modifiers),
-            TenseModalSyntax::SpaceDirection(word) => (vec![word.value], word.free_modifiers),
-            TenseModalSyntax::SpaceMovement {
+            data!(TenseModalSyntax::TimeInterval(word)) => (vec![word.value], word.free_modifiers),
+            data!(TenseModalSyntax::PuCaha { pu, caha }) => {
+                (vec![pu, caha.value], caha.free_modifiers)
+            }
+            data!(TenseModalSyntax::SpaceDistance(word)) => (vec![word.value], word.free_modifiers),
+            data!(TenseModalSyntax::SpaceDirection(word)) => {
+                (vec![word.value], word.free_modifiers)
+            }
+            data!(TenseModalSyntax::SpaceMovement {
                 mohi,
                 direction,
                 distance,
-            } => {
+            }) => {
                 let mut words = vec![mohi, direction.value];
                 let mut free_modifiers = direction.free_modifiers;
                 if let Some(distance) = distance {
@@ -3717,13 +3741,13 @@ impl TenseModalSyntax {
                 }
                 (words, free_modifiers)
             }
-            TenseModalSyntax::Simple {
+            data!(TenseModalSyntax::Simple {
                 nahe,
                 se,
                 bai,
                 nai,
                 ki,
-            } => {
+            }) => {
                 let mut words = Vec::new();
                 let nahe_is_some = nahe.is_some();
                 let nahe_free_modifiers = if let Some(nahe) = nahe {
@@ -3770,12 +3794,12 @@ impl TenseModalSyntax {
                 };
                 (words, free_modifiers)
             }
-            TenseModalSyntax::Ki(ki) => (vec![ki.value], ki.free_modifiers),
-            TenseModalSyntax::Fiho {
+            data!(TenseModalSyntax::Ki(ki)) => (vec![ki.value], ki.free_modifiers),
+            data!(TenseModalSyntax::Fiho {
                 fiho,
                 relation,
                 fehu,
-            } => {
+            }) => {
                 let mut words = vec![fiho.value];
                 let mut free_modifiers = fiho.free_modifiers;
                 words.extend((*relation).words());
@@ -3785,12 +3809,12 @@ impl TenseModalSyntax {
                 }
                 (words, free_modifiers)
             }
-            TenseModalSyntax::Zaho(words) => (words.value, words.free_modifiers),
-            TenseModalSyntax::Interval {
+            data!(TenseModalSyntax::Zaho(words)) => (words.value, words.free_modifiers),
+            data!(TenseModalSyntax::Interval {
                 number,
                 roi_or_tahe,
                 nai,
-            } => {
+            }) => {
                 let mut words = number.map_or_else(Vec::new, WordRun::into_vec);
                 words.push(roi_or_tahe.value);
                 let mut free_modifiers = roi_or_tahe.free_modifiers;
@@ -3893,13 +3917,13 @@ impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            StatementSyntax::Tuhe {
+        match self.as_data() {
+            data!(StatementSyntax::Tuhe {
                 tense_modal,
                 tuhe,
                 text,
                 tuhu,
-            } => {
+            }) => {
                 if let Some(tense_modal) = tense_modal {
                     tense_modal.visit_words(visitor);
                 }
@@ -3909,59 +3933,59 @@ impl StatementSyntax {
                     tuhu.visit_words(visitor);
                 }
             }
-            StatementSyntax::Prenex {
+            data!(StatementSyntax::Prenex {
                 prenex_terms,
                 zohu,
                 inner_statement,
-            } => {
+            }) => {
                 for term in prenex_terms {
                     term.visit_words(visitor);
                 }
                 zohu.visit_words(visitor);
                 inner_statement.visit_words(visitor);
             }
-            StatementSyntax::Predicate(predicate) => predicate.visit_words(visitor),
-            StatementSyntax::Connected {
+            data!(StatementSyntax::Predicate(predicate)) => predicate.visit_words(visitor),
+            data!(StatementSyntax::Connected {
                 i,
                 connective,
                 leading_statement,
                 trailing_statement,
-            } => {
+            }) => {
                 leading_statement.visit_words(visitor);
                 visitor(i);
                 connective.visit_words(visitor);
                 trailing_statement.visit_words(visitor);
             }
-            StatementSyntax::PreIConnected {
+            data!(StatementSyntax::PreIConnected {
                 connective,
                 i,
                 leading_statement,
                 trailing_statement,
-            } => {
+            }) => {
                 leading_statement.visit_words(visitor);
                 connective.visit_words(visitor);
                 visitor(i);
                 trailing_statement.visit_words(visitor);
             }
-            StatementSyntax::Iau {
+            data!(StatementSyntax::Iau {
                 inner_statement,
                 iau,
                 reset_terms,
-            } => {
+            }) => {
                 inner_statement.visit_words(visitor);
                 iau.visit_words(visitor);
                 for term in reset_terms {
                     term.visit_words(visitor);
                 }
             }
-            StatementSyntax::ExperimentalPredicateContinuation {
+            data!(StatementSyntax::ExperimentalPredicateContinuation {
                 leading_statement,
                 continuation,
-            } => {
+            }) => {
                 leading_statement.visit_words(visitor);
                 continuation.visit_words(visitor);
             }
-            StatementSyntax::Fragment(fragment) => fragment.visit_words(visitor),
+            data!(StatementSyntax::Fragment(fragment)) => fragment.visit_words(visitor),
         }
     }
 
@@ -3982,12 +4006,12 @@ impl PredicateStatementContinuationSyntax {
         if let Some(tense_modal) = &self.tense_modal {
             tense_modal.visit_words(visitor);
         }
-        match &self.marker {
-            PredicateStatementContinuationMarkerSyntax::Bo(bo) => {
+        match self.marker.as_data() {
+            data!(PredicateStatementContinuationMarkerSyntax::Bo(bo)) => {
                 bo.visit_words(visitor);
                 self.trailing_subsentence.visit_words(visitor);
             }
-            PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe } => {
+            data!(PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe }) => {
                 ke.visit_words(visitor);
                 self.trailing_subsentence.visit_words(visitor);
                 if let Some(kehe) = kehe {
@@ -4008,14 +4032,14 @@ impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            FreeModifierSyntax::Sei {
+        match self.as_data() {
+            data!(FreeModifierSyntax::Sei {
                 sei,
                 terms,
                 cu,
                 relation,
                 sehu,
-            } => {
+            }) => {
                 sei.visit_words(visitor);
                 for term in terms {
                     term.visit_words(visitor);
@@ -4028,27 +4052,27 @@ impl FreeModifierSyntax {
                     sehu.visit_words(visitor);
                 }
             }
-            FreeModifierSyntax::To { to, text, toi } => {
+            data!(FreeModifierSyntax::To { to, text, toi }) => {
                 to.visit_words(visitor);
                 text.visit_words(visitor);
                 if let Some(toi) = toi {
                     toi.visit_words(visitor);
                 }
             }
-            FreeModifierSyntax::Xi { xi, expression } => {
+            data!(FreeModifierSyntax::Xi { xi, expression }) => {
                 xi.visit_words(visitor);
                 expression.visit_words(visitor);
             }
-            FreeModifierSyntax::Mai { number, mai } => {
+            data!(FreeModifierSyntax::Mai { number, mai }) => {
                 visit_word_slice(number, visitor);
                 mai.visit_words(visitor);
             }
-            FreeModifierSyntax::Soi {
+            data!(FreeModifierSyntax::Soi {
                 soi,
                 leading_argument,
                 trailing_argument,
                 sehu,
-            } => {
+            }) => {
                 soi.visit_words(visitor);
                 leading_argument.visit_words(visitor);
                 if let Some(argument) = trailing_argument {
@@ -4058,11 +4082,11 @@ impl FreeModifierSyntax {
                     sehu.visit_words(visitor);
                 }
             }
-            FreeModifierSyntax::Vocative {
+            data!(FreeModifierSyntax::Vocative {
                 vocative_markers,
                 argument,
                 dohu,
-            } => {
+            }) => {
                 vocative_markers.visit_words(visitor);
                 if let Some(argument) = argument {
                     argument.visit_words(visitor);
@@ -4071,13 +4095,13 @@ impl FreeModifierSyntax {
                     dohu.visit_words(visitor);
                 }
             }
-            FreeModifierSyntax::Replacement {
+            data!(FreeModifierSyntax::Replacement {
                 lohai,
                 old_words,
                 sahai,
                 new_words,
                 lehai,
-            } => {
+            }) => {
                 if let Some(lohai) = lohai {
                     visitor(lohai);
                 }
@@ -4102,22 +4126,23 @@ impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
-        match self {
-            FreeModifierSyntax::Sei { sei, .. } => sei.first_word(),
-            FreeModifierSyntax::To { to, .. } => to.first_word(),
-            FreeModifierSyntax::Xi { xi, .. } => xi.first_word(),
-            FreeModifierSyntax::Mai { number, .. } => Some(number.first()),
-            FreeModifierSyntax::Soi { soi, .. } => soi.first_word(),
-            FreeModifierSyntax::Vocative {
-                vocative_markers, ..
-            } => vocative_markers.first_word(),
-            FreeModifierSyntax::Replacement {
+        match self.as_data() {
+            data!(FreeModifierSyntax::Sei { sei, .. }) => sei.first_word(),
+            data!(FreeModifierSyntax::To { to, .. }) => to.first_word(),
+            data!(FreeModifierSyntax::Xi { xi, .. }) => xi.first_word(),
+            data!(FreeModifierSyntax::Mai { number, .. }) => Some(number.first()),
+            data!(FreeModifierSyntax::Soi { soi, .. }) => soi.first_word(),
+            data!(FreeModifierSyntax::Vocative {
+                vocative_markers,
+                ..
+            }) => vocative_markers.first_word(),
+            data!(FreeModifierSyntax::Replacement {
                 lohai,
                 old_words,
                 sahai,
                 new_words,
                 lehai,
-            } => lohai
+            }) => lohai
                 .as_ref()
                 .or_else(|| old_words.first())
                 .or(sahai.as_ref())
@@ -4255,13 +4280,13 @@ impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            PredicateTail3Syntax::Relation {
+        match self.as_data() {
+            data!(PredicateTail3Syntax::Relation {
                 relation,
                 terms,
                 vau,
                 free_modifiers,
-            } => {
+            }) => {
                 relation.visit_words(visitor);
                 for term in terms {
                     term.visit_words(visitor);
@@ -4273,7 +4298,9 @@ impl PredicateTail3Syntax {
                     free_modifier.visit_words(visitor);
                 }
             }
-            PredicateTail3Syntax::GekSentence(gek_sentence) => gek_sentence.visit_words(visitor),
+            data!(PredicateTail3Syntax::GekSentence(gek_sentence)) => {
+                gek_sentence.visit_words(visitor)
+            }
         }
     }
 }
@@ -4282,8 +4309,8 @@ impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        match self {
-            GekSentenceSyntax::Pair {
+        match self.as_data() {
+            data!(GekSentenceSyntax::Pair {
                 gek,
                 first,
                 gik,
@@ -4292,7 +4319,7 @@ impl GekSentenceSyntax {
                 tail_terms,
                 vau,
                 free_modifiers,
-            } => {
+            }) => {
                 gek.visit_words(visitor);
                 first.visit_words(visitor);
                 gik.visit_words(visitor);
@@ -4310,12 +4337,12 @@ impl GekSentenceSyntax {
                     free_modifier.visit_words(visitor);
                 }
             }
-            GekSentenceSyntax::Ke {
+            data!(GekSentenceSyntax::Ke {
                 tense_modal,
                 ke,
                 inner,
                 kehe,
-            } => {
+            }) => {
                 if let Some(tense_modal) = tense_modal {
                     tense_modal.visit_words(visitor);
                 }
@@ -4325,7 +4352,7 @@ impl GekSentenceSyntax {
                     kehe.visit_words(visitor);
                 }
             }
-            GekSentenceSyntax::Na { na, inner } => {
+            data!(GekSentenceSyntax::Na { na, inner }) => {
                 na.visit_words(visitor);
                 inner.visit_words(visitor);
             }

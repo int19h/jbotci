@@ -354,7 +354,8 @@ fn public_connective(connective: ConnectiveSyntax) -> Connective {
 
 #[cfg(test)]
 mod tests {
-    use bityzba::requires;
+    #[allow(unused_imports)]
+    use bityzba::{data, new, requires, try_new};
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::segment_words_with_modifiers;
 
@@ -626,6 +627,72 @@ mod tests {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaRecursiveTag
             }));
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_wrong_enum_variant_cmavo_markers() {
+        run_on_large_stack(|| {
+            let subsentence = sample_subsentence();
+
+            assert!(
+                try_new!(ArgumentSyntax::BridiDescription {
+                    lohoi: free_word("le"),
+                    subsentence: Box::new(subsentence.clone()),
+                    kuhau: None,
+                })
+                .is_err()
+            );
+            assert!(
+                try_new!(ArgumentSyntax::BridiDescription {
+                    lohoi: free_word("lo'oi"),
+                    subsentence: Box::new(subsentence),
+                    kuhau: Some(free_word("ku'o")),
+                })
+                .is_err()
+            );
+            assert!(try_new!(RelationUnitSyntax::Mehoi(free_word("go'oi"))).is_err());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_empty_repeated_enum_payloads() {
+        assert!(try_new!(FragmentSyntax::BeiLink(Vec::new())).is_err());
+        assert!(try_new!(FragmentSyntax::RelativeClause(Vec::new())).is_err());
+        assert!(try_new!(ArgumentTailElementSyntax::RelativeClauses(Vec::new())).is_err());
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn free_word(text: &str) -> WithFreeModifiers<WithIndicators<WordLike>> {
+        WithFreeModifiers::new(indicated_word(text), Vec::new())
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn indicated_word(text: &str) -> WithIndicators<WordLike> {
+        let mut words = segment_words_with_modifiers(text).expect("valid morphology");
+        assert_eq!(words.len(), 1, "test helper expects one word");
+        WithIndicators::bare(words.remove(0))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sample_subsentence() -> SubsentenceSyntax {
+        let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
+        let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+        let statement = parsed.parse_tree.paragraphs[0].statements[0]
+            .statement
+            .as_ref()
+            .expect("parsed statement");
+        let predicate = match statement.as_data() {
+            data!(StatementSyntax::Predicate(predicate)) => predicate.clone(),
+            _ => panic!("test helper expected a predicate statement"),
+        };
+        new!(SubsentenceSyntax::Plain(predicate))
     }
 
     #[requires(true)]
