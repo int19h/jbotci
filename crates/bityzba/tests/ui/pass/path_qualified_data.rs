@@ -3,13 +3,13 @@ use bityzba::{data, invariant, new};
 mod model {
     use super::*;
 
-    #[invariant(self.start <= self.end)]
+    #[invariant(start <= end)]
     pub struct Span {
         pub start: usize,
         pub end: usize,
     }
 
-    #[invariant(matches!(self.as_data(), ChoiceData::Named { name } if !name.is_empty()) || matches!(self.as_data(), ChoiceData::Unset))]
+    #[invariant(::Named => !name.is_empty())]
     pub enum Choice {
         Unset,
         Named { name: String },

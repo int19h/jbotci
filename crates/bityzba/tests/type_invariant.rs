@@ -5,7 +5,7 @@
 use bityzba::{data, invariant, new, try_new};
 use serde::{Deserialize, Serialize};
 
-#[invariant(self.start <= self.end, "span bounds must be ordered")]
+#[invariant(start <= end, "span bounds must be ordered")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Span {
     pub start: usize,
@@ -13,21 +13,22 @@ struct Span {
     pub label: String,
 }
 
-#[invariant(matches!(self.as_data(), ChoiceData::Named { name } if !name.is_empty()) || matches!(self.as_data(), ChoiceData::Unset))]
+#[invariant(::Named => !name.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Choice {
     Unset,
     Named { name: String },
 }
 
-#[invariant(matches!(self.as_data(), TupleChoiceData::Pair(label, _) if !label.is_empty()) || matches!(self.as_data(), TupleChoiceData::Unset))]
+#[invariant(::Pair(label, _) => !label.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TupleChoice {
     Unset,
     Pair(String, usize),
 }
 
-#[invariant(tree_data_is_valid(self.as_data()))]
+#[invariant(::Leaf => !label.is_empty())]
+#[invariant(::Branch => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 enum Tree {
@@ -35,11 +36,22 @@ enum Tree {
     Branch { children: Vec<Tree> },
 }
 
-#[invariant(self.start <= self.end)]
+#[invariant(start <= end)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CustomSpan {
     start: usize,
     end: usize,
+}
+
+#[invariant(::Named { name } => !name.is_empty())]
+#[invariant(::Pair(label, count) => !label.is_empty() && *count > 0)]
+#[bityzba::expensive_invariant(::Expensive => *value > 0)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PatternChoice {
+    Named { name: String },
+    Pair(String, usize),
+    Expensive { value: usize },
+    Empty,
 }
 
 #[invariant(true)]
@@ -48,7 +60,7 @@ struct PlainMarker {
     pub value: usize,
 }
 
-#[invariant(true, "variant data already expresses all invariants")]
+#[invariant(::Named => true)]
 #[derive(Debug, PartialEq, Eq)]
 enum PlainChoice {
     Empty,
@@ -61,15 +73,6 @@ impl CustomSpan {
             return Err("inverted span");
         }
         Ok(Self::from_data(data!(CustomSpan { start, end })))
-    }
-}
-
-fn tree_data_is_valid(data: &TreeData) -> bool {
-    match data {
-        data!(Tree::Leaf { label }) => !label.is_empty(),
-        data!(Tree::Branch { children }) => children
-            .iter()
-            .all(|child| tree_data_is_valid(child.as_data())),
     }
 }
 
@@ -176,6 +179,33 @@ fn tuple_enum_variants_construct_and_match_through_macros() {
     }
 
     assert!(try_new!(TupleChoice::Pair(String::new(), 2)).is_err());
+}
+
+#[test]
+fn enum_variant_invariants_accept_explicit_patterns_and_unit_variants() {
+    assert!(
+        try_new!(PatternChoice::Named {
+            name: String::new()
+        })
+        .is_err()
+    );
+    assert!(try_new!(PatternChoice::Pair(String::from("cmavo"), 0)).is_err());
+    assert!(try_new!(PatternChoice::Empty).is_ok());
+
+    let value = new!(PatternChoice::Pair(String::from("cmavo"), 1));
+    match value.as_data() {
+        data!(PatternChoice::Pair(label, count)) => {
+            assert_eq!(label, "cmavo");
+            assert_eq!(*count, 1);
+        }
+        _ => panic!("wrong variant"),
+    }
+
+    let expensive = new!(PatternChoice::Expensive { value: 0 });
+    assert!(matches!(
+        expensive.as_data(),
+        data!(PatternChoice::Expensive { value }) if *value == 0
+    ));
 }
 
 #[test]

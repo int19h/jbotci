@@ -2,15 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::collections::BTreeSet;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use proc_macro2::Span;
+use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
 use syn::{
-    Attribute, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait,
-    TraitItem, TraitItemFn,
+    Attribute, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct,
+    ItemTrait, TraitItem, TraitItemFn,
 };
 use walkdir::WalkDir;
 
@@ -254,6 +255,25 @@ impl FileScanner {
                 "add `#[invariant(...)]`; reason carefully about what the type invariant must be, and only use `#[invariant(true)]` when the variant data already expresses the invariant",
             ));
         }
+
+        let variant_invariants = enum_variant_invariants(&item.attrs);
+        for variant in &item.variants {
+            if matches!(variant.fields, Fields::Unit) {
+                continue;
+            }
+            let variant_name = variant.ident.to_string();
+            if !variant_invariants.contains(&variant_name) {
+                self.diagnostics.push(Diagnostic::new(
+                    self.path.clone(),
+                    variant.ident.span().start().line,
+                    format!(
+                        "missing bityzba invariant on data-carrying enum variant `{}::{variant_name}`",
+                        item.ident
+                    ),
+                    "add `#[invariant(::Variant => ...)]`; use `#[invariant(::Variant => true)]` only when the variant data already expresses the invariant",
+                ));
+            }
+        }
     }
 
     fn scan_trait(&mut self, item: &ItemTrait) {
@@ -349,6 +369,82 @@ fn has_any_attr_named(attrs: &[Attribute], names: &[&str]) -> bool {
 
 fn has_attr_named(attrs: &[Attribute], name: &str) -> bool {
     has_any_attr_named(attrs, &[name])
+}
+
+fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {
+    let mut variants = BTreeSet::new();
+    for attr in attrs {
+        if !has_any_attr_named(
+            std::slice::from_ref(attr),
+            &["invariant", "expensive_invariant"],
+        ) {
+            continue;
+        }
+        let syn::Meta::List(list) = &attr.meta else {
+            continue;
+        };
+        for segment in attribute_segments(list.tokens.clone()) {
+            if let Some(variant) = variant_invariant_name(segment) {
+                variants.insert(variant);
+            }
+        }
+    }
+    variants
+}
+
+fn attribute_segments(tokens: TokenStream) -> Vec<TokenStream> {
+    let mut segments = Vec::new();
+    let mut segment = Vec::new();
+    for token in tokens {
+        match token {
+            TokenTree::Punct(punct)
+                if punct.as_char() == ',' && punct.spacing() == Spacing::Alone =>
+            {
+                if !segment.is_empty() {
+                    segments.push(segment.into_iter().collect());
+                    segment = Vec::new();
+                }
+            }
+            token => segment.push(token),
+        }
+    }
+    if !segment.is_empty() {
+        segments.push(segment.into_iter().collect());
+    }
+    segments
+}
+
+fn variant_invariant_name(segment: TokenStream) -> Option<String> {
+    let tokens = segment.into_iter().collect::<Vec<_>>();
+    if !starts_with_double_colon(&tokens) || top_level_fat_arrow_index(&tokens).is_none() {
+        return None;
+    }
+    match tokens.get(2) {
+        Some(TokenTree::Ident(ident)) => Some(ident.to_string()),
+        _ => None,
+    }
+}
+
+fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
+    matches!(
+        (tokens.first(), tokens.get(1)),
+        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
+            if first.as_char() == ':'
+                && first.spacing() == Spacing::Joint
+                && second.as_char() == ':'
+    )
+}
+
+fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
+    tokens.windows(2).position(|window| {
+        matches!(
+            (&window[0], &window[1]),
+            (TokenTree::Punct(first), TokenTree::Punct(second))
+                if first.as_char() == '='
+                    && first.spacing() == Spacing::Joint
+                    && second.as_char() == '>'
+        )
+    })
 }
 
 fn display_path(manifest_dir: &Path, path: &Path) -> String {

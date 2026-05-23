@@ -2,14 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use proc_macro2::TokenStream;
+use std::collections::{BTreeMap, BTreeSet};
+
+use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprLit, Fields, FieldsNamed, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Lit, Visibility,
+    ItemStruct, Lit, Variant, Visibility, parse::Parser,
 };
 
-use crate::implementation::{Contract, ContractMode, ContractType};
+use crate::implementation::{Contract, ContractMode, ContractType, parse};
 
 pub(crate) fn invariant_struct(
     mode: ContractMode,
@@ -42,11 +44,27 @@ pub(crate) fn invariant_enum(
     attr: TokenStream,
     mut item: ItemEnum,
 ) -> TokenStream {
-    let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
+    let contracts = collect_enum_type_invariants(mode, attr, &mut item.attrs);
     let option_errors = collect_type_option_errors(&mut item.attrs);
-    if contracts_are_true_marker(&contracts) {
+    if enum_contracts_are_true_marker(&contracts) {
+        let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
+        let contract_errors = &contracts.errors;
+        let (_, variant_errors) = enum_variant_invariant_expression(
+            &shape.data_ident,
+            item.variants.iter(),
+            &contracts.variant_arms,
+        );
+        if variant_errors.is_empty() {
+            return quote! {
+                #(#option_errors)*
+                #(#contract_errors)*
+                #item
+            };
+        }
         return quote! {
             #(#option_errors)*
+            #(#contract_errors)*
+            #(#variant_errors)*
             #item
         };
     }
@@ -193,7 +211,7 @@ fn generate_struct(
     let serialize_impl = shape.serialize_impl();
     let deserialize_impl = shape.deserialize_impl();
     let default_impl = shape.default_impl();
-    let invariant_expr = invariant_expression(&contracts);
+    let invariant_expr = invariant_expression(&contracts, quote! { true });
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let turbofish = ty_generics.as_turbofish();
@@ -338,7 +356,11 @@ fn generate_struct(
             }
 
             fn __bityzba_invariant(&self) -> bool {
-                #invariant_expr
+                {
+                    let #data_ident { #(#field_idents,)* } = self.as_data();
+                    let _ = (#(&#field_idents,)*);
+                    #invariant_expr
+                }
             }
         }
 
@@ -365,7 +387,7 @@ fn generate_struct(
 }
 
 fn generate_enum(
-    contracts: Vec<Contract>,
+    contracts: EnumTypeInvariants,
     option_errors: Vec<TokenStream>,
     item: ItemEnum,
 ) -> TokenStream {
@@ -381,14 +403,19 @@ fn generate_enum(
     let serialize_impl = shape.serialize_impl();
     let deserialize_impl = shape.deserialize_impl();
     let default_impl = shape.default_impl();
-    let invariant_expr = invariant_expression(&contracts);
-    let invariant_docs = invariant_docs(&contracts);
+    let contract_errors = &contracts.errors;
+    let (variant_invariant_expr, variant_errors) =
+        enum_variant_invariant_expression(&data_ident, variants.iter(), &contracts.variant_arms);
+    let invariant_expr = invariant_expression(&contracts.type_contracts, variant_invariant_expr);
+    let invariant_docs = enum_invariant_docs(&contracts);
     let generics = &item.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let turbofish = ty_generics.as_turbofish();
 
     quote! {
         #(#option_errors)*
+        #(#contract_errors)*
+        #(#variant_errors)*
 
         #(#data_attrs)*
         #data_vis enum #data_ident #generics #where_clause {
@@ -531,7 +558,64 @@ fn collect_type_invariants(
     contracts
 }
 
-fn invariant_expression(contracts: &[Contract]) -> TokenStream {
+fn collect_enum_type_invariants(
+    initial_mode: ContractMode,
+    initial_attr: TokenStream,
+    attrs: &mut Vec<Attribute>,
+) -> EnumTypeInvariants {
+    let mut contracts = EnumTypeInvariants::default();
+    collect_enum_type_invariant_tokens(initial_mode, initial_attr, &mut contracts);
+
+    let mut retained = Vec::new();
+    for attr in std::mem::take(attrs) {
+        let name = attr
+            .path()
+            .segments
+            .last()
+            .expect("attribute path has at least one segment")
+            .ident
+            .to_string();
+        if let Some((ContractType::Invariant, mode)) = ContractType::contract_type_and_mode(&name) {
+            if let syn::Meta::List(list) = &attr.meta {
+                collect_enum_type_invariant_tokens(mode, list.tokens.clone(), &mut contracts);
+            }
+        } else {
+            retained.push(attr);
+        }
+    }
+    *attrs = retained;
+    contracts
+}
+
+fn collect_enum_type_invariant_tokens(
+    mode: ContractMode,
+    tokens: TokenStream,
+    contracts: &mut EnumTypeInvariants,
+) {
+    let segments = parse::parse_attribute_segments(tokens.clone());
+    if segments
+        .iter()
+        .any(|segment| parse_enum_variant_invariant(mode, segment.clone()).is_some())
+    {
+        for segment in segments {
+            match parse_enum_variant_invariant(mode, segment.clone()) {
+                Some(Ok(variant_arm)) => contracts.variant_arms.push(variant_arm),
+                Some(Err(error)) => contracts.errors.push(error.to_compile_error()),
+                None => contracts.type_contracts.push(Contract::from_toks(
+                    ContractType::Invariant,
+                    mode,
+                    segment,
+                )),
+            }
+        }
+    } else {
+        contracts
+            .type_contracts
+            .push(Contract::from_toks(ContractType::Invariant, mode, tokens));
+    }
+}
+
+fn invariant_expression(contracts: &[Contract], extra_check: TokenStream) -> TokenStream {
     let checks = contracts
         .iter()
         .flat_map(|contract| {
@@ -545,7 +629,7 @@ fn invariant_expression(contracts: &[Contract]) -> TokenStream {
             })
         })
         .collect::<Vec<_>>();
-    quote! { true #(&& #checks)* }
+    quote! { true #(&& #checks)* && (#extra_check) }
 }
 
 fn invariant_docs(contracts: &[Contract]) -> String {
@@ -566,10 +650,44 @@ fn invariant_docs(contracts: &[Contract]) -> String {
         .join(", ")
 }
 
+fn enum_invariant_docs(contracts: &EnumTypeInvariants) -> String {
+    contracts
+        .type_contracts
+        .iter()
+        .flat_map(|contract| {
+            let mut docs = contract
+                .streams
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+            if let Some(desc) = &contract.desc {
+                docs.push(desc.clone());
+            }
+            docs
+        })
+        .chain(
+            contracts
+                .variant_arms
+                .iter()
+                .map(|variant_arm| variant_arm.display.to_string()),
+        )
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn contracts_are_true_marker(contracts: &[Contract]) -> bool {
     contracts.iter().all(|contract| {
         !contract.assertions.is_empty() && contract.assertions.iter().all(is_true_literal)
     })
+}
+
+fn enum_contracts_are_true_marker(contracts: &EnumTypeInvariants) -> bool {
+    contracts.errors.is_empty()
+        && contracts_are_true_marker(&contracts.type_contracts)
+        && contracts
+            .variant_arms
+            .iter()
+            .all(|variant_arm| is_true_literal(&variant_arm.expr))
 }
 
 fn is_true_literal(expr: &Expr) -> bool {
@@ -580,6 +698,198 @@ fn is_true_literal(expr: &Expr) -> bool {
             ..
         }) if value.value
     )
+}
+
+fn enum_variant_invariant_expression<'a>(
+    data_ident: &Ident,
+    variants: impl Iterator<Item = &'a Variant>,
+    variant_arms: &[EnumVariantInvariant],
+) -> (TokenStream, Vec<TokenStream>) {
+    let variants_by_name = variants
+        .map(|variant| (variant.ident.to_string(), variant))
+        .collect::<BTreeMap<_, _>>();
+    let mut errors = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut checks = Vec::new();
+
+    for variant_arm in variant_arms {
+        let variant_name = variant_arm.variant_ident.to_string();
+        if !seen.insert(variant_name.clone()) {
+            errors.push(
+                syn::Error::new_spanned(
+                    &variant_arm.variant_ident,
+                    format!("duplicate invariant for enum variant `{variant_name}`"),
+                )
+                .to_compile_error(),
+            );
+            continue;
+        }
+
+        let Some(variant) = variants_by_name.get(&variant_name) else {
+            errors.push(
+                syn::Error::new_spanned(
+                    &variant_arm.variant_ident,
+                    format!("unknown enum variant `{variant_name}` in invariant"),
+                )
+                .to_compile_error(),
+            );
+            continue;
+        };
+
+        let (pattern, use_bound_fields) =
+            match enum_variant_invariant_pattern(data_ident, variant, &variant_arm.tail) {
+                Ok(pattern) => pattern,
+                Err(error) => {
+                    errors.push(error.to_compile_error());
+                    continue;
+                }
+            };
+        let expr = &variant_arm.expr;
+        let check = quote! {
+            {
+                match self.as_data() {
+                    #pattern => {
+                        #use_bound_fields
+                        (#expr)
+                    }
+                    _ => true,
+                }
+            }
+        };
+
+        if variant_arm.mode.final_mode() == ContractMode::Expensive {
+            checks.push(quote! { (!cfg!(feature = "expensive_contracts") || (#check)) });
+        } else {
+            checks.push(quote! { (#check) });
+        }
+    }
+
+    for (variant_name, variant) in &variants_by_name {
+        if !matches!(variant.fields, Fields::Unit) && !seen.contains(variant_name) {
+            errors.push(
+                syn::Error::new_spanned(
+                    &variant.ident,
+                    format!(
+                        "missing invariant for data-carrying enum variant `{variant_name}`; add `#[invariant(::{variant_name} => true)]` if the variant data already expresses the invariant"
+                    ),
+                )
+                .to_compile_error(),
+            );
+        }
+    }
+
+    (quote! { true #(&& #checks)* }, errors)
+}
+
+fn enum_variant_invariant_pattern(
+    data_ident: &Ident,
+    variant: &Variant,
+    tail: &TokenStream,
+) -> syn::Result<(TokenStream, TokenStream)> {
+    let variant_ident = &variant.ident;
+    if tail.is_empty() {
+        return match &variant.fields {
+            Fields::Named(fields) => {
+                let field_idents = fields
+                    .named
+                    .iter()
+                    .map(|field| field.ident.clone().expect("named field"))
+                    .collect::<Vec<_>>();
+                Ok((
+                    quote! { #data_ident::#variant_ident { #(#field_idents,)* } },
+                    quote! { let _ = (#(&#field_idents,)*); },
+                ))
+            }
+            Fields::Unnamed(_) => Err(syn::Error::new_spanned(
+                variant_ident,
+                "tuple variant invariant requires an explicit tuple pattern",
+            )),
+            Fields::Unit => Ok((quote! { #data_ident::#variant_ident }, quote! {})),
+        };
+    }
+
+    let pattern_tokens = quote! { #data_ident::#variant_ident #tail };
+    syn::Pat::parse_single
+        .parse2(pattern_tokens.clone())
+        .map(|_| (pattern_tokens, quote! {}))
+}
+
+fn parse_enum_variant_invariant(
+    mode: ContractMode,
+    segment: TokenStream,
+) -> Option<syn::Result<EnumVariantInvariant>> {
+    let tokens = segment.clone().into_iter().collect::<Vec<_>>();
+    if !starts_with_double_colon(&tokens) {
+        return None;
+    }
+    let arrow_index = top_level_fat_arrow_index(&tokens)?;
+
+    let Some(TokenTree::Ident(variant_ident)) = tokens.get(2) else {
+        return Some(Err(syn::Error::new_spanned(
+            segment,
+            "enum variant invariant must start with `::Variant`",
+        )));
+    };
+
+    let tail = tokens[3..arrow_index]
+        .iter()
+        .cloned()
+        .collect::<TokenStream>();
+    let expr_tokens = tokens[arrow_index + 2..]
+        .iter()
+        .cloned()
+        .collect::<TokenStream>();
+    if expr_tokens.is_empty() {
+        return Some(Err(syn::Error::new_spanned(
+            segment,
+            "enum variant invariant requires an expression after `=>`",
+        )));
+    }
+
+    Some(Ok(EnumVariantInvariant {
+        mode,
+        variant_ident: variant_ident.clone(),
+        tail,
+        expr: parse::parse_contract_expr(expr_tokens),
+        display: segment,
+    }))
+}
+
+fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
+    matches!(
+        (tokens.first(), tokens.get(1)),
+        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
+            if first.as_char() == ':'
+                && first.spacing() == Spacing::Joint
+                && second.as_char() == ':'
+    )
+}
+
+fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
+    tokens.windows(2).position(|window| {
+        matches!(
+            (&window[0], &window[1]),
+            (TokenTree::Punct(first), TokenTree::Punct(second))
+                if first.as_char() == '='
+                    && first.spacing() == Spacing::Joint
+                    && second.as_char() == '>'
+        )
+    })
+}
+
+#[derive(Default)]
+struct EnumTypeInvariants {
+    type_contracts: Vec<Contract>,
+    variant_arms: Vec<EnumVariantInvariant>,
+    errors: Vec<TokenStream>,
+}
+
+struct EnumVariantInvariant {
+    mode: ContractMode,
+    variant_ident: Ident,
+    tail: TokenStream,
+    expr: Expr,
+    display: TokenStream,
 }
 
 fn generic_arguments(generics: &Generics) -> Vec<TokenStream> {

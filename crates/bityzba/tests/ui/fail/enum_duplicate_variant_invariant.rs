@@ -1,12 +1,9 @@
 use bityzba::invariant;
 
+#[invariant(::Named => true)]
 #[invariant(::Named => !name.is_empty())]
 enum Choice {
     Named { name: String },
 }
 
-fn main() {
-    let _ = Choice::Named {
-        name: String::new(),
-    };
-}
+fn main() {}

@@ -8,6 +8,12 @@ enum Choice {
     Present,
 }
 
+#[invariant(::Present => true)]
+enum DataChoice {
+    Empty,
+    Present { value: usize },
+}
+
 #[contract_trait]
 trait Provides {
     #[requires(true)]

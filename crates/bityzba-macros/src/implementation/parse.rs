@@ -45,6 +45,21 @@ pub(crate) fn parse_attributes(
     (conds, segments_stream, desc)
 }
 
+pub(crate) fn parse_contract_expr(attrs: TokenStream) -> Expr {
+    let rewritten = rewrite(attrs.into_iter().collect());
+    match syn::parse2::<Expr>(rewritten) {
+        Ok(expr) => expr,
+        Err(error) => Expr::Verbatim(error.to_compile_error()),
+    }
+}
+
+pub(crate) fn parse_attribute_segments(attrs: TokenStream) -> Vec<TokenStream> {
+    segment_input(attrs)
+        .into_iter()
+        .map(|segment| segment.into_iter().collect())
+        .collect()
+}
+
 // This function rewrites a list of TokenTrees so that the "pseudooperator" for
 // implication `==>` gets transformed into an `if` expression.
 //

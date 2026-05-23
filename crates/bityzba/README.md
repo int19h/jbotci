@@ -86,16 +86,23 @@ impl Buffer {
 `#[invariant]` on a named-field struct or enum creates a wrapper type and an
 unchecked data type named `TypeData`. Values of the wrapper type are valid by
 construction. Public `is_valid()` is not the model for invariant-bearing types.
-On structs and enums, `#[invariant(true)]` and `#[expensive_invariant(true)]`
-are explicit "audited no data invariant" markers and leave the type unchanged:
-no wrapper, no `TypeData`, no `new!`, and no `data!` machinery are generated.
+Named struct fields are bound by reference inside type invariant expressions,
+so `start <= end` is equivalent to comparing the borrowed fields; existing
+`self.field` expressions remain valid.
+
+On structs and data-less enums, `#[invariant(true)]` and
+`#[expensive_invariant(true)]` are explicit "audited no data invariant" markers
+and leave the type unchanged: no wrapper, no `TypeData`, no `new!`, and no
+`data!` machinery are generated. Data-carrying enum variants use explicit
+variant arms; an audited no-op for a variant is `#[invariant(::Variant =>
+true)]`.
 
 ```rust
 use bityzba::{data, invariant, new, try_new};
 use serde::{Deserialize, Serialize};
 
-#[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
-#[invariant(self.char_start <= self.char_end, "char range must be ordered")]
+#[invariant(byte_start <= byte_end, "byte range must be ordered")]
+#[invariant(char_start <= char_end, "char range must be ordered")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub byte_start: usize,
@@ -164,7 +171,7 @@ Use `from_data` after explicit checks have proved the invariant, or
 `try_from_data` when converting unchecked input directly.
 
 ```rust
-#[invariant(self.start <= self.end)]
+#[invariant(start <= end)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -187,10 +194,27 @@ Enums use the same construction macros. Named variants use braces, tuple
 variants use parentheses, and unit variants use a path:
 
 ```rust
+#[invariant(::Node => true)]
+#[invariant(::Word => !word.is_empty())]
+#[invariant(::Pair(left, right) => !left.is_empty() && *right > 0)]
+enum SyntaxValue {
+    Node { node: Node },
+    Word { word: String },
+    Pair(String, usize),
+    Null,
+}
+
 let value = new!(SyntaxValue::Node { node });
 let value = new!(SyntaxValue::Null);
-let value = new!(Example::Pair(left, right));
+let value = new!(SyntaxValue::Pair(left, right));
 ```
+
+For named-field variants, `::Variant => expr` auto-binds all fields by
+reference. Use normal Rust pattern tails when the binding shape matters:
+`::Variant { field, .. } => expr` for named variants and
+`::Variant(label, count) => expr` for tuple variants. Unit-variant arms are
+allowed but not required. Whole-enum expression invariants can still be written
+and are conjoined with any variant arms.
 
 For structs with private fields, `new!` expands through generated hidden
 builder methods, so construction can be part of the public API without exposing
@@ -254,12 +278,12 @@ The scanner checks Rust source files under `src`, `tests`, `benches`, and
 inherent method, and trait method to have both a precondition marker
 (`requires` or `expensive_requires`) and a postcondition marker (`ensures` or
 `expensive_ensures`). It requires every struct and enum to have `invariant` or
-`expensive_invariant`, and every trait to use `contract_trait`.
+`expensive_invariant`, every data-carrying enum variant to have an explicit
+variant invariant arm, and every trait to use `contract_trait`. Unit variants
+do not require variant arms.
 
 Diagnostics are intentionally worded for coding agents: they ask for the real
 contract to be reasoned through and describe `true` markers as a last resort,
 not as the default response. The scanner is syntactic and stable-Rust
 compatible; it does not inspect macro expansions and does not treat `cfg_attr`
-as a visible contract in v1.
-attr`
 as a visible contract in v1.
