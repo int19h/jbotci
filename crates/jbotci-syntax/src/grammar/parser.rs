@@ -1,6 +1,7 @@
 use super::tense::*;
 use super::tokens::*;
 use super::*;
+use crate::SyntaxExpectedTokenData;
 use chumsky::input::MapExtra;
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
@@ -230,29 +231,39 @@ fn statement_parser<'tokens>(
         .features
         .contains(&DialectFeature::TermHierarchy);
     let cbm_enabled = options.dialect.features.contains(&DialectFeature::Cbm);
-    argument.define(argument_parser_with(
-        argument.clone(),
-        relation.clone(),
-        subsentence.clone(),
-        term.clone(),
-        text.clone(),
-        free_modifier.clone(),
-        source,
-    ));
+    argument.define(
+        argument_parser_with(
+            argument.clone(),
+            relation.clone(),
+            subsentence.clone(),
+            term.clone(),
+            text.clone(),
+            free_modifier.clone(),
+            source,
+        )
+        .labelled("argument")
+        .as_context()
+        .boxed(),
+    );
     let tense_modal_with_free_modifiers = tense_modal()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
             attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
         })
         .boxed();
-    relation.define(relation_parser_with(
-        argument.clone(),
-        relation.clone(),
-        subsentence.clone(),
-        text.clone(),
-        free_modifier.clone(),
-        source,
-    ));
+    relation.define(
+        relation_parser_with(
+            argument.clone(),
+            relation.clone(),
+            subsentence.clone(),
+            text.clone(),
+            free_modifier.clone(),
+            source,
+        )
+        .labelled("relation")
+        .as_context()
+        .boxed(),
+    );
 
     let argument_term = argument
         .clone()
@@ -692,7 +703,7 @@ fn statement_parser<'tokens>(
             )
             .boxed()
     };
-    term.define(term_body.boxed());
+    term.define(term_body.labelled("term").as_context().boxed());
     let tail_term = cmavo(Cmavo::I)
         .rewind()
         .not()
@@ -922,9 +933,10 @@ fn statement_parser<'tokens>(
                     if ke_continuation.as_ref().is_some_and(|ke_continuation| {
                         !predicate_tail_ke_continuation_allowed(&first, ke_continuation)
                     }) {
-                        return Err(Rich::custom(
+                        return Err(SyntaxParseError::custom(
                             span,
-                            "predicate-tail KE continuation conflicts with trailing argument connection",
+                            "predicate-tail KE continuation conflicts with trailing argument connection"
+                                .to_owned(),
                         ));
                     }
                     Ok(PredicateTailSyntax {
@@ -1029,7 +1041,11 @@ fn statement_parser<'tokens>(
                 })
             },
         );
-    subsentence.define(choice((prenex_subsentence, plain_subsentence)));
+    subsentence.define(
+        choice((prenex_subsentence, plain_subsentence))
+            .labelled("subsentence")
+            .as_context(),
+    );
     let predicate_statement_bo_continuation = predicate_tail_connective()
         .then(tense_modal_with_free_modifiers.clone().or_not())
         .then(cmavo(Cmavo::Bo))
@@ -1395,21 +1411,25 @@ fn statement_parser<'tokens>(
             None => statement,
         });
 
-    statement.define(iau_statement_body);
-    free_modifier.define(choice((
-        replacement_free(free_modifier.clone()),
-        mai_free(free_modifier.clone()),
-        xi_free(free_modifier.clone()),
-        sei_free(term.clone(), relation.clone(), free_modifier.clone()),
-        soi_free(argument.clone(), free_modifier.clone()),
-        to_free(text.clone(), free_modifier.clone()),
-        vocative_free(
-            argument.clone(),
-            relation.clone(),
-            subsentence.clone(),
-            free_modifier.clone(),
-        ),
-    )));
+    statement.define(iau_statement_body.labelled("statement").as_context());
+    free_modifier.define(
+        choice((
+            replacement_free(free_modifier.clone()),
+            mai_free(free_modifier.clone()),
+            xi_free(free_modifier.clone()),
+            sei_free(term.clone(), relation.clone(), free_modifier.clone()),
+            soi_free(argument.clone(), free_modifier.clone()),
+            to_free(text.clone(), free_modifier.clone()),
+            vocative_free(
+                argument.clone(),
+                relation.clone(),
+                subsentence.clone(),
+                free_modifier.clone(),
+            ),
+        ))
+        .labelled("free modifier")
+        .as_context(),
+    );
 
     let paragraph_statement_body = choice((statement.clone(), fragment_statement.clone())).boxed();
     let initial_statement = paragraph_statement_body.clone().map(|statement| {
@@ -1597,7 +1617,7 @@ fn statement_parser<'tokens>(
             },
         );
 
-    text.define(text_body);
+    text.define(text_body.labelled("text").as_context());
     text.then_ignore(end()).boxed()
 }
 
@@ -2101,9 +2121,13 @@ where
 fn raw_words_until<'tokens>(
     terminators: &'static [Cmavo],
 ) -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
-    token_matching("replacement word", move |word| {
-        !word.is_one_of_cmavo(terminators)
-    })
+    token_matching(
+        "replacement word",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::ReplacementWord,
+        ))],
+        move |word| !word.is_one_of_cmavo(terminators),
+    )
     .repeated()
     .collect::<Vec<_>>()
     .boxed()
@@ -3611,7 +3635,12 @@ where
                         WithFreeModifiers::new(word.clone(), Vec::new()),
                     )))))
                 },
-                _ => Err(Rich::custom(span, "expected quote")),
+                _ => Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::WordCategory(
+                        SyntaxWordCategory::Quote
+                    ))],
+                )),
             }
         })
         .map_with(
@@ -5016,7 +5045,6 @@ where
         + 'tokens,
     B: Fn(WithFreeModifiers<WithIndicators<WordLike>>) -> RelationUnitSyntax + Clone + 'tokens,
 {
-    let marker_text = marker_cmavo.canonical_text();
     any()
         .try_map(move |word: WithIndicators<WordLike>, span| {
             let data!(WordLike::SingleWordQuote {
@@ -5024,12 +5052,18 @@ where
                 ..
             }) = word.core_word().as_data()
             else {
-                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+                return Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                ));
             };
             if marker.is_cmavo(marker_cmavo) {
                 Ok(word.clone())
             } else {
-                Err(Rich::custom(span, format!("expected {marker_text} quote")))
+                Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                ))
             }
         })
         .map_with(
@@ -5065,27 +5099,38 @@ where
         + 'tokens,
     B: Fn(WithFreeModifiers<WithIndicators<WordLike>>) -> RelationUnitSyntax + Clone + 'tokens,
 {
-    let marker_text = marker_cmavo.canonical_text();
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
         let Some(word): Option<WithIndicators<WordLike>> = input.next() else {
             let span = input.span_since(&cursor);
-            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            return Err(SyntaxParseError::expected(
+                span,
+                vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+            ));
         };
         let span = input.span_since(&cursor);
         let data!(WordLike::ZoiQuote { zoi, .. }) = word.core_word().as_data() else {
             input.rewind(checkpoint);
-            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            return Err(SyntaxParseError::expected(
+                span,
+                vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+            ));
         };
         if !zoi.is_cmavo(marker_cmavo) {
             input.rewind(checkpoint);
-            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            return Err(SyntaxParseError::expected(
+                span,
+                vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+            ));
         }
         let state: &mut ParserState = input.state();
         if required_feature.is_some_and(|feature| !state.feature_enabled(feature)) {
             input.rewind(checkpoint);
-            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            return Err(SyntaxParseError::expected(
+                span,
+                vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+            ));
         }
         if let Some(construct) = quoted_relation_unit_warning(marker_cmavo) {
             state.warn(construct, &word);

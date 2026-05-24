@@ -3,7 +3,6 @@ use bityzba::{data, ensures, invariant, new, requires};
 use std::collections::VecDeque;
 
 use chumsky::Boxed;
-use chumsky::error::Rich;
 use chumsky::input::MappedInput;
 use chumsky::input::{Checkpoint, Cursor};
 use chumsky::inspector::Inspector;
@@ -14,21 +13,23 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
     Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
-    ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxParse, SyntaxWarning,
-    WithIndicators,
+    ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxExpectedToken, SyntaxParse,
+    SyntaxWarning, SyntaxWordCategory, WithIndicators,
 };
 
 pub(crate) mod ast;
 use ast::*;
+mod parse_error;
 mod parser;
 mod tense;
 pub(crate) mod tokens;
+use parse_error::SyntaxParseError;
 
 type Span = SimpleSpan;
 type Token = WithIndicators<WordLike>;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
-type ParseExtra<'tokens> = extra::Full<Rich<'tokens, Token, Span>, ParserState, ()>;
+type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState, ()>;
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
 

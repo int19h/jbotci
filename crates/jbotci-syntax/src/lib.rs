@@ -12,7 +12,8 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_diagnostics::{
-    Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity, source_span_from_byte_offsets,
+    Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
+    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, source_span_from_byte_offsets,
 };
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
@@ -214,7 +215,114 @@ pub enum SyntaxError {
         byte_end: usize,
         reason: String,
         expected: Vec<String>,
+        expectations: Vec<SyntaxExpectation>,
     },
+}
+
+#[invariant(::Cmavo(cmavo) => !cmavo.canonical_text().is_empty())]
+#[invariant(::Selmaho(selmaho) => !selmaho.name().is_empty())]
+#[invariant(::WordCategory(category) => !category.display_name().is_empty())]
+#[invariant(::Named(name) => !name.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SyntaxExpectedToken {
+    Cmavo(Cmavo),
+    Selmaho(Selmaho),
+    WordCategory(SyntaxWordCategory),
+    EndOfInput,
+    Named(String),
+}
+
+impl SyntaxExpectedToken {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn summary_text(&self) -> String {
+        match self.as_data() {
+            data!(SyntaxExpectedToken::Cmavo(cmavo)) => cmavo.canonical_text().to_owned(),
+            data!(SyntaxExpectedToken::Selmaho(selmaho)) => selmaho.name().to_owned(),
+            data!(SyntaxExpectedToken::WordCategory(category)) => {
+                category.display_name().to_owned()
+            }
+            data!(SyntaxExpectedToken::EndOfInput) => "end of input".to_owned(),
+            data!(SyntaxExpectedToken::Named(name)) => name.clone(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn role(&self) -> DiagnosticTextRole {
+        match self.as_data() {
+            data!(SyntaxExpectedToken::Cmavo(_)) => DiagnosticTextRole::SpecificWord,
+            data!(SyntaxExpectedToken::Selmaho(_)) => DiagnosticTextRole::Selmaho,
+            data!(SyntaxExpectedToken::WordCategory(_)) => DiagnosticTextRole::WordCategory,
+            data!(SyntaxExpectedToken::EndOfInput) | data!(SyntaxExpectedToken::Named(_)) => {
+                DiagnosticTextRole::Plain
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SyntaxWordCategory {
+    Brivla,
+    Cmevla,
+    RelationWord,
+    KohaArgument,
+    LetterWord,
+    ReplacementWord,
+    Quote,
+}
+
+impl SyntaxWordCategory {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Brivla => "BRIVLA",
+            Self::Cmevla => "CMEVLA",
+            Self::RelationWord => "RELATION WORD",
+            Self::KohaArgument => "KOhA ARGUMENT",
+            Self::LetterWord => "LETTER WORD",
+            Self::ReplacementWord => "REPLACEMENT WORD",
+            Self::Quote => "QUOTE",
+        }
+    }
+}
+
+#[invariant(::ContinueCurrent { construct } => !construct.is_empty())]
+#[invariant(::StartNested { construct } => !construct.is_empty())]
+#[invariant(::EndThenStart { starts, ends } => !starts.is_empty() && ends.iter().all(|construct| !construct.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SyntaxExpectationReason {
+    ContinueCurrent { construct: String },
+    StartNested { construct: String },
+    EndThenStart { starts: String, ends: Vec<String> },
+}
+
+impl SyntaxExpectationReason {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn construct(&self) -> &str {
+        match self.as_data() {
+            data!(SyntaxExpectationReason::ContinueCurrent { construct })
+            | data!(SyntaxExpectationReason::StartNested { construct }) => construct,
+            data!(SyntaxExpectationReason::EndThenStart { starts, .. }) => starts,
+        }
+    }
+}
+
+#[invariant(!tokens.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SyntaxExpectation {
+    pub tokens: Vec<SyntaxExpectedToken>,
+    pub reason: SyntaxExpectationReason,
+}
+
+impl SyntaxExpectation {
+    #[requires(!tokens.is_empty())]
+    #[ensures(true)]
+    pub fn new(tokens: Vec<SyntaxExpectedToken>, reason: SyntaxExpectationReason) -> Self {
+        new!(SyntaxExpectation { tokens, reason })
+    }
 }
 
 impl SyntaxError {
@@ -244,26 +352,228 @@ impl SyntaxError {
                 byte_end,
                 reason,
                 expected,
+                expectations,
             } => {
                 let span = source_span_from_byte_offsets(source_id, source, *byte_start, *byte_end)
                     .expect("syntax errors store offsets derived from the same source text");
-                let notes = if expected.is_empty() {
-                    Vec::new()
-                } else {
-                    vec![format!("expected one of: {}", expected.join(", "))]
-                };
                 Diagnostic::new(
                     DiagnosticSeverity::Error,
                     DiagnosticPhase::Syntax,
                     "syntax.parse".to_owned(),
                     "syntax parse failed".to_owned(),
                     vec![DiagnosticLabel::new(span, reason.clone(), true)],
-                    notes,
+                    Vec::new(),
                     None,
                 )
+                .with_styled_notes(syntax_expected_notes(expected, expectations))
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|note| !note.segments.is_empty()))]
+fn syntax_expected_notes(
+    expected: &[String],
+    expectations: &[SyntaxExpectation],
+) -> Vec<DiagnosticStyledNote> {
+    let mut notes = Vec::new();
+    if !expectations.is_empty() {
+        notes.push(DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            syntax_summary_segments_from_expectations(expectations),
+        ));
+        notes.push(DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Detailed,
+            syntax_detailed_segments(expectations),
+        ));
+    } else if !expected.is_empty() {
+        notes.push(DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            syntax_summary_segments_from_strings(expected),
+        ));
+    }
+    notes
+}
+
+#[requires(!expectations.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_summary_segments_from_expectations(
+    expectations: &[SyntaxExpectation],
+) -> Vec<DiagnosticTextSegment> {
+    let mut tokens = Vec::<SyntaxExpectedToken>::new();
+    for expectation in expectations {
+        for token in &expectation.tokens {
+            if !tokens.contains(token) {
+                tokens.push(token.clone());
+            }
+        }
+    }
+    let mut segments = vec![plain_segment("expected one of: ")];
+    push_comma_token_list(&mut segments, &tokens);
+    segments
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_summary_segments_from_strings(expected: &[String]) -> Vec<DiagnosticTextSegment> {
+    let mut segments = vec![plain_segment("expected one of: ")];
+    for (index, item) in expected.iter().enumerate() {
+        if index > 0 {
+            segments.push(punctuation_segment(", "));
+        }
+        segments.push(plain_segment(item));
+    }
+    segments
+}
+
+#[requires(!expectations.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_detailed_segments(expectations: &[SyntaxExpectation]) -> Vec<DiagnosticTextSegment> {
+    let mut segments = vec![plain_segment("needs one of:")];
+    let deduped = merge_expectations_by_reason(expectations);
+    for expectation in &deduped {
+        segments.push(plain_segment("\n"));
+        segments.push(punctuation_segment("- "));
+        push_expectation_segments(&mut segments, expectation);
+    }
+    segments
+}
+
+#[requires(!expectations.is_empty())]
+#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+fn merge_expectations_by_reason(expectations: &[SyntaxExpectation]) -> Vec<SyntaxExpectation> {
+    let mut merged = Vec::<SyntaxExpectation>::new();
+    for expectation in expectations {
+        if let Some(existing) = merged
+            .iter_mut()
+            .find(|existing| existing.reason == expectation.reason)
+        {
+            let mut tokens = existing.tokens.clone();
+            for token in &expectation.tokens {
+                if !tokens.contains(token) {
+                    tokens.push(token.clone());
+                }
+            }
+            if tokens.len() != existing.tokens.len() {
+                *existing = existing.clone().with_data(data! { tokens: tokens });
+            }
+        } else {
+            merged.push(expectation.clone());
+        }
+    }
+    merged
+}
+
+#[requires(!expectation.tokens.is_empty())]
+#[ensures(true)]
+fn push_expectation_segments(
+    segments: &mut Vec<DiagnosticTextSegment>,
+    expectation: &SyntaxExpectation,
+) {
+    match expectation.reason.as_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { construct }) => {
+            push_token_list(segments, &expectation.tokens);
+            segments.push(punctuation_segment(" ["));
+            segments.push(keyword_segment("continues"));
+            segments.push(punctuation_segment(" "));
+            segments.push(construct_segment(construct));
+            segments.push(punctuation_segment("]"));
+        }
+        data!(SyntaxExpectationReason::StartNested { construct }) => {
+            segments.push(construct_segment(construct));
+            segments.push(punctuation_segment(" ("));
+            push_token_list(segments, &expectation.tokens);
+            segments.push(punctuation_segment(")"));
+        }
+        data!(SyntaxExpectationReason::EndThenStart { starts, ends }) => {
+            segments.push(construct_segment(starts));
+            segments.push(punctuation_segment(" ("));
+            push_token_list(segments, &expectation.tokens);
+            segments.push(punctuation_segment(")"));
+            if !ends.is_empty() {
+                segments.push(punctuation_segment(" ["));
+                segments.push(keyword_segment("ends"));
+                segments.push(punctuation_segment(" "));
+                push_construct_list(segments, ends);
+                segments.push(punctuation_segment("]"));
+            }
+        }
+    }
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn push_token_list(segments: &mut Vec<DiagnosticTextSegment>, tokens: &[SyntaxExpectedToken]) {
+    for (index, token) in tokens.iter().enumerate() {
+        if index > 0 {
+            if index + 1 == tokens.len() {
+                segments.push(punctuation_segment(" or "));
+            } else {
+                segments.push(punctuation_segment(", "));
+            }
+        }
+        segments.push(DiagnosticTextSegment::new(
+            token.role(),
+            token.summary_text(),
+        ));
+    }
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn push_comma_token_list(
+    segments: &mut Vec<DiagnosticTextSegment>,
+    tokens: &[SyntaxExpectedToken],
+) {
+    for (index, token) in tokens.iter().enumerate() {
+        if index > 0 {
+            segments.push(punctuation_segment(", "));
+        }
+        segments.push(DiagnosticTextSegment::new(
+            token.role(),
+            token.summary_text(),
+        ));
+    }
+}
+
+#[requires(!constructs.is_empty())]
+#[ensures(true)]
+fn push_construct_list(segments: &mut Vec<DiagnosticTextSegment>, constructs: &[String]) {
+    for (index, construct) in constructs.iter().enumerate() {
+        if index > 0 {
+            if index + 1 == constructs.len() {
+                segments.push(punctuation_segment(" or "));
+            } else {
+                segments.push(punctuation_segment(", "));
+            }
+        }
+        segments.push(construct_segment(construct));
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.text == text)]
+fn plain_segment(text: &str) -> DiagnosticTextSegment {
+    DiagnosticTextSegment::new(DiagnosticTextRole::Plain, text.to_owned())
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.text == text)]
+fn punctuation_segment(text: &str) -> DiagnosticTextSegment {
+    DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, text.to_owned())
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.text == text)]
+fn keyword_segment(text: &str) -> DiagnosticTextSegment {
+    DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, text.to_owned())
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.text == text)]
+fn construct_segment(text: &str) -> DiagnosticTextSegment {
+    DiagnosticTextSegment::new(DiagnosticTextRole::Construct, text.to_owned())
 }
 
 #[requires(true)]

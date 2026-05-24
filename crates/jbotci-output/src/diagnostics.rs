@@ -3,7 +3,11 @@ use std::ops::Range;
 use ariadne::{Color, Config, IndexType, Label, Report, ReportKind, Source};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_diagnostics::{Diagnostic, DiagnosticLabel, DiagnosticSeverity};
+use jbotci_diagnostics::{
+    Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote,
+    DiagnosticTextRole,
+};
+use owo_colors::OwoColorize;
 
 use crate::OutputError;
 
@@ -13,13 +17,17 @@ type AriadneSpan = (String, Range<usize>);
 #[invariant(true)]
 pub struct DiagnosticRenderOptions {
     pub color: bool,
+    pub detail: DiagnosticDetailMode,
 }
 
 impl Default for DiagnosticRenderOptions {
     #[requires(true)]
     #[ensures(!ret.color)]
     fn default() -> Self {
-        Self { color: false }
+        Self {
+            color: false,
+            detail: DiagnosticDetailMode::Summary,
+        }
     }
 }
 
@@ -75,7 +83,42 @@ fn diagnostic_report(
     for note in &diagnostic.notes {
         builder = builder.with_note(note);
     }
+    for note in &diagnostic.styled_notes {
+        if note.mode.visible_in(options.detail) {
+            builder = builder.with_note(render_styled_note(note, options.color));
+        }
+    }
     builder.finish()
+}
+
+#[requires(!note.segments.is_empty())]
+#[ensures(!ret.is_empty())]
+fn render_styled_note(note: &DiagnosticStyledNote, color: bool) -> String {
+    let mut rendered = String::new();
+    for segment in &note.segments {
+        rendered.push_str(&render_styled_segment(segment.role, &segment.text, color));
+    }
+    rendered
+}
+
+#[requires(!text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn render_styled_segment(role: DiagnosticTextRole, text: &str, color: bool) -> String {
+    if !color {
+        return match role {
+            DiagnosticTextRole::SpecificWord => format!("{{{text}}}"),
+            _ => text.to_owned(),
+        };
+    }
+    match role {
+        DiagnosticTextRole::Construct => text.bright_white().to_string(),
+        DiagnosticTextRole::SpecificWord => text.magenta().underline().to_string(),
+        DiagnosticTextRole::Selmaho => text.magenta().to_string(),
+        DiagnosticTextRole::WordCategory => text.bright_blue().to_string(),
+        DiagnosticTextRole::Keyword => text.truecolor(170, 170, 170).to_string(),
+        DiagnosticTextRole::Punctuation => text.bright_black().to_string(),
+        DiagnosticTextRole::Plain => text.to_owned(),
+    }
 }
 
 #[requires(true)]
@@ -110,7 +153,10 @@ fn ariadne_span(source_label: &str, label: &DiagnosticLabel) -> AriadneSpan {
 
 #[cfg(test)]
 mod tests {
-    use jbotci_diagnostics::{DiagnosticPhase, DiagnosticSeverity, source_span_from_byte_offsets};
+    use jbotci_diagnostics::{
+        DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote,
+        DiagnosticTextRole, DiagnosticTextSegment, source_span_from_byte_offsets,
+    };
     use jbotci_source::SourceId;
 
     use super::*;
@@ -145,7 +191,10 @@ mod tests {
             "<input>",
             source,
             &[warning_diagnostic(source)],
-            DiagnosticRenderOptions { color: false },
+            DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+            },
         )
         .expect("render diagnostic");
 
@@ -167,7 +216,10 @@ mod tests {
             "<input>",
             source,
             &[warning_diagnostic(source)],
-            DiagnosticRenderOptions { color: true },
+            DiagnosticRenderOptions {
+                color: true,
+                detail: DiagnosticDetailMode::Summary,
+            },
         )
         .expect("render diagnostic");
 
@@ -182,10 +234,94 @@ mod tests {
             "<input>",
             "coi",
             &[],
-            DiagnosticRenderOptions { color: true },
+            DiagnosticRenderOptions {
+                color: true,
+                detail: DiagnosticDetailMode::Summary,
+            },
         )
         .expect("render diagnostics");
 
         assert_eq!(rendered, "");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_notes_respect_detail_mode_and_plain_word_braces() {
+        let source = "mi klama fi'oi broda";
+        let diagnostic = warning_diagnostic(source).with_styled_notes(vec![
+            DiagnosticStyledNote::new(
+                DiagnosticNoteMode::Summary,
+                vec![
+                    DiagnosticTextSegment::new(
+                        DiagnosticTextRole::Plain,
+                        "expected one of: ".to_owned(),
+                    ),
+                    DiagnosticTextSegment::new(DiagnosticTextRole::SpecificWord, "lo".to_owned()),
+                ],
+            ),
+            DiagnosticStyledNote::new(
+                DiagnosticNoteMode::Detailed,
+                vec![DiagnosticTextSegment::new(
+                    DiagnosticTextRole::Plain,
+                    "needs one of:\n- relation".to_owned(),
+                )],
+            ),
+        ]);
+
+        let summary = render_diagnostics(
+            "<input>",
+            source,
+            std::slice::from_ref(&diagnostic),
+            DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+            },
+        )
+        .expect("summary diagnostic");
+        assert!(summary.contains("expected one of: {lo}"));
+        assert!(!summary.contains("needs one of:"));
+
+        let detailed = render_diagnostics(
+            "<input>",
+            source,
+            &[diagnostic],
+            DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Detailed,
+            },
+        )
+        .expect("detailed diagnostic");
+        assert!(detailed.contains("needs one of:"));
+        assert!(!detailed.contains("expected one of: {lo}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_notes_color_specific_words_without_plain_braces() {
+        let source = "mi klama fi'oi broda";
+        let diagnostic =
+            warning_diagnostic(source).with_styled_notes(vec![DiagnosticStyledNote::new(
+                DiagnosticNoteMode::Summary,
+                vec![DiagnosticTextSegment::new(
+                    DiagnosticTextRole::SpecificWord,
+                    "lo".to_owned(),
+                )],
+            )]);
+
+        let rendered = render_diagnostics(
+            "<input>",
+            source,
+            &[diagnostic],
+            DiagnosticRenderOptions {
+                color: true,
+                detail: DiagnosticDetailMode::Summary,
+            },
+        )
+        .expect("color diagnostic");
+        assert!(rendered.contains("\x1b["));
+        assert!(rendered.contains("lo"));
+        assert!(!rendered.contains("{lo}"));
     }
 }

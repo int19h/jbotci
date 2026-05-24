@@ -1,6 +1,6 @@
 //! Structured source diagnostics shared by parsers, renderers, and fixtures.
 
-use bityzba::{invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use jbotci_source::{LineColumn, SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -18,6 +18,76 @@ pub enum DiagnosticSeverity {
 pub enum DiagnosticPhase {
     Morphology,
     Syntax,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiagnosticDetailMode {
+    Summary,
+    Detailed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiagnosticNoteMode {
+    Always,
+    Summary,
+    Detailed,
+}
+
+impl DiagnosticNoteMode {
+    #[requires(true)]
+    #[ensures(matches!(self, Self::Always) -> ret)]
+    pub fn visible_in(self, detail: DiagnosticDetailMode) -> bool {
+        matches!(
+            (self, detail),
+            (Self::Always, _)
+                | (Self::Summary, DiagnosticDetailMode::Summary)
+                | (Self::Detailed, DiagnosticDetailMode::Detailed)
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiagnosticTextRole {
+    Construct,
+    SpecificWord,
+    Selmaho,
+    WordCategory,
+    Keyword,
+    Punctuation,
+    Plain,
+}
+
+#[invariant(!text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosticTextSegment {
+    pub role: DiagnosticTextRole,
+    pub text: String,
+}
+
+impl DiagnosticTextSegment {
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    pub fn new(role: DiagnosticTextRole, text: String) -> Self {
+        new!(DiagnosticTextSegment { role, text })
+    }
+}
+
+#[invariant(!segments.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosticStyledNote {
+    pub mode: DiagnosticNoteMode,
+    pub segments: Vec<DiagnosticTextSegment>,
+}
+
+impl DiagnosticStyledNote {
+    #[requires(!segments.is_empty())]
+    #[ensures(true)]
+    pub fn new(mode: DiagnosticNoteMode, segments: Vec<DiagnosticTextSegment>) -> Self {
+        new!(DiagnosticStyledNote { mode, segments })
+    }
 }
 
 #[invariant(!message.is_empty())]
@@ -52,6 +122,8 @@ pub struct Diagnostic {
     pub message: String,
     pub labels: Vec<DiagnosticLabel>,
     pub notes: Vec<String>,
+    #[serde(default)]
+    pub styled_notes: Vec<DiagnosticStyledNote>,
     pub word_index: Option<usize>,
 }
 
@@ -77,8 +149,15 @@ impl Diagnostic {
             message,
             labels,
             notes,
+            styled_notes: Vec::new(),
             word_index,
         })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn with_styled_notes(self, styled_notes: Vec<DiagnosticStyledNote>) -> Self {
+        self.with_data(data! { styled_notes: styled_notes })
     }
 
     #[requires(true)]

@@ -12,8 +12,8 @@ use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
-    BracketRenderOptions, DiagnosticRenderOptions, GlideMark, JsonRenderOptions,
-    PhonemeRenderOptions, StressMark, TreeRenderOptions,
+    BracketRenderOptions, DiagnosticDetailMode, DiagnosticRenderOptions, GlideMark,
+    JsonRenderOptions, PhonemeRenderOptions, StressMark, TreeRenderOptions,
     compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
     pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options, render_diagnostics,
@@ -40,6 +40,8 @@ struct Cli {
         require_equals = true,
     )]
     color: concolor_clap::ColorChoice,
+    #[arg(long = "detailed-errors", global = true)]
+    detailed_errors: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -383,6 +385,11 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
     color_policy: CliColorPolicy,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
+    let diagnostic_detail = if cli.detailed_errors {
+        DiagnosticDetailMode::Detailed
+    } else {
+        DiagnosticDetailMode::Summary
+    };
     match cli.command {
         Command::Vlasei(input) => {
             validate_vlasei_options(&input)?;
@@ -405,6 +412,7 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
                         &text,
                         std::slice::from_ref(&diagnostic),
                         color_policy.stderr,
+                        diagnostic_detail,
                     )?;
                     return Ok(CliStatus::Failure);
                 }
@@ -451,7 +459,9 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
             }
             Ok(CliStatus::Success)
         }
-        Command::Gentufa(input) => run_gentufa(input, stdout, stderr, color_policy),
+        Command::Gentufa(input) => {
+            run_gentufa(input, stdout, stderr, color_policy, diagnostic_detail)
+        }
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
@@ -489,8 +499,9 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     stdout: &mut WOut,
     stderr: &mut WErr,
     color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
 ) -> Result<CliStatus> {
-    let rendered = render_gentufa_on_large_stack(input, color_policy)?;
+    let rendered = render_gentufa_on_large_stack(input, color_policy, diagnostic_detail)?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(rendered.stdout.as_bytes())?;
     Ok(rendered.status)
@@ -501,11 +512,12 @@ fn run_gentufa<WOut: Write, WErr: Write>(
 fn render_gentufa_on_large_stack(
     input: GentufaInput,
     color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
 ) -> Result<GentufaRendered> {
     let worker = std::thread::Builder::new()
         .name("jbotci-gentufa".to_owned())
         .stack_size(SYNTAX_WORKER_STACK_SIZE)
-        .spawn(move || render_gentufa(input, color_policy))
+        .spawn(move || render_gentufa(input, color_policy, diagnostic_detail))
         .context("failed to spawn gentufa syntax worker")?;
     match worker.join() {
         Ok(result) => result,
@@ -515,7 +527,11 @@ fn render_gentufa_on_large_stack(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn render_gentufa(input: GentufaInput, color_policy: CliColorPolicy) -> Result<GentufaRendered> {
+fn render_gentufa(
+    input: GentufaInput,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+) -> Result<GentufaRendered> {
     validate_gentufa_options(&input)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
@@ -534,6 +550,7 @@ fn render_gentufa(input: GentufaInput, color_policy: CliColorPolicy) -> Result<G
                 &text,
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
+                diagnostic_detail,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -552,6 +569,7 @@ fn render_gentufa(input: GentufaInput, color_policy: CliColorPolicy) -> Result<G
                 &text,
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
+                diagnostic_detail,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -565,8 +583,13 @@ fn render_gentufa(input: GentufaInput, color_policy: CliColorPolicy) -> Result<G
         .iter()
         .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text))
         .collect::<Vec<_>>();
-    let stderr =
-        render_source_diagnostics(&source_label, &text, &diagnostics, color_policy.stderr)?;
+    let stderr = render_source_diagnostics(
+        &source_label,
+        &text,
+        &diagnostics,
+        color_policy.stderr,
+        diagnostic_detail,
+    )?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     let mut stdout = String::new();
     match input.format {
@@ -638,8 +661,15 @@ fn write_source_diagnostics<W: Write>(
     source: &str,
     diagnostics: &[Diagnostic],
     color_enabled: bool,
+    diagnostic_detail: DiagnosticDetailMode,
 ) -> Result<()> {
-    let rendered = render_source_diagnostics(source_label, source, diagnostics, color_enabled)?;
+    let rendered = render_source_diagnostics(
+        source_label,
+        source,
+        diagnostics,
+        color_enabled,
+        diagnostic_detail,
+    )?;
     stderr.write_all(rendered.as_bytes())?;
     Ok(())
 }
@@ -652,6 +682,7 @@ fn render_source_diagnostics(
     source: &str,
     diagnostics: &[Diagnostic],
     color_enabled: bool,
+    diagnostic_detail: DiagnosticDetailMode,
 ) -> Result<String> {
     render_diagnostics(
         source_label,
@@ -659,6 +690,7 @@ fn render_source_diagnostics(
         diagnostics,
         DiagnosticRenderOptions {
             color: color_enabled,
+            detail: diagnostic_detail,
         },
     )
     .map_err(|error| anyhow!(error))
@@ -1177,6 +1209,7 @@ mod tests {
     fn parses_color_policy_values() {
         let default_cli = Cli::try_parse_from(["jbotci", "gentufa", "coi"]).expect("default color");
         assert_eq!(default_cli.color, concolor_clap::ColorChoice::Auto);
+        assert!(!default_cli.detailed_errors);
 
         let bare_cli =
             Cli::try_parse_from(["jbotci", "gentufa", "--color", "coi"]).expect("bare color");
@@ -1189,6 +1222,10 @@ mod tests {
         let never_cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=never", "coi"])
             .expect("never color");
         assert_eq!(never_cli.color, concolor_clap::ColorChoice::Never);
+
+        let detailed_cli = Cli::try_parse_from(["jbotci", "--detailed-errors", "gentufa", "coi"])
+            .expect("detailed errors");
+        assert!(detailed_cli.detailed_errors);
     }
 
     #[test]
@@ -1624,11 +1661,94 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("[syntax.parse] Error"));
             assert!(stderr.contains("syntax parse failed"));
-            assert!(stderr.contains("expected cmavo"));
+            assert!(stderr.contains("expected one of:"));
+            assert!(stderr.contains("{be}"));
+            assert!(stderr.contains("BRIVLA"));
+            assert!(!stderr.contains("needs one of:"));
             assert!(stderr.contains("ku"));
             assert!(!stderr.contains("jbotci:"));
             assert!(!stderr.contains("\x1b["));
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--detailed-errors",
+                "gleki",
+                "ku",
+                "klama",
+                "zei",
+                "klama",
+            ])
+            .expect("gentufa detailed parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("needs one of:"));
+            assert!(stderr.contains("relation"));
+            assert!(stderr.contains("{be}"));
+            assert!(stderr.contains("BRIVLA"));
+            assert!(stderr.contains("[ends relation, statement or text]"));
+            assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn detailed_syntax_error_color_controls_word_braces() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--color=always",
+                "--detailed-errors",
+                "gleki",
+                "ku",
+                "klama",
+                "zei",
+                "klama",
+            ])
+            .expect("gentufa color parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("\x1b["));
+            assert!(stderr.contains("be"));
+            assert!(!stderr.contains("{be}"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_detailed_morphology_errors_show_detail_note() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--detailed-errors", "aa"])
+            .expect("vlasei detailed parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
+
+        assert_eq!(status, CliStatus::Failure);
+        assert!(output.is_empty());
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("morphology detail:"));
+        assert!(stderr.contains("invalid morphology"));
+        assert!(stderr.contains("reason"));
     }
 
     #[test]

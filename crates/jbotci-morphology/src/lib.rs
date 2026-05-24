@@ -10,7 +10,8 @@ use std::fmt;
 
 use bityzba::{data, ensures, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
-    Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity, source_span_from_char_offsets,
+    Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
+    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, source_span_from_char_offsets,
 };
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
@@ -845,7 +846,12 @@ impl MorphologyError {
                 *char_offset,
                 char_offset + word.chars().count(),
                 reason,
-            ),
+            )
+            .with_styled_notes(vec![morphology_detail_note(
+                "unsupported morphology",
+                word,
+                reason,
+            )]),
             Self::Invalid {
                 char_offset,
                 word,
@@ -858,7 +864,12 @@ impl MorphologyError {
                 *char_offset,
                 char_offset + word.chars().count(),
                 reason,
-            ),
+            )
+            .with_styled_notes(vec![morphology_detail_note(
+                "invalid morphology",
+                word,
+                reason,
+            )]),
             Self::UnterminatedZoiQuote {
                 char_offset,
                 delimiter,
@@ -873,6 +884,11 @@ impl MorphologyError {
                     source_end,
                     &format!("expected closing delimiter `{delimiter}`"),
                 )
+                .with_styled_notes(vec![morphology_detail_note(
+                    "unterminated ZOI quote",
+                    delimiter,
+                    "expected closing delimiter",
+                )])
             }
             Self::SourceSpan(error) => {
                 let span = source_span_from_char_offsets(source_id, source, 0, 0)
@@ -889,6 +905,26 @@ impl MorphologyError {
             }
         }
     }
+}
+
+#[requires(!message.is_empty())]
+#[requires(!reason.is_empty())]
+#[ensures(!ret.segments.is_empty())]
+fn morphology_detail_note(message: &str, text: &str, reason: &str) -> DiagnosticStyledNote {
+    let display_text = if text.is_empty() { "input" } else { text };
+    DiagnosticStyledNote::new(
+        DiagnosticNoteMode::Detailed,
+        vec![
+            DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "morphology detail: ".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Construct, message.to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::SpecificWord, display_text.to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ") ".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "reason".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ": ".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Plain, reason.to_owned()),
+        ],
+    )
 }
 
 #[requires(!code.is_empty())]

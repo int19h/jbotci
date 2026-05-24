@@ -276,6 +276,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private parser staging node is consumed into validated paragraph nodes",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
+        "lifetime-bearing Chumsky error wrapper preserves invariants through constructors and merge helpers",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/ast.rs:ConnectiveSyntaxParts",
         "owned connective decomposition preserves validity from ConnectiveSyntax",
     ),

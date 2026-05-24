@@ -1,21 +1,25 @@
 use std::ops::Range;
 
 use crate::{ExperimentalConstruct, Indicator, WithIndicators};
-use bityzba::{data, requires};
-use chumsky::error::{Rich, RichReason};
+use bityzba::{data, new, requires};
+use chumsky::error::RichReason;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
-use super::{BoxedParser, ParserState, Span, SpannedToken};
-use crate::SyntaxError;
+use super::{BoxedParser, ParserState, SpannedToken, SyntaxParseError};
+use crate::{SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory};
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("cmavo", move |word| parser_word_is_cmavo(word, cmavo))
+    token_matching(
+        "cmavo",
+        vec![new!(SyntaxExpectedToken::Cmavo(cmavo))],
+        move |word| parser_word_is_cmavo(word, cmavo),
+    )
 }
 
 #[requires(!label.is_empty())]
@@ -25,17 +29,21 @@ pub(super) fn feature_cmavo<'tokens>(
     cmavo: Cmavo,
     feature: DialectFeature,
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching_with_state(label, move |word, state| {
-        parser_word_is_cmavo(word, cmavo) && state.feature_enabled(feature)
-    })
+    token_matching_with_state(
+        label,
+        vec![new!(SyntaxExpectedToken::Cmavo(cmavo))],
+        move |word, state| parser_word_is_cmavo(word, cmavo) && state.feature_enabled(feature),
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching(selmaho.name(), move |word| {
-        parser_word_is_selmaho(word, selmaho)
-    })
+    token_matching(
+        selmaho.name(),
+        vec![new!(SyntaxExpectedToken::Selmaho(selmaho))],
+        move |word| parser_word_is_selmaho(word, selmaho),
+    )
 }
 
 #[requires(!label.is_empty())]
@@ -45,7 +53,15 @@ pub(super) fn cmavo_one_of<'tokens>(
     label: &'static str,
     cmavo: &'static [Cmavo],
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching(label, move |word| parser_word_is_one_of_cmavo(word, cmavo))
+    token_matching(
+        label,
+        cmavo
+            .iter()
+            .copied()
+            .map(|cmavo| new!(SyntaxExpectedToken::Cmavo(cmavo)))
+            .collect(),
+        move |word| parser_word_is_one_of_cmavo(word, cmavo),
+    )
 }
 
 #[requires(true)]
@@ -98,42 +114,77 @@ pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLik
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("KOhA argument", is_koha_argument)
+    token_matching(
+        "KOhA argument",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::KohaArgument,
+        ))],
+        is_koha_argument,
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("relation word", is_relation_word)
+    token_matching(
+        "relation word",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::RelationWord,
+        ))],
+        is_relation_word,
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching_with_state("BRIVLA", |word, state| {
-        is_brivla_relation_word(word)
-            || (is_cmevla_word(word) && state.feature_enabled(DialectFeature::Cbm))
-    })
+    token_matching_with_state(
+        "BRIVLA",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::Brivla
+        ))],
+        |word, state| {
+            is_brivla_relation_word(word)
+                || (is_cmevla_word(word) && state.feature_enabled(DialectFeature::Cbm))
+        },
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("CMEVLA", is_cmevla_word)
+    token_matching(
+        "CMEVLA",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::Cmevla
+        ))],
+        is_cmevla_word,
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("letter word", is_letter_word)
+    token_matching(
+        "letter word",
+        vec![new!(SyntaxExpectedToken::WordCategory(
+            SyntaxWordCategory::LetterWord,
+        ))],
+        is_letter_word,
+    )
 }
 
 #[requires(!label.is_empty())]
 #[ensures(true)]
 pub(super) fn token_matching<'tokens>(
     label: &'static str,
+    expected: Vec<SyntaxExpectedToken>,
     predicate: impl Fn(&WithIndicators<WordLike>) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    assert!(
+        !expected.is_empty(),
+        "token parsers must declare expected tokens"
+    );
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -146,7 +197,7 @@ pub(super) fn token_matching<'tokens>(
             _ => {
                 let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
-                Err(Rich::custom(span, format!("expected {label}")))
+                Err(SyntaxParseError::expected(span, expected.clone()))
             }
         }
     })
@@ -157,8 +208,13 @@ pub(super) fn token_matching<'tokens>(
 #[ensures(true)]
 fn token_matching_with_state<'tokens>(
     label: &'static str,
+    expected: Vec<SyntaxExpectedToken>,
     predicate: impl Fn(&WithIndicators<WordLike>, &ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    assert!(
+        !expected.is_empty(),
+        "token parsers must declare expected tokens"
+    );
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -168,7 +224,7 @@ fn token_matching_with_state<'tokens>(
                 if !predicate(&word, state) {
                     let span = input.span_since(&cursor);
                     input.rewind(checkpoint);
-                    return Err(Rich::custom(span, format!("expected {label}")));
+                    return Err(SyntaxParseError::expected(span, expected.clone()));
                 }
                 if label == "BRIVLA" && is_cmevla_word(&word) {
                     state.warn(
@@ -182,7 +238,7 @@ fn token_matching_with_state<'tokens>(
             _ => {
                 let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
-                Err(Rich::custom(span, format!("expected {label}")))
+                Err(SyntaxParseError::expected(span, expected.clone()))
             }
         }
     })
@@ -963,30 +1019,40 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 
 #[requires(true)]
 #[ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
-pub(super) fn syntax_error(errors: Vec<Rich<'_, WithIndicators<WordLike>, Span>>) -> SyntaxError {
-    let Some(error) = errors.into_iter().next() else {
+pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
+    let Some(error) = merge_farthest_errors(errors) else {
         return SyntaxError::Parse {
             byte_start: 0,
             byte_end: 0,
             reason: "unknown Chumsky syntax error".to_owned(),
             expected: Vec::new(),
+            expectations: Vec::new(),
         };
     };
 
-    let expected = error
-        .expected()
-        .map(|pattern| pattern.to_string())
-        .collect::<Vec<_>>();
+    let expected = error.expected_strings();
     let reason = match error.reason() {
         RichReason::Custom(message) => message.to_string(),
         RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
         RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
     };
+    let expectations = error.expectations();
 
     SyntaxError::Parse {
         byte_start: error.span().start,
         byte_end: error.span().end,
         reason,
         expected,
+        expectations,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn merge_farthest_errors(errors: Vec<SyntaxParseError<'_>>) -> Option<SyntaxParseError<'_>> {
+    let farthest_start = errors.iter().map(|error| error.span().start).max()?;
+    errors
+        .into_iter()
+        .filter(|error| error.span().start == farthest_start)
+        .reduce(SyntaxParseError::merge_for_report)
 }
