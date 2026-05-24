@@ -200,6 +200,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Phonemes owns canonical non-empty phoneme validity",
     ),
     (
+        "crates/jbotci-morphology/src/tree.rs:WordLike::Bare",
+        "bare word-like values delegate all validity to the wrapped Word",
+    ),
+    (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Bare",
         "generic wrapper delegates word validity to the payload type",
     ),
@@ -558,11 +562,16 @@ fn collect_enum_placeholder_invariants(
 #[requires(true)]
 #[ensures(true)]
 fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTreeSet<String>) {
+    let lines = source.lines().collect::<Vec<_>>();
     let mut pending = Vec::new();
-    for line in source.lines() {
-        let line = line.trim();
-        if let Some(variant) = placeholder_variant(line) {
-            pending.push(variant.to_owned());
+    let mut index = 0;
+    while index < lines.len() {
+        let line = lines[index].trim();
+        if let Some((variant, next_index)) = invariant_attribute(&lines, index) {
+            if let Some(variant) = variant {
+                pending.push(variant);
+            }
+            index = next_index + 1;
             continue;
         }
         if let Some(enum_name) = enum_name(line) {
@@ -572,6 +581,7 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
                     relative_path.display()
                 ));
             }
+            index += 1;
             continue;
         }
         if !pending.is_empty()
@@ -581,7 +591,26 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
         {
             pending.clear();
         }
+        index += 1;
     }
+}
+
+#[requires(index < lines.len())]
+#[ensures(true)]
+fn invariant_attribute(lines: &[&str], index: usize) -> Option<(Option<String>, usize)> {
+    let line = lines[index].trim();
+    if !line.starts_with("#[invariant(") {
+        return None;
+    }
+
+    let mut attribute = String::from(line);
+    let mut end = index;
+    while !attribute.contains(")]") && end + 1 < lines.len() {
+        end += 1;
+        attribute.push_str(lines[end].trim());
+    }
+
+    Some((placeholder_variant(&attribute).map(str::to_owned), end))
 }
 
 #[requires(true)]

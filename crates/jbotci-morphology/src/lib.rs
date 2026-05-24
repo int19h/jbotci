@@ -386,6 +386,13 @@ impl Word {
         self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo))
     }
 
+    #[requires(!selmaho.is_empty())]
+    #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.iter().any(|selmaho| selmaho.contains(cmavo))))]
+    pub fn is_one_of_selmaho(&self, selmaho: &[Selmaho]) -> bool {
+        self.cmavo()
+            .is_some_and(|cmavo| selmaho.iter().any(|selmaho| selmaho.contains(cmavo)))
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(true)]
     pub fn is_cmavo_text(&self, text: &str) -> bool {
@@ -560,6 +567,13 @@ impl WordLike {
     #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo)))]
     pub fn is_selmaho(&self, selmaho: Selmaho) -> bool {
         self.cmavo().is_some_and(|cmavo| selmaho.contains(cmavo))
+    }
+
+    #[requires(!selmaho.is_empty())]
+    #[ensures(ret == self.cmavo().is_some_and(|cmavo| selmaho.iter().any(|selmaho| selmaho.contains(cmavo))))]
+    pub fn is_one_of_selmaho(&self, selmaho: &[Selmaho]) -> bool {
+        self.cmavo()
+            .is_some_and(|cmavo| selmaho.iter().any(|selmaho| selmaho.contains(cmavo)))
     }
 
     #[requires(true)]
@@ -1597,6 +1611,7 @@ mod tests {
         let bare = WordLike::bare(test_word(WordKind::Cmavo, "zo", 0));
         assert!(bare.is_cmavo(Cmavo::Zo));
         assert!(bare.is_selmaho(Selmaho::Zo));
+        assert!(bare.is_one_of_selmaho(&[Selmaho::A, Selmaho::Zo]));
     }
 
     #[requires(!phonemes.is_empty())]
