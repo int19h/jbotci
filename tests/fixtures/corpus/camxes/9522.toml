@@ -12,7 +12,7 @@ raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { sourc
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Connected { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "nik" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }))], free_modifiers: [] } })], connective: NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "dy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }))], free_modifiers: [] }, boi: None })] }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "cásnu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Connected { leading_argument: Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "nik" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }))], free_modifiers: [] } }, connective: NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_argument: Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "dy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }))], free_modifiers: [] }, boi: None } })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "cásnu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(la .nik. joĭ dy cásnu)"
@@ -31,24 +31,20 @@ tree = """
 Predicate @[0‥21) {
   leading_terms: [
     Connected @[0‥14) {
-      leading_terms: [
-        Name @[0‥6) {
-          la: Cmavo @[0‥2) "la",
-          names: [
-            Cmevla @[3‥6) "nik",
-          ],
-        },
-      ],
+      leading_argument: Name @[0‥6) {
+        la: Cmavo @[0‥2) "la",
+        names: [
+          Cmevla @[3‥6) "nik",
+        ],
+      },
       connective: Cmavo @[8‥11) "joĭ",
-      trailing_terms: [
-        Letter @[12‥14) {
-          letter: [
-            Cmavo @[12‥14) "dy",
-          ],
-        },
-      ],
+      trailing_argument: Letter @[12‥14) {
+        letter: [
+          Cmavo @[12‥14) "dy",
+        ],
+      },
     },
   ],
   Gismu @[16‥21) "cásnu",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Connected":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"nik","span":[3,6]}}}}]}}}],"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"joĭ","span":[8,11]}}}}]}},"trailing_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"dy","span":[12,14]}}}}]}}}]}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"cásnu","span":[16,21]}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"nik","span":[3,6]}}}}]}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"joĭ","span":[8,11]}}}}]}},"trailing_argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"dy","span":[12,14]}}}}]}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"cásnu","span":[16,21]}}}}}}}}}}}}]}]}'

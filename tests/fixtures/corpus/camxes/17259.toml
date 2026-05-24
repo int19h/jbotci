@@ -11,8 +11,8 @@ status = "success"
 raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })]"""
 
 [expectations.syntax]
-status = "failure"
-error = { position = 0, allowed-next = [] }
+status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
 brackets = "mu'eĭ"
@@ -21,3 +21,18 @@ tree = """
   Cmavo @[0‥5) "mu'eĭ",
 ]"""
 json = """[{"Bare":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥5) {
+  leading_indicators: [
+    Indicator @[0‥5) {
+      indicator: Cmavo @[0‥5) "mu'eĭ",
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}}}]}"""
+
+[expectations.warnings]
+status = "success"
+items = [{ kind = "ExperimentalZantufaCmavo", anchor-index = 0, anchor-text = "mu'ei", span = [0, 5] }]

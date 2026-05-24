@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mo'u" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mo'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "gúnka" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } }))), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 13, char_start: 12, char_end: 13, start: None, end: None } }))], free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } })), free_modifiers: [] }) }), dohu: None }] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mo'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "gúnka" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 13, char_start: 12, char_end: 13, start: None, end: None } }))), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } })), free_modifiers: [] }) }), dohu: None }], statement: None }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(mo'u gúnka .i co'o ro do)"
@@ -29,30 +29,26 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"mo'u","span":[0,4]}}},{"Bare":{"Gismu":
 
 [expectations.output.gentufa]
 tree = """
-Predicate @[0‥23) {
-  leading_terms: [
-    Cmavo @[0‥4) "mo'u",
-  ],
-  Relation @[5‥23) {
+Paragraph @[0‥23) {
+  Predicate @[0‥10) {
+    leading_terms: [
+      Cmavo @[0‥4) "mo'u",
+    ],
     Gismu @[5‥10) "gúnka",
-    terms: [
-      Letter @[12‥23) {
-        letter: [
-          Cmavo @[12‥13) "i",
+  },
+  ParagraphStatement @[12‥23) {
+    i: Cmavo @[12‥13) "i",
+    free_modifiers: [
+      Vocative @[14‥23) {
+        vocative_markers: [
+          Cmavo @[14‥18) "co'o",
         ],
-        free_modifiers: [
-          Vocative @[14‥23) {
-            vocative_markers: [
-              Cmavo @[14‥18) "co'o",
-            ],
-            argument: Quantified @[19‥23) {
-              quantifier: Cmavo @[19‥21) "ro",
-              Cmavo @[21‥23) "do",
-            },
-          },
-        ],
+        argument: Quantified @[19‥23) {
+          quantifier: Cmavo @[19‥21) "ro",
+          Cmavo @[21‥23) "do",
+        },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo'u","span":[0,4]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"gúnka","span":[5,10]}}}}},"terms":[{"Argument":{"Letter":{"letter":[[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[12,13]}}}}],{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[14,18]}}}}],"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ro","span":[19,21]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[21,23]}}}}}}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo'u","span":[0,4]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"gúnka","span":[5,10]}}}}}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[12,13]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[14,18]}}}}],"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ro","span":[19,21]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[21,23]}}}}}}}}}]}]}]}"""

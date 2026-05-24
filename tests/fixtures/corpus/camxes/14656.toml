@@ -12,7 +12,7 @@ raw = '[Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { sourc
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), free_modifiers: [] }) })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, boi: None })))) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), free_modifiers: [] }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(re .i do)"
@@ -26,15 +26,15 @@ json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[2,4]}}},{"Bare":{"Cmavo":{"ph
 
 [expectations.output.gentufa]
 tree = """
-Term @[2‥9) {
-  terms: [
-    Quantified @[2‥9) {
-      quantifier: Number @[2‥6) {
-        Cmavo @[2‥4) "re",
-        Cmavo @[5‥6) "i",
-      },
-      Cmavo @[7‥9) "do",
+Paragraph @[2‥9) {
+  Cmavo @[2‥4) "re",
+  ParagraphStatement @[5‥9) {
+    i: Cmavo @[5‥6) "i",
+    Term @[7‥9) {
+      terms: [
+        Cmavo @[7‥9) "do",
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[2,4]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[2,4]}}}}]}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}}}}}]}}}}]}]}'

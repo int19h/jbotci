@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "go'i" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Cmavo { phonemes: Phonemes { text: "go'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Cmavo { phonemes: Phonemes { text: "go'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }))), connective: None, free_modifiers: [], statement: None }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(go'i .i)"
@@ -25,14 +25,10 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"go'i","span":[0,4]}}},{"Bare":{"Cmavo":
 
 [expectations.output.gentufa]
 tree = """
-Relation @[0‥7) {
+Paragraph @[0‥7) {
   Cmavo @[0‥4) "go'i",
-  terms: [
-    Letter @[6‥7) {
-      letter: [
-        Cmavo @[6‥7) "i",
-      ],
-    },
-  ],
+  ParagraphStatement @[6‥7) {
+    i: Cmavo @[6‥7) "i",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[0,4]}}}}},"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"go'i","span":[0,4]}}}}}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}}}]}]}"""

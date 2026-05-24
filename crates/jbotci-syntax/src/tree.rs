@@ -1769,8 +1769,10 @@ pub(crate) fn is_valid_connective_parts(
 pub(crate) fn is_valid_connective_words(words: &[WithIndicators<WordLike>]) -> bool {
     let mut in_fiho_modal = false;
     let mut fiho_modal_has_relation_word = false;
+    let mut segment_has_word = false;
+    let mut last_was_i_separator = false;
 
-    for word in words {
+    for (index, word) in words.iter().enumerate() {
         if in_fiho_modal {
             if word.is_cmavo(Cmavo::Fehu) {
                 if !fiho_modal_has_relation_word {
@@ -1778,9 +1780,13 @@ pub(crate) fn is_valid_connective_words(words: &[WithIndicators<WordLike>]) -> b
                 }
                 in_fiho_modal = false;
                 fiho_modal_has_relation_word = false;
+                segment_has_word = true;
+                last_was_i_separator = false;
                 continue;
             } else if is_valid_fiho_modal_relation_word(word) {
                 fiho_modal_has_relation_word |= crate::grammar::tokens::is_relation_word(word);
+                segment_has_word = true;
+                last_was_i_separator = false;
                 continue;
             } else if fiho_modal_has_relation_word {
                 in_fiho_modal = false;
@@ -1790,15 +1796,26 @@ pub(crate) fn is_valid_connective_words(words: &[WithIndicators<WordLike>]) -> b
             }
         }
 
-        if word.is_cmavo(Cmavo::Fiho) {
+        if word.is_cmavo(Cmavo::I) {
+            if !segment_has_word || last_was_i_separator || index + 1 == words.len() {
+                return false;
+            }
+            segment_has_word = false;
+            last_was_i_separator = true;
+        } else if word.is_cmavo(Cmavo::Fiho) {
             in_fiho_modal = true;
             fiho_modal_has_relation_word = false;
+            segment_has_word = true;
+            last_was_i_separator = false;
         } else if !is_valid_connective_word(word) {
             return false;
+        } else {
+            segment_has_word = true;
+            last_was_i_separator = false;
         }
     }
 
-    !in_fiho_modal || fiho_modal_has_relation_word
+    (!in_fiho_modal || fiho_modal_has_relation_word) && segment_has_word
 }
 
 #[requires(true)]

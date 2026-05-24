@@ -12,7 +12,7 @@ raw = '[Bare(Gismu { phonemes: Phonemes { text: "túgni" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "túgni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }))), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 8, char_start: 7, char_end: 8, start: None, end: None } }))], free_modifiers: [] }, boi: None }), Argument(Quote(Zo(WithFreeModifiers { value: Bare(ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "kelcrgálfa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 22, char_start: 12, char_end: 22, start: None, end: None } } }), free_modifiers: [] })))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "túgni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 8, char_start: 7, char_end: 8, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "kelcrgálfa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 22, char_start: 12, char_end: 22, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(túgni .i [zo kelcrgálfa])"
@@ -29,18 +29,18 @@ json = '[{"Bare":{"Gismu":{"phonemes":"túgni","span":[0,5]}}},{"Bare":{"Cmavo":
 
 [expectations.output.gentufa]
 tree = """
-Relation @[0‥22) {
+Paragraph @[0‥22) {
   Gismu @[0‥5) "túgni",
-  terms: [
-    Letter @[7‥8) {
-      letter: [
-        Cmavo @[7‥8) "i",
+  ParagraphStatement @[7‥22) {
+    i: Cmavo @[7‥8) "i",
+    Term @[9‥22) {
+      terms: [
+        ZoQuote @[9‥22) {
+          zo: Cmavo @[9‥11) "zo",
+          Fuhivla @[12‥22) "kelcrgálfa",
+        },
       ],
     },
-    ZoQuote @[9‥22) {
-      zo: Cmavo @[9‥11) "zo",
-      Fuhivla @[12‥22) "kelcrgálfa",
-    },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"túgni","span":[0,5]}}}}},"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[7,8]}}}}]}}},{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Fuhivla":{"phonemes":"kelcrgálfa","span":[12,22]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"túgni","span":[0,5]}}}}}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Fuhivla":{"phonemes":"kelcrgálfa","span":[12,22]}}}}}}}}]}}}}]}]}'

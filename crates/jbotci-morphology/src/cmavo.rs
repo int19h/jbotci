@@ -2949,6 +2949,7 @@ pub enum Selmaho {
     Mai,
     Me,
     Mohe,
+    Mohi,
     Moi,
     Na,
     Nahe,
@@ -3051,6 +3052,7 @@ impl Selmaho {
             Self::Mai => "MAI",
             Self::Me => "ME",
             Self::Mohe => "MOhE",
+            Self::Mohi => "MOhI",
             Self::Moi => "MOI",
             Self::Na => "NA",
             Self::Nahe => "NAhE",
@@ -3153,6 +3155,7 @@ impl Selmaho {
             "MAI" => Self::Mai,
             "ME" => Self::Me,
             "MOhE" => Self::Mohe,
+            "MOhI" => Self::Mohi,
             "MOI" => Self::Moi,
             "NA" => Self::Na,
             "NAhE" => Self::Nahe,
@@ -3645,7 +3648,6 @@ impl Selmaho {
                     | Cmavo::Mihai
                     | Cmavo::Mihau
                     | Cmavo::Miho
-                    | Cmavo::Mohi
                     | Cmavo::Moho
                     | Cmavo::Mohu
                     | Cmavo::Nauho
@@ -3736,6 +3738,7 @@ impl Selmaho {
             Self::Mai => matches!(cmavo, Cmavo::Mai | Cmavo::Moho),
             Self::Me => matches!(cmavo, Cmavo::Mehau | Cmavo::Xohi),
             Self::Mohe => matches!(cmavo, Cmavo::Boihau),
+            Self::Mohi => matches!(cmavo, Cmavo::Mohi),
             Self::Moi => matches!(
                 cmavo,
                 Cmavo::Ceiha

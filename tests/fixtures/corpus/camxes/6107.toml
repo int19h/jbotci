@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { sou
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kúkte" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }))) }, terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 11, char_start: 10, char_end: 11, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [PredicateTailContinuationSyntax { connective: PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "jo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None } }))], free_modifiers: [] }, nai: None }, tense_modal: None, cu: None, predicate_tail: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "za'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "júkpa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, tail_terms: [], vau: None, free_modifiers: [] }] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Connected { leading_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kúkte" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), i: Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 11, char_start: 10, char_end: 11, start: None, end: None } })), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "jo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "za'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "júkpa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(na kúkte .i jo za'o júkpa)"
@@ -29,28 +29,16 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Bare":{"Gismu":{"
 
 [expectations.output.gentufa]
 tree = """
-PredicateTail1 @[0‥24) {
-  Relation @[0‥11) {
-    Na @[0‥8) {
-      na: Cmavo @[0‥2) "na",
-      Gismu @[3‥8) "kúkte",
-    },
-    terms: [
-      Letter @[10‥11) {
-        letter: [
-          Cmavo @[10‥11) "i",
-        ],
-      },
-    ],
+Connected @[0‥24) {
+  leading_statement: Na @[0‥8) {
+    na: Cmavo @[0‥2) "na",
+    Gismu @[3‥8) "kúkte",
   },
-  continuations: [
-    PredicateTailContinuation @[11‥24) {
-      connective: Cmavo @[11‥13) "jo",
-      TenseModal @[14‥24) {
-        tense_modal: Cmavo @[14‥18) "za'o",
-        Gismu @[19‥24) "júkpa",
-      },
-    },
-  ],
+  i: Cmavo @[10‥11) "i",
+  connective: Cmavo @[11‥13) "jo",
+  trailing_statement: TenseModal @[14‥24) {
+    tense_modal: Cmavo @[14‥18) "za'o",
+    Gismu @[19‥24) "júkpa",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kúkte","span":[3,8]}}}}}}},"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[10,11]}}}}]}}}]}}},"continuations":[{"connective":{"PredicateTail":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"jo","span":[11,13]}}}}]}},"predicate_tail":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"za'o","span":[14,18]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"júkpa","span":[19,24]}}}}}}}}}}]}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kúkte","span":[3,8]}}}}}}}}}}}}},"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[10,11]}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"jo","span":[11,13]}}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"za'o","span":[14,18]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"júkpa","span":[19,24]}}}}}}}}}}}}}}}}]}]}"""

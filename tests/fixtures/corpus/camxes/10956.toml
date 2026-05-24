@@ -12,7 +12,7 @@ raw = '[Bare(Cmevla { phonemes: Phonemes { text: "of" }, span: SourceSpan { sour
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "of" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "of" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Ek(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, nai: None }))) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.of. .a)"
@@ -29,14 +29,6 @@ Text @[0‥4) {
   leading_cmevla: [
     Cmevla @[0‥2) "of",
   ],
-  Term @[3‥4) {
-    terms: [
-      Letter @[3‥4) {
-        letter: [
-          Cmavo @[3‥4) "a",
-        ],
-      },
-    ],
-  },
+  Cmavo @[3‥4) "a",
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"of","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}}}]}}}]}}}}]}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"of","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}}}]}}}}}]}]}'

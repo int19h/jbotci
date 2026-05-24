@@ -12,7 +12,7 @@ raw = '[Bare(Gismu { phonemes: Phonemes { text: "tsáli" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "tsáli" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } })), free_modifiers: [] })]), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 14, char_start: 13, char_end: 14, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "tsáli" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } })), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 14, char_start: 13, char_end: 14, start: None, end: None } }))), connective: None, free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(tsáli prénu .i)"
@@ -26,17 +26,13 @@ json = '[{"Bare":{"Gismu":{"phonemes":"tsáli","span":[0,5]}}},{"Bare":{"Gismu":
 
 [expectations.output.gentufa]
 tree = """
-Relation @[0‥14) {
+Paragraph @[0‥14) {
   Compound @[0‥11) {
     Gismu @[0‥5) "tsáli",
     Gismu @[6‥11) "prénu",
   },
-  terms: [
-    Letter @[13‥14) {
-      letter: [
-        Cmavo @[13‥14) "i",
-      ],
-    },
-  ],
+  ParagraphStatement @[13‥14) {
+    i: Cmavo @[13‥14) "i",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"tsáli","span":[0,5]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"prénu","span":[6,11]}}}}}]},"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[13,14]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"tsáli","span":[0,5]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"prénu","span":[6,11]}}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[13,14]}}}}}]}]}'

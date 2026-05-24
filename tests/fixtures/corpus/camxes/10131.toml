@@ -12,7 +12,7 @@ raw = '[Bare(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 3, char_start: 2, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Ek(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } }))], free_modifiers: [] }, nai: None }))) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 3, char_start: 2, char_end: 3, start: None, end: None } }))), connective: None, free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.u .i)"
@@ -25,14 +25,10 @@ json = '[{"Bare":{"Cmavo":{"phonemes":"u","span":[0,1]}}},{"Bare":{"Cmavo":{"pho
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥3) {
-  terms: [
-    Letter @[0‥3) {
-      letter: [
-        Cmavo @[0‥1) "u",
-        Cmavo @[2‥3) "i",
-      ],
-    },
-  ],
+Paragraph @[0‥3) {
+  Cmavo @[0‥1) "u",
+  ParagraphStatement @[2‥3) {
+    i: Cmavo @[2‥3) "i",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"u","span":[0,1]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[2,3]}}}}]}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"u","span":[0,1]}}}}]}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[2,3]}}}}}]}]}'

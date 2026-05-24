@@ -12,7 +12,7 @@ raw = '[Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Ek(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))], free_modifiers: [] }, nai: None }))) }] }] }'
 
 [expectations.output.vlasei]
 brackets = ".e"
@@ -23,14 +23,5 @@ tree = """
 json = '[{"Bare":{"Cmavo":{"phonemes":"e","span":[1,2]}}}]'
 
 [expectations.output.gentufa]
-tree = """
-Term @[1‥2) {
-  terms: [
-    Letter @[1‥2) {
-      letter: [
-        Cmavo @[1‥2) "e",
-      ],
-    },
-  ],
-}"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[1,2]}}}}]}}}]}}}}]}]}'
+tree = 'Cmavo @[1‥2) "e"'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[1,2]}}}}]}}}}}]}]}'

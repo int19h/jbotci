@@ -518,7 +518,6 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Mahei
                 | Cmavo::Mahoi
                 | Cmavo::Mihau
-                | Cmavo::Mohi
                 | Cmavo::Moho
                 | Cmavo::Mohu
                 | Cmavo::Rahai
@@ -799,7 +798,12 @@ pub(crate) fn is_letter_word(word: &WithIndicators<WordLike>) -> bool {
                     word.kind() == WordKind::Cmavo
                         && ((phonemes.as_str() != "bu" && phonemes.as_str().ends_with("bu"))
                             || word.cmavo().is_some_and(|cmavo| {
-                                cmavo.is_selmaho(Selmaho::By) || cmavo == Cmavo::Y
+                                (!matches!(
+                                    cmavo,
+                                    Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U
+                                ) && cmavo.is_selmaho(Selmaho::By))
+                                    || cmavo == Cmavo::Sehe
+                                    || cmavo == Cmavo::Y
                             }))
                 }
                 _ => false,

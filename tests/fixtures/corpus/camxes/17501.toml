@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "zo'e" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "zo'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] })), Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kúcli" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "zo'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }))], vau: None })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kúcli" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(zo'e .i kúcli)"
@@ -26,15 +26,15 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[0,4]}}},{"Bare":{"Cmavo":
 
 [expectations.output.gentufa]
 tree = """
-Predicate @[0‥13) {
-  leading_terms: [
-    Cmavo @[0‥4) "zo'e",
-    Letter @[6‥7) {
-      letter: [
-        Cmavo @[6‥7) "i",
-      ],
-    },
-  ],
-  Gismu @[8‥13) "kúcli",
+Paragraph @[0‥13) {
+  Term @[0‥4) {
+    terms: [
+      Cmavo @[0‥4) "zo'e",
+    ],
+  },
+  ParagraphStatement @[6‥13) {
+    i: Cmavo @[6‥7) "i",
+    Gismu @[8‥13) "kúcli",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[0,4]}}}}}},{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kúcli","span":[8,13]}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'e","span":[0,4]}}}}}}]}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kúcli","span":[8,13]}}}}}}}}}}}}]}]}"""

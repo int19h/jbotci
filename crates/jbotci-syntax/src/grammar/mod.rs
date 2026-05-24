@@ -260,7 +260,7 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
                         .last()
                         .and_then(modifier_word)
                         .is_some_and(|word| is_indicator_word(&word));
-                if prev_is_leading_indicator_nai {
+                if prev_is_leading_indicator_nai || !should_attach_indicator(&prev, &indicator) {
                     out.push(prev);
                     out.push(word);
                     if let Some(nai) = nai {
@@ -302,6 +302,13 @@ fn is_indicator_word(word: &Word) -> bool {
     word.cmavo().is_some_and(|cmavo| {
         cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai) || cmavo == Cmavo::Y
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn should_attach_indicator(prev: &WithIndicators<WordLike>, indicator: &Word) -> bool {
+    !(indicator.is_selmaho(Selmaho::Roi)
+        && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
 
 #[requires(true)]
@@ -476,6 +483,83 @@ mod tests {
             assert!(raw.contains("connective: Some(Relation"));
             assert!(raw.contains("fi'o"));
             assert!(raw.contains("bróda"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn keeps_i_connectives_out_of_tail_terms() {
+        run_on_large_stack(|| {
+            let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());
+
+            assert!(raw.contains("Connected"));
+            assert!(raw.contains("leading_statement"));
+            assert!(raw.contains("trailing_statement"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn classifies_mohi_as_spatial_movement_not_koha() {
+        run_on_large_stack(|| {
+            let raw = parse_tree_debug(
+                "le verba mo'i ri'u cadzu le bisli",
+                &ParseOptions::default(),
+            );
+
+            assert!(raw.contains("TenseModal"));
+            assert!(raw.contains("mo'i"));
+            assert!(!raw.contains("Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: \"mo'i\" }"));
+
+            let words = segment_words_with_modifiers("da poi palci vimo'i selklama")
+                .expect("valid morphology");
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_v0_joik_and_cehe_argument_connective_cases() {
+        run_on_large_stack(|| {
+            for source in [
+                "la djeimyz. cebo la djordj. bruna remei",
+                "mi joibo do cu broda",
+                "ju'a nai cy pa ka ce'u ce ke do ke'e simxu cy no kei",
+                "ce'e di",
+            ] {
+                parse_source(source, &ParseOptions::default());
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_vowel_cmavo_are_not_implicit_letters() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("a cmene").expect("valid morphology");
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let raw = parse_tree_debug("a bu cmene", &ParseOptions::default());
+            assert!(raw.contains("Letter"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_experimental_muhei_roi_tense_with_warning() {
+        run_on_large_stack(|| {
+            let parsed = parse_source("mi so'emu'ei spuda", &ParseOptions::default());
+
+            assert!(format!("{:?}", parsed.parse_tree).contains("TenseModal"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalCmavo
+            ));
         });
     }
 

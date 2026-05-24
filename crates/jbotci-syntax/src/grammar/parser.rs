@@ -692,7 +692,11 @@ fn statement_parser<'tokens>(
             .boxed()
     };
     term.define(term_body.boxed());
-    let tail_term = term.clone();
+    let tail_term = cmavo(Cmavo::I)
+        .rewind()
+        .not()
+        .ignore_then(term.clone())
+        .boxed();
     let cu = cmavo(Cmavo::Cu);
     let basic_predicate = recursive(|_basic_predicate| {
         let gek_sentence = recursive(|gek_sentence| {
@@ -1549,7 +1553,7 @@ fn statement_parser<'tokens>(
             modal_forethought_connective()
                 .rewind()
                 .not()
-                .ignore_then(standard_statement_connective())
+                .ignore_then(text_leading_connective())
                 .or_not(),
         )
         .then(leading_i_statement.repeated().collect::<Vec<_>>())
@@ -2735,6 +2739,8 @@ where
         .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
     let quantifier_relation_tail = contextual_quantifier
         .clone()
+        .then(selmaho(Selmaho::Roi).rewind().not())
+        .map(|(quantifier, _)| quantifier)
         .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(quantifier)))
         .then(relation.clone())
         .then(descriptor_relative_clauses.clone())
@@ -3007,6 +3013,8 @@ where
 
     let descriptor_without_gadri = contextual_quantifier
         .clone()
+        .then(selmaho(Selmaho::Roi).rewind().not())
+        .map(|(quantifier, _)| quantifier)
         .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(quantifier)))
         .then(relation.clone())
         .then(
@@ -4180,6 +4188,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             .map(|(((na, se), cmavo), nai)| {
                 connective_syntax(ConnectiveKind::Afterthought, se, None, na, vec![cmavo], nai)
             }),
+        joik_connective(),
         selmaho(Selmaho::Joi)
             .or_not()
             .then(selmaho(Selmaho::Bihi))
@@ -4203,6 +4212,27 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
                 )
             }),
         vuhu_nonlogical_connective(),
+    ))
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn text_leading_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((
+        standard_statement_connective(),
+        cmavo(Cmavo::Cehe)
+            .then(cmavo(Cmavo::Nai).or_not())
+            .map(|(cmavo, nai)| {
+                connective_syntax(
+                    ConnectiveKind::NonLogical,
+                    None,
+                    None,
+                    None,
+                    vec![cmavo],
+                    nai,
+                )
+            }),
     ))
     .boxed()
 }
@@ -6745,7 +6775,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         })
         .or(space_interval_properties)
         .boxed();
-    let mohi_offset = cmavo(Cmavo::Mohi)
+    let mohi_offset = selmaho(Selmaho::Mohi)
         .then(space_offset.clone())
         .map(|(mohi, offset)| {
             combine_composite_tense_modals(vec![
@@ -6928,11 +6958,11 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
     let va_before_va = selmaho(Selmaho::Va)
         .then(selmaho(Selmaho::Va).rewind())
         .map(|(va, _)| tense_modal_from_leaves(vec![va], Vec::new()));
-    let mohi_before_mohi = cmavo(Cmavo::Mohi)
+    let mohi_before_mohi = selmaho(Selmaho::Mohi)
         .then(selmaho(Selmaho::Faha))
         .then(cmavo(Cmavo::Nai).or_not())
         .then(selmaho(Selmaho::Va).or_not())
-        .then(cmavo(Cmavo::Mohi).rewind())
+        .then(selmaho(Selmaho::Mohi).rewind())
         .map(|((((mohi, direction), nai), distance), _)| {
             let mut leaves = vec![mohi, direction];
             leaves.extend(nai);
@@ -7090,7 +7120,7 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 Vec::new()
             )))
         }),
-        cmavo(Cmavo::Mohi)
+        selmaho(Selmaho::Mohi)
             .then(selmaho(Selmaho::Faha))
             .then(selmaho(Selmaho::Va).or_not())
             .map(|((mohi, direction), distance)| {

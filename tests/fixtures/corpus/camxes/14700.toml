@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { sou
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(WithIndicator { base: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ŭa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None } }) }, indicator: Cmavo { phonemes: Phonemes { text: "ru'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None } }, nai: None })], free_modifiers: [] } }), argument: Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 16, char_start: 15, char_end: 16, start: None, end: None } }))], free_modifiers: [] }, boi: None } }, Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "sípna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(WithIndicator { base: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ŭa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None } }) }, indicator: Cmavo { phonemes: Phonemes { text: "ru'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None } }, nai: None })], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 16, char_start: 15, char_end: 16, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "sípna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(pu .ŭa naĭ ru'e .i mi sípna)"
@@ -30,25 +30,30 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}},{"Bare":{"Cmavo":{"
 
 [expectations.output.gentufa]
 tree = """
-Predicate @[0‥25) {
-  leading_terms: [
-    Tagged @[0‥16) {
-      tense_modal: WithIndicator @[0‥13) {
-        WithIndicator @[0‥9) {
-          Cmavo @[0‥2) "pu",
-          indicator: Cmavo @[4‥6) "ŭa",
-          nai: Cmavo @[6‥9) "naĭ",
+Paragraph @[0‥25) {
+  Term @[0‥13) {
+    terms: [
+      Tagged @[0‥13) {
+        tense_modal: WithIndicator @[0‥13) {
+          WithIndicator @[0‥9) {
+            Cmavo @[0‥2) "pu",
+            indicator: Cmavo @[4‥6) "ŭa",
+            nai: Cmavo @[6‥9) "naĭ",
+          },
+          indicator: Cmavo @[9‥13) "ru'e",
         },
-        indicator: Cmavo @[9‥13) "ru'e",
+        Zohe {},
       },
-      Letter @[15‥16) {
-        letter: [
-          Cmavo @[15‥16) "i",
-        ],
-      },
+    ],
+  },
+  ParagraphStatement @[15‥25) {
+    i: Cmavo @[15‥16) "i",
+    Predicate @[17‥25) {
+      leading_terms: [
+        Cmavo @[17‥19) "mi",
+      ],
+      Gismu @[20‥25) "sípna",
     },
-    Cmavo @[17‥19) "mi",
-  ],
-  Gismu @[20‥25) "sípna",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[9,13]}}}}}]}},"argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[15,16]}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"sípna","span":[20,25]}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[9,13]}}}}}]}},"argument":{"Zohe":{}}}}]}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[15,16]}}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"sípna","span":[20,25]}}}}}}}}}}}}]}]}"""
