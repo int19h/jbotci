@@ -20,7 +20,7 @@ use jbotci_output::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
-use owo_colors::{OwoColorize, Stream};
+use owo_colors::OwoColorize;
 
 const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
 
@@ -29,8 +29,17 @@ const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
 #[command(about = "Command-line Lojban toolkit")]
 #[invariant(true)]
 struct Cli {
-    #[arg(long = "color", global = true)]
-    color: bool,
+    #[arg(
+        long = "color",
+        global = true,
+        value_name = "WHEN",
+        value_enum,
+        num_args = 0..=1,
+        default_value_t = concolor_clap::ColorChoice::Auto,
+        default_missing_value = "always",
+        require_equals = true,
+    )]
+    color: concolor_clap::ColorChoice,
     #[command(subcommand)]
     command: Command,
 }
@@ -71,6 +80,45 @@ enum Command {
 enum CliStatus {
     Success,
     Failure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct CliColorPolicy {
+    stdout: bool,
+    stderr: bool,
+}
+
+impl CliColorPolicy {
+    #[requires(true)]
+    #[ensures(!ret.stdout)]
+    #[ensures(!ret.stderr)]
+    fn never() -> Self {
+        Self {
+            stdout: false,
+            stderr: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.stdout == enabled)]
+    #[ensures(ret.stderr == enabled)]
+    fn same(enabled: bool) -> Self {
+        Self {
+            stdout: enabled,
+            stderr: enabled,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn with_choice(self, choice: concolor_clap::ColorChoice) -> Self {
+        match choice {
+            concolor_clap::ColorChoice::Auto => self,
+            concolor_clap::ColorChoice::Always => Self::same(true),
+            concolor_clap::ColorChoice::Never => Self::never(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -308,10 +356,13 @@ fn main() -> ExitCode {
 #[ensures(true)]
 fn run() -> Result<CliStatus> {
     let cli = Cli::parse();
-    let color_enabled = cli.color || stdout_supports_color();
+    let color_policy = CliColorPolicy {
+        stdout: stream_supports_ansi_color(concolor::Stream::Stdout),
+        stderr: stream_supports_ansi_color(concolor::Stream::Stderr),
+    };
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    run_cli(cli, &mut stdout, &mut stderr, color_enabled)
+    run_cli_with_color_policy(cli, &mut stdout, &mut stderr, color_policy)
 }
 
 #[requires(true)]
@@ -322,7 +373,18 @@ fn run_cli<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color_enabled: bool,
 ) -> Result<CliStatus> {
-    let color_enabled = cli.color || color_enabled;
+    run_cli_with_color_policy(cli, stdout, stderr, CliColorPolicy::same(color_enabled))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+) -> Result<CliStatus> {
+    let color_policy = color_policy.with_choice(cli.color);
     match cli.command {
         Command::Vlasei(input) => {
             validate_vlasei_options(&input)?;
@@ -344,7 +406,7 @@ fn run_cli<WOut: Write, WErr: Write>(
                         &source_label,
                         &text,
                         std::slice::from_ref(&diagnostic),
-                        color_enabled,
+                        color_policy.stderr,
                     )?;
                     return Ok(CliStatus::Failure);
                 }
@@ -359,14 +421,14 @@ fn run_cli<WOut: Write, WErr: Write>(
                             phonemes: phoneme_options,
                         },
                     )?;
-                    writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
+                    writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
                 }
                 VlaseiFormat::Brackets => {
                     let rendered = pretty_morphology_brackets_with_options(
                         &words,
                         &text,
                         BracketRenderOptions {
-                            color: color_enabled,
+                            color: color_policy.stdout,
                             phonemes: phoneme_options,
                             decompose_lujvo: input.decompose_lujvo,
                         },
@@ -378,7 +440,7 @@ fn run_cli<WOut: Write, WErr: Write>(
                         &words,
                         &text,
                         TreeRenderOptions {
-                            color: color_enabled,
+                            color: color_policy.stdout,
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
                             show_spans: input.show_spans,
@@ -391,7 +453,7 @@ fn run_cli<WOut: Write, WErr: Write>(
             }
             Ok(CliStatus::Success)
         }
-        Command::Gentufa(input) => run_gentufa(input, stdout, stderr, color_enabled),
+        Command::Gentufa(input) => run_gentufa(input, stdout, stderr, color_policy),
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
@@ -428,9 +490,9 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     input: GentufaInput,
     stdout: &mut WOut,
     stderr: &mut WErr,
-    color_enabled: bool,
+    color_policy: CliColorPolicy,
 ) -> Result<CliStatus> {
-    let rendered = render_gentufa_on_large_stack(input, color_enabled)?;
+    let rendered = render_gentufa_on_large_stack(input, color_policy)?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(rendered.stdout.as_bytes())?;
     Ok(rendered.status)
@@ -440,12 +502,12 @@ fn run_gentufa<WOut: Write, WErr: Write>(
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa_on_large_stack(
     input: GentufaInput,
-    color_enabled: bool,
+    color_policy: CliColorPolicy,
 ) -> Result<GentufaRendered> {
     let worker = std::thread::Builder::new()
         .name("jbotci-gentufa".to_owned())
         .stack_size(SYNTAX_WORKER_STACK_SIZE)
-        .spawn(move || render_gentufa(input, color_enabled))
+        .spawn(move || render_gentufa(input, color_policy))
         .context("failed to spawn gentufa syntax worker")?;
     match worker.join() {
         Ok(result) => result,
@@ -455,7 +517,7 @@ fn render_gentufa_on_large_stack(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRendered> {
+fn render_gentufa(input: GentufaInput, color_policy: CliColorPolicy) -> Result<GentufaRendered> {
     validate_gentufa_options(&input)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
@@ -473,7 +535,7 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
                 &source_label,
                 &text,
                 std::slice::from_ref(&diagnostic),
-                color_enabled,
+                color_policy.stderr,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -491,7 +553,7 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
                 &source_label,
                 &text,
                 std::slice::from_ref(&diagnostic),
-                color_enabled,
+                color_policy.stderr,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -505,7 +567,8 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
         .iter()
         .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text))
         .collect::<Vec<_>>();
-    let stderr = render_source_diagnostics(&source_label, &text, &diagnostics, color_enabled)?;
+    let stderr =
+        render_source_diagnostics(&source_label, &text, &diagnostics, color_policy.stderr)?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     let mut stdout = String::new();
     match input.format {
@@ -514,7 +577,7 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
                 &parsed.parse_tree,
                 &text,
                 BracketRenderOptions {
-                    color: color_enabled,
+                    color: color_policy.stdout,
                     phonemes: phoneme_options,
                     decompose_lujvo: input.decompose_lujvo,
                 },
@@ -530,7 +593,7 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
                 &parsed.parse_tree,
                 &text,
                 TreeRenderOptions {
-                    color: color_enabled,
+                    color: color_policy.stdout,
                     indent: input.indent.unwrap_or(2),
                     phonemes: phoneme_options,
                     show_spans: input.show_spans,
@@ -548,7 +611,7 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
                     phonemes: phoneme_options,
                 },
             )?;
-            stdout.push_str(&colorize_json(&rendered, color_enabled));
+            stdout.push_str(&colorize_json(&rendered, color_policy.stdout));
             stdout.push('\n');
         }
     }
@@ -813,10 +876,8 @@ fn read_text_input(file: Option<&PathBuf>, text: &[String]) -> Result<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn stdout_supports_color() -> bool {
-    "x".if_supports_color(Stream::Stdout, |text| text.red())
-        .to_string()
-        != "x"
+fn stream_supports_ansi_color(stream: concolor::Stream) -> bool {
+    concolor::get(stream).ansi_color()
 }
 
 #[requires(true)]
@@ -1110,6 +1171,26 @@ mod tests {
                 .kind(),
             ErrorKind::UnknownArgument
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_color_policy_values() {
+        let default_cli = Cli::try_parse_from(["jbotci", "gentufa", "coi"]).expect("default color");
+        assert_eq!(default_cli.color, concolor_clap::ColorChoice::Auto);
+
+        let bare_cli =
+            Cli::try_parse_from(["jbotci", "gentufa", "--color", "coi"]).expect("bare color");
+        assert_eq!(bare_cli.color, concolor_clap::ColorChoice::Always);
+
+        let always_cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=always", "coi"])
+            .expect("always color");
+        assert_eq!(always_cli.color, concolor_clap::ColorChoice::Always);
+
+        let never_cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=never", "coi"])
+            .expect("never color");
+        assert_eq!(never_cli.color, concolor_clap::ColorChoice::Never);
     }
 
     #[test]
@@ -1656,7 +1737,7 @@ mod tests {
         run_on_large_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color", "mi", "klama"])
                 .expect("gentufa color");
-            assert!(cli.color);
+            assert_eq!(cli.color, concolor_clap::ColorChoice::Always);
             let mut output = Vec::new();
             let mut error = Vec::new();
             run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
@@ -1701,6 +1782,23 @@ mod tests {
         let output = String::from_utf8(output).expect("utf8");
         assert!(output.contains("\x1b["));
         assert!(output.contains("gléki"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn color_never_disables_ansi_output() {
+        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=never", "mi", "klama"])
+            .expect("gentufa color never");
+        assert_eq!(cli.color, concolor_clap::ColorChoice::Never);
+
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, true).expect("gentufa color never run");
+
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(!output.contains("\x1b["));
+        assert!(error.is_empty());
     }
 
     #[test]
