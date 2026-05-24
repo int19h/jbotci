@@ -47,7 +47,7 @@ tree_model! {
         Hyphen(Phonemes),
     }
 
-    #[invariant(self.span.char_len() == self.text.chars().count(), "verbatim text must match span length")]
+    #[invariant(span.char_len() == text.chars().count(), "verbatim text must match span length")]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Verbatim {
         pub span: SourceSpan,
