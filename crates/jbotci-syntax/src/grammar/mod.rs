@@ -72,10 +72,27 @@ impl ParserState {
         anchor: &WithIndicators<WordLike>,
     ) {
         let anchor_index = self.anchor_index(anchor);
+        let anchor = WithIndicators::bare(anchor.core_word().clone());
         self.warnings.push(SyntaxWarning::experimental_construct(
             construct,
             anchor_index,
-            anchor.clone(),
+            anchor,
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(self.warnings.len() == old(self.warnings.len()) + 1)]
+    pub(super) fn warn_word(
+        &mut self,
+        construct: ExperimentalConstruct,
+        context: &WithIndicators<WordLike>,
+        anchor: &Word,
+    ) {
+        let anchor_index = self.anchor_index(context);
+        self.warnings.push(SyntaxWarning::experimental_construct(
+            construct,
+            anchor_index,
+            WithIndicators::bare(WordLike::bare(anchor.clone())),
         ));
     }
 
@@ -132,7 +149,11 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
 #[requires(true)]
 #[ensures(true)]
 fn word_anchor_byte_start(word: &WithIndicators<WordLike>) -> Option<usize> {
-    word.visible_word().map(|word| word.span().byte_start)
+    word.core_word()
+        .source_spans()
+        .into_iter()
+        .map(|span| span.byte_start)
+        .min()
 }
 
 #[requires(true)]
@@ -219,9 +240,8 @@ fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordL
         if reversed.front().is_some_and(is_bahe_word)
             && let Some(bahe_token) = reversed.pop_front()
             && let Some(bahe) = modifier_word(&bahe_token)
-            && let Some(word_like) = word.word_like()
         {
-            reversed.push_front(WithIndicators::emphasized(bahe, word_like.clone()));
+            reversed.push_front(WithIndicators::emphasized(bahe, word.core_word().clone()));
         } else {
             out.push(word);
         }
@@ -285,15 +305,7 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
 #[requires(true)]
 #[ensures(true)]
 fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
-    match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-            match word_like.as_data() {
-                data!(WordLike::Bare(word)) => Some(word.clone()),
-                _ => None,
-            }
-        }
-        WithIndicators::WithIndicator { base, .. } => modifier_word(base),
-    }
+    word.core_word().bare_word().cloned()
 }
 
 #[requires(true)]
@@ -545,6 +557,104 @@ mod tests {
 
             let raw = parse_tree_debug("a bu cmene", &ParseOptions::default());
             assert!(raw.contains("Letter"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn core_word_strips_syntax_wrappers_but_preserves_word_like_unit() {
+        run_on_large_stack(|| {
+            let mut words = segment_words_with_modifiers("zo coi").expect("valid morphology");
+            let quote = words.remove(0);
+            let wrapped = WithFreeModifiers::new(
+                WithIndicators::with_indicator(
+                    WithIndicators::emphasized(single_bare_word("ba'e"), quote.clone()),
+                    single_bare_word("ui"),
+                    None,
+                ),
+                Vec::new(),
+            );
+
+            assert_eq!(wrapped.core_word(), &quote);
+            assert_eq!(wrapped.quote_marker_cmavo(), Some(Cmavo::Zo));
+            assert!(!wrapped.is_cmavo(Cmavo::Zo));
+            assert!(!wrapped.is_selmaho(Selmaho::Zo));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quote_warning_anchor_covers_whole_core_word_like() {
+        run_on_large_stack(|| {
+            let parsed = parse_source("mi tavla zo'oi broda", &ParseOptions::default());
+            let quote_warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalZohOiQuote)
+                .expect("ZOhOI warning");
+
+            assert_eq!(warning_span(quote_warning), [9, 20]);
+            assert!(matches!(
+                quote_warning.anchor.core_word().as_data(),
+                data!(WordLike::SingleWordQuote { .. })
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_lu_quotes_do_not_warn_for_quoted_experimental_cmavo() {
+        run_on_large_stack(|| {
+            for source in [
+                "mi tavla zo li'oi",
+                "mi tavla zo'oi li'oi",
+                "mi tavla lo'u li'oi le'u",
+            ] {
+                let parsed = parse_source(source, &ParseOptions::default());
+                assert!(
+                    !has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalDictionaryUiIndicator
+                    ),
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lu_quote_warns_for_inner_experimental_cmavo() {
+        run_on_large_stack(|| {
+            let parsed = parse_source("mi cusku lu li'oi li'u", &ParseOptions::default());
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalDictionaryUiIndicator
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_indicator_warning_anchors_indicator_word() {
+        run_on_large_stack(|| {
+            let parsed = parse_source("mi li'oi klama", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalDictionaryUiIndicator
+                })
+                .expect("experimental UI warning");
+
+            assert_eq!(warning.anchor_index, 0);
+            assert_eq!(warning_span(warning), [3, 8]);
+            assert!(warning.anchor.is_cmavo(Cmavo::Lihoi));
         });
     }
 
@@ -1082,6 +1192,28 @@ mod tests {
         let mut words = segment_words_with_modifiers(text).expect("valid morphology");
         assert_eq!(words.len(), 1, "test helper expects one word");
         WithIndicators::bare(words.remove(0))
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn single_bare_word(text: &str) -> Word {
+        let mut words = segment_words_with_modifiers(text).expect("valid morphology");
+        assert_eq!(words.len(), 1, "test helper expects one word");
+        words
+            .remove(0)
+            .bare_word()
+            .expect("test helper expects a bare word")
+            .clone()
+    }
+
+    #[requires(true)]
+    #[ensures(ret[0] <= ret[1])]
+    fn warning_span(warning: &SyntaxWarning) -> [usize; 2] {
+        let mut spans = warning.anchor.source_spans();
+        spans.sort_by_key(|span| span.byte_start);
+        let first = spans.first().expect("warning has source spans");
+        let last = spans.last().expect("warning has source spans");
+        [first.byte_start, last.byte_end]
     }
 
     #[requires(true)]

@@ -73,7 +73,8 @@ pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
         .then(cmavo(Cmavo::Nai).or_not())
         .map(|(indicator, nai)| {
             let nai = nai.map(|nai| {
-                nai.visible_word()
+                nai.core_word()
+                    .bare_word()
                     .expect("NAI parser matched a visible word")
                     .clone()
             });
@@ -191,19 +192,17 @@ fn token_matching_with_state<'tokens>(
 #[requires(!label.is_empty())]
 #[ensures(true)]
 fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WithIndicators<WordLike>) {
-    let Some(construct) = experimental_construct_for_cmavo(label, word) else {
-        return;
-    };
-    state.warn(construct, word);
+    if let Some(cmavo) = parser_word_cmavo(word)
+        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+    {
+        state.warn(construct, word);
+    }
+    warn_experimental_indicators(state, word);
 }
 
 #[requires(!label.is_empty())]
 #[ensures(true)]
-fn experimental_construct_for_cmavo(
-    label: &str,
-    word: &WithIndicators<WordLike>,
-) -> Option<ExperimentalConstruct> {
-    let cmavo = parser_word_cmavo(word)?;
+fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<ExperimentalConstruct> {
     match (label, cmavo) {
         ("COI", Cmavo::Ahoi | Cmavo::Ohai) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative)
@@ -248,9 +247,52 @@ fn experimental_construct_for_cmavo(
 }
 
 #[requires(true)]
-#[ensures(ret.is_none() || word.word_like().is_some_and(|word_like| word_like.cmavo() == ret))]
+#[ensures(true)]
+fn warn_experimental_indicators(state: &mut ParserState, word: &WithIndicators<WordLike>) {
+    let WithIndicators::WithIndicator {
+        base,
+        indicator,
+        nai,
+    } = word
+    else {
+        return;
+    };
+
+    warn_experimental_indicators(state, base);
+
+    if let Some(label) = indicator_cmavo_context(indicator)
+        && let Some(cmavo) = indicator.cmavo()
+        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+    {
+        state.warn_word(construct, word, indicator);
+    }
+
+    if let Some(nai) = nai
+        && let Some(construct) = experimental_construct_for_cmavo("NAI", Cmavo::Nai)
+    {
+        state.warn_word(construct, word, nai);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|label| !label.is_empty()))]
+fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
+    let cmavo = indicator.cmavo()?;
+    if cmavo.is_selmaho(Selmaho::Ui) {
+        Some("UI")
+    } else if cmavo.is_selmaho(Selmaho::Cai) {
+        Some("CAI")
+    } else if cmavo == Cmavo::Y {
+        Some("Y")
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == word.core_word().cmavo())]
 fn parser_word_cmavo(word: &WithIndicators<WordLike>) -> Option<Cmavo> {
-    word.word_like().and_then(WordLike::cmavo)
+    word.core_word().cmavo()
 }
 
 #[requires(true)]

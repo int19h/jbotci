@@ -5,8 +5,8 @@ use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    MorphologyError, MorphologyOptions, Phonemes, Verbatim, Word, WordKind, WordLike, WordLikeData,
-    canonical_text_eq, canonical_text_is_all, canonicalize_text, visible_selmaho,
+    Cmavo, MorphologyError, MorphologyOptions, Phonemes, Verbatim, Word, WordKind, WordLike,
+    WordLikeData, canonical_text_eq, canonical_text_is_all, canonicalize_text, erasure_selmaho,
 };
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
@@ -1013,10 +1013,7 @@ fn extract_word(word: &WordLike) -> Option<Word> {
 #[requires(true)]
 #[ensures(true)]
 fn bare_word_ref(word: &WordLike) -> Option<&Word> {
-    match word.as_data() {
-        data!(WordLike::Bare(word)) => Some(word),
-        _ => None,
-    }
+    word.bare_word()
 }
 
 #[requires(true)]
@@ -1031,7 +1028,7 @@ fn into_bare_word(word: WordLike) -> Option<Word> {
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
-    word.visible_cmavo_is(text)
+    Cmavo::from_text(text).is_some_and(|cmavo| word.is_cmavo(cmavo))
 }
 
 #[requires(true)]
@@ -1089,7 +1086,7 @@ fn previous_word_skipping_y_index(acc: &[WordLike]) -> Option<usize> {
 #[ensures(ret <= acc.len())]
 fn su_boundary_index(acc: &[WordLike]) -> usize {
     for (index, token) in acc.iter().enumerate().rev() {
-        let selmaho = visible_selmaho(token);
+        let selmaho = erasure_selmaho(token);
         if matches!(selmaho, Some("NIhO" | "LU" | "TUhE" | "TO")) {
             return index;
         }
@@ -1107,7 +1104,7 @@ fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<S
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        None => visible_selmaho(word).map(SAMatchTag::Selmaho),
+        None => erasure_selmaho(word).map(SAMatchTag::Selmaho),
     }
 }
 

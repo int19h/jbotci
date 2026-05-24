@@ -514,41 +514,36 @@ impl WordLike {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub fn visible_base_word(&self) -> Option<&Word> {
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::Bare(_))))]
+    pub fn bare_word(&self) -> Option<&Word> {
         match self.as_data() {
             data!(WordLike::Bare(word)) => Some(word),
-            data!(WordLike::ZoQuote { zo, .. }) => Some(zo),
-            data!(WordLike::ZoiQuote { zoi, .. }) => Some(zoi),
-            data!(WordLike::LohuQuote { lohu, .. }) => Some(lohu),
-            data!(WordLike::SingleWordQuote { marker, .. }) => Some(marker),
-            data!(WordLike::Letter { base, .. }) => base.visible_base_word(),
-            data!(WordLike::ZeiLujvo { left, .. }) => left.visible_base_word(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn visible_selmaho(&self) -> Option<&'static str> {
-        visible_selmaho(self)
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(true)]
-    pub fn visible_cmavo_is(&self, text: &str) -> bool {
-        match self.as_data() {
-            data!(WordLike::Bare(word)) => word.is_cmavo_text(text),
-            _ => false,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.cmavo().is_some()))]
-    pub fn cmavo(&self) -> Option<Cmavo> {
-        match self.as_data() {
-            data!(WordLike::Bare(word)) => word.cmavo(),
             _ => None,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::ZoQuote { .. }) | data!(WordLike::ZoiQuote { .. }) | data!(WordLike::LohuQuote { .. }) | data!(WordLike::SingleWordQuote { .. })))]
+    pub fn quote_marker_cmavo(&self) -> Option<Cmavo> {
+        match self.as_data() {
+            data!(WordLike::ZoQuote { zo, .. }) => zo.cmavo(),
+            data!(WordLike::ZoiQuote { zoi, .. }) => zoi.cmavo(),
+            data!(WordLike::LohuQuote { lohu, .. }) => lohu.cmavo(),
+            data!(WordLike::SingleWordQuote { marker, .. }) => marker.cmavo(),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.quote_marker_cmavo() == Some(cmavo)))]
+    pub fn is_quote_marker_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.quote_marker_cmavo() == Some(cmavo)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == self.bare_word().is_some_and(|word| word.cmavo().is_some()))]
+    pub fn cmavo(&self) -> Option<Cmavo> {
+        self.bare_word().and_then(Word::cmavo)
     }
 
     #[requires(true)]
@@ -1384,7 +1379,7 @@ pub fn selmaho(cmavo: &str) -> Option<&'static str> {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
+pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
     match word_like.as_data() {
         data!(WordLike::Bare(word)) => word.selmaho(),
         data!(WordLike::ZoQuote { .. }) => Some("ZO"),
@@ -1782,14 +1777,77 @@ mod tests {
         let quoted = test_word(WordKind::Cmavo, "coi", 3);
         let word_like = WordLike::zo_quote(cmavo, quoted);
 
+        assert_eq!(word_like.bare_word(), None);
         assert_eq!(word_like.cmavo(), None);
         assert!(!word_like.is_cmavo(Cmavo::Zo));
         assert!(!word_like.is_selmaho(Selmaho::Zo));
 
         let bare = WordLike::bare(test_word(WordKind::Cmavo, "zo", 0));
+        assert_eq!(bare.bare_word().and_then(Word::cmavo), Some(Cmavo::Zo));
         assert!(bare.is_cmavo(Cmavo::Zo));
         assert!(bare.is_selmaho(Selmaho::Zo));
         assert!(bare.is_one_of_selmaho(&[Selmaho::A, Selmaho::Zo]));
+
+        let letter = WordLike::letter(
+            WordLike::bare(test_word(WordKind::Cmavo, "zo", 0)),
+            test_word(WordKind::Cmavo, "bu", 3),
+        );
+        assert_eq!(letter.cmavo(), None);
+        assert!(!letter.is_cmavo(Cmavo::Zo));
+
+        let zei_lujvo = WordLike::zei_lujvo(
+            WordLike::bare(test_word(WordKind::Cmavo, "zo", 0)),
+            test_word(WordKind::Cmavo, "zei", 3),
+            test_word(WordKind::Cmavo, "coi", 7),
+        );
+        assert_eq!(zei_lujvo.cmavo(), None);
+        assert!(!zei_lujvo.is_cmavo(Cmavo::Zo));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quote_marker_cmavo_checks_quote_markers_only() {
+        let zo_quote = WordLike::zo_quote(
+            test_word(WordKind::Cmavo, "zo", 0),
+            test_word(WordKind::Cmavo, "coi", 3),
+        );
+        assert_eq!(zo_quote.quote_marker_cmavo(), Some(Cmavo::Zo));
+        assert!(zo_quote.is_quote_marker_cmavo(Cmavo::Zo));
+        assert!(!zo_quote.is_cmavo(Cmavo::Zo));
+
+        let zoi_quote = WordLike::zoi_quote(
+            test_word(WordKind::Cmavo, "zoi", 0),
+            test_word(WordKind::Cmavo, "gy", 4),
+            Verbatim::new(
+                SourceSpan::new(None, 7, 11, 7, 11).expect("valid test span"),
+                "test".to_owned(),
+            ),
+            test_word(WordKind::Cmavo, "gy", 12),
+        );
+        assert_eq!(zoi_quote.quote_marker_cmavo(), Some(Cmavo::Zoi));
+
+        let lohu_quote = WordLike::lohu_quote(
+            test_word(WordKind::Cmavo, "lo'u", 0),
+            vec![test_word(WordKind::Cmavo, "coi", 5)],
+            test_word(WordKind::Cmavo, "le'u", 9),
+        );
+        assert_eq!(lohu_quote.quote_marker_cmavo(), Some(Cmavo::Lohu));
+
+        let single_word_quote = WordLike::single_word_quote(
+            test_word(WordKind::Cmavo, "zo'oi", 0),
+            Verbatim::new(
+                SourceSpan::new(None, 6, 11, 6, 11).expect("valid test span"),
+                "hello".to_owned(),
+            ),
+        );
+        assert_eq!(single_word_quote.quote_marker_cmavo(), Some(Cmavo::Zohoi));
+
+        let letter = WordLike::letter(
+            WordLike::bare(test_word(WordKind::Cmavo, "a", 0)),
+            test_word(WordKind::Cmavo, "bu", 2),
+        );
+        assert_eq!(letter.quote_marker_cmavo(), None);
     }
 
     #[requires(!phonemes.is_empty())]

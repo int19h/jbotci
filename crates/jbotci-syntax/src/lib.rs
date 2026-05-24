@@ -547,7 +547,8 @@ fn experimental_cmavo_text(warning: &SyntaxWarning) -> Option<String> {
     if warning.kind == ExperimentalConstruct::ExperimentalCmavo {
         return warning
             .anchor
-            .visible_word()
+            .core_word()
+            .bare_word()
             .map(jbotci_morphology::Word::canonical_phonemes)
             .filter(|text| !text.trim().is_empty());
     }

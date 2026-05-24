@@ -3588,11 +3588,7 @@ where
 {
     let compound_quote = any()
         .try_map(move |word: WithIndicators<WordLike>, span| {
-            let Some(word_like) = quote_word_like(&word) else {
-                return Err(Rich::custom(span, "expected quote"));
-            };
-
-            match word_like.as_data() {
+            match word.core_word().as_data() {
                 data!(WordLike::ZoQuote { .. }) => Ok(new!(ArgumentSyntax::Quote(new!(QuoteSyntax::Zo(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
                 ))))),
@@ -3691,18 +3687,6 @@ fn quote_with_free_modifiers(
         }
     }
 }
-
-#[requires(true)]
-#[ensures(true)]
-fn quote_word_like(word: &WithIndicators<WordLike>) -> Option<&WordLike> {
-    match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-            Some(word_like)
-        }
-        WithIndicators::WithIndicator { base, .. } => quote_word_like(base),
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn relative_clauses<'tokens, A, S>(
@@ -4985,13 +4969,10 @@ where
     let marker_text = marker_cmavo.canonical_text();
     any()
         .try_map(move |word: WithIndicators<WordLike>, span| {
-            let Some(word_like) = quote_word_like(&word) else {
-                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
-            };
             let data!(WordLike::SingleWordQuote {
                 marker,
                 ..
-            }) = word_like.as_data()
+            }) = word.core_word().as_data()
             else {
                 return Err(Rich::custom(span, format!("expected {marker_text} quote")));
             };
@@ -5038,16 +5019,12 @@ where
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
-        let Some(word) = input.next() else {
+        let Some(word): Option<WithIndicators<WordLike>> = input.next() else {
             let span = input.span_since(&cursor);
             return Err(Rich::custom(span, format!("expected {marker_text} quote")));
         };
         let span = input.span_since(&cursor);
-        let Some(word_like) = quote_word_like(&word) else {
-            input.rewind(checkpoint);
-            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
-        };
-        let data!(WordLike::ZoiQuote { zoi, .. }) = word_like.as_data() else {
+        let data!(WordLike::ZoiQuote { zoi, .. }) = word.core_word().as_data() else {
             input.rewind(checkpoint);
             return Err(Rich::custom(span, format!("expected {marker_text} quote")));
         };
