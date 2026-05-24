@@ -359,28 +359,26 @@ fn writer_keeps_tree_and_output_values() {
                         text: "{}".into(),
                     }),
                 }),
-                ..OutputExpectations::default()
             }),
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
                     text: "[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
                 }),
-                error: None,
+                diagnostics: vec![],
             }),
             syntax: Some(SyntaxExpectation {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
                     text: "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }".into(),
                 }),
-                error: None,
+                diagnostics: vec![],
                 xfail: Some(XfailExpectation {
                     source: "test".into(),
                     reason: "intentional writer coverage".into(),
                     accepted_status: ExpectationStatus::Failure,
                 }),
             }),
-            ..Expectations::default()
         },
     };
     write_fixture_file(&fixture_path, &test_case).expect("write fixture");

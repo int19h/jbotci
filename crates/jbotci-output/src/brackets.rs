@@ -2432,16 +2432,16 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexp
 #[requires(true)]
 #[ensures(true)]
 fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
-    if source.options.decompose_lujvo {
-        if let Some(parts) = word.lujvo_parts() {
-            return sexpr::leaf(
-                parts
-                    .iter()
-                    .map(|part| part.phonemes().render(source.options.phonemes))
-                    .collect::<Vec<_>>()
-                    .join("·"),
-            );
-        }
+    if source.options.decompose_lujvo
+        && let Some(parts) = word.lujvo_parts()
+    {
+        return sexpr::leaf(
+            parts
+                .iter()
+                .map(|part| part.phonemes().render(source.options.phonemes))
+                .collect::<Vec<_>>()
+                .join("·"),
+        );
     }
     sexpr::leaf(surface::format_with_indicators_with_options(
         &WithIndicators::bare(WordLike::bare(word.clone())),

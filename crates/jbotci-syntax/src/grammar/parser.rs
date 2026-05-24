@@ -344,11 +344,10 @@ fn statement_parser<'tokens>(
     let tagged_term_before_tag = tagged_term_start.clone().then(tense_modal().rewind()).map(
         |((tense_modal, free_modifiers), _)| {
             new!(TermSyntax::Tagged {
-                tense_modal: Some(attach_tense_modal_free_modifiers(
+                tense_modal: Some(Box::new(attach_tense_modal_free_modifiers(
                     tense_modal,
                     free_modifiers,
-                ))
-                .map(Box::new),
+                ))),
                 argument: implicit_zohe_argument(),
             })
         },
@@ -365,11 +364,10 @@ fn statement_parser<'tokens>(
         )
         .map(|(((tense_modal, free_modifiers), _), argument)| {
             new!(TermSyntax::Tagged {
-                tense_modal: Some(attach_tense_modal_free_modifiers(
+                tense_modal: Some(Box::new(attach_tense_modal_free_modifiers(
                     tense_modal,
                     free_modifiers,
-                ))
-                .map(Box::new),
+                ))),
                 argument,
             })
         });
@@ -398,7 +396,7 @@ fn statement_parser<'tokens>(
                             extra
                                 .state()
                                 .warn(ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi, &ku);
-                            Err(ku)
+                            Err(Box::new(ku))
                         },
                     ),
                 )
@@ -417,7 +415,10 @@ fn statement_parser<'tokens>(
                             tail_elements,
                             relation: relation.map(Box::new),
                             relative_clauses,
-                            brigahi_ku: WithFreeModifiers::new(brigahi_ku, trailing_free_modifiers),
+                            brigahi_ku: WithFreeModifiers::new(
+                                *brigahi_ku,
+                                trailing_free_modifiers,
+                            ),
                         })
                     }
                     Some((Ok(fehu), trailing_free_modifiers)) => new!(TermSyntax::NoihaAdverbial {
@@ -1433,15 +1434,22 @@ fn statement_parser<'tokens>(
             (None, None) => None,
             (Some(connective), None) => Some(connective),
             (connective, Some((tense_modal, bo))) => {
-                let (kind, se, nahe, na, mut cmavo, nai) = connective.map_or(
-                    (
-                        ConnectiveKind::Relation,
-                        None,
-                        None,
-                        None,
-                        wrapped_words(Vec::new(), Vec::new()),
-                        None,
-                    ),
+                let ConnectiveSyntaxParts {
+                    kind,
+                    se,
+                    nahe,
+                    na,
+                    mut cmavo,
+                    nai,
+                } = connective.map_or(
+                    ConnectiveSyntaxParts {
+                        kind: ConnectiveKind::Relation,
+                        se: None,
+                        nahe: None,
+                        na: None,
+                        cmavo: wrapped_words(Vec::new(), Vec::new()),
+                        nai: None,
+                    },
                     |connective| connective.into_parts(),
                 );
                 if let Some(tense_modal) = tense_modal {
@@ -4304,7 +4312,14 @@ fn append_connective_free_modifiers(
     connective: ConnectiveSyntax,
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> ConnectiveSyntax {
-    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind,
+        se,
+        nahe,
+        na,
+        mut cmavo,
+        nai,
+    } = connective.into_parts();
     let nai = if let Some(mut nai) = nai {
         nai.free_modifiers.extend(free_modifiers);
         Some(nai)
@@ -4321,7 +4336,14 @@ fn append_connective_words(
     connective: ConnectiveSyntax,
     words: Vec<WithIndicators<WordLike>>,
 ) -> ConnectiveSyntax {
-    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind,
+        se,
+        nahe,
+        na,
+        mut cmavo,
+        nai,
+    } = connective.into_parts();
     cmavo.value.extend(words);
     ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
@@ -4347,7 +4369,14 @@ fn append_tense_modal_words(
     connective: ConnectiveSyntax,
     tense_modal: TenseModalSyntax,
 ) -> ConnectiveSyntax {
-    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind,
+        se,
+        nahe,
+        na,
+        mut cmavo,
+        nai,
+    } = connective.into_parts();
     tense_modal.extend_words_into(&mut cmavo.value);
     ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
@@ -4358,7 +4387,14 @@ fn prepend_connective_words(
     words: Vec<WithIndicators<WordLike>>,
     connective: ConnectiveSyntax,
 ) -> ConnectiveSyntax {
-    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind,
+        se,
+        nahe,
+        na,
+        mut cmavo,
+        nai,
+    } = connective.into_parts();
     let mut value = words;
     value.extend(cmavo.value);
     cmavo.value = value;
@@ -4419,7 +4455,14 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(!connective.cmavo().value.is_empty())]
 #[ensures(ret.len() >= old(connective.cmavo().value.len()))]
 fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WithIndicators<WordLike>> {
-    let (_, se, nahe, na, cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind: _,
+        se,
+        nahe,
+        na,
+        cmavo,
+        nai,
+    } = connective.into_parts();
     let mut leaves = Vec::new();
     leaves.extend(se);
     leaves.extend(nahe);
@@ -4656,7 +4699,14 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
 #[requires(true)]
 #[ensures(ret.kind() == old(kind.clone()))]
 fn connective_with_kind(connective: ConnectiveSyntax, kind: ConnectiveKind) -> ConnectiveSyntax {
-    let (_, se, nahe, na, cmavo, nai) = connective.into_parts();
+    let ConnectiveSyntaxParts {
+        kind: _,
+        se,
+        nahe,
+        na,
+        cmavo,
+        nai,
+    } = connective.into_parts();
     ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 

@@ -75,8 +75,6 @@ enum Command {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Success => true)]
-#[invariant(::Failure => true)]
 enum CliStatus {
     Success,
     Failure,

@@ -48,8 +48,28 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries serde's diagnostic without adding semantic state",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:OutputError::Diagnostic",
+        "error wrapper carries Ariadne renderer diagnostics",
+    ),
+    (
         "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
         "error wrapper carries pronunciation renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::CharOffsetOutOfBounds",
+        "diagnostic enum records rejected source offsets",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetOutOfBounds",
+        "diagnostic enum records rejected source offsets",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetNotCharBoundary",
+        "diagnostic enum records rejected UTF-8 boundary inputs",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::SourceLocation",
+        "error wrapper delegates validity to SourceLocationError",
     ),
     (
         "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",

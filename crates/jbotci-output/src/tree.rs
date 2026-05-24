@@ -812,14 +812,14 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
         else {
             panic!("morphology tree walker exited a node without entering it");
         };
-        self.push_value(
-            morphology_node_value(constructor, &entries, self.options).unwrap_or_else(|| {
-                TreeValue::Node(TreeNode {
-                    constructor,
-                    entries,
-                })
+        let value = match morphology_node_value(constructor, &entries, self.options) {
+            Some(value) => value,
+            None => TreeValue::Node(TreeNode {
+                constructor,
+                entries,
             }),
-        );
+        };
+        self.push_value(value);
     }
 
     #[requires(true)]
@@ -941,14 +941,11 @@ fn verbatim_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Opti
         return None;
     }
     for entry in entries {
-        match (entry.label, &entry.value) {
-            (Some("text"), TreeValue::Text(text)) => {
-                return Some(TreeValue::Verbatim {
-                    text: text.trim().to_owned(),
-                    span: span_from_labelled_entries(entries),
-                });
-            }
-            _ => {}
+        if let (Some("text"), TreeValue::Text(text)) = (entry.label, &entry.value) {
+            return Some(TreeValue::Verbatim {
+                text: text.trim().to_owned(),
+                span: span_from_labelled_entries(entries),
+            });
         }
     }
     None

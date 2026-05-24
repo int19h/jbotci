@@ -47,10 +47,7 @@ impl<T> WithIndicators<T> {
     #[requires(bahe.is_selmaho(Selmaho::Bahe))]
     #[ensures(true)]
     pub fn emphasized(bahe: Word, word_like: T) -> Self {
-        WithIndicators::Emphasized {
-            bahe: bahe,
-            word_like: word_like,
-        }
+        WithIndicators::Emphasized { bahe, word_like }
     }
 
     #[requires(crate::is_indicator_word(&indicator))]
@@ -59,8 +56,8 @@ impl<T> WithIndicators<T> {
     pub fn with_indicator(base: WithIndicators<T>, indicator: Word, nai: Option<Word>) -> Self {
         WithIndicators::WithIndicator {
             base: Box::new(base),
-            indicator: indicator,
-            nai: nai,
+            indicator,
+            nai,
         }
     }
 }
@@ -1693,9 +1690,9 @@ pub(crate) fn is_valid_vocative_marker_words(markers: &[WithIndicators<WordLike>
     for (index, word) in markers.iter().enumerate() {
         if word.is_selmaho(Selmaho::Coi) {
             may_take_nai = true;
-        } else if may_take_nai && word.is_cmavo(Cmavo::Nai) {
-            may_take_nai = false;
-        } else if word.is_cmavo(Cmavo::Doi) && index + 1 == markers.len() {
+        } else if (may_take_nai && word.is_cmavo(Cmavo::Nai))
+            || (word.is_cmavo(Cmavo::Doi) && index + 1 == markers.len())
+        {
             may_take_nai = false;
         } else {
             return false;

@@ -204,7 +204,6 @@ impl Connective {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::NotImplemented => true)]
 #[invariant(::Parse => true)]
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]

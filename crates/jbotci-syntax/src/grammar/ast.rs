@@ -3,7 +3,7 @@
 pub use crate::tree::*;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::WordLike;
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
@@ -1531,6 +1531,17 @@ impl ConnectedDescriptorSyntax {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug)]
+pub struct ConnectiveSyntaxParts {
+    pub kind: ConnectiveKind,
+    pub se: Option<WithIndicators<WordLike>>,
+    pub nahe: Option<WithIndicators<WordLike>>,
+    pub na: Option<WithIndicators<WordLike>>,
+    pub cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+}
+
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -1616,16 +1627,7 @@ impl ConnectiveSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn into_parts(
-        self,
-    ) -> (
-        ConnectiveKind,
-        Option<WithIndicators<WordLike>>,
-        Option<WithIndicators<WordLike>>,
-        Option<WithIndicators<WordLike>>,
-        WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    ) {
+    pub fn into_parts(self) -> ConnectiveSyntaxParts {
         match self.into_data() {
             data!(ConnectiveSyntax::Afterthought {
                 se,
@@ -1633,42 +1635,84 @@ impl ConnectiveSyntax {
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::Afterthought,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
             data!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::Relation, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::Relation,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
             data!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::PredicateTail, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::PredicateTail,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
             data!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::Forethought, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::Forethought,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
             data!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::NonLogical, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::NonLogical,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
             data!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
                 cmavo,
                 nai,
-            }) => (ConnectiveKind::Interval, se, nahe, na, cmavo, nai),
+            }) => ConnectiveSyntaxParts {
+                kind: ConnectiveKind::Interval,
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
         }
     }
 
@@ -3254,7 +3298,14 @@ impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let (_, se, nahe, na, cmavo, nai) = self.into_parts();
+        let ConnectiveSyntaxParts {
+            kind: _,
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        } = self.into_parts();
         let mut words = Vec::new();
         if let Some(se) = se {
             words.push(se);

@@ -36,6 +36,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
+        "apps/jbotci/src/main.rs:CliColorPolicy",
+        "resolved color policy is two independent stream decisions",
+    ),
+    (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
         "contract scanner fixture intentionally contains accepted no-op markers",
     ),
@@ -172,6 +176,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "visitor holds traversal-local rendering state",
     ),
     (
+        "crates/jbotci-output/src/diagnostics.rs:DiagnosticRenderOptions",
+        "diagnostic rendering options are independent caller-selected controls",
+    ),
+    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -268,6 +276,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private parser staging node is consumed into validated paragraph nodes",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/ast.rs:ConnectiveSyntaxParts",
+        "owned connective decomposition preserves validity from ConnectiveSyntax",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tense.rs:CompositeTenseModalClassification",
         "mutable classification state is projected into validated tense structs",
     ),
@@ -350,6 +362,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/support/fixtures/mod.rs:CommandOutputExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:DiagnosticExpectation",
+        "fixture diagnostic payload is validated by exact runner comparisons",
     ),
     (
         "tests/support/fixtures/mod.rs:Expectations",

@@ -83,10 +83,10 @@ fn is_fast_simple_lujvo(word: &str) -> bool {
     }
     let split = word.len() - 5;
     let (prefix, suffix) = word.split_at(split);
-    if !is_fast_simple_gismu(&suffix) {
+    if !is_fast_simple_gismu(suffix) {
         return false;
     }
-    let Some(mut chunks) = fast_simple_rafsi_chunks(&prefix) else {
+    let Some(mut chunks) = fast_simple_rafsi_chunks(prefix) else {
         return false;
     };
     if chunks.is_empty() {
@@ -113,7 +113,7 @@ fn fast_simple_rafsi_chunks(word: &str) -> Option<Vec<&str>> {
         return None;
     }
     let (chunk, rest) = word.split_at(3);
-    if !is_fast_short_rafsi(&chunk) {
+    if !is_fast_short_rafsi(chunk) {
         return None;
     }
     let mut chunks = vec![chunk];

@@ -2138,7 +2138,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 }
                 Ok(actual) => FacetResult::failed(format_text_mismatch(
                     "morphology raw",
-                    &expectation
+                    expectation
                         .raw
                         .as_ref()
                         .map(|raw| raw.text.as_str())
