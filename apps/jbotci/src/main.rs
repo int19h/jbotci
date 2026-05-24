@@ -6,18 +6,20 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use jbotci_diagnostics::Diagnostic;
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
+use jbotci_morphology::{
+    MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_output::{
-    BracketRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
-    TreeRenderOptions, compact_morphology_json_string_with_options,
-    compact_syntax_json_string_with_options, pretty_brackets_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_tree_with_options,
+    BracketRenderOptions, DiagnosticRenderOptions, GlideMark, JsonRenderOptions,
+    PhonemeRenderOptions, StressMark, TreeRenderOptions,
+    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
+    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, pretty_tree_with_options, render_diagnostics,
 };
-use jbotci_syntax::{
-    ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
-};
+use jbotci_source::SourceId;
+use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
 use owo_colors::{OwoColorize, Stream};
 
 const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
@@ -60,6 +62,15 @@ enum Command {
     Cukta(SearchInput),
     #[command(name = "zbasu")]
     Zbasu(TextInput),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Success => true)]
+#[invariant(::Failure => true)]
+enum CliStatus {
+    Success,
+    Failure,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -234,9 +245,10 @@ struct GentufaInput {
     text: Vec<String>,
 }
 
-#[invariant(stdout.ends_with('\n'))]
+#[invariant(stdout.is_empty() || stdout.ends_with('\n'))]
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
 struct GentufaRendered {
+    status: CliStatus,
     stdout: String,
     stderr: String,
 }
@@ -283,7 +295,8 @@ struct JvozbaInput {
 #[ensures(true)]
 fn main() -> ExitCode {
     match run() {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(CliStatus::Success) => ExitCode::SUCCESS,
+        Ok(CliStatus::Failure) => ExitCode::FAILURE,
         Err(error) => {
             eprintln!("jbotci: {error}");
             ExitCode::FAILURE
@@ -293,7 +306,7 @@ fn main() -> ExitCode {
 
 #[requires(true)]
 #[ensures(true)]
-fn run() -> Result<()> {
+fn run() -> Result<CliStatus> {
     let cli = Cli::parse();
     let color_enabled = cli.color || stdout_supports_color();
     let mut stdout = std::io::stdout();
@@ -308,15 +321,34 @@ fn run_cli<WOut: Write, WErr: Write>(
     stdout: &mut WOut,
     stderr: &mut WErr,
     color_enabled: bool,
-) -> Result<()> {
+) -> Result<CliStatus> {
     let color_enabled = cli.color || color_enabled;
     match cli.command {
         Command::Vlasei(input) => {
             validate_vlasei_options(&input)?;
+            let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
             let text = input.read_text()?;
             let dialect = input.dialect_definition()?;
             let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-            let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
+            let words = match segment_words_with_modifiers_with_options_and_source_id(
+                &text,
+                &morphology_options,
+                Some(SourceId(source_label.clone())),
+            ) {
+                Ok(words) => words,
+                Err(error) => {
+                    let diagnostic =
+                        error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+                    write_source_diagnostics(
+                        stderr,
+                        &source_label,
+                        &text,
+                        std::slice::from_ref(&diagnostic),
+                        color_enabled,
+                    )?;
+                    return Ok(CliStatus::Failure);
+                }
+            };
             let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
             match input.format {
                 VlaseiFormat::Json => {
@@ -357,23 +389,35 @@ fn run_cli<WOut: Write, WErr: Write>(
                 }
                 VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
             }
-            Ok(())
+            Ok(CliStatus::Success)
         }
         Command::Gentufa(input) => run_gentufa(input, stdout, stderr, color_enabled),
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
-            command_not_implemented("mulgau")
+            command_not_implemented("mulgau")?;
+            Ok(CliStatus::Success)
         }
         Command::Tersmu(input) => {
             let _ = input.read_text()?;
-            command_not_implemented("tersmu")
+            command_not_implemented("tersmu")?;
+            Ok(CliStatus::Success)
         }
-        Command::Vlacku(_input) => command_not_implemented("vlacku"),
-        Command::Jvozba(_input) => command_not_implemented("jvozba"),
-        Command::Cukta(_input) => command_not_implemented("cukta"),
+        Command::Vlacku(_input) => {
+            command_not_implemented("vlacku")?;
+            Ok(CliStatus::Success)
+        }
+        Command::Jvozba(_input) => {
+            command_not_implemented("jvozba")?;
+            Ok(CliStatus::Success)
+        }
+        Command::Cukta(_input) => {
+            command_not_implemented("cukta")?;
+            Ok(CliStatus::Success)
+        }
         Command::Zbasu(input) => {
             let _ = input.read_text()?;
-            command_not_implemented("zbasu")
+            command_not_implemented("zbasu")?;
+            Ok(CliStatus::Success)
         }
     }
 }
@@ -385,11 +429,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     stdout: &mut WOut,
     stderr: &mut WErr,
     color_enabled: bool,
-) -> Result<()> {
+) -> Result<CliStatus> {
     let rendered = render_gentufa_on_large_stack(input, color_enabled)?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(rendered.stdout.as_bytes())?;
-    Ok(())
+    Ok(rendered.status)
 }
 
 #[requires(true)]
@@ -413,16 +457,55 @@ fn render_gentufa_on_large_stack(
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRendered> {
     validate_gentufa_options(&input)?;
-    let warning_source = input_source_label(input.file.as_ref(), input.text.is_empty());
+    let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
     let dialect = input.dialect_definition()?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &text,
+        &morphology_options,
+        Some(SourceId(source_label.clone())),
+    ) {
+        Ok(words) => words,
+        Err(error) => {
+            let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+            let stderr = render_source_diagnostics(
+                &source_label,
+                &text,
+                std::slice::from_ref(&diagnostic),
+                color_enabled,
+            )?;
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Failure,
+                stdout: String::new(),
+                stderr,
+            }));
+        }
+    };
     let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let parsed = parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
-    let mut stderr = Vec::new();
-    render_syntax_warnings(&parsed, &text, &warning_source, &mut stderr)?;
-    let stderr = String::from_utf8(stderr).context("syntax warning output was not UTF-8")?;
+    let parsed = match parse_syntax_tree_with_source_and_options(&words, &text, &parse_options) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+            let stderr = render_source_diagnostics(
+                &source_label,
+                &text,
+                std::slice::from_ref(&diagnostic),
+                color_enabled,
+            )?;
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Failure,
+                stdout: String::new(),
+                stderr,
+            }));
+        }
+    };
+    let diagnostics = parsed
+        .warnings
+        .iter()
+        .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text))
+        .collect::<Vec<_>>();
+    let stderr = render_source_diagnostics(&source_label, &text, &diagnostics, color_enabled)?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     let mut stdout = String::new();
     match input.format {
@@ -469,7 +552,11 @@ fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRen
             stdout.push('\n');
         }
     }
-    Ok(new!(GentufaRendered { stdout, stderr }))
+    Ok(new!(GentufaRendered {
+        status: CliStatus::Success,
+        stdout,
+        stderr,
+    }))
 }
 
 #[requires(true)]
@@ -480,6 +567,40 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
         None if stdin => "<stdin>".to_owned(),
         None => "<input>".to_owned(),
     }
+}
+
+#[requires(!source_label.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_source_diagnostics<W: Write>(
+    stderr: &mut W,
+    source_label: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    color_enabled: bool,
+) -> Result<()> {
+    let rendered = render_source_diagnostics(source_label, source, diagnostics, color_enabled)?;
+    stderr.write_all(rendered.as_bytes())?;
+    Ok(())
+}
+
+#[requires(!source_label.is_empty())]
+#[ensures(diagnostics.is_empty() -> ret.as_ref().is_ok_and(String::is_empty))]
+#[ensures(!diagnostics.is_empty() -> ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn render_source_diagnostics(
+    source_label: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    color_enabled: bool,
+) -> Result<String> {
+    render_diagnostics(
+        source_label,
+        source,
+        diagnostics,
+        DiagnosticRenderOptions {
+            color: color_enabled,
+        },
+    )
+    .map_err(|error| anyhow!(error))
 }
 
 #[requires(true)]
@@ -506,29 +627,6 @@ fn phoneme_render_options(
             .map(GlideMark::from)
             .unwrap_or(default.mark_glides),
     }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn render_syntax_warnings<W: Write>(
-    parsed: &SyntaxParse,
-    source: &str,
-    source_label: &str,
-    stderr: &mut W,
-) -> Result<()> {
-    let mut syntax_words = Vec::new();
-    parsed
-        .parse_tree
-        .visit_words(&mut |word| syntax_words.push(word.clone()));
-    for warning in syntax_warning_displays(source_label, source, &syntax_words, &parsed.warnings) {
-        writeln!(
-            stderr,
-            "{}:{}:{}: warning: experimental syntax: {}",
-            warning.source_label, warning.line, warning.column, warning.message
-        )?;
-        writeln!(stderr, "  {}", warning.context)?;
-    }
-    Ok(())
 }
 
 #[requires(true)]
@@ -1212,6 +1310,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlasei_morphology_errors_go_to_stderr() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "aa"]).expect("vlasei parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
+
+        assert_eq!(status, CliStatus::Failure);
+        assert!(output.is_empty());
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("[morphology.invalid] Error"));
+        assert!(stderr.contains("aa"));
+        assert!(!stderr.contains("jbotci:"));
+        assert!(!stderr.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn raw_rejects_projection_flags() {
         let cli = Cli::try_parse_from([
             "jbotci",
@@ -1402,14 +1518,38 @@ mod tests {
                 let stderr = String::from_utf8(error).expect("stderr utf8");
                 assert!(stdout.starts_with('{'));
                 assert!(!stdout.contains("warning:"));
-                assert!(stderr.contains("warning: experimental syntax"));
+                assert!(stderr.contains("Warning: experimental syntax"));
+                assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
                 assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
-                assert!(stderr.contains("@ "));
-                assert!(stderr.contains("👉"));
+                assert!(stderr.contains("fi'oi"));
             })
             .expect("spawn warning test")
             .join()
             .expect("warning test thread");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_syntax_errors_go_to_stderr() {
+        run_on_large_stack(|| {
+            let cli =
+                Cli::try_parse_from(["jbotci", "gentufa", "gleki", "ku", "klama", "zei", "klama"])
+                    .expect("gentufa parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("[syntax.parse] Error"));
+            assert!(stderr.contains("syntax parse failed"));
+            assert!(stderr.contains("expected cmavo"));
+            assert!(stderr.contains("ku"));
+            assert!(!stderr.contains("jbotci:"));
+            assert!(!stderr.contains("\x1b["));
+        });
     }
 
     #[test]
@@ -1425,7 +1565,8 @@ mod tests {
 
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("ZOhOI single-word foreign quote"));
-            assert!(stderr.contains("zo'oĭ-\"gleki\""));
+            assert!(stderr.contains("zo'oi gleki"));
+            assert!(stderr.contains("syntax.warning.experimental-zoh-oi-quote"));
             assert!(!stderr.contains("<5 chars>"));
         });
     }

@@ -1,12 +1,14 @@
 //! Output format selection and render facade.
 
 mod brackets;
+mod diagnostics;
 mod json;
 mod sexpr;
 mod surface;
 mod tree;
 
 use bityzba::{invariant, requires};
+pub use diagnostics::{DiagnosticRenderOptions, render_diagnostics};
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_syntax::ast::TextSyntax;
@@ -65,11 +67,14 @@ impl Default for OutputFormat {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::Diagnostic(..) => true)]
 #[invariant(::Json(..) => true)]
 #[invariant(::Ipa(..) => true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,
+    #[error("failed to render diagnostic: {0}")]
+    Diagnostic(String),
     #[error("failed to encode compact JSON: {0}")]
     Json(String),
     #[error("failed to render IPA: {0}")]
