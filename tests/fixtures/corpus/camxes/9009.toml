@@ -8,11 +8,11 @@ entry-id = "9009"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None }) })))]"""
+raw = """[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "a'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ro'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ro'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }), nai: Some(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) })) }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }), nai: None }, indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Letter { letter: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "a'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None } }) }, indicator: Cmavo { phonemes: Phonemes { text: "ro'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "ro'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } }, nai: None }], free_modifiers: [] }, boi: None }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
 brackets = "(coĭ .i .a'e naĭ ro'o ro'i)"
@@ -31,24 +31,26 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":
 tree = """
 Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative @[0‥3) {
+    Vocative @[0‥21) {
       vocative_markers: [
         Cmavo @[0‥3) "coĭ",
       ],
+      argument: Letter @[5‥21) {
+        letter: [
+          WithIndicator @[5‥21) {
+            WithIndicator @[5‥17) {
+              WithIndicator @[5‥13) {
+                Cmavo @[5‥6) "i",
+                indicator: Cmavo @[7‥10) "a'e",
+                nai: Cmavo @[10‥13) "naĭ",
+              },
+              indicator: Cmavo @[13‥17) "ro'o",
+            },
+            indicator: Cmavo @[17‥21) "ro'i",
+          },
+        ],
+      },
     },
   ],
-  ParagraphStatement @[5‥21) {
-    i: WithIndicator @[5‥21) {
-      WithIndicator @[5‥17) {
-        WithIndicator @[5‥13) {
-          Cmavo @[5‥6) "i",
-          indicator: Cmavo @[7‥10) "a'e",
-          nai: Cmavo @[10‥13) "naĭ",
-        },
-        indicator: Cmavo @[13‥17) "ro'o",
-      },
-      indicator: Cmavo @[17‥21) "ro'i",
-    },
-  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}]}}],"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"a'e","span":[7,10]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[13,17]}}}},"indicator":{"Cmavo":{"phonemes":"ro'i","span":[17,21]}}}}}]}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Letter":{"letter":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"a'e","span":[7,10]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[13,17]}}}},"indicator":{"Cmavo":{"phonemes":"ro'i","span":[17,21]}}}}]}}}}]}"""

@@ -8,11 +8,11 @@ entry-id = "21819"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "so" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ko" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nar" })), Rafsi(Phonemes(PhonemesData { text: "bá'u" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 19, char_start: 12, char_end: 19, start: None, end: None }) })))]"""
+raw = """[Bare(Cmavo { phonemes: Phonemes { text: "so" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ko" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "nar" }), Rafsi(Phonemes { text: "bá'u" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 19, char_start: 12, char_end: 19, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "so" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ko" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "nar" })), Rafsi(Phonemes(PhonemesData { text: "bá'u" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 19, char_start: 12, char_end: 19, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "so" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ko" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] }) })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "nar" }), Rafsi(Phonemes { text: "bá'u" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 19, char_start: 12, char_end: 19, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(so .i ko narbá'u)"
@@ -27,16 +27,16 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"so","span":[0,2]}}},{"Bare":{"Cmavo":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥19) {
-  Cmavo @[0‥2) "so",
-  ParagraphStatement @[8‥19) {
-    i: Cmavo @[8‥9) "i",
-    Predicate @[9‥19) {
-      leading_terms: [
-        Cmavo @[9‥11) "ko",
-      ],
-      Lujvo @[12‥19) "narbá'u",
+Predicate @[0‥19) {
+  leading_terms: [
+    Quantified @[0‥11) {
+      quantifier: Number @[0‥9) {
+        Cmavo @[0‥2) "so",
+        Cmavo @[8‥9) "i",
+      },
+      Cmavo @[9‥11) "ko",
     },
-  },
+  ],
+  Lujvo @[12‥19) "narbá'u",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"so","span":[0,2]}}}}]}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[8,9]}}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko","span":[9,11]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nar"},{"Rafsi":"bá'u"}],"span":[12,19]}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"so","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[8,9]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko","span":[9,11]}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nar"},{"Rafsi":"bá'u"}],"span":[12,19]}}}}}}}}}}}}]}]}"""

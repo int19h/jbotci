@@ -8,11 +8,11 @@ entry-id = "16106"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "clíva" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skámi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None }) })))]"""
+raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "za" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "clíva" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "skámi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "clíva" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))) }, terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "skámi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None }) }))))), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "co'o" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], statement: None }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "za" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "clíva" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }))) }, terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "skámi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })))), relative_clauses: [], ku: None })), Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None } }))], free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None } }))], free_modifiers: [] }, argument: None, dohu: None }] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(mi za clíva le skámi .i co'o)"
@@ -30,33 +30,33 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥28) {
-  Predicate @[0‥20) {
-    leading_terms: [
-      Cmavo @[0‥2) "mi",
-    ],
-    Relation @[3‥20) {
-      TenseModal @[3‥11) {
-        tense_modal: Cmavo @[3‥5) "za",
-        Gismu @[6‥11) "clíva",
-      },
-      terms: [
-        Descriptor @[12‥20) {
-          descriptor: Cmavo @[12‥14) "le",
-          relation: Gismu @[15‥20) "skámi",
-        },
-      ],
+Predicate @[0‥28) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Relation @[3‥28) {
+    TenseModal @[3‥11) {
+      tense_modal: Cmavo @[3‥5) "za",
+      Gismu @[6‥11) "clíva",
     },
-  },
-  ParagraphStatement @[22‥28) {
-    i: Cmavo @[22‥23) "i",
-    free_modifiers: [
-      Vocative @[24‥28) {
-        vocative_markers: [
-          Cmavo @[24‥28) "co'o",
+    terms: [
+      Descriptor @[12‥20) {
+        descriptor: Cmavo @[12‥14) "le",
+        relation: Gismu @[15‥20) "skámi",
+      },
+      Letter @[22‥28) {
+        letter: [
+          Cmavo @[22‥23) "i",
+        ],
+        free_modifiers: [
+          Vocative @[24‥28) {
+            vocative_markers: [
+              Cmavo @[24‥28) "co'o",
+            ],
+          },
         ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"za","span":[3,5]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"clíva","span":[6,11]}}}}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"skámi","span":[15,20]}}}}}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[22,23]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[24,28]}}}}]}}]}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"za","span":[3,5]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"clíva","span":[6,11]}}}}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"skámi","span":[15,20]}}}}}}}},{"Argument":{"Letter":{"letter":[[{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[22,23]}}}}],{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[24,28]}}}}]}}]}}}]}}}}}}}}]}]}"""

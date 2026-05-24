@@ -8,11 +8,11 @@ entry-id = "13293"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "as" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) })))]'
+raw = '[Bare(Cmevla { phonemes: Phonemes { text: "as" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "as" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Ek(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "as" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
 brackets = "(.as. .a)"
@@ -29,6 +29,14 @@ Text @[0‥4) {
   leading_cmevla: [
     Cmevla @[0‥2) "as",
   ],
-  Cmavo @[3‥4) "a",
+  Term @[3‥4) {
+    terms: [
+      Letter @[3‥4) {
+        letter: [
+          Cmavo @[3‥4) "a",
+        ],
+      },
+    ],
+  },
 }"""
-json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"as","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}}}]}}}}}]}]}'
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"as","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}}}]}}}]}}}}]}]}'

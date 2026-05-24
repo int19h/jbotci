@@ -93,6 +93,30 @@ fn constructs_valid_struct_from_data() {
 }
 
 #[test]
+fn invariant_wrapper_debug_matches_original_shape() {
+    let span = new!(Span {
+        start: 1,
+        end: 3,
+        label: String::from("sumti"),
+    });
+    assert_eq!(
+        format!("{span:?}"),
+        r#"Span { start: 1, end: 3, label: "sumti" }"#
+    );
+
+    let named = new!(Choice::Named {
+        name: String::from("cmavo"),
+    });
+    assert_eq!(format!("{named:?}"), r#"Named { name: "cmavo" }"#);
+
+    let pair = new!(TupleChoice::Pair(String::from("cmavo"), 2));
+    assert_eq!(format!("{pair:?}"), r#"Pair("cmavo", 2)"#);
+
+    let unset = new!(TupleChoice::Unset);
+    assert_eq!(format!("{unset:?}"), "Unset");
+}
+
+#[test]
 fn rejects_invalid_struct_data() {
     let error = try_new!(Span {
         start: 3,

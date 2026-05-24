@@ -1760,15 +1760,53 @@ pub(crate) fn is_valid_connective_parts(
         && nahe.is_absent_or_selmaho(Selmaho::Nahe)
         && na.is_absent_or_selmaho(Selmaho::Na)
         && !cmavo.value.is_empty()
-        && cmavo.value.iter().all(is_valid_connective_word)
+        && is_valid_connective_words(&cmavo.value)
         && nai.is_absent_or_cmavo(Cmavo::Nai)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_valid_connective_word(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_valid_connective_words(words: &[WithIndicators<WordLike>]) -> bool {
+    let mut in_fiho_modal = false;
+    let mut fiho_modal_has_relation_word = false;
+
+    for word in words {
+        if in_fiho_modal {
+            if word.is_cmavo(Cmavo::Fehu) {
+                if !fiho_modal_has_relation_word {
+                    return false;
+                }
+                in_fiho_modal = false;
+                fiho_modal_has_relation_word = false;
+                continue;
+            } else if is_valid_fiho_modal_relation_word(word) {
+                fiho_modal_has_relation_word |= crate::grammar::tokens::is_relation_word(word);
+                continue;
+            } else if fiho_modal_has_relation_word {
+                in_fiho_modal = false;
+                fiho_modal_has_relation_word = false;
+            } else {
+                return false;
+            }
+        }
+
+        if word.is_cmavo(Cmavo::Fiho) {
+            in_fiho_modal = true;
+            fiho_modal_has_relation_word = false;
+        } else if !is_valid_connective_word(word) {
+            return false;
+        }
+    }
+
+    !in_fiho_modal || fiho_modal_has_relation_word
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_valid_connective_word(word: &WithIndicators<WordLike>) -> bool {
     word.is_one_of_selmaho(&[
         Selmaho::A,
+        Selmaho::Cehe,
         Selmaho::Ja,
         Selmaho::Joi,
         Selmaho::Bihi,
@@ -1779,6 +1817,14 @@ pub(crate) fn is_valid_connective_word(word: &WithIndicators<WordLike>) -> bool 
         Selmaho::Vuhu,
     ]) || word.is_one_of_cmavo(&[Cmavo::Gi, Cmavo::Bo])
         || is_valid_tense_modal_word(word)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_valid_fiho_modal_relation_word(word: &WithIndicators<WordLike>) -> bool {
+    crate::grammar::tokens::is_relation_word(word)
+        || word.is_selmaho(Selmaho::Se)
+        || word.is_one_of_cmavo(&[Cmavo::Ke, Cmavo::Kehe, Cmavo::Bo])
 }
 
 #[requires(true)]

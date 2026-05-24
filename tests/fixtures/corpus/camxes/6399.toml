@@ -8,11 +8,11 @@ entry-id = "6399"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "but" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ĭe" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))]'
+raw = '[Bare(Cmevla { phonemes: Phonemes { text: "but" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ĭe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "but" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ĭe" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(Bare(Cmevla { phonemes: Phonemes { text: "but" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ĭe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }, nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(.but. .ĭe)"

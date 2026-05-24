@@ -8,11 +8,11 @@ entry-id = "16550"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ju'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) })))]"""
+raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ju'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ju'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ju'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
 brackets = "(ju'i naĭ)"

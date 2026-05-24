@@ -431,6 +431,57 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_pehe_termset_with_cehe_connectives_under_contracts() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers(
+                "mi klama le zarci ce'e le briju pe'e je le zdani ce'e le ckule",
+            )
+            .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert!(raw.contains("Pehe"));
+            assert!(raw.contains("NonLogical"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_emphasized_goha_relation_under_contracts() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("le lojbo cu ba'e du le loglo")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert!(raw.contains("Emphasized"));
+            assert!(raw.contains("du"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_statement_connective_with_flattened_fiho_relation_under_contracts() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("i fi'o ke broda brode bo mi klama")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert!(raw.contains("connective: Some(Relation"));
+            assert!(raw.contains("fi'o"));
+            assert!(raw.contains("bróda"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gates_zantufa_quote_relation_units() {
         run_on_large_stack(|| {
             let words =
@@ -698,8 +749,9 @@ mod tests {
             let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
             let cbm = parse_tree_debug(source, &options);
-            assert!(cbm.contains("ArgumentSyntax(Descriptor"));
-            assert!(cbm.contains("Word(Cmevla"));
+            assert!(cbm.contains("Argument("));
+            assert!(cbm.contains("Descriptor("));
+            assert!(cbm.contains("Cmevla {"));
         });
     }
 

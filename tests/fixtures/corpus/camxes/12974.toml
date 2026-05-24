@@ -8,11 +8,11 @@ entry-id = "12974"
 
 [expectations.morphology]
 status = "success"
-raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "overkod" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None }) })))]'
+raw = '[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "overkod" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "overkod" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "overkod" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
 brackets = "(coĭ .overkod.)"

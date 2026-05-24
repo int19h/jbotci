@@ -8,11 +8,11 @@ entry-id = "18924"
 
 [expectations.morphology]
 status = "success"
-raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ku'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mútce" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "púrci" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))]"""
+raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ki'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ku'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "mútce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "púrci" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) })))), indicator: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ku'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mútce" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "púrci" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ki'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Letter { letter: WithFreeModifiers { value: [WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ku'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None } }, nai: None }], free_modifiers: [] }, boi: None }), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "mútce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } })), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "púrci" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None } })), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
 brackets = "(ki'e .i ku'i mútce púrci)"
@@ -30,21 +30,23 @@ json = """[{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}},{"Bare":{"Cmavo":
 tree = """
 Text @[0‥23) {
   leading_free_modifiers: [
-    Vocative @[0‥4) {
+    Vocative @[0‥11) {
       vocative_markers: [
         Cmavo @[0‥4) "ki'e",
       ],
+      argument: Letter @[6‥11) {
+        letter: [
+          WithIndicator @[6‥11) {
+            Cmavo @[6‥7) "i",
+            indicator: Cmavo @[7‥11) "ku'i",
+          },
+        ],
+      },
     },
   ],
-  ParagraphStatement @[6‥23) {
-    i: WithIndicator @[6‥11) {
-      Cmavo @[6‥7) "i",
-      indicator: Cmavo @[7‥11) "ku'i",
-    },
-    Compound @[12‥23) {
-      Gismu @[12‥17) "mútce",
-      Gismu @[18‥23) "púrci",
-    },
+  Compound @[12‥23) {
+    Gismu @[12‥17) "mútce",
+    Gismu @[18‥23) "púrci",
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}}]}}],"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[7,11]}}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"mútce","span":[12,17]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"púrci","span":[18,23]}}}}}]}}}}}}}}]}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}}],"argument":{"Letter":{"letter":[{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[7,11]}}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"mútce","span":[12,17]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"púrci","span":[18,23]}}}}}]}}}}}}}}]}]}"""

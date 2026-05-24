@@ -739,12 +739,8 @@ pub(crate) fn is_koha_argument(word: &WithIndicators<WordLike>) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
-    match word {
-        WithIndicators::WithIndicator { base, .. } => return is_relation_word(base),
-        WithIndicators::Emphasized { word_like, .. } => {
-            return word_like_is_relation_word(word_like);
-        }
-        WithIndicators::Bare(..) => {}
+    if let WithIndicators::WithIndicator { base, .. } = word {
+        return is_relation_word(base);
     }
 
     if parser_word_is_selmaho(word, Selmaho::Goha) {
@@ -752,7 +748,9 @@ pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
     }
 
     match word {
-        WithIndicators::Bare(word_like) => word_like_is_relation_word(word_like),
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+            word_like_is_relation_word(word_like)
+        }
         _ => false,
     }
 }

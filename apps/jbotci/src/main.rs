@@ -1,10 +1,10 @@
-use bityzba::{invariant, requires};
+use bityzba::{invariant, new, requires};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
@@ -19,6 +19,8 @@ use jbotci_syntax::{
     ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
 };
 use owo_colors::{OwoColorize, Stream};
+
+const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
 
 #[derive(Debug, Parser)]
 #[command(name = "jbotci")]
@@ -232,6 +234,13 @@ struct GentufaInput {
     text: Vec<String>,
 }
 
+#[invariant(stdout.ends_with('\n'))]
+#[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
+struct GentufaRendered {
+    stdout: String,
+    stderr: String,
+}
+
 impl GentufaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -377,6 +386,32 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color_enabled: bool,
 ) -> Result<()> {
+    let rendered = render_gentufa_on_large_stack(input, color_enabled)?;
+    stderr.write_all(rendered.stderr.as_bytes())?;
+    stdout.write_all(rendered.stdout.as_bytes())?;
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_gentufa_on_large_stack(
+    input: GentufaInput,
+    color_enabled: bool,
+) -> Result<GentufaRendered> {
+    let worker = std::thread::Builder::new()
+        .name("jbotci-gentufa".to_owned())
+        .stack_size(SYNTAX_WORKER_STACK_SIZE)
+        .spawn(move || render_gentufa(input, color_enabled))
+        .context("failed to spawn gentufa syntax worker")?;
+    match worker.join() {
+        Ok(result) => result,
+        Err(_) => bail!("gentufa syntax worker panicked"),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_gentufa(input: GentufaInput, color_enabled: bool) -> Result<GentufaRendered> {
     validate_gentufa_options(&input)?;
     let warning_source = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
@@ -385,8 +420,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
     let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
     let parsed = parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
-    render_syntax_warnings(&parsed, &text, &warning_source, stderr)?;
+    let mut stderr = Vec::new();
+    render_syntax_warnings(&parsed, &text, &warning_source, &mut stderr)?;
+    let stderr = String::from_utf8(stderr).context("syntax warning output was not UTF-8")?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
+    let mut stdout = String::new();
     match input.format {
         GentufaFormat::Brackets => {
             let rendered = pretty_brackets_with_options(
@@ -398,10 +436,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                     decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
-            writeln!(stdout, "{rendered}")?;
+            stdout.push_str(&rendered);
+            stdout.push('\n');
         }
         GentufaFormat::Raw => {
-            write_debug_output(stdout, &parsed.parse_tree, input.indent)?;
+            stdout.push_str(&debug_output_string(&parsed.parse_tree, input.indent));
         }
         GentufaFormat::Tree => {
             let rendered = pretty_tree_with_options(
@@ -415,7 +454,8 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                     decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
-            writeln!(stdout, "{rendered}")?;
+            stdout.push_str(&rendered);
+            stdout.push('\n');
         }
         GentufaFormat::Json => {
             let rendered = compact_syntax_json_string_with_options(
@@ -425,10 +465,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                     phonemes: phoneme_options,
                 },
             )?;
-            writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
+            stdout.push_str(&colorize_json(&rendered, color_enabled));
+            stdout.push('\n');
         }
     }
-    Ok(())
+    Ok(new!(GentufaRendered { stdout, stderr }))
 }
 
 #[requires(true)]
@@ -642,6 +683,16 @@ fn write_debug_output<W: Write, T: std::fmt::Debug>(
         writeln!(stdout, "{value:#?}")?;
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.ends_with('\n'))]
+fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<usize>) -> String {
+    if indent == Some(0) {
+        format!("{value:?}\n")
+    } else {
+        format!("{value:#?}\n")
+    }
 }
 
 #[requires(true)]
@@ -1093,7 +1144,6 @@ mod tests {
         let output = String::from_utf8(output).expect("utf8");
 
         assert!(output.starts_with("[\n"));
-        assert!(output.contains("WordLike("));
         assert!(output.contains("Bare("));
         assert!(output.contains("Cmavo"));
         assert!(output.contains("Phonemes"));
@@ -1114,7 +1164,7 @@ mod tests {
         let output = String::from_utf8(output).expect("utf8");
 
         assert!(!output.trim_end().contains('\n'));
-        assert!(output.starts_with("[WordLike("));
+        assert!(output.starts_with("[Bare("));
         assert!(output.contains("Bare("));
         assert!(output.contains("Cmavo"));
         assert!(output.contains("Phonemes"));
@@ -1493,6 +1543,23 @@ mod tests {
             assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_runs_reported_color_case_on_normal_cli_stack() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--color", "gleki", "je", "klama", "zei", "klama",
+        ])
+        .expect("gentufa color");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("gléki"));
     }
 
     #[test]

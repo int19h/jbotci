@@ -1317,9 +1317,9 @@ fn default_fixture_jobs() -> usize {
     DEFAULT_TEST_JOBS
 }
 
-// TOML fixtures can contain deeply nested exported syntax trees, and serde's
-// TOML decoder needs more stack than Rayon workers get by default.
-const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
+// TOML fixtures can contain deeply nested exported syntax trees, and syntax
+// parsing/rendering plus serde decoding need more stack than worker defaults.
+const FIXTURE_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;

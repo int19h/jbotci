@@ -8,7 +8,7 @@ use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprLit, Fields, FieldsNamed, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Lit, Variant, Visibility, parse::Parser,
+    ItemStruct, Lit, Type, TypePath, Variant, Visibility, parse::Parser, visit, visit::Visit,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType, parse};
@@ -208,6 +208,7 @@ fn generate_struct(
         })
         .collect::<Vec<_>>();
     let wrapper_attrs = shape.wrapper_attrs();
+    let debug_impl = shape.struct_debug_impl(&field_idents, &field_types);
     let serialize_impl = shape.serialize_impl();
     let deserialize_impl = shape.deserialize_impl();
     let default_impl = shape.default_impl();
@@ -380,6 +381,7 @@ fn generate_struct(
             }
         }
 
+        #debug_impl
         #serialize_impl
         #deserialize_impl
         #default_impl
@@ -400,6 +402,7 @@ fn generate_enum(
     let wrapper_vis = shape.wrapper_vis.clone();
     let variants = item.variants;
     let wrapper_attrs = shape.wrapper_attrs();
+    let debug_impl = shape.enum_debug_impl(variants.iter());
     let serialize_impl = shape.serialize_impl();
     let deserialize_impl = shape.deserialize_impl();
     let default_impl = shape.default_impl();
@@ -490,6 +493,7 @@ fn generate_enum(
             }
         }
 
+        #debug_impl
         #serialize_impl
         #deserialize_impl
         #default_impl
@@ -933,6 +937,36 @@ fn snake_to_upper_camel(name: &str) -> String {
         .collect()
 }
 
+fn type_mentions_type_param(field_type: &Type, type_params: &BTreeSet<String>) -> bool {
+    struct TypeParamVisitor<'params> {
+        type_params: &'params BTreeSet<String>,
+        found: bool,
+    }
+
+    impl<'ast> Visit<'ast> for TypeParamVisitor<'_> {
+        fn visit_type_path(&mut self, type_path: &'ast TypePath) {
+            if type_path.qself.is_none()
+                && type_path
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| self.type_params.contains(&segment.ident.to_string()))
+            {
+                self.found = true;
+                return;
+            }
+            visit::visit_type_path(self, type_path);
+        }
+    }
+
+    let mut visitor = TypeParamVisitor {
+        type_params,
+        found: false,
+    };
+    visitor.visit_type(field_type);
+    visitor.found
+}
+
 struct TypeShape {
     wrapper_ident: Ident,
     data_ident: Ident,
@@ -942,6 +976,7 @@ struct TypeShape {
     data_vis: Visibility,
     generics: Generics,
     derive_traits: Vec<Ident>,
+    derives_debug: bool,
     derives_serialize: bool,
     derives_deserialize: bool,
     derives_default: bool,
@@ -951,6 +986,7 @@ struct TypeShape {
 impl TypeShape {
     fn new(ident: &Ident, vis: &Visibility, generics: &Generics, attrs: &[Attribute]) -> Self {
         let mut derive_traits = Vec::new();
+        let mut derives_debug = false;
         let mut derives_serialize = false;
         let mut derives_deserialize = false;
         let mut derives_default = false;
@@ -966,6 +1002,7 @@ impl TypeShape {
             let _ = attr.parse_nested_meta(|meta| {
                 if let Some(ident) = meta.path.get_ident() {
                     match ident.to_string().as_str() {
+                        "Debug" => derives_debug = true,
                         "Serialize" => derives_serialize = true,
                         "Deserialize" => derives_deserialize = true,
                         "Default" => derives_default = true,
@@ -985,6 +1022,7 @@ impl TypeShape {
             data_vis: vis.clone(),
             generics: generics.clone(),
             derive_traits,
+            derives_debug,
             derives_serialize,
             derives_deserialize,
             derives_default,
@@ -999,6 +1037,123 @@ impl TypeShape {
             attrs.push(syn::parse_quote!(#[derive(#(#traits),*)]));
         }
         attrs
+    }
+
+    fn struct_debug_impl(&self, field_idents: &[Ident], field_types: &[syn::Type]) -> TokenStream {
+        if !self.derives_debug {
+            return TokenStream::new();
+        }
+        let wrapper_ident = &self.wrapper_ident;
+        let mut generics = self.generics.clone();
+        let (_, ty_generics, _) = self.generics.split_for_impl();
+        let where_clause = generics.make_where_clause();
+        for field_type in self.generic_debug_bounds(field_types.iter()) {
+            where_clause
+                .predicates
+                .push(syn::parse_quote!(#field_type: ::std::fmt::Debug));
+        }
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        quote! {
+            impl #impl_generics ::std::fmt::Debug for #wrapper_ident #ty_generics #where_clause {
+                fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    let data = self.as_data();
+                    let mut debug = formatter.debug_struct(::std::stringify!(#wrapper_ident));
+                    #(
+                        debug.field(::std::stringify!(#field_idents), &data.#field_idents);
+                    )*
+                    debug.finish()
+                }
+            }
+        }
+    }
+
+    fn enum_debug_impl<'variant>(
+        &self,
+        variants: impl Iterator<Item = &'variant Variant>,
+    ) -> TokenStream {
+        if !self.derives_debug {
+            return TokenStream::new();
+        }
+        let wrapper_ident = &self.wrapper_ident;
+        let data_ident = &self.data_ident;
+        let mut generics = self.generics.clone();
+        let (_, ty_generics, _) = self.generics.split_for_impl();
+        let mut arms = Vec::new();
+        let mut field_types = Vec::new();
+        for variant in variants {
+            let variant_ident = &variant.ident;
+            match &variant.fields {
+                Fields::Unit => {
+                    arms.push(quote! {
+                        #data_ident::#variant_ident => formatter.write_str(::std::stringify!(#variant_ident))
+                    });
+                }
+                Fields::Unnamed(fields) => {
+                    let binding_idents = (0..fields.unnamed.len())
+                        .map(|index| format_ident!("field_{index}"))
+                        .collect::<Vec<_>>();
+                    field_types.extend(fields.unnamed.iter().map(|field| field.ty.clone()));
+                    arms.push(quote! {
+                        #data_ident::#variant_ident(#(#binding_idents,)*) => {
+                            let mut debug = formatter.debug_tuple(::std::stringify!(#variant_ident));
+                            #(
+                                debug.field(#binding_idents);
+                            )*
+                            debug.finish()
+                        }
+                    });
+                }
+                Fields::Named(fields) => {
+                    let field_idents = fields
+                        .named
+                        .iter()
+                        .map(|field| field.ident.clone().expect("named field"))
+                        .collect::<Vec<_>>();
+                    field_types.extend(fields.named.iter().map(|field| field.ty.clone()));
+                    arms.push(quote! {
+                        #data_ident::#variant_ident { #(#field_idents,)* } => {
+                            let mut debug = formatter.debug_struct(::std::stringify!(#variant_ident));
+                            #(
+                                debug.field(::std::stringify!(#field_idents), #field_idents);
+                            )*
+                            debug.finish()
+                        }
+                    });
+                }
+            }
+        }
+        let where_clause = generics.make_where_clause();
+        for field_type in self.generic_debug_bounds(field_types.iter()) {
+            where_clause
+                .predicates
+                .push(syn::parse_quote!(#field_type: ::std::fmt::Debug));
+        }
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        quote! {
+            impl #impl_generics ::std::fmt::Debug for #wrapper_ident #ty_generics #where_clause {
+                fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    match self.as_data() {
+                        #(#arms,)*
+                    }
+                }
+            }
+        }
+    }
+
+    fn generic_debug_bounds<'ty>(&self, field_types: impl Iterator<Item = &'ty Type>) -> Vec<Type> {
+        let type_params = self
+            .generics
+            .params
+            .iter()
+            .filter_map(|param| match param {
+                GenericParam::Type(param) => Some(param.ident.to_string()),
+                GenericParam::Lifetime(_) | GenericParam::Const(_) => None,
+            })
+            .collect::<BTreeSet<_>>();
+        field_types
+            .filter(|field_type| type_mentions_type_param(field_type, &type_params))
+            .cloned()
+            .collect()
     }
 
     fn serialize_impl(&self) -> TokenStream {
