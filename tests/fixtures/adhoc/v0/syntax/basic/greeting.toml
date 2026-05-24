@@ -1,0 +1,24 @@
+id = "adhoc.v0.syntax.basic.greeting"
+lojban = "coi rodo"
+tags = ["v0-adhoc", "syntax"]
+
+[expectations.syntax]
+status = "success"
+raw = 'TextSyntax(TextSyntaxData { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [FreeModifierSyntax(Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "coĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(ArgumentSyntax(Quantified { quantifier: QuantifierSyntax(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ro" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), inner_argument: ArgumentSyntax(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] })) })), dohu: None })], leading_connective: None, paragraphs: [] })'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥8) {
+  leading_free_modifiers: [
+    Vocative @[0‥8) {
+      vocative_markers: [
+        Cmavo @[0‥3) "coĭ",
+      ],
+      argument: Quantified @[4‥8) {
+        quantifier: Cmavo @[4‥6) "ro",
+        Cmavo @[6‥8) "do",
+      },
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ro","span":[4,6]}}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[6,8]}}}}}}}}}]}'

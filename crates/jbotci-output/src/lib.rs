@@ -66,11 +66,14 @@ impl Default for OutputFormat {
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Json(..) => true)]
+#[invariant(::Ipa(..) => true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,
     #[error("failed to encode compact JSON: {0}")]
     Json(String),
+    #[error("failed to render IPA: {0}")]
+    Ipa(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -184,6 +187,12 @@ pub fn compact_morphology_json_string_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, OutputError> {
+    surface::format_words_ipa(words, source)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
     Ok(json::syntax_json_value(
@@ -241,16 +250,6 @@ pub fn pretty_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_tree_with_options(tree, source, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn plain_morphology_word_with_options(
-    word: &WordLike,
-    source: &str,
-    options: PhonemeRenderOptions,
-) -> String {
-    surface::format_word_like_with_options(word, source, options)
 }
 
 #[requires(true)]
@@ -683,4 +682,58 @@ pub fn pretty_morphology_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     brackets::pretty_morphology_brackets_with_options(words, source, options)
+}
+
+#[cfg(test)]
+mod tests {
+    use bityzba::requires;
+    use jbotci_morphology::segment_words_with_modifiers;
+
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_v0_ipa_examples() {
+        let cases = [
+            ("klama", "ˈkla.ma"),
+            ("tavla", "ˈta.vla"),
+            ("coi", "ʃoj"),
+            ("i", "ʔi"),
+            ("oi", "ʔoj"),
+            ("ui", "ʔwi"),
+            ("ie", "ʔje"),
+            ("ba'e", "ˈba.he"),
+            ("e'u bridi", "ˈʔe.hu ˈbri.di"),
+            ("la alis", "la ˈʔa.lis"),
+            (".alis.", "ˈʔa.lisʔ"),
+            ("i la diskord", "ʔi la ˈʔdi.skord"),
+            (".armstrong.", "ˈʔa.rm.strongʔ"),
+            ("bastn.", "ʔbas.tnʔ"),
+            (".finyks.", "ʔfi.nəksʔ"),
+            ("i la diskord jdice", "ʔi la ˈʔdi.skord ˈʔʒdi.ʃe"),
+            ("diskord i", "ˈʔdi.skord ʔi"),
+            (
+                "nicte je xekri je blanu .i oi lo ca skari cu slabu",
+                "ˈni.ʃte ʒe ˈxe.kri ʒe ˈbla.nu ʔi ʔoj lo ʃa ˈska.ri ʃu ˈsla.bu",
+            ),
+            ("mi .ui", "mi ʔwi"),
+            ("zo si", "zo si"),
+            ("lo'u mi le'u", "ˈlo.hu mi ˈle.hu"),
+            ("mi bu", "mi bu"),
+            ("mi zei do", "mi zej do"),
+            ("zoi gy raw_payload gy", "zoj gə raw_payload gə"),
+        ];
+
+        for (source, expected) in cases {
+            assert_eq!(render_ipa(source), expected, "{source}");
+        }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn render_ipa(source: &str) -> String {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        ipa_morphology_text(&words, source).expect("IPA output")
+    }
 }

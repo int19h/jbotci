@@ -984,8 +984,8 @@ pub enum QuoteSyntax {
 #[invariant(descriptor.is_some() || (!tail_elements.is_empty() && relation.is_some()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DescriptorSyntax {
-    pub descriptor: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub outer_quantifier: Option<Box<QuantifierSyntax>>,
+    pub descriptor: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
     pub relation: Option<Box<RelationSyntax>>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
@@ -1284,7 +1284,7 @@ pub enum MathOperatorSyntax {
 #[invariant(::Co => co.is_cmavo(Cmavo::Co))]
 #[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
 #[invariant(::Na => na.is_selmaho(Selmaho::Na))]
-#[invariant(::Base(word) => wi_relation_word(word))]
+#[invariant(::Base(word) => wi_relation_base_word(word))]
 #[invariant(::Se => se.is_selmaho(Selmaho::Se))]
 #[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
 #[invariant(::TenseModal => true)]
@@ -1409,7 +1409,7 @@ pub struct FihoModalSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Word(word) => is_valid_tense_modal_word(word))]
+#[invariant(::Word(word) => is_valid_tense_modal_part_word(word))]
 #[invariant(::Fiho(fiho) => fiho.nahe.is_absent_or_selmaho(Selmaho::Nahe) && fiho.fiho.is_cmavo(Cmavo::Fiho) && fiho.fehu.is_absent_or_cmavo(Cmavo::Fehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum CompositeTenseModalPartSyntax {
@@ -1657,9 +1657,12 @@ pub(crate) fn free_nahe_bo_markers(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_run_number_or_letter(words: &WordRun) -> bool {
-    words
-        .iter()
-        .all(|word| word.is_selmaho(Selmaho::Pa) || crate::grammar::tokens::is_letter_word(word))
+    words.iter().all(|word| {
+        word.is_selmaho(Selmaho::Pa)
+            || word.is_selmaho(Selmaho::Lau)
+            || word.is_one_of_cmavo(&[Cmavo::Tei, Cmavo::Foi])
+            || crate::grammar::tokens::is_letter_word(word)
+    })
 }
 
 #[requires(true)]
@@ -1704,8 +1707,14 @@ pub(crate) fn wi_relation_word(word: &WithIndicators<WordLike>) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn wi_relation_base_word(word: &WithIndicators<WordLike>) -> bool {
+    wi_relation_word(word) || crate::grammar::tokens::is_cmevla_word(word)
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn free_relation_word(word: &WithFreeModifiers<WithIndicators<WordLike>>) -> bool {
-    wi_relation_word(&word.value)
+    wi_relation_base_word(&word.value)
 }
 
 #[requires(true)]
@@ -1800,6 +1809,19 @@ pub(crate) fn is_valid_tense_modal_word(word: &WithIndicators<WordLike>) -> bool
         Cmavo::Mohi,
         Cmavo::Nai,
     ]) || crate::grammar::tokens::is_letter_word(word)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn is_valid_tense_modal_part_word(word: &WithIndicators<WordLike>) -> bool {
+    is_valid_tense_modal_word(word)
+        || word.is_one_of_selmaho(&[
+            Selmaho::Na,
+            Selmaho::Ja,
+            Selmaho::Joi,
+            Selmaho::Bihi,
+            Selmaho::Gaho,
+        ])
 }
 
 impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {

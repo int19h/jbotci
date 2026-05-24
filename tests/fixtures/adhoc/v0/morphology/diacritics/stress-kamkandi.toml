@@ -1,0 +1,15 @@
+id = "adhoc.v0.morphology.diacritics.stress-kamkandi"
+lojban = "kamkandi"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Lujvo { parts: [Rafsi(Phonemes(PhonemesData { text: "kam" })), Rafsi(Phonemes(PhonemesData { text: "kándi" }))], span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "kamkándi"
+tree = """
+[
+  Lujvo @[0‥8) "kamkándi",
+]"""
+json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"kándi"}],"span":[0,8]}}}]'

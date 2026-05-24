@@ -1,0 +1,15 @@
+id = "adhoc.v0.morphology.basic.smart-apostrophe-cmavo"
+lojban = "le’i"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le'i" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 4, start: None, end: None }) })))]"""
+
+[expectations.output.vlasei]
+brackets = "le'i"
+tree = """
+[
+  Cmavo @[0‥4) "le'i",
+]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"le'i","span":[0,4]}}}]"""

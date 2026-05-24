@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.ui-after-brivla"
+lojban = "klama .ui"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláma" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ŭi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(kláma .ŭi)"
+tree = """
+[
+  Gismu @[0‥5) "kláma",
+  Cmavo @[7‥9) "ŭi",
+]"""
+json = '[{"Bare":{"Gismu":{"phonemes":"kláma","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"ŭi","span":[7,9]}}}]'

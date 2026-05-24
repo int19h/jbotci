@@ -1,0 +1,17 @@
+id = "adhoc.v0.morphology.cbm.cbm-sa-treats-cmevla-as-brivla-match-class"
+lojban = "mi .alis. do sa broda"
+dialect = "(cbm)"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bróda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(mi bróda)"
+tree = """
+[
+  Cmavo @[0‥2) "mi",
+  Gismu @[16‥21) "bróda",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"bróda","span":[16,21]}}}]'

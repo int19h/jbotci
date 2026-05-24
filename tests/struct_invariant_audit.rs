@@ -396,8 +396,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture parse-error expectation permits optional diagnostic fragments",
     ),
     (
-        "tests/support/fixtures/mod.rs:StructuredExpectation",
+        "tests/support/fixtures/mod.rs:WarningExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:WarningItemExpectation",
+        "fixture warning item validity is checked by fixture runner comparisons",
     ),
     (
         "tests/support/fixtures/mod.rs:SyntaxExpectation",

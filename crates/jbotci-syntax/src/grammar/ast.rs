@@ -3179,8 +3179,8 @@ impl DescriptorSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let data!(DescriptorSyntax {
-            descriptor,
             outer_quantifier,
+            descriptor,
             tail_elements,
             relation,
             relative_clauses,

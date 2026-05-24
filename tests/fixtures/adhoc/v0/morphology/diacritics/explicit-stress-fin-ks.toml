@@ -1,0 +1,15 @@
+id = "adhoc.v0.morphology.diacritics.explicit-stress-fin-ks"
+lojban = "finỳks"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "finýks" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 6, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = ".finýks."
+tree = """
+[
+  Cmevla @[0‥6) "finýks",
+]"""
+json = '[{"Bare":{"Cmevla":{"phonemes":"finýks","span":[0,6]}}}]'

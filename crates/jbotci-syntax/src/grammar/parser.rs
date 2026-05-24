@@ -2963,11 +2963,11 @@ where
             |(((descriptor, descriptor_free_modifiers), descriptor_tail), ku)| {
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
+                    outer_quantifier: None,
                     descriptor: Some(WithFreeModifiers::new(
                         descriptor,
                         descriptor_free_modifiers,
                     )),
-                    outer_quantifier: None,
                     tail_elements,
                     relation: relation.map(Box::new),
                     relative_clauses,
@@ -2992,11 +2992,11 @@ where
             )| {
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
+                    outer_quantifier: Some(Box::new(outer_quantifier)),
                     descriptor: Some(WithFreeModifiers::new(
                         descriptor,
                         descriptor_free_modifiers,
                     )),
-                    outer_quantifier: Some(Box::new(outer_quantifier)),
                     tail_elements,
                     relation: relation.map(Box::new),
                     relative_clauses,
@@ -3016,8 +3016,8 @@ where
         )
         .map(|((quantifier, relation), relative_clauses)| {
             new!(ArgumentSyntax::Descriptor(new!(DescriptorSyntax {
-                descriptor: None,
                 outer_quantifier: None,
+                descriptor: None,
                 tail_elements: vec![quantifier],
                 relation: Some(Box::new(relation)),
                 relative_clauses,

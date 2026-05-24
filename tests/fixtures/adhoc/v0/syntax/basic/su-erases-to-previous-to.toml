@@ -1,0 +1,20 @@
+id = "adhoc.v0.syntax.basic.su-erases-to-previous-to"
+lojban = "mi klama to do cadzu toi su broda"
+tags = ["v0-adhoc", "syntax"]
+
+[expectations.syntax]
+status = "success"
+raw = 'TextSyntax(TextSyntaxData { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax(ParagraphSyntaxData { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax(ParagraphStatementSyntaxData { i: None, connective: None, free_modifiers: [], statement: Some(StatementSyntax(Predicate(PredicateSyntax(PredicateSyntaxData { leading_terms: [TermSyntax(Argument(ArgumentSyntax(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: PredicateTail3Syntax(Relation { relation: RelationSyntax(Compound([RelationUnitSyntax(Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláma" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), free_modifiers: [] })), RelationUnitSyntax(Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bróda" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 33, char_start: 28, char_end: 33, start: None, end: None }) })))), free_modifiers: [] }))])), terms: [], vau: None, free_modifiers: [] }), bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })))) })] })] })'
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥33) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Compound @[3‥33) {
+    Gismu @[3‥8) "kláma",
+    Gismu @[28‥33) "bróda",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[28,33]}}}}}]}}}}}}}}]}]}'

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use bityzba::{ensures, invariant, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_syntax::ExperimentalConstruct;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -164,7 +165,7 @@ impl TestCase {
                 .expectations
                 .warnings
                 .as_ref()
-                .map(|_| ExpectationStatus::Success),
+                .map(|value| value.status),
             Facet::VlaseiBrackets => self
                 .expectations
                 .output
@@ -320,7 +321,7 @@ pub struct Expectations {
     #[serde(default)]
     pub syntax: Option<SyntaxExpectation>,
     #[serde(default)]
-    pub warnings: Option<StructuredExpectation>,
+    pub warnings: Option<WarningExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -469,10 +470,22 @@ pub enum AllowedNextExpectation {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
-pub struct StructuredExpectation {
+pub struct WarningExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
-    pub value: Option<serde_json::Value>,
+    pub items: Vec<WarningItemExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct WarningItemExpectation {
+    pub kind: ExperimentalConstruct,
+    #[serde(rename = "anchor-index")]
+    pub anchor_index: usize,
+    #[serde(rename = "anchor-text")]
+    pub anchor_text: String,
+    pub span: [usize; 2],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

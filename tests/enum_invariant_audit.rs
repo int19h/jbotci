@@ -48,6 +48,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries serde's diagnostic without adding semantic state",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
+        "error wrapper carries pronunciation renderer diagnostics",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",
         "render entry delegates all validity to TreeValue",
     ),
@@ -110,6 +114,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedText",
         "quoted text chunks preserve source text without an enum-level rule",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:IpaSurfaceChunk::Word",
+        "IPA chunks borrow validated morphology words",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:IpaSurfaceChunk::Text",
+        "IPA text chunks preserve source-derived quote text and may be empty before filtering",
     ),
     (
         "crates/jbotci-output/src/json.rs:JsonFrame::Node",

@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.leading-indicator-nai"
+lojban = "a'anai"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "a'a" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "naĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))]"""
+
+[expectations.output.vlasei]
+brackets = "(.a'a naĭ)"
+tree = """
+[
+  Cmavo @[0‥3) "a'a",
+  Cmavo @[3‥6) "naĭ",
+]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"a'a","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[3,6]}}}]"""

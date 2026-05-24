@@ -134,7 +134,9 @@ fn push_expectations_toml(
     if let Some(warnings) = &expectations.warnings {
         output.push_str("\n[expectations.warnings]\n");
         push_field(output, "status", &warnings.status)?;
-        push_optional_field(output, "value", &warnings.value)?;
+        if !warnings.items.is_empty() {
+            push_field(output, "items", &warnings.items)?;
+        }
     }
     Ok(())
 }

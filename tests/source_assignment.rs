@@ -72,6 +72,41 @@ fn syntax_assignment_handles_zantufa_poiha_brigahi() {
     });
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_assignment_handles_v0_experimental_linkargs() {
+    run_on_large_stack(|| {
+        for source in [
+            "lo be mi broda cu melbi",
+            "lo be broda cu melbi",
+            "lo broda be cu melbi",
+            "lo broda be mi bei cu melbi",
+            "lo broda be bei mi cu melbi",
+        ] {
+            assert_source_assignment(source);
+        }
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
+    run_on_large_stack(|| {
+        let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect definition");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+        for source in [
+            "mi klama noi'a broda ku",
+            "mi mu'oi gy Alice gy",
+            "mi lu'ei do klama li'au",
+        ] {
+            assert_source_assignment_with_options(source, &options);
+        }
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {

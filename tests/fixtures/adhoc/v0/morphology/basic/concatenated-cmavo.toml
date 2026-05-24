@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.concatenated-cmavo"
+lojban = "mimi"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(mi mi)"
+tree = """
+[
+  Cmavo @[0‥2) "mi",
+  Cmavo @[2‥4) "mi",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}]'

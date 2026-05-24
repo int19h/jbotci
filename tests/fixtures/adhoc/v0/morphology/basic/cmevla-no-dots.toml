@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.cmevla-no-dots"
+lojban = "la djan"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "djan" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(la .djan.)"
+tree = """
+[
+  Cmavo @[0‥2) "la",
+  Cmevla @[3‥7) "djan",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"djan","span":[3,7]}}}]'

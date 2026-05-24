@@ -1,0 +1,20 @@
+id = "adhoc.v0.morphology.basic.adjacent-zo-quotes-following"
+lojban = "zomimi klama"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }) }), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláma" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "([zo mi] mi kláma)"
+tree = """
+[
+  ZoQuote @[0‥4) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[2‥4) "mi",
+  },
+  Cmavo @[4‥6) "mi",
+  Gismu @[7‥12) "kláma",
+]"""
+json = '[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[4,6]}}},{"Bare":{"Gismu":{"phonemes":"kláma","span":[7,12]}}}]'

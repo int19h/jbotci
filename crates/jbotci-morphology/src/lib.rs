@@ -870,6 +870,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers(input, options, source_id)
+        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
 }
 
 #[requires(true)]
@@ -912,6 +913,99 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers_raw(input, options, source_id)
+        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
+}
+
+#[requires(!phonemes.as_str().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
+pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, String> {
+    segment::pronunciation_syllable_texts(phonemes.as_str())
+        .ok_or_else(|| format!("could not syllabify `{}`", phonemes.as_str()))
+}
+
+#[requires(entries.iter().all(CmavoDialectEntry::is_valid))]
+#[ensures(true)]
+fn apply_cmavo_dialect_entries(
+    mut words: Vec<WordLike>,
+    entries: &[CmavoDialectEntry],
+) -> Vec<WordLike> {
+    for entry in entries {
+        words = apply_cmavo_dialect_entry(words, entry);
+    }
+    words
+}
+
+#[requires(entry.is_valid())]
+#[ensures(true)]
+fn apply_cmavo_dialect_entry(words: Vec<WordLike>, entry: &CmavoDialectEntry) -> Vec<WordLike> {
+    words
+        .into_iter()
+        .flat_map(|word_like| apply_cmavo_dialect_entry_to_word_like(word_like, entry))
+        .collect()
+}
+
+#[requires(entry.is_valid())]
+#[ensures(!ret.is_empty())]
+fn apply_cmavo_dialect_entry_to_word_like(
+    word_like: WordLike,
+    entry: &CmavoDialectEntry,
+) -> Vec<WordLike> {
+    let data!(WordLike::Bare(word)) = word_like.as_data() else {
+        return vec![word_like];
+    };
+    let Some(replacement) = cmavo_dialect_replacement(word, entry) else {
+        return vec![word_like];
+    };
+    replacement
+}
+
+#[requires(entry.is_valid())]
+#[ensures(ret.as_ref().is_none_or(|words| !words.is_empty()))]
+fn cmavo_dialect_replacement(word: &Word, entry: &CmavoDialectEntry) -> Option<Vec<WordLike>> {
+    if word.kind() != WordKind::Cmavo {
+        return None;
+    }
+    let replacement = match entry.as_data() {
+        data!(CmavoDialectEntry::Swap { left, right })
+            if cmavo_dialect_entry_matches(word, left) =>
+        {
+            vec![right]
+        }
+        data!(CmavoDialectEntry::Swap { left, right })
+            if cmavo_dialect_entry_matches(word, right) =>
+        {
+            vec![left]
+        }
+        data!(CmavoDialectEntry::Expansion {
+            source,
+            replacement,
+        }) if cmavo_dialect_entry_matches(word, source) => replacement.iter().collect(),
+        _ => return None,
+    };
+    Some(
+        replacement
+            .into_iter()
+            .map(|phonemes| replacement_cmavo(phonemes, word.span()))
+            .collect(),
+    )
+}
+
+#[requires(!candidate.is_empty())]
+#[ensures(true)]
+fn cmavo_dialect_entry_matches(word: &Word, candidate: &str) -> bool {
+    canonical_text_eq(word.phonemes().as_str(), candidate)
+}
+
+#[requires(!phonemes.is_empty())]
+#[ensures(matches!(ret.as_data(), data!(WordLike::Bare(word)) if word.kind() == WordKind::Cmavo))]
+fn replacement_cmavo(phonemes: &str, span: &SourceSpan) -> WordLike {
+    let normalized =
+        segment::parse_cmavo_form(phonemes).unwrap_or_else(|| canonicalize_text(phonemes));
+    WordLike::bare(Word::from_kind(
+        WordKind::Cmavo,
+        Phonemes::from_canonical(normalized).expect("dialect cmavo entry is normalized"),
+        span.clone(),
+    ))
 }
 
 #[requires(true)]
@@ -1460,6 +1554,90 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn applies_cmavo_dialect_swaps_in_order() {
+        let dialect = jbotci_dialect::parse_dialect_definition("((ce'u <-> ce) (ce'u <-> ki))")
+            .expect("dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+
+        let words =
+            segment_words_with_modifiers_with_options("ce", &options).expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["ki"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn applies_cmavo_dialect_expansions() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("((la'u -> la'e di'u))").expect("dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+
+        let words =
+            segment_words_with_modifiers_with_options("la'u", &options).expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["la'e", "di'u"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn applies_builtin_cmavo_dialects() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(jboponei ce-ki-tau)").expect("dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+
+        let words = segment_words_with_modifiers_with_options("po nei ce ki tau su'o", &options)
+            .expect("valid morphology");
+
+        assert_eq!(
+            base_phoneme_texts(&words),
+            vec!["lo", "su'u", "keĭ", "ce'u", "ke'a", "tu'a", "su"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_v0_lujvo_examples() {
+        let cases: &[(&str, &[&str])] = &[
+            ("gerzda", &["rafsi:ger", "rafsi:zda"]),
+            ("sutkla", &["rafsi:sut", "rafsi:kla"]),
+            ("ge'urzdani", &["rafsi:ge'ur", "rafsi:zdani"]),
+            ("ba'irgau", &["rafsi:ba'ir", "rafsi:gaŭ"]),
+            ("so'irdja", &["rafsi:so'ir", "rafsi:dja"]),
+            ("bajyzda", &["rafsi:baj", "hyphen:y", "rafsi:zda"]),
+            ("kamykla", &["rafsi:kam", "hyphen:y", "rafsi:kla"]),
+            ("papykla", &["rafsi:pap", "hyphen:y", "rafsi:kla"]),
+            ("selpa'i", &["rafsi:sel", "rafsi:pa'i"]),
+            ("tolsi'arai", &["rafsi:tol", "rafsi:si'a", "rafsi:raĭ"]),
+            (
+                "jboplijvogau",
+                &["rafsi:jbo", "rafsi:pli", "rafsi:jvo", "rafsi:gaŭ"],
+            ),
+            ("baibra", &["rafsi:baĭ", "rafsi:bra"]),
+            ("xlagau", &["rafsi:xla", "rafsi:gaŭ"]),
+        ];
+
+        for (source, expected) in cases {
+            assert_eq!(lujvo_part_labels(source), *expected, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cmavo_do_not_have_lujvo_parts() {
+        for source in ["mi", "do", "lo"] {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let word = base_word(&words[0]).expect("base word");
+            assert!(word.lujvo_parts().is_none(), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn syntax_equivalence_ignores_spans_and_diacritics_on_words() {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
@@ -1640,5 +1818,44 @@ mod tests {
     #[ensures(true)]
     fn base_phonemes(word: &WordLike) -> Option<String> {
         base_word(word).map(|word| word.phonemes().into_string())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|text| !text.is_empty()))]
+    fn base_phoneme_texts(words: &[WordLike]) -> Vec<String> {
+        words
+            .iter()
+            .map(|word| base_phonemes(word).expect("base word"))
+            .collect()
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.iter().all(|label| !label.is_empty()))]
+    fn lujvo_part_labels(source: &str) -> Vec<String> {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let word = base_word(&words[0]).expect("base word");
+        word.lujvo_parts()
+            .expect("lujvo parts")
+            .iter()
+            .map(jvopau_label)
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn jvopau_label(part: &Jvopau) -> String {
+        match part {
+            Jvopau::Rafsi(phonemes) => format!("rafsi:{}", render_unstressed(phonemes)),
+            Jvopau::Hyphen(phonemes) => format!("hyphen:{}", render_unstressed(phonemes)),
+        }
+    }
+
+    #[requires(!phonemes.as_str().is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn render_unstressed(phonemes: &Phonemes) -> String {
+        phonemes.render(PhonemeRenderOptions {
+            mark_stress: StressMark::None,
+            mark_glides: GlideMark::Breve,
+        })
     }
 }

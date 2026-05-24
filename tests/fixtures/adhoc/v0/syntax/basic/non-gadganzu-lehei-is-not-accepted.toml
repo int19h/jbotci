@@ -1,0 +1,21 @@
+id = "adhoc.v0.syntax.basic.non-gadganzu-lehei-is-not-accepted"
+lojban = "le'ei mlatu cu klama"
+tags = ["v0-adhoc", "syntax"]
+
+[expectations.syntax]
+status = "success"
+raw = """TextSyntax(TextSyntaxData { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax(ParagraphSyntaxData { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax(ParagraphStatementSyntaxData { i: None, connective: None, free_modifiers: [], statement: Some(StatementSyntax(Predicate(PredicateSyntax(PredicateSyntaxData { leading_terms: [TermSyntax(Argument(ArgumentSyntax(Descriptor(DescriptorSyntax(DescriptorSyntaxData { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "le'eĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), tail_elements: [], relation: Some(RelationSyntax(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "mlátu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))))), relative_clauses: [], ku: None })))))], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: PredicateTail3Syntax(Relation { relation: RelationSyntax(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláma" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))))), terms: [], vau: None, free_modifiers: [] }), bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })))) })] })] })"""
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥20) {
+  leading_terms: [
+    Descriptor @[0‥11) {
+      descriptor: Cmavo @[0‥5) "le'eĭ",
+      relation: Gismu @[6‥11) "mlátu",
+    },
+  ],
+  cu: Cmavo @[12‥14) "cu",
+  Gismu @[15‥20) "kláma",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le'eĭ","span":[0,5]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"mlátu","span":[6,11]}}}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[12,14]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[15,20]}}}}}}}}}}}}]}]}"""

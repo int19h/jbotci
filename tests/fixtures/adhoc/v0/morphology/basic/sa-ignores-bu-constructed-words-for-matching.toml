@@ -1,0 +1,17 @@
+id = "adhoc.v0.morphology.basic.sa-ignores-bu-constructed-words-for-matching"
+lojban = "mi pu viska broda bu .e lo drata .y. sa by .e cy"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "by" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "cy" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(by .e cy)"
+tree = """
+[
+  Cmavo @[40‥42) "by",
+  Cmavo @[44‥45) "e",
+  Cmavo @[46‥48) "cy",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"by","span":[40,42]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}]'

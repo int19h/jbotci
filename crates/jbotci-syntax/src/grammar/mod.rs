@@ -641,6 +641,92 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn classifies_v0_dictionary_first_cases_by_dictionary_selmaho() {
+        run_on_large_stack(|| {
+            let cases = [
+                (
+                    "a'oi do klama",
+                    ExperimentalConstruct::ExperimentalDictionaryCoiVocative,
+                ),
+                (
+                    "o'ai do klama",
+                    ExperimentalConstruct::ExperimentalDictionaryCoiVocative,
+                ),
+                (
+                    "xe'e lo gerku cu klama",
+                    ExperimentalConstruct::ExperimentalDictionaryPaNumber,
+                ),
+                (
+                    "su'ai lo gerku cu klama",
+                    ExperimentalConstruct::ExperimentalDictionaryPaNumber,
+                ),
+                (
+                    "xei'e lo kibro mi klama",
+                    ExperimentalConstruct::ExperimentalDictionaryFahaTag,
+                ),
+                (
+                    "li'oi mi klama",
+                    ExperimentalConstruct::ExperimentalDictionaryUiIndicator,
+                ),
+            ];
+
+            for (source, expected) in cases {
+                assert_warning_kind(source, &ParseOptions::default(), expected);
+            }
+
+            let xoi = parse_source("mi klama xoi mutce", &ParseOptions::default());
+            assert!(has_warning_kind(
+                &xoi,
+                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
+            ));
+            assert!(!has_warning_kind(
+                &xoi,
+                ExperimentalConstruct::ExperimentalSoiAdverbial
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cbm_accepts_cmevla_relation_in_descriptor_arguments() {
+        run_on_large_stack(|| {
+            let source = "lo .alis. broda cu melbi";
+            let baseline_words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert!(parse_syntax_tree(&baseline_words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let cbm = parse_tree_debug(source, &options);
+            assert!(cbm.contains("ArgumentSyntax(Descriptor"));
+            assert!(cbm.contains("Word(Cmevla"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cbm_warns_for_cmevla_relation_words() {
+        run_on_large_stack(|| {
+            let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+            assert_warning_kind(
+                "lo .alis. broda cu melbi",
+                &options,
+                ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+            );
+            assert_warning_kind(
+                ".alis. broda",
+                &options,
+                ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_wrong_enum_variant_cmavo_markers() {
         run_on_large_stack(|| {
             let subsentence = sample_subsentence();
@@ -701,8 +787,8 @@ mod tests {
             );
             assert!(
                 try_new!(DescriptorSyntax {
-                    descriptor: Some(free_word("lo")),
                     outer_quantifier: None,
+                    descriptor: Some(free_word("lo")),
                     tail_elements: Vec::new(),
                     relation: None,
                     relative_clauses: Vec::new(),
@@ -817,6 +903,35 @@ mod tests {
         assert!(try_new!(FragmentSyntax::BeiLink(Vec::new())).is_err());
         assert!(try_new!(FragmentSyntax::RelativeClause(Vec::new())).is_err());
         assert!(try_new!(ArgumentTailElementSyntax::RelativeClauses(Vec::new())).is_err());
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_warning_kind(source: &str, options: &ParseOptions, expected: ExperimentalConstruct) {
+        let parsed = parse_source(source, options);
+        assert!(has_warning_kind(&parsed, expected), "{source}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn has_warning_kind(parsed: &SyntaxParse, expected: ExperimentalConstruct) -> bool {
+        parsed
+            .warnings
+            .iter()
+            .any(|warning| warning.kind == expected)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn parse_tree_debug(source: &str, options: &ParseOptions) -> String {
+        format!("{:?}", parse_source(source, options).parse_tree)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        parse_syntax_tree(&words, options).expect("valid syntax")
     }
 
     #[requires(!text.is_empty())]

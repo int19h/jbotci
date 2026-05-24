@@ -1,0 +1,18 @@
+id = "adhoc.v0.morphology.basic.bu-creates-lerfu"
+lojban = "mi bu"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Letter { base: WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), bu: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "bu" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }) })]'
+
+[expectations.output.vlasei]
+brackets = "(mi bu)"
+tree = """
+[
+  Letter @[0‥5) {
+    Cmavo @[0‥2) "mi",
+    bu: Cmavo @[3‥5) "bu",
+  },
+]"""
+json = '[{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}}]'

@@ -171,6 +171,35 @@ impl SourceSpan {
         }))
     }
 }
+
+#[invariant(::Pair => opt_gihi(gihi) && vau.is_absent_or_cmavo(Cmavo::Vau))]
+#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::Na => na.is_selmaho(Selmaho::Na))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum GekSentenceSyntax {
+    Pair {
+        gek: ConnectiveSyntax,
+        first: Box<SubsentenceSyntax>,
+        gik: ConnectiveSyntax,
+        second: Box<SubsentenceSyntax>,
+        gihi: Option<WithIndicators<WordLike>>,
+        tail_terms: Vec<TermSyntax>,
+        vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Ke {
+        tense_modal: Option<Box<TenseModalSyntax>>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
+        #[tree_child(primary)]
+        inner: Box<GekSentenceSyntax>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    Na {
+        na: WithFreeModifiers<WithIndicators<WordLike>>,
+        #[tree_child(primary)]
+        inner: Box<GekSentenceSyntax>,
+    },
+}
 ```
 
 For type invariants, `#[invariant]` on a named-field struct or enum creates a validated wrapper plus an unchecked `TypeData`. Values of the wrapper are valid by construction. Do not add public `is_valid()` to invariant-bearing model types. Keep private helper predicates only for smaller sub-concepts that are not themselves represented by validated types.

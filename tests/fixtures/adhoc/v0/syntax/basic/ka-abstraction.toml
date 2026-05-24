@@ -1,0 +1,27 @@
+id = "adhoc.v0.syntax.basic.ka-abstraction"
+lojban = "lo ka ce'u klama"
+tags = ["v0-adhoc", "syntax"]
+
+[expectations.syntax]
+status = "success"
+raw = """TextSyntax(TextSyntaxData { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax(ParagraphSyntaxData { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax(ParagraphStatementSyntaxData { i: None, connective: None, free_modifiers: [], statement: Some(StatementSyntax(Fragment(FragmentSyntax(Term { terms: [TermSyntax(Argument(ArgumentSyntax(Descriptor(DescriptorSyntax(DescriptorSyntaxData { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "lo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), tail_elements: [], relation: Some(RelationSyntax(Abstraction(AbstractionSyntax(AbstractionSyntaxData { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: SubsentenceSyntax(Plain(PredicateSyntax(PredicateSyntaxData { leading_terms: [TermSyntax(Argument(ArgumentSyntax(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ce'u" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }))))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: PredicateTail3Syntax(Relation { relation: RelationSyntax(Base(Bare(WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "kláma" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))))), terms: [], vau: None, free_modifiers: [] }), bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }))), kei: None })))), relative_clauses: [], ku: None })))))], vau: None })))) })] })] })"""
+
+[expectations.output.gentufa]
+tree = """
+Term @[0‥16) {
+  terms: [
+    Descriptor @[0‥16) {
+      descriptor: Cmavo @[0‥2) "lo",
+      relation: Abstraction @[3‥16) {
+        nu: Cmavo @[3‥5) "ka",
+        Predicate @[6‥16) {
+          leading_terms: [
+            Cmavo @[6‥10) "ce'u",
+          ],
+          Gismu @[11‥16) "kláma",
+        },
+      },
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ka","span":[3,5]}}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ce'u","span":[6,10]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[11,16]}}}}}}}}}}}}}}}}]}}}}]}]}"""

@@ -1,0 +1,19 @@
+id = "adhoc.v0.syntax.basic.zo-quote"
+lojban = "zo mi"
+tags = ["v0-adhoc", "syntax"]
+
+[expectations.syntax]
+status = "success"
+raw = 'TextSyntax(TextSyntaxData { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax(ParagraphSyntaxData { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax(ParagraphStatementSyntaxData { i: None, connective: None, free_modifiers: [], statement: Some(StatementSyntax(Fragment(FragmentSyntax(Term { terms: [TermSyntax(Argument(ArgumentSyntax(Quote(QuoteSyntax(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }) })), free_modifiers: [] }))))))], vau: None })))) })] })] })'
+
+[expectations.output.gentufa]
+tree = """
+Term @[0‥5) {
+  terms: [
+    ZoQuote @[0‥5) {
+      zo: Cmavo @[0‥2) "zo",
+      Cmavo @[3‥5) "mi",
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}]}}}}]}]}'

@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.cmavo-before-brivla"
+lojban = "dotavla"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "távla" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(do távla)"
+tree = """
+[
+  Cmavo @[0‥2) "do",
+  Gismu @[2‥7) "távla",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"do","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"távla","span":[2,7]}}}]'

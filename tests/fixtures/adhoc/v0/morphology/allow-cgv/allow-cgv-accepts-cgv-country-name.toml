@@ -1,0 +1,17 @@
+id = "adhoc.v0.morphology.allow-cgv.allow-cgv-accepts-cgv-country-name"
+lojban = "la .italias."
+dialect = "(allow-cgv)"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "la" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(Cmevla { phonemes: Phonemes(PhonemesData { text: "italĭas" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 11, char_start: 4, char_end: 11, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(la .italĭas.)"
+tree = """
+[
+  Cmavo @[0‥2) "la",
+  Cmevla @[4‥11) "italĭas",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"italĭas","span":[4,11]}}}]'

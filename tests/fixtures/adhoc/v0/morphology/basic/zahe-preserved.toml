@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.basic.zahe-preserved"
+lojban = "za'e mi"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = """[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "za'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "mi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))]"""
+
+[expectations.output.vlasei]
+brackets = "(za'e mi)"
+tree = """
+[
+  Cmavo @[0‥4) "za'e",
+  Cmavo @[5‥7) "mi",
+]"""
+json = """[{"Bare":{"Cmavo":{"phonemes":"za'e","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}]"""

@@ -13,13 +13,15 @@ use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
-    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_value,
+    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions,
     compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
     pretty_brackets, pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
     pretty_tree_with_options,
 };
 use jbotci_source::SourceId;
-use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
+use jbotci_syntax::{
+    ParseOptions, SyntaxError, SyntaxWarning, parse_syntax_tree_with_source_and_options,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -642,7 +644,8 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
             }
             if refresh_warnings && let Some(warnings) = &mut fixture.test_case.expectations.warnings
             {
-                warnings.value = Some(compact_json_value(&parsed.warnings)?);
+                warnings.items =
+                    warning_expectation_items(&fixture.test_case.lojban, &parsed.warnings);
             }
             if refresh_tree
                 && let Some(output) = &mut fixture.test_case.expectations.output
@@ -1989,21 +1992,13 @@ fn run_warnings_fixture(fixture: &LoadedTestCase) -> FacetResult {
     ) {
         Ok(parsed) => match expectation.status {
             ExpectationStatus::Success => {
-                let expected = expectation
-                    .value
-                    .clone()
-                    .unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
-                let actual = match compact_json_value(&parsed.warnings) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        return FacetResult::failed(format!("warnings JSON encode error: {error}"));
-                    }
-                };
-                if expected == actual {
+                let expected = &expectation.items;
+                let actual = warning_expectation_items(&fixture.test_case.lojban, &parsed.warnings);
+                if *expected == actual {
                     FacetResult::passed()
                 } else {
                     FacetResult::failed(format!(
-                        "warnings mismatch: expected {expected}, got {actual}"
+                        "warnings mismatch: expected {expected:?}, got {actual:?}"
                     ))
                 }
             }
@@ -2024,6 +2019,50 @@ fn run_warnings_fixture(fixture: &LoadedTestCase) -> FacetResult {
             }
         },
     }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == warnings.len())]
+fn warning_expectation_items(
+    source: &str,
+    warnings: &[SyntaxWarning],
+) -> Vec<fixtures::WarningItemExpectation> {
+    warnings
+        .iter()
+        .map(|warning| warning_expectation_item(source, warning))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.anchor_text.is_empty())]
+fn warning_expectation_item(
+    source: &str,
+    warning: &SyntaxWarning,
+) -> fixtures::WarningItemExpectation {
+    let span = warning_anchor_span(warning);
+    let anchor_text = source
+        .get(span[0]..span[1])
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| warning.anchor.to_string());
+    fixtures::WarningItemExpectation {
+        kind: warning.kind,
+        anchor_index: warning.anchor_index,
+        anchor_text,
+        span,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret[0] <= ret[1])]
+fn warning_anchor_span(warning: &SyntaxWarning) -> [usize; 2] {
+    let mut spans = warning.anchor.source_spans();
+    spans.sort_by_key(|span| span.byte_start);
+    let Some(first) = spans.first() else {
+        return [0, 0];
+    };
+    let last = spans.last().expect("first span exists");
+    [first.byte_start, last.byte_end]
 }
 
 #[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
@@ -2103,7 +2142,20 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     "expected morphology failure, got {} word(s)",
                     actual.len()
                 )),
-                Err(_) => FacetResult::passed(),
+                Err(error) => {
+                    if let Some(expected) = &expectation.error {
+                        let actual = error.to_string();
+                        if actual.contains(expected) {
+                            FacetResult::passed()
+                        } else {
+                            FacetResult::failed(format!(
+                                "morphology error mismatch: expected substring `{expected}`, got `{actual}`"
+                            ))
+                        }
+                    } else {
+                        FacetResult::passed()
+                    }
+                }
             }
         }
         ExpectationStatus::Pending | ExpectationStatus::NotApplicable => FacetResult::skipped(

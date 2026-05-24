@@ -1,0 +1,15 @@
+id = "adhoc.v0.morphology.diacritics.falling-ai"
+lojban = "maĭ"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "maĭ" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 3, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "maĭ"
+tree = """
+[
+  Cmavo @[0‥3) "maĭ",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"maĭ","span":[0,3]}}}]'

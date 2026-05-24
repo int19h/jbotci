@@ -11,9 +11,9 @@ use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_opt
 use jbotci_output::{
     BracketRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
     TreeRenderOptions, compact_morphology_json_string_with_options,
-    compact_syntax_json_string_with_options, plain_morphology_word_with_options,
-    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options,
+    compact_syntax_json_string_with_options, pretty_brackets_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    pretty_tree_with_options,
 };
 use jbotci_syntax::{
     ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
@@ -72,7 +72,6 @@ enum GentufaFormat {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum VlaseiFormat {
-    Plain,
     Brackets,
     Tree,
     Raw,
@@ -124,7 +123,7 @@ struct VlaseiInput {
     #[arg(
         long = "turtai",
         visible_alias = "format",
-        default_value_t = VlaseiFormat::Plain,
+        default_value_t = VlaseiFormat::Brackets,
         value_enum
     )]
     format: VlaseiFormat,
@@ -311,15 +310,6 @@ fn run_cli<WOut: Write, WErr: Write>(
             let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
             let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
             match input.format {
-                VlaseiFormat::Plain => {
-                    for word in words {
-                        writeln!(
-                            stdout,
-                            "{}",
-                            plain_morphology_word_with_options(&word, &text, phoneme_options)
-                        )?;
-                    }
-                }
                 VlaseiFormat::Json => {
                     let rendered = compact_morphology_json_string_with_options(
                         &words,
@@ -535,20 +525,6 @@ fn validate_vlasei_options(input: &VlaseiInput) -> Result<()> {
             validate_not_present(
                 input.show_spans,
                 "`--show-spans` is only supported with `--turtai tree`",
-            )?;
-        }
-        VlaseiFormat::Plain => {
-            validate_no_indent(
-                input.indent,
-                "`--indent` is only supported with raw, JSON, and tree output",
-            )?;
-            validate_not_present(
-                input.show_spans,
-                "`--show-spans` is only supported with `--turtai tree`",
-            )?;
-            validate_not_present(
-                input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
         }
     }
@@ -926,7 +902,7 @@ mod tests {
         else {
             panic!("expected vlasei command")
         };
-        assert_eq!(default_input.format, VlaseiFormat::Plain);
+        assert_eq!(default_input.format, VlaseiFormat::Brackets);
 
         let Command::Vlasei(json_input) =
             Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "json", "coi"])
@@ -1042,7 +1018,7 @@ mod tests {
         let help = error.to_string();
         assert!(help.contains("--turtai"));
         assert!(help.contains("--format"));
-        assert!(help.contains("plain"));
+        assert!(!help.contains("plain"));
         assert!(help.contains("brackets"));
         assert!(help.contains("tree"));
         assert!(help.contains("raw"));

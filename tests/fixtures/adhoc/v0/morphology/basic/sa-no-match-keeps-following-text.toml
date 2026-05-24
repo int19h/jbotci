@@ -1,0 +1,17 @@
+id = "adhoc.v0.morphology.basic.sa-no-match-keeps-following-text"
+lojban = "mi broda sa ka brodi do"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ka" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(Gismu { phonemes: Phonemes(PhonemesData { text: "bródi" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "do" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))]'
+
+[expectations.output.vlasei]
+brackets = "(ka bródi do)"
+tree = """
+[
+  Cmavo @[12‥14) "ka",
+  Gismu @[15‥20) "bródi",
+  Cmavo @[21‥23) "do",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"ka","span":[12,14]}}},{"Bare":{"Gismu":{"phonemes":"bródi","span":[15,20]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[21,23]}}}]'

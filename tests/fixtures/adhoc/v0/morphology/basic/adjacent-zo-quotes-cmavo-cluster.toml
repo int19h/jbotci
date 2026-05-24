@@ -1,0 +1,18 @@
+id = "adhoc.v0.morphology.basic.adjacent-zo-quotes-cmavo-cluster"
+lojban = "zoki'e'u'e"
+tags = ["v0-adhoc", "morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = """[WordLike(ZoQuote { zo: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "zo" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(Cmavo { phonemes: Phonemes(PhonemesData { text: "ki'e'u'e" }), span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 10, char_start: 2, char_end: 10, start: None, end: None }) }) })]"""
+
+[expectations.output.vlasei]
+brackets = "(zo ki'e'u'e)"
+tree = """
+[
+  ZoQuote @[0‥10) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[2‥10) "ki'e'u'e",
+  },
+]"""
+json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"ki'e'u'e","span":[2,10]}}}}]"""
