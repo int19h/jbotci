@@ -4,4 +4,4 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "failure"
-error = "unsupported morphology at character 0: `language`"
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

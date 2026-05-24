@@ -8,12 +8,4 @@ entry-id = "18868"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'probably' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "probably" (y-hyphen) but got end of input
-  "probably👉 more likely"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉probably more likely"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉probably more likely"
-@ 0: "👉probably more likely"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

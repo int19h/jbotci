@@ -2,5 +2,24 @@ id = "adhoc.v0.warnings.standard-no-warning.standard-xi-free-modifier"
 lojban = "mi klama xi re"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })), free_modifiers: [Xi { xi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "xi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }))], free_modifiers: [] }, boi: None }) }] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥14) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Word @[3‥14) {
+    Gismu @[3‥8) "kláma",
+    free_modifiers: [
+      Xi @[9‥14) {
+        xi: Cmavo @[9‥11) "xi",
+        Cmavo @[12‥14) "re",
+      },
+    ],
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":[{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}},{"Xi":{"xi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"xi","span":[9,11]}}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[12,14]}}}}]}}}}}]}]}}}}}}}}]}]}'

@@ -3,6 +3,26 @@ lojban = "mi klama noi'a broda ku"
 dialect = "(zantufa)"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalNoihaAdverbial", anchor-index = 2, anchor-text = "noi'a", span = [9, 14] }, { kind = "ExperimentalZantufaPoihaBrigahi", anchor-index = 4, anchor-text = "ku", span = [21, 23] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }))), terms: [PoihaBrigahi { poiha: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "noĭ'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } })), free_modifiers: [] }, tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })))), relative_clauses: [], brigahi_ku: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ku" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } })), free_modifiers: [] } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-noiha-adverbial", byte-span = [9, 14], source-text = "noi'a", message = "experimental syntax: NOIhA adverbial relative-clause term", word-index = 2 }, { severity = "warning", code = "syntax.warning.experimental-zantufa-poiha-brigahi", byte-span = [21, 23], source-text = "ku", message = "experimental syntax: Zantufa POIhA briga'i term with KU terminator", word-index = 4 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥23) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Relation @[3‥23) {
+    Gismu @[3‥8) "kláma",
+    terms: [
+      PoihaBrigahi @[9‥23) {
+        poiha: Cmavo @[9‥14) "noĭ'a",
+        relation: Gismu @[15‥20) "bróda",
+        brigahi_ku: Cmavo @[21‥23) "ku",
+      },
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}}},"terms":[{"PoihaBrigahi":{"poiha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"noĭ'a","span":[9,14]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[15,20]}}}}},"brigahi_ku":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ku","span":[21,23]}}}}}}]}}}}}}}}]}]}"""

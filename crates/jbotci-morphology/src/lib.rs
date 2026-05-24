@@ -9,6 +9,9 @@ pub mod tree;
 use std::fmt;
 
 use bityzba::{data, ensures, invariant, new, requires, try_new};
+use jbotci_diagnostics::{
+    Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity, source_span_from_char_offsets,
+};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
 };
@@ -823,6 +826,96 @@ pub enum MorphologyError {
     },
     #[error("invalid source span: {0}")]
     SourceSpan(#[from] SourceLocationError),
+}
+
+impl MorphologyError {
+    #[requires(true)]
+    #[ensures(!ret.code.is_empty())]
+    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+        match self {
+            Self::Unsupported {
+                char_offset,
+                word,
+                reason,
+            } => morphology_diagnostic(
+                source_id,
+                source,
+                "morphology.unsupported",
+                "unsupported morphology",
+                *char_offset,
+                char_offset + word.chars().count(),
+                reason,
+            ),
+            Self::Invalid {
+                char_offset,
+                word,
+                reason,
+            } => morphology_diagnostic(
+                source_id,
+                source,
+                "morphology.invalid",
+                "invalid morphology",
+                *char_offset,
+                char_offset + word.chars().count(),
+                reason,
+            ),
+            Self::UnterminatedZoiQuote {
+                char_offset,
+                delimiter,
+            } => {
+                let source_end = source.chars().count();
+                morphology_diagnostic(
+                    source_id,
+                    source,
+                    "morphology.unterminated-zoi-quote",
+                    "unterminated ZOI quote",
+                    *char_offset,
+                    source_end,
+                    &format!("expected closing delimiter `{delimiter}`"),
+                )
+            }
+            Self::SourceSpan(error) => {
+                let span = source_span_from_char_offsets(source_id, source, 0, 0)
+                    .expect("the start of a source string is always a valid source span");
+                Diagnostic::new(
+                    DiagnosticSeverity::Error,
+                    DiagnosticPhase::Morphology,
+                    "morphology.source-span".to_owned(),
+                    "invalid source span".to_owned(),
+                    vec![DiagnosticLabel::new(span, error.to_string(), true)],
+                    Vec::new(),
+                    None,
+                )
+            }
+        }
+    }
+}
+
+#[requires(!code.is_empty())]
+#[requires(!message.is_empty())]
+#[requires(!label.is_empty())]
+#[requires(char_start <= char_end)]
+#[ensures(ret.code == code)]
+fn morphology_diagnostic(
+    source_id: Option<SourceId>,
+    source: &str,
+    code: &str,
+    message: &str,
+    char_start: usize,
+    char_end: usize,
+    label: &str,
+) -> Diagnostic {
+    let span = source_span_from_char_offsets(source_id, source, char_start, char_end)
+        .expect("morphology errors store offsets derived from the same source text");
+    Diagnostic::new(
+        DiagnosticSeverity::Error,
+        DiagnosticPhase::Morphology,
+        code.to_owned(),
+        message.to_owned(),
+        vec![DiagnosticLabel::new(span, label.to_owned(), true)],
+        Vec::new(),
+        None,
+    )
 }
 
 #[requires(true)]

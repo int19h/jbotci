@@ -8,12 +8,4 @@ entry-id = "2944"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'jbo' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "jbo" but got end of input
-  "mi na jimpe le jbo👉 zei zoi ibu irk ibu zei seljm…"
-- not cmevla: cmevla (name) must end with a consonant
-  "mi na jimpe le 👉jbo zei zoi ibu irk ibu zei se…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "mi na jimpe le 👉jbo zei zoi ibu irk ibu zei se…"
-@ 15: "mi na jimpe le 👉jbo zei zoi ibu irk ibu zei se…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

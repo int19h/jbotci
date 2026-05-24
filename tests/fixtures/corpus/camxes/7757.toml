@@ -8,8 +8,4 @@ entry-id = "7757"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'biOM.' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "coi b👉iOM."
-@ 4: "coi 👉biOM."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

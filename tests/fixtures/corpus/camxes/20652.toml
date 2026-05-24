@@ -8,12 +8,4 @@ entry-id = "20652"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'http://news.bbc.co.uk/1/hi/world/europe/3159714.stm' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "to h👉ttp://news.bbc.co.uk/1/hi/worl…"
-- not cmevla: cmevla (name) must end with a consonant
-  "to 👉http://news.bbc.co.uk/1/hi/wor…"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "to h👉ttp://news.bbc.co.uk/1/hi/worl…"
-@ 3: "to 👉http://news.bbc.co.uk/1/hi/wor…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

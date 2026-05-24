@@ -8,12 +8,4 @@ entry-id = "15701"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:45: 'Logflash' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…nu pilno la'o y. Log👉flash .y"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…nu pilno la'o y. Log👉flash .y"
-- not cmavo: cmavo 'lo' followed by 'g' which doesn't start a valid Lojban word
-  "… nu pilno la'o y. Lo👉gflash .y"
-@ 44: "…le nu pilno la'o y. 👉Logflash .y"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

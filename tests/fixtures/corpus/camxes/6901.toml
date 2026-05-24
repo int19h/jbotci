@@ -8,12 +8,4 @@ entry-id = "6901"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'Jonmann' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
-  "doi Jonman👉n .i xu do skami cu xlali finp…"
-- not cmevla: geminated consonants are not allowed (CLL 3.6)
-  "doi Jonman👉n .i xu do skami cu xlali finp…"
-- not cmavo: cmavo 'jo' followed by 'n' which doesn't start a valid Lojban word
-  "doi Jo👉nmann .i xu do skami cu xlali …"
-@ 4: "doi 👉Jonmann .i xu do skami cu xlal…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

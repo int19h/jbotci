@@ -8,6 +8,4 @@ entry-id = "20339"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-@ 15: "ki'a lo'u la tc👉uan sus cu cusku le'u"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

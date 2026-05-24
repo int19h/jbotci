@@ -8,12 +8,4 @@ entry-id = "22169"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:43: 'GNOME' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected vowel u but got 'N'
-  "… zbasu be la'a gy. G👉NOME .gy cu pilno"
-- not cmevla: cmevla (name) must end with a consonant
-  "…e zbasu be la'a gy. 👉GNOME .gy cu pilno"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…e zbasu be la'a gy. 👉GNOME .gy cu pilno"
-@ 42: "…e zbasu be la'a gy. 👉GNOME .gy cu pilno"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

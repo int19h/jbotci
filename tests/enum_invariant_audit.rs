@@ -416,10 +416,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture tree validation checks custom provenance names at import time",
     ),
     (
-        "tests/support/fixtures/mod.rs:AllowedNextExpectation::Negative",
-        "negative expectation delegates validity to the nested expectation",
-    ),
-    (
         "tests/support/fixtures/mod.rs:FixtureError::Read",
         "fixture error wrapper carries filesystem diagnostics",
     ),

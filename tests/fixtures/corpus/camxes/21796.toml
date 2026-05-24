@@ -8,12 +8,4 @@ entry-id = "21796"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:17: 'bapzifre' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "print ".i my cu bap👉zifre samselpla .i lenu galfi …"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "print ".i my cu bap👉zifre samselpla .i lenu galfi …"
-- not cmavo: cmavo 'ba' followed by 'p' which doesn't start a valid Lojban word
-  "print ".i my cu ba👉pzifre samselpla .i lenu galfi…"
-@ 16: "print ".i my cu 👉bapzifre samselpla .i lenu gal…"""" }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [90, 90], source-text = "", message = "syntax parse failed" }]

@@ -2,6 +2,21 @@ id = "adhoc.v0.warnings.experimental.experimental-ui-ehei"
 lojban = "e'ei se'a"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalCmavo", anchor-index = 0, anchor-text = "e'ei se'a", span = [0, 9] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "e'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "se'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }, nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cmavo", byte-span = [0, 4], source-text = "e'ei", message = "experimental syntax: experimental cmavo: e'ei", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥9) {
+  leading_indicators: [
+    Indicator @[0‥9) {
+      indicator: WithIndicator @[0‥9) {
+        Cmavo @[0‥4) "e'eĭ",
+        indicator: Cmavo @[5‥9) "se'a",
+      },
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"e'eĭ","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"se'a","span":[5,9]}}}}}]}"""

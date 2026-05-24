@@ -2,5 +2,30 @@ id = "adhoc.v0.warnings.experimental.broad-joi-term-connective"
 lojban = "pu ko'a joi ba ko'e broda"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Connected { leading_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ko'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), free_modifiers: [] }) }], connective: NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "ba" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ko'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } })), free_modifiers: [] }) }] }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥25) {
+  leading_terms: [
+    Connected @[0‥19) {
+      leading_terms: [
+        Tagged @[0‥7) {
+          tense_modal: Cmavo @[0‥2) "pu",
+          Cmavo @[3‥7) "ko'a",
+        },
+      ],
+      connective: Cmavo @[8‥11) "joĭ",
+      trailing_terms: [
+        Tagged @[12‥19) {
+          tense_modal: Cmavo @[12‥14) "ba",
+          Cmavo @[15‥19) "ko'e",
+        },
+      ],
+    },
+  ],
+  Gismu @[20‥25) "bróda",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Connected":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko'a","span":[3,7]}}}}}}}],"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"joĭ","span":[8,11]}}}}]}},"trailing_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ba","span":[12,14]}}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko'e","span":[15,19]}}}}}}}]}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[20,25]}}}}}}}}}}}}]}]}"""

@@ -8,12 +8,4 @@ entry-id = "20531"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: '/penes/' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got '/'
-  "de'u preti zoi 👉/penes/ do doi tsali"
-- not cmevla: cmevla (name) must end with a consonant
-  "de'u preti zoi 👉/penes/ do doi tsali"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "de'u preti zoi 👉/penes/ do doi tsali"
-@ 15: "de'u preti zoi 👉/penes/ do doi tsali"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

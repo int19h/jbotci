@@ -8,8 +8,4 @@ entry-id = "12639"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:13: 'that?' is not a valid Lojban word:
-- apostrophe is only allowed between two vowels (CLL 3.3)
-  "line before t👉hat?"
-@ 12: "line before 👉that?"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

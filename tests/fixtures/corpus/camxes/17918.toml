@@ -8,8 +8,4 @@ entry-id = "17918"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:6: 'piEr.' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "coi. p👉iEr."
-@ 5: "coi. 👉piEr."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

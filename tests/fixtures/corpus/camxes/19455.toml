@@ -8,8 +8,4 @@ entry-id = "19455"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'vs' is not a valid Lojban word:
-- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "v👉s pi pai -- NOT SURE (morpholo…"
-@ 0: "👉vs pi pai -- NOT SURE (morphol…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

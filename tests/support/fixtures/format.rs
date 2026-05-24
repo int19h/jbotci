@@ -92,13 +92,17 @@ fn push_expectations_toml(
         output.push_str("\n[expectations.morphology]\n");
         push_field(output, "status", &morphology.status)?;
         push_optional_field(output, "raw", &morphology.raw)?;
-        push_optional_field(output, "error", &morphology.error)?;
+        if !morphology.diagnostics.is_empty() {
+            push_field(output, "diagnostics", &morphology.diagnostics)?;
+        }
     }
     if let Some(syntax) = &expectations.syntax {
         output.push_str("\n[expectations.syntax]\n");
         push_field(output, "status", &syntax.status)?;
         push_optional_field(output, "raw", &syntax.raw)?;
-        push_optional_field(output, "error", &syntax.error)?;
+        if !syntax.diagnostics.is_empty() {
+            push_field(output, "diagnostics", &syntax.diagnostics)?;
+        }
         push_optional_field(output, "xfail", &syntax.xfail)?;
     }
     if let Some(output_expectation) = &expectations.output {
@@ -129,13 +133,6 @@ fn push_expectations_toml(
             if let Some(json) = &gentufa.json {
                 push_field(output, "json", json)?;
             }
-        }
-    }
-    if let Some(warnings) = &expectations.warnings {
-        output.push_str("\n[expectations.warnings]\n");
-        push_field(output, "status", &warnings.status)?;
-        if !warnings.items.is_empty() {
-            push_field(output, "items", &warnings.items)?;
         }
     }
     Ok(())

@@ -8,12 +8,4 @@ entry-id = "8226"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:12: 'still' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
-  "definitely stil👉l active."
-- not cmevla: geminated consonants are not allowed (CLL 3.6)
-  "definitely stil👉l active."
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "definitely 👉still active."
-@ 11: "definitely 👉still active."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

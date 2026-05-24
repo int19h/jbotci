@@ -12,7 +12,7 @@ raw = """[SingleWordQuote { marker: Cmavo { phonemes: Phonemes { text: "la'oĭ" 
 
 [expectations.syntax]
 status = "failure"
-error = { position = 1, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [13, 16], source-text = "org", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "([la'oĭ lojban] .org. cu se cíkre)"

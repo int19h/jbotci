@@ -8,12 +8,4 @@ entry-id = "20489"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:12: 'addiction' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
-  "ka'u zoi'o ad👉diction goi abu. cu selxebni .…"
-- not cmevla: geminated consonants are not allowed (CLL 3.6)
-  "ka'u zoi'o ad👉diction goi abu. cu selxebni .…"
-- not cmavo: cmavo 'a' followed by 'd' which doesn't start a valid Lojban word
-  "ka'u zoi'o a👉ddiction goi abu. cu selxebni …"
-@ 11: "ka'u zoi'o 👉addiction goi abu. cu selxebni…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "12671"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:25: 'strdu' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected vowel u but got 't'
-  "…rtu le kanla .e le s👉trdu -- NOT SURE (morphology, …"
-- not cmevla: cmevla (name) must end with a consonant
-  "…ortu le kanla .e le 👉strdu -- NOT SURE (morphology,…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…ortu le kanla .e le 👉strdu -- NOT SURE (morphology,…"
-@ 24: "…ortu le kanla .e le 👉strdu -- NOT SURE (morphology,…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

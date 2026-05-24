@@ -8,12 +8,4 @@ entry-id = "12376"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:10: 'pro' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "pro" but got end of input
-  "like ida pro👉"
-- not cmevla: cmevla (name) must end with a consonant
-  "like ida 👉pro"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "like ida 👉pro"
-@ 9: "like ida 👉pro"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

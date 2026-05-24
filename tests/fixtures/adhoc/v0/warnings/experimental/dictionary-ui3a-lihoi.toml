@@ -2,6 +2,24 @@ id = "adhoc.v0.warnings.experimental.dictionary-ui3a-lihoi"
 lojban = "li'oi mi klama"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalDictionaryUiIndicator", anchor-index = 0, anchor-text = "li'oi", span = [0, 5] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "li'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-dictionary-ui-indicator", byte-span = [0, 5], source-text = "li'oi", message = "experimental syntax: dictionary-first UI3a experimental indicator", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥14) {
+  leading_indicators: [
+    Indicator @[0‥5) {
+      indicator: Cmavo @[0‥5) "li'oĭ",
+    },
+  ],
+  Predicate @[6‥14) {
+    leading_terms: [
+      Cmavo @[6‥8) "mi",
+    ],
+    Gismu @[9‥14) "kláma",
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[9,14]}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"li'oĭ","span":[0,5]}}}}}]}"""

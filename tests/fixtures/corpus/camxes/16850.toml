@@ -8,12 +8,4 @@ entry-id = "16850"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:7: '+' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got '+'
-  "glico 👉+ bangu"
-- not cmevla: cmevla (name) must end with a consonant
-  "glico 👉+ bangu"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "glico 👉+ bangu"
-@ 6: "glico 👉+ bangu"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

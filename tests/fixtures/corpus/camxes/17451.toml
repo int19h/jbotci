@@ -8,12 +8,4 @@ entry-id = "17451"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:6: 'wog.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
-  "doi .👉wog. do du no da poi se sanji …"
-- not cmevla: cmevla (name) must end with a consonant
-  "doi .👉wog. do du no da poi se sanji …"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "doi .👉wog. do du no da poi se sanji …"
-@ 5: "doi .👉wog. do du no da poi se sanji …"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

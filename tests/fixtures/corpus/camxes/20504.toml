@@ -8,12 +8,4 @@ entry-id = "20504"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:7: 'havn't.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "no, i havn👉't."
-- not cmevla: cmevla (name) must end with a consonant
-  "no, i 👉havn't."
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "no, i 👉havn't."
-@ 6: "no, i 👉havn't."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

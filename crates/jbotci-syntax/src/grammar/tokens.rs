@@ -966,18 +966,27 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 pub(super) fn syntax_error(errors: Vec<Rich<'_, WithIndicators<WordLike>, Span>>) -> SyntaxError {
     let Some(error) = errors.into_iter().next() else {
         return SyntaxError::Parse {
-            byte_offset: 0,
+            byte_start: 0,
+            byte_end: 0,
             reason: "unknown Chumsky syntax error".to_owned(),
+            expected: Vec::new(),
         };
     };
 
+    let expected = error
+        .expected()
+        .map(|pattern| pattern.to_string())
+        .collect::<Vec<_>>();
     let reason = match error.reason() {
         RichReason::Custom(message) => message.to_string(),
-        _ => format!("{error:?}"),
+        RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
+        RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
     };
 
     SyntaxError::Parse {
-        byte_offset: error.span().start,
+        byte_start: error.span().start,
+        byte_end: error.span().end,
         reason,
+        expected,
     }
 }

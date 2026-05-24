@@ -8,8 +8,4 @@ entry-id = "7303"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:17: 'chess' is not a valid Lojban word:
-- apostrophe is only allowed between two vowels (CLL 3.3)
-  "mi ba kelci zoi c👉hess"
-@ 16: "mi ba kelci zoi 👉chess"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

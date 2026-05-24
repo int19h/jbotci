@@ -8,12 +8,4 @@ entry-id = "19097"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'How's' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'H'
-  "👉How's this: le ralju jvaste me…"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉How's this: le ralju jvaste me…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉How's this: le ralju jvaste me…"
-@ 0: "👉How's this: le ralju jvaste me…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

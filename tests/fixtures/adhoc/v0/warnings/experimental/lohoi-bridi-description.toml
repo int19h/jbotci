@@ -2,6 +2,27 @@ id = "adhoc.v0.warnings.experimental.lohoi-bridi-description"
 lojban = "lo'oi mi klama ku'au cu melbi"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalLohOiBridiDescription", anchor-index = 0, anchor-text = "lo'oi", span = [0, 5] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(BridiDescription { lohoi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "lo'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuhau: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ku'aŭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })), free_modifiers: [] }) })], cu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } })), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "mélbi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-loh-oi-bridi-description", byte-span = [0, 5], source-text = "lo'oi", message = "experimental syntax: LOhOI/KUhAU bridi description sumti", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥29) {
+  leading_terms: [
+    BridiDescription @[0‥20) {
+      lohoi: Cmavo @[0‥5) "lo'oĭ",
+      Predicate @[6‥14) {
+        leading_terms: [
+          Cmavo @[6‥8) "mi",
+        ],
+        Gismu @[9‥14) "kláma",
+      },
+      kuhau: Cmavo @[15‥20) "ku'aŭ",
+    },
+  ],
+  cu: Cmavo @[21‥23) "cu",
+  Gismu @[24‥29) "mélbi",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"BridiDescription":{"lohoi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo'oĭ","span":[0,5]}}}},"subsentence":{"Plain":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[9,14]}}}}}}}}}}},"kuhau":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ku'aŭ","span":[15,20]}}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[21,23]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"mélbi","span":[24,29]}}}}}}}}}}}}]}]}"""

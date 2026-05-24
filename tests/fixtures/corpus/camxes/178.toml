@@ -8,12 +8,4 @@ entry-id = "178"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:25: 'WEEB!' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'W'
-  "…fy booz fy co si si 👉WEEB! fy dy sa zoi bar baz bar"
-- not cmevla: cmevla (name) must end with a consonant
-  "…fy booz fy co si si 👉WEEB! fy dy sa zoi bar baz bar"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…fy booz fy co si si 👉WEEB! fy dy sa zoi bar baz bar"
-@ 24: "…fy booz fy co si si 👉WEEB! fy dy sa zoi bar baz bar"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

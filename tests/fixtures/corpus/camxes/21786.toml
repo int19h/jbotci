@@ -8,6 +8,4 @@ entry-id = "21786"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:15: unterminated ZOI quote, expected closing delimiter 'is'
-@ 14: "la'o is a name👉"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "20182"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'yogik' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'y'
-  "coi 👉yogik .i ru'a do citno"
-- not cmevla: cmevla (name) must end with a consonant
-  "coi 👉yogik .i ru'a do citno"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "coi 👉yogik .i ru'a do citno"
-@ 4: "coi 👉yogik .i ru'a do citno"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

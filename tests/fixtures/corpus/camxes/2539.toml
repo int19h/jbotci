@@ -8,12 +8,4 @@ entry-id = "2539"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:44: 'cakyrspa' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "caky" (y-hyphen) but got "rspa"
-  "…na sei la jitfa caky👉rspa cu xanka milxe retsku li'…"
-- not cmevla: cmevla (name) must end with a consonant
-  "…ljmina sei la jitfa 👉cakyrspa cu xanka milxe retsku…"
-- not cmavo: cmavo 'ca' followed by 'k' which doesn't start a valid Lojban word
-  "…mina sei la jitfa ca👉kyrspa cu xanka milxe retsku l…"
-@ 43: "…ljmina sei la jitfa 👉cakyrspa cu xanka milxe retsku…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

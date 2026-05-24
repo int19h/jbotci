@@ -8,12 +8,4 @@ entry-id = "18898"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'okay' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "oka👉y, do so"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉okay, do so"
-- not cmavo: cmavo 'o' followed by 'k' which doesn't start a valid Lojban word
-  "o👉kay, do so"
-@ 0: "👉okay, do so"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

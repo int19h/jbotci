@@ -8,8 +8,4 @@ entry-id = "3538"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'thed' is not a valid Lojban word:
-- apostrophe is only allowed between two vowels (CLL 3.3)
-  "doi t👉hed do lojbo nunbacru sekai ma"
-@ 4: "doi 👉thed do lojbo nunbacru sekai m…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

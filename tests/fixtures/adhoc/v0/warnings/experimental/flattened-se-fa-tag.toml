@@ -2,6 +2,23 @@ id = "adhoc.v0.warnings.experimental.flattened-se-fa-tag"
 lojban = "mi se fa broda"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalFlattenedTag", anchor-index = 1, anchor-text = "se", span = [3, 5] }, { kind = "ExperimentalFaAsTag", anchor-index = 2, anchor-text = "fa", span = [6, 8] }]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }))), Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "fa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-flattened-tag", byte-span = [3, 5], source-text = "se", message = "experimental syntax: experimental flattened tag form", word-index = 1 }, { severity = "warning", code = "syntax.warning.experimental-fa-as-tag", byte-span = [6, 8], source-text = "fa", message = "experimental syntax: FA place tag used as a tag/stag atom", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥14) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  TenseModal @[3‥14) {
+    tense_modal: Composite @[3‥8) {
+      Cmavo @[3‥5) "se",
+      Cmavo @[6‥8) "fa",
+    },
+    Gismu @[9‥14) "bróda",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"se","span":[3,5]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fa","span":[6,8]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[9,14]}}}}}}}}}}}}}}]}]}'

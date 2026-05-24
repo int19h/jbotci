@@ -12,7 +12,7 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { sou
 
 [expectations.syntax]
 status = "failure"
-error = { position = 4, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [26, 31], source-text = "mutce", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "(mi ji'a ja'a go'i ku'i na mútce pílno)"

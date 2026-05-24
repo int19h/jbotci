@@ -8,8 +8,4 @@ entry-id = "610"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:48: 'niuport.' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "…oti cu klama fi la n👉iuport. niuz."
-@ 47: "…loti cu klama fi la 👉niuport. niuz."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

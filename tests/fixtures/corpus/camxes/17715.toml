@@ -8,12 +8,4 @@ entry-id = "17715"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'Oh' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "Oh👉, ki'e tsali"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉Oh, ki'e tsali"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "Oh👉, ki'e tsali"
-@ 0: "👉Oh, ki'e tsali"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

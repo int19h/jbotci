@@ -2,6 +2,15 @@ id = "adhoc.v0.warnings.experimental.gohoi-relation-unit"
 lojban = "go'oi broda"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalGohoiRelationUnit", anchor-index = 0, anchor-text = "go'oi broda", span = [0, 11] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Gohoi(WithFreeModifiers { value: Bare(SingleWordQuote { marker: Cmavo { phonemes: Phonemes { text: "go'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }, text: "broda" } }), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-gohoi-relation-unit", byte-span = [0, 11], source-text = "go'oi broda", message = "experimental syntax: GOhOI pro-bridi word quote", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+SingleWordQuote @[0‥11) {
+  marker: Cmavo @[0‥5) "go'oĭ",
+  Verbatim @[6‥11) "broda",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Gohoi":{"Bare":{"SingleWordQuote":{"marker":{"Cmavo":{"phonemes":"go'oĭ","span":[0,5]}},"quoted_text":{"span":[6,11],"text":"broda"}}}}}]}}}}}}}}]}]}"""

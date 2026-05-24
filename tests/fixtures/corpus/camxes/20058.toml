@@ -8,12 +8,4 @@ entry-id = "20058"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'maybe' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "ma👉ybe a tanru.."
-- not cmevla: cmevla (name) must end with a consonant
-  "👉maybe a tanru.."
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "ma👉ybe a tanru.."
-@ 0: "👉maybe a tanru.."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

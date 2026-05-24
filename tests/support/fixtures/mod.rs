@@ -8,8 +8,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use bityzba::{ensures, invariant, requires};
+use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_syntax::ExperimentalConstruct;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -82,9 +82,6 @@ impl TestCase {
         }
         if self.expectations.syntax.is_some() {
             facets.insert(Facet::Syntax);
-        }
-        if self.expectations.warnings.is_some() {
-            facets.insert(Facet::Warnings);
         }
         if let Some(output) = &self.expectations.output {
             if output
@@ -161,11 +158,6 @@ impl TestCase {
                 .as_ref()
                 .map(|value| value.status),
             Facet::Syntax => self.expectations.syntax.as_ref().map(|value| value.status),
-            Facet::Warnings => self
-                .expectations
-                .warnings
-                .as_ref()
-                .map(|value| value.status),
             Facet::VlaseiBrackets => self
                 .expectations
                 .output
@@ -320,8 +312,6 @@ pub struct Expectations {
     pub morphology: Option<MorphologyExpectation>,
     #[serde(default)]
     pub syntax: Option<SyntaxExpectation>,
-    #[serde(default)]
-    pub warnings: Option<WarningExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -354,7 +344,7 @@ pub struct MorphologyExpectation {
     #[serde(default)]
     pub raw: Option<TextExpectation>,
     #[serde(default)]
-    pub error: Option<String>,
+    pub diagnostics: Vec<DiagnosticExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -365,7 +355,7 @@ pub struct SyntaxExpectation {
     #[serde(default)]
     pub raw: Option<TextExpectation>,
     #[serde(default)]
-    pub error: Option<ParseErrorExpectation>,
+    pub diagnostics: Vec<DiagnosticExpectation>,
     #[serde(default)]
     pub xfail: Option<XfailExpectation>,
 }
@@ -421,71 +411,35 @@ impl XfailExpectation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
-pub struct ParseErrorExpectation {
-    pub position: usize,
-    #[serde(default, rename = "allowed-next")]
-    pub allowed_next: Vec<AllowedNextExpectation>,
+pub struct DiagnosticExpectation {
+    pub severity: DiagnosticSeverity,
+    pub code: String,
+    #[serde(rename = "byte-span")]
+    pub byte_span: [usize; 2],
+    #[serde(rename = "source-text")]
+    pub source_text: String,
     #[serde(default)]
     pub message: Option<String>,
+    #[serde(default, rename = "word-index")]
+    pub word_index: Option<usize>,
 }
 
-#[invariant(true)]
-#[invariant(::Cmavo => !text.is_empty())]
-#[invariant(::CmavoOf => !selmaho.is_empty() && !values.is_empty() && values.iter().all(|value| !value.is_empty()))]
-#[invariant(::SingleWordQuote => !markers.is_empty() && markers.iter().all(|marker| !marker.is_empty()))]
-#[invariant(::Negative => true)]
-#[invariant(::Other => !name.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-pub enum AllowedNextExpectation {
-    Cmavo {
-        text: String,
-    },
-    CmavoOf {
-        selmaho: String,
-        values: Vec<String>,
-    },
-    Brivla,
-    Cmevla,
-    Letter,
-    By,
-    Pa,
-    ZoQuote,
-    SingleWordQuote {
-        markers: Vec<String>,
-    },
-    ZoiQuote,
-    LohuQuote,
-    QuotedWord,
-    AnyWordLike,
-    Eof,
-    Negative {
-        expectation: Box<AllowedNextExpectation>,
-    },
-    Other {
-        name: String,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[invariant(true)]
-pub struct WarningExpectation {
-    pub status: ExpectationStatus,
-    #[serde(default)]
-    pub items: Vec<WarningItemExpectation>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[invariant(true)]
-pub struct WarningItemExpectation {
-    pub kind: ExperimentalConstruct,
-    #[serde(rename = "anchor-index")]
-    pub anchor_index: usize,
-    #[serde(rename = "anchor-text")]
-    pub anchor_text: String,
-    pub span: [usize; 2],
+impl DiagnosticExpectation {
+    #[requires(true)]
+    #[ensures(!ret.code.is_empty())]
+    pub fn from_diagnostic(source: &str, diagnostic: &Diagnostic) -> Self {
+        let label = diagnostic.primary_label();
+        let source_text = source_text_for_span(source, &label.span)
+            .expect("diagnostic spans are derived from the fixture source text");
+        DiagnosticExpectation {
+            severity: diagnostic.severity,
+            code: diagnostic.code.clone(),
+            byte_span: [label.span.byte_start, label.span.byte_end],
+            source_text,
+            message: Some(diagnostic.message.clone()),
+            word_index: diagnostic.word_index,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -509,7 +463,6 @@ pub enum ExpectationStatus {
 pub enum Facet {
     Morphology,
     Syntax,
-    Warnings,
     VlaseiBrackets,
     VlaseiTree,
     VlaseiJson,
@@ -525,7 +478,6 @@ impl Facet {
         &[
             Self::Morphology,
             Self::Syntax,
-            Self::Warnings,
             Self::VlaseiBrackets,
             Self::VlaseiTree,
             Self::VlaseiJson,
@@ -543,7 +495,6 @@ impl fmt::Display for Facet {
         let text = match self {
             Self::Morphology => "morphology",
             Self::Syntax => "syntax",
-            Self::Warnings => "warnings",
             Self::VlaseiBrackets => "vlasei-brackets",
             Self::VlaseiTree => "vlasei-tree",
             Self::VlaseiJson => "vlasei-json",
@@ -564,7 +515,6 @@ impl std::str::FromStr for Facet {
         match text {
             "morphology" => Ok(Self::Morphology),
             "syntax" => Ok(Self::Syntax),
-            "warnings" => Ok(Self::Warnings),
             "vlasei-brackets" => Ok(Self::VlaseiBrackets),
             "vlasei-tree" => Ok(Self::VlaseiTree),
             "vlasei-json" => Ok(Self::VlaseiJson),

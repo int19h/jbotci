@@ -2,6 +2,49 @@ id = "adhoc.v0.warnings.experimental.experimental-xi-tehai"
 lojban = "i ti voi foldi cu mitre te'ai re li pa no no"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalCmavo", anchor-index = 6, anchor-text = "te'ai", span = [24, 29] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ti" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), free_modifiers: [] }), vuho: None, relative_clauses: [Noi { noi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "voĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } })), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "fóldi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], cu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } })), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "mítre" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None } })), free_modifiers: [Xi { xi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "te'aĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None } })), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None } }))], free_modifiers: [] }, boi: None }) }] })]), terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 35, char_start: 33, char_end: 35, start: None, end: None } })), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 44, char_start: 42, char_end: 44, start: None, end: None } }))], free_modifiers: [] }, boi: None }), loho: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cmavo", byte-span = [24, 29], source-text = "te'ai", message = "experimental syntax: experimental cmavo: te'ai", word-index = 6 }]
+
+[expectations.output.gentufa]
+tree = """
+ParagraphStatement @[0‥44) {
+  i: Cmavo @[0‥1) "i",
+  Predicate @[2‥44) {
+    leading_terms: [
+      RelativeClause @[2‥14) {
+        base_argument: Cmavo @[2‥4) "ti",
+        relative_clauses: [
+          Noi @[5‥14) {
+            noi: Cmavo @[5‥8) "voĭ",
+            Gismu @[9‥14) "fóldi",
+          },
+        ],
+      },
+    ],
+    cu: Cmavo @[15‥17) "cu",
+    Relation @[18‥44) {
+      Word @[18‥32) {
+        Gismu @[18‥23) "mítre",
+        free_modifiers: [
+          Xi @[24‥32) {
+            xi: Cmavo @[24‥29) "te'aĭ",
+            Cmavo @[30‥32) "re",
+          },
+        ],
+      },
+      terms: [
+        MathExpression @[33‥44) {
+          li: Cmavo @[33‥35) "li",
+          Number @[36‥44) {
+            Cmavo @[36‥38) "pa",
+            Cmavo @[39‥41) "no",
+            Cmavo @[42‥44) "no",
+          },
+        },
+      ],
+    },
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Predicate":{"leading_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ti","span":[2,4]}}}}},"relative_clauses":[{"Noi":{"noi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"voĭ","span":[5,8]}}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"fóldi","span":[9,14]}}}}}}}}}}}}}]}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":[{"Bare":{"Bare":{"Gismu":{"phonemes":"mítre","span":[18,23]}}}},{"Xi":{"xi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"te'aĭ","span":[24,29]}}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[30,32]}}}}]}}}}}]}]},"terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"Cmavo":{"phonemes":"li","span":[33,35]}}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[36,38]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[39,41]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[42,44]}}}}]}}}}}}]}}}}}}}}]}]}"""

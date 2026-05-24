@@ -8,12 +8,4 @@ entry-id = "15758"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'rlpowell' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected vowel u but got 'l'
-  "doi r👉lpowell roroi benji fi ro byfy…"
-- not cmevla: cmevla (name) must end with a consonant
-  "doi 👉rlpowell roroi benji fi ro byf…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "doi 👉rlpowell roroi benji fi ro byf…"
-@ 4: "doi 👉rlpowell roroi benji fi ro byf…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

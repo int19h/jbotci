@@ -8,12 +8,4 @@ entry-id = "2151"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:28: 'uiliam' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "…i nunci'o sei la uil👉iam spuda mi terpa le nu mi se…"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "…i nunci'o sei la uil👉iam spuda mi terpa le nu mi se…"
-- not cmavo: cmavo 'ŭi' followed by 'l' which doesn't start a valid Lojban word
-  "…mi nunci'o sei la ui👉liam spuda mi terpa le nu mi s…"
-@ 27: "…e mi nunci'o sei la 👉uiliam spuda mi terpa le nu mi…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

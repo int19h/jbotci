@@ -8,12 +8,4 @@ entry-id = "3143"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:25: 'kagcmene' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…a le nu djuno lo kag👉cmene be lo cukmakyvelvei poi …"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…a le nu djuno lo kag👉cmene be lo cukmakyvelvei poi …"
-- not cmavo: cmavo 'ka' followed by 'g' which doesn't start a valid Lojban word
-  "…ca le nu djuno lo ka👉gcmene be lo cukmakyvelvei poi…"
-@ 24: "…jica le nu djuno lo 👉kagcmene be lo cukmakyvelvei p…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

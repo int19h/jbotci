@@ -8,12 +8,4 @@ entry-id = "17267"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'paypal.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "la .pa👉ypal. ca morsi xu"
-- not cmevla: cmevla (name) must end with a consonant
-  "la .👉paypal. ca morsi xu"
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "la .pa👉ypal. ca morsi xu"
-@ 4: "la .👉paypal. ca morsi xu"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

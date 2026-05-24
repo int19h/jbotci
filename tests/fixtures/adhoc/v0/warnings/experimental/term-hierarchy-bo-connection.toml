@@ -2,5 +2,29 @@ id = "adhoc.v0.warnings.experimental.term-hierarchy-bo-connection"
 lojban = "pu ko'a .e bo ba ko'e broda"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [BoConnected { leading_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ko'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), free_modifiers: [] }) }], bo_connective: Some(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 10, char_start: 9, char_end: 10, start: None, end: None } }))], free_modifiers: [] }, nai: None }), tense_modal: None, bo: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "bo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None } })), free_modifiers: [] }, trailing_term: Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "ba" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None } })))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ko'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } })), free_modifiers: [] }) } }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥27) {
+  leading_terms: [
+    BoConnected @[0‥21) {
+      leading_terms: [
+        Tagged @[0‥7) {
+          tense_modal: Cmavo @[0‥2) "pu",
+          Cmavo @[3‥7) "ko'a",
+        },
+      ],
+      bo_connective: Cmavo @[9‥10) "e",
+      bo: Cmavo @[11‥13) "bo",
+      trailing_term: Tagged @[14‥21) {
+        tense_modal: Cmavo @[14‥16) "ba",
+        Cmavo @[17‥21) "ko'e",
+      },
+    },
+  ],
+  Gismu @[22‥27) "bróda",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"BoConnected":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko'a","span":[3,7]}}}}}}}],"bo_connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[9,10]}}}}]}},"bo":{"Bare":{"Bare":{"Cmavo":{"phonemes":"bo","span":[11,13]}}}},"trailing_term":{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ba","span":[14,16]}}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ko'e","span":[17,21]}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[22,27]}}}}}}}}}}}}]}]}"""

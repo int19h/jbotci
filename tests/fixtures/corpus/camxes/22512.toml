@@ -8,12 +8,4 @@ entry-id = "22512"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'idea:' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "ide👉a: lo'u da le'u si si si si le…"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉idea: lo'u da le'u si si si si…"
-- not cmavo: cmavo 'i' followed by 'd' which doesn't start a valid Lojban word
-  "i👉dea: lo'u da le'u si si si si …"
-@ 0: "👉idea: lo'u da le'u si si si si…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

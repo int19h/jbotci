@@ -12,7 +12,7 @@ raw = '[Letter { base: Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: Sour
 
 [expectations.syntax]
 status = "failure"
-error = { position = 3, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [14, 19], source-text = "besna", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "([.a bu] bílma fi bésna nu xráni)"

@@ -8,12 +8,4 @@ entry-id = "3487"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:59: 'jae' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "…le vinji tcana .i ja👉e mi bilga le ca cliva"
-- not cmevla: cmevla (name) must end with a consonant
-  "…a le vinji tcana .i 👉jae mi bilga le ca cliva"
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "…le vinji tcana .i ja👉e mi bilga le ca cliva"
-@ 58: "…a le vinji tcana .i 👉jae mi bilga le ca cliva"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

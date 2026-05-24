@@ -8,8 +8,4 @@ entry-id = "19392"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:36: 'cxikagos.' is not a valid Lojban word:
-- 'cx' is not a permitted consonant pair (CLL 3.6)
-  "… zdani cu zvati la c👉xikagos.  -- NOT SURE (morphol…"
-@ 35: "…n zdani cu zvati la 👉cxikagos.  -- NOT SURE (morpho…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

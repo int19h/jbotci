@@ -8,12 +8,4 @@ entry-id = "3379"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'slacdot' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "mi ba tcidu la slac👉dot -- NOT SURE (morphology, s…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "mi ba tcidu la slac👉dot -- NOT SURE (morphology, s…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "mi ba tcidu la 👉slacdot -- NOT SURE (morpholog…"
-@ 15: "mi ba tcidu la 👉slacdot -- NOT SURE (morpholog…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

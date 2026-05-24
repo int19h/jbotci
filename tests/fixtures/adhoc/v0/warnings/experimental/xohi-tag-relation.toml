@@ -2,6 +2,35 @@ id = "adhoc.v0.warnings.experimental.xohi-tag-relation"
 lojban = "cy no xo'i ne'i cy pa"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalXohiTagRelation", anchor-index = 2, anchor-text = "xo'i", span = [6, 10] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Xohi { xohi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "xo'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None } })), free_modifiers: [] }, tag: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "ne'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None } })))], free_modifiers: [] } } }]), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-xohi-tag-relation", byte-span = [6, 10], source-text = "xo'i", message = "experimental syntax: XOhI tag-to-relation conversion", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥21) {
+  leading_terms: [
+    Letter @[0‥5) {
+      letter: [
+        Cmavo @[0‥2) "cy",
+        Cmavo @[3‥5) "no",
+      ],
+    },
+  ],
+  Relation @[6‥21) {
+    Xohi @[6‥15) {
+      xohi: Cmavo @[6‥10) "xo'i",
+      Cmavo @[11‥15) "ne'i",
+    },
+    terms: [
+      Letter @[16‥21) {
+        letter: [
+          Cmavo @[16‥18) "cy",
+          Cmavo @[19‥21) "pa",
+        ],
+      },
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"cy","span":[0,2]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"no","span":[3,5]}}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Xohi":{"xohi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"xo'i","span":[6,10]}}}},"tag":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ne'i","span":[11,15]}}}}}]}}}}]},"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"cy","span":[16,18]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pa","span":[19,21]}}}}]}}}]}}}}}}}}]}]}"""

@@ -8,8 +8,4 @@ entry-id = "7599"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'biomass' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "coi b👉iomass .i mi ca pante"
-@ 4: "coi 👉biomass .i mi ca pante"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

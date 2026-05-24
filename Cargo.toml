@@ -4,6 +4,7 @@ members = [
     "apps/jbotci",
     "apps/jbotci-server",
     "crates/jbotci-cll",
+    "crates/jbotci-diagnostics",
     "crates/bityzba",
     "crates/bityzba-macros",
     "crates/jbotci-dialect",
@@ -46,11 +47,15 @@ expensive_contracts = []
 
 [dependencies]
 bityzba.workspace = true
+jbotci-diagnostics.workspace = true
 
 [workspace.dependencies]
 anyhow = "1"
 chumsky = { version = "0.13", features = ["memoization"] }
 clap = { version = "4", features = ["derive"] }
+concolor = { version = "0.1", features = ["auto"] }
+concolor-clap = "0.1"
+ariadne = { version = "0.6", features = ["auto-color"] }
 owo-colors = { version = "4", features = ["supports-colors"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
@@ -69,6 +74,7 @@ vec1 = { version = "1.12.1", features = ["serde", "smallvec-v1"] }
 walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
+jbotci-diagnostics = { path = "crates/jbotci-diagnostics" }
 bityzba = { path = "crates/bityzba" }
 bityzba-macros = { path = "crates/bityzba-macros" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }

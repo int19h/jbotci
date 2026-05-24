@@ -8,12 +8,4 @@ entry-id = "13812"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'flai' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "cu fla👉i cu"
-- not cmevla: cmevla (name) must end with a consonant
-  "cu 👉flai cu"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "cu 👉flai cu"
-@ 3: "cu 👉flai cu"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

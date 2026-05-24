@@ -8,12 +8,4 @@ entry-id = "11913"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:31: 'badfenra' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…tuna korbi be lo bad👉fenra noi kuspe pirole balkumf…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…tuna korbi be lo bad👉fenra noi kuspe pirole balkumf…"
-- not cmavo: cmavo 'ba' followed by 'd' which doesn't start a valid Lojban word
-  "…stuna korbi be lo ba👉dfenra noi kuspe pirole balkum…"
-@ 30: "…e stuna korbi be lo 👉badfenra noi kuspe pirole balk…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

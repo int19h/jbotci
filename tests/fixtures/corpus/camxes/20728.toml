@@ -8,12 +8,4 @@ entry-id = "20728"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'It's' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "It👉's a fu'ivla"
-- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "It👉's a fu'ivla"
-- not cmavo: cmavo 'í' followed by 't' which doesn't start a valid Lojban word
-  "I👉t's a fu'ivla"
-@ 0: "👉It's a fu'ivla"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

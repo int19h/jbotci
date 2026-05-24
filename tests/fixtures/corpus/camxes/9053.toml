@@ -8,12 +8,4 @@ entry-id = "9053"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:40: 'i'ry'cys.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…i do na zvati la .i'👉ry'cys. ze'aku -- NOT SURE (mo…"
-- not cmevla: cmevla (name) must end with a consonant
-  "… .i do na zvati la .👉i'ry'cys. ze'aku -- NOT SURE (…"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…i do na zvati la .i'👉ry'cys. ze'aku -- NOT SURE (mo…"
-@ 39: "… .i do na zvati la .👉i'ry'cys. ze'aku -- NOT SURE (…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

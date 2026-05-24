@@ -8,8 +8,4 @@ entry-id = "21875"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:8: 'VT?' is not a valid Lojban word:
-- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "like a V👉T?"
-@ 7: "like a 👉VT?"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

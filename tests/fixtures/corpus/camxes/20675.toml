@@ -8,12 +8,4 @@ entry-id = "20675"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:13: 'her"' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'h'
-  "kinda like "👉her""
-- not cmevla: cmevla (name) must end with a consonant
-  "kinda like "👉her""
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "kinda like "👉her""
-@ 12: "kinda like "👉her""""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "5947"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:29: 'ticdu' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…na gi'e ca cfari tic👉du le selfanva be do gi'e bazi…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…na gi'e ca cfari tic👉du le selfanva be do gi'e bazi…"
-- not cmavo: cmavo 'ti' followed by 'c' which doesn't start a valid Lojban word
-  "…kna gi'e ca cfari ti👉cdu le selfanva be do gi'e baz…"
-@ 28: "…cikna gi'e ca cfari 👉ticdu le selfanva be do gi'e b…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

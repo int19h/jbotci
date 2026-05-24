@@ -8,12 +8,4 @@ entry-id = "14130"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:48: 'doesn't' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "…a byfy. cu cfagau do👉esn't seem to parse either."
-- not cmevla: cmevla (name) must end with a consonant
-  "… la byfy. cu cfagau 👉doesn't seem to parse either."
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "…a byfy. cu cfagau do👉esn't seem to parse either."
-@ 47: "… la byfy. cu cfagau 👉doesn't seem to parse either."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

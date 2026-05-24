@@ -8,12 +8,4 @@ entry-id = "12273"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'has' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'h'
-  "👉has to be le pa."
-- not cmevla: cmevla (name) must end with a consonant
-  "👉has to be le pa."
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉has to be le pa."
-@ 0: "👉has to be le pa."""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "18495"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:37: 'irregular' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
-  "… ma se smuni zoi <ir👉regular polytope>"
-- not cmevla: geminated consonants are not allowed (CLL 3.6)
-  "… ma se smuni zoi <ir👉regular polytope>"
-- not cmavo: cmavo 'i' followed by 'r' which doesn't start a valid Lojban word
-  "…o ma se smuni zoi <i👉rregular polytope>"
-@ 36: "…no ma se smuni zoi <👉irregular polytope>"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

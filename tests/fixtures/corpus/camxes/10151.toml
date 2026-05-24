@@ -8,12 +8,4 @@ entry-id = "10151"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:17: 'something' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…rac: for mapti somet👉hing like le du'u xokau da gun…"
-- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…rac: for mapti somet👉hing like le du'u xokau da gun…"
-- not cmavo: cmavo 'so' followed by 'm' which doesn't start a valid Lojban word
-  "frac: for mapti so👉mething like le du'u xokau da …"
-@ 16: "frac: for mapti 👉something like le du'u xokau d…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

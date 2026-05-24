@@ -8,8 +8,4 @@ entry-id = "18714"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'mmm...' is not a valid Lojban word:
-- geminated consonants are not allowed (CLL 3.6)
-  "m👉mm... li .abu pi'i xy te'a re …"
-@ 0: "👉mmm... li .abu pi'i xy te'a re…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

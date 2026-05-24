@@ -8,12 +8,4 @@ entry-id = "3684"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'u`i' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'u'
-  "👉u`i zo citla na valsi"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉u`i zo citla na valsi"
-- not cmavo: cmavo 'u' followed by '`' which doesn't start a valid Lojban word
-  "u👉`i zo citla na valsi"
-@ 0: "👉u`i zo citla na valsi"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

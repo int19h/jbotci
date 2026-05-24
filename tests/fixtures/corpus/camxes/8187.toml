@@ -8,6 +8,4 @@ entry-id = "8187"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:44: digit cannot be followed by a vowel
-@ 43: "…oci co cilre la 6502👉asm .i ku'i mi sisti .uu"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

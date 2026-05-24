@@ -8,12 +8,4 @@ entry-id = "21020"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:19: 'desgau' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…i la paiuanskis. des👉gau le stedu .i lu ko na muvga…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "…i la paiuanskis. des👉gau le stedu .i lu ko na muvga…"
-- not cmavo: cmavo 'de' followed by 's' which doesn't start a valid Lojban word
-  ".i la paiuanskis. de👉sgau le stedu .i lu ko na muvg…"
-@ 18: ".i la paiuanskis. 👉desgau le stedu .i lu ko na mu…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

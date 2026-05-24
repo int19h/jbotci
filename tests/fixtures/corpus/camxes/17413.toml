@@ -8,12 +8,4 @@ entry-id = "17413"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:67: 'nandykaio' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "nandy" (y-hyphen) but got "kaio"
-  "…'i le gadri cu nandy👉kaio -- NOT SURE (morphology, …"
-- not cmevla: cmevla (name) must end with a consonant
-  "… leza'i le gadri cu 👉nandykaio -- NOT SURE (morphol…"
-- not cmavo: cmavo 'na' followed by 'n' which doesn't start a valid Lojban word
-  "…eza'i le gadri cu na👉ndykaio -- NOT SURE (morpholog…"
-@ 66: "… leza'i le gadri cu 👉nandykaio -- NOT SURE (morphol…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

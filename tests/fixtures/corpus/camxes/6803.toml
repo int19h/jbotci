@@ -12,7 +12,7 @@ raw = '[Bare(Gismu { phonemes: Phonemes { text: "kákne" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "failure"
-error = { position = 2, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [12, 17], source-text = "sucks", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "(kákne kínda .sucks.)"

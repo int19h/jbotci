@@ -8,12 +8,4 @@ entry-id = "21214"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'hahahaha' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'h'
-  "👉hahahaha kalci kelci"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉hahahaha kalci kelci"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉hahahaha kalci kelci"
-@ 0: "👉hahahaha kalci kelci"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

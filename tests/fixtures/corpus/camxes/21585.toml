@@ -8,12 +8,4 @@ entry-id = "21585"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:57: 'morphology' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…ba -- NOT SURE (morp👉hology, titynanba)"
-- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…ba -- NOT SURE (morp👉hology, titynanba)"
-- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
-  "…anba -- NOT SURE (mo👉rphology, titynanba)"
-@ 56: "…ynanba -- NOT SURE (👉morphology, titynanba)"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

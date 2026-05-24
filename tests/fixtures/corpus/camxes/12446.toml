@@ -8,12 +8,4 @@ entry-id = "12446"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:12: 'apnea' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'a'
-  "deliberate 👉apnea"
-- not cmevla: cmevla (name) must end with a consonant
-  "deliberate 👉apnea"
-- not cmavo: cmavo 'a' followed by 'p' which doesn't start a valid Lojban word
-  "deliberate a👉pnea"
-@ 11: "deliberate 👉apnea"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

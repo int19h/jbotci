@@ -2,6 +2,20 @@ id = "adhoc.v0.warnings.experimental.experimental-cmavo"
 lojban = "mi bi'ai klama"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalCmavo", anchor-index = 1, anchor-text = "bi'ai", span = [3, 8] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "bi'aĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cmavo", byte-span = [3, 8], source-text = "bi'ai", message = "experimental syntax: experimental cmavo: bi'ai", word-index = 1 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥14) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  TenseModal @[3‥14) {
+    tense_modal: Cmavo @[3‥8) "bi'aĭ",
+    Gismu @[9‥14) "kláma",
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"bi'aĭ","span":[3,8]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[9,14]}}}}}}}}}}}}}}]}]}"""

@@ -2,6 +2,28 @@ id = "adhoc.v0.warnings.experimental.lohai-replacement-free"
 lojban = "mi klama lo'ai broda le'ai"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalLohAiReplacementFree", anchor-index = 2, anchor-text = "lo'ai", span = [9, 14] }, { kind = "ExperimentalLohAiReplacementFree", anchor-index = 4, anchor-text = "le'ai", span = [21, 26] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })), free_modifiers: [Replacement { lohai: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "lo'aĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))), old_words: [Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } }))], sahai: None, new_words: [], lehai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le'aĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None } })), free_modifiers: [] } }] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-loh-ai-replacement-free", byte-span = [9, 14], source-text = "lo'ai", message = "experimental syntax: LOhAI/LEhAI replacement free modifier", word-index = 2 }, { severity = "warning", code = "syntax.warning.experimental-loh-ai-replacement-free", byte-span = [21, 26], source-text = "le'ai", message = "experimental syntax: LOhAI/LEhAI replacement free modifier", word-index = 4 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥26) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Word @[3‥26) {
+    Gismu @[3‥8) "kláma",
+    free_modifiers: [
+      Replacement @[9‥26) {
+        lohai: Cmavo @[9‥14) "lo'aĭ",
+        old_words: [
+          Gismu @[15‥20) "bróda",
+        ],
+        lehai: Cmavo @[21‥26) "le'aĭ",
+      },
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":[{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}},{"Replacement":{"lohai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo'aĭ","span":[9,14]}}}},"old_words":[{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[15,20]}}}}],"lehai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le'aĭ","span":[21,26]}}}}}}]}]}}}}}}}}]}]}"""

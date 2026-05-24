@@ -8,12 +8,4 @@ entry-id = "18672"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:11: 'tucsan.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: 'cs' is not a permitted consonant pair (CLL 3.6)
-  "xrukla la tuc👉san. -- NOT SURE (morphology, …"
-- not cmevla: 'cs' is not a permitted consonant pair (CLL 3.6)
-  "xrukla la tuc👉san. -- NOT SURE (morphology, …"
-- not cmavo: cmavo 'tu' followed by 'c' which doesn't start a valid Lojban word
-  "xrukla la tu👉csan. -- NOT SURE (morphology,…"
-@ 10: "xrukla la 👉tucsan. -- NOT SURE (morpholog…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "22424"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'with' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
-  "👉with a zero"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉with a zero"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉with a zero"
-@ 0: "👉with a zero"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "21708"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:46: '|' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got '|'
-  "…jnunsla cu xamgu do 👉| fy du li cire su'i vei cy pi…"
-- not cmevla: cmevla (name) must end with a consonant
-  "…jnunsla cu xamgu do 👉| fy du li cire su'i vei cy pi…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…jnunsla cu xamgu do 👉| fy du li cire su'i vei cy pi…"
-@ 45: "…jnunsla cu xamgu do 👉| fy du li cire su'i vei cy pi…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

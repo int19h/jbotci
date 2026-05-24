@@ -11,8 +11,12 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use jbotci_diagnostics::{
+    Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity, source_span_from_byte_offsets,
+};
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_source::SourceId;
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -200,12 +204,67 @@ impl Connective {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::NotImplemented => true)]
 #[invariant(::Parse => true)]
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
-    #[error("syntax parse failed at byte {byte_offset}: {reason}")]
-    Parse { byte_offset: usize, reason: String },
+    #[error("syntax parse failed at byte {byte_start}: {reason}")]
+    Parse {
+        byte_start: usize,
+        byte_end: usize,
+        reason: String,
+        expected: Vec<String>,
+    },
+}
+
+impl SyntaxError {
+    #[requires(true)]
+    #[ensures(!ret.code.is_empty())]
+    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+        match self {
+            Self::NotImplemented => {
+                let span = source_span_from_byte_offsets(source_id, source, 0, 0)
+                    .expect("the start of a source string is always a valid source span");
+                Diagnostic::new(
+                    DiagnosticSeverity::Error,
+                    DiagnosticPhase::Syntax,
+                    "syntax.not-implemented".to_owned(),
+                    "syntax parsing is not implemented yet".to_owned(),
+                    vec![DiagnosticLabel::new(
+                        span,
+                        "syntax parser is unavailable".to_owned(),
+                        true,
+                    )],
+                    Vec::new(),
+                    None,
+                )
+            }
+            Self::Parse {
+                byte_start,
+                byte_end,
+                reason,
+                expected,
+            } => {
+                let span = source_span_from_byte_offsets(source_id, source, *byte_start, *byte_end)
+                    .expect("syntax errors store offsets derived from the same source text");
+                let notes = if expected.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![format!("expected one of: {}", expected.join(", "))]
+                };
+                Diagnostic::new(
+                    DiagnosticSeverity::Error,
+                    DiagnosticPhase::Syntax,
+                    "syntax.parse".to_owned(),
+                    "syntax parse failed".to_owned(),
+                    vec![DiagnosticLabel::new(span, reason.clone(), true)],
+                    notes,
+                    None,
+                )
+            }
+        }
+    }
 }
 
 #[requires(true)]
@@ -310,6 +369,148 @@ pub enum ExperimentalConstruct {
 }
 
 impl ExperimentalConstruct {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::ExperimentalCmavo => "syntax.warning.experimental-cmavo",
+            Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
+            Self::ExperimentalMehOiRelationUnit => {
+                "syntax.warning.experimental-meh-oi-relation-unit"
+            }
+            Self::ExperimentalLohOiBridiDescription => {
+                "syntax.warning.experimental-loh-oi-bridi-description"
+            }
+            Self::ExperimentalLohAiReplacementFree => {
+                "syntax.warning.experimental-loh-ai-replacement-free"
+            }
+            Self::ExperimentalJacuPredicateTailConnective => {
+                "syntax.warning.experimental-jacu-predicate-tail-connective"
+            }
+            Self::ExperimentalJeIStatementConnective => {
+                "syntax.warning.experimental-je-i-statement-connective"
+            }
+            Self::ExperimentalMultipleNaFragment => {
+                "syntax.warning.experimental-multiple-na-fragment"
+            }
+            Self::ExperimentalEmptyPrenex => "syntax.warning.experimental-empty-prenex",
+            Self::ExperimentalBareCuPredicate => "syntax.warning.experimental-bare-cu-predicate",
+            Self::ExperimentalNaheArgumentWithoutBo => {
+                "syntax.warning.experimental-nahe-argument-without-bo"
+            }
+            Self::ExperimentalVuhoScopedAttachment => {
+                "syntax.warning.experimental-vuho-scoped-attachment"
+            }
+            Self::ExperimentalNohoiSelbriRelativeClause => {
+                "syntax.warning.experimental-nohoi-selbri-relative-clause"
+            }
+            Self::ExperimentalSimplerSumtiConnective => {
+                "syntax.warning.experimental-simpler-sumti-connective"
+            }
+            Self::ExperimentalExplicitCuPredicateTailStarter => {
+                "syntax.warning.experimental-explicit-cu-predicate-tail-starter"
+            }
+            Self::ExperimentalRelativeClauseConnective => {
+                "syntax.warning.experimental-relative-clause-connective"
+            }
+            Self::ExperimentalSimplerForethoughtConnective => {
+                "syntax.warning.experimental-simpler-forethought-connective"
+            }
+            Self::ExperimentalSimplerTermConnective => {
+                "syntax.warning.experimental-simpler-term-connective"
+            }
+            Self::ExperimentalSimplerMexOperandConnective => {
+                "syntax.warning.experimental-simpler-mex-operand-connective"
+            }
+            Self::ExperimentalSimplerDescriptorHeadConnective => {
+                "syntax.warning.experimental-simpler-descriptor-head-connective"
+            }
+            Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
+            Self::ExperimentalGadganzuGadri => "syntax.warning.experimental-gadganzu-gadri",
+            Self::ExperimentalIauReset => "syntax.warning.experimental-iau-reset",
+            Self::ExperimentalGohoiRelationUnit => {
+                "syntax.warning.experimental-gohoi-relation-unit"
+            }
+            Self::ExperimentalKeTermset => "syntax.warning.experimental-ke-termset",
+            Self::ExperimentalLaheNaheTermWrapper => {
+                "syntax.warning.experimental-lahe-nahe-term-wrapper"
+            }
+            Self::ExperimentalForethoughtRelativeClauseConnective => {
+                "syntax.warning.experimental-forethought-relative-clause-connective"
+            }
+            Self::ExperimentalBroadAConnective => "syntax.warning.experimental-broad-a-connective",
+            Self::ExperimentalVuhuConnective => "syntax.warning.experimental-vuhu-connective",
+            Self::ExperimentalNahuPredicateConnective => {
+                "syntax.warning.experimental-nahu-predicate-connective"
+            }
+            Self::ExperimentalFaAsTag => "syntax.warning.experimental-fa-as-tag",
+            Self::ExperimentalFlattenedTag => "syntax.warning.experimental-flattened-tag",
+            Self::ExperimentalCbmCmevlaRelationWord => {
+                "syntax.warning.experimental-cbm-cmevla-relation-word"
+            }
+            Self::ExperimentalCbmLaNameAsDescriptor => {
+                "syntax.warning.experimental-cbm-la-name-as-descriptor"
+            }
+            Self::ExperimentalDictionaryDoiVocative => {
+                "syntax.warning.experimental-dictionary-doi-vocative"
+            }
+            Self::ExperimentalDictionaryCoiVocative => {
+                "syntax.warning.experimental-dictionary-coi-vocative"
+            }
+            Self::ExperimentalDictionarySeiFreeModifier => {
+                "syntax.warning.experimental-dictionary-sei-free-modifier"
+            }
+            Self::ExperimentalDictionaryPaNumber => {
+                "syntax.warning.experimental-dictionary-pa-number"
+            }
+            Self::ExperimentalDictionaryFahaTag => {
+                "syntax.warning.experimental-dictionary-faha-tag"
+            }
+            Self::ExperimentalDictionaryUiIndicator => {
+                "syntax.warning.experimental-dictionary-ui-indicator"
+            }
+            Self::ExperimentalNoihaAdverbial => "syntax.warning.experimental-noiha-adverbial",
+            Self::ExperimentalFihoiAdverbial => "syntax.warning.experimental-fihoi-adverbial",
+            Self::ExperimentalSoiAdverbial => "syntax.warning.experimental-soi-adverbial",
+            Self::ExperimentalPreposedLinkargs => "syntax.warning.experimental-preposed-linkargs",
+            Self::ExperimentalEmptyLinkargs => "syntax.warning.experimental-empty-linkargs",
+            Self::ExperimentalBroadBoStatementConnective => {
+                "syntax.warning.experimental-broad-bo-statement-connective"
+            }
+            Self::ExperimentalBroadKePredicateContinuation => {
+                "syntax.warning.experimental-broad-ke-predicate-continuation"
+            }
+            Self::ExperimentalTermHierarchyBoConnection => {
+                "syntax.warning.experimental-term-hierarchy-bo-connection"
+            }
+            Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
+            Self::ExperimentalXohiTagRelation => "syntax.warning.experimental-xohi-tag-relation",
+            Self::ExperimentalZantufaCmavo => "syntax.warning.experimental-zantufa-cmavo",
+            Self::ExperimentalZantufaForethoughtGihi => {
+                "syntax.warning.experimental-zantufa-forethought-gihi"
+            }
+            Self::ExperimentalZantufaGek => "syntax.warning.experimental-zantufa-gek",
+            Self::ExperimentalZantufaPoihaBrigahi => {
+                "syntax.warning.experimental-zantufa-poiha-brigahi"
+            }
+            Self::ExperimentalZantufaJaiTagTerm => {
+                "syntax.warning.experimental-zantufa-jai-tag-term"
+            }
+            Self::ExperimentalZantufaRecursiveTag => {
+                "syntax.warning.experimental-zantufa-recursive-tag"
+            }
+            Self::ExperimentalZantufaMuhoiRelationUnit => {
+                "syntax.warning.experimental-zantufa-muhoi-relation-unit"
+            }
+            Self::ExperimentalZantufaLuheiRelationUnit => {
+                "syntax.warning.experimental-zantufa-luhei-relation-unit"
+            }
+            Self::CllProhibitedFreeModifierPlacement => {
+                "syntax.warning.cll-prohibited-free-modifier-placement"
+            }
+        }
+    }
+
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub const fn message(self) -> &'static str {
@@ -445,6 +646,36 @@ impl SyntaxWarning {
     pub fn message(&self) -> &'static str {
         self.kind.message()
     }
+
+    #[requires(true)]
+    #[ensures(!ret.code.is_empty())]
+    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+        let (byte_start, byte_end) = warning_byte_selection(self);
+        let span = source_span_from_byte_offsets(source_id, source, byte_start, byte_end)
+            .expect("syntax warnings store offsets derived from the same source text");
+        let message = warning_message(self);
+        Diagnostic::new(
+            DiagnosticSeverity::Warning,
+            DiagnosticPhase::Syntax,
+            self.kind.code().to_owned(),
+            format!("experimental syntax: {message}"),
+            vec![DiagnosticLabel::new(span, message, true)],
+            Vec::new(),
+            Some(self.anchor_index),
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.0 <= ret.1)]
+fn warning_byte_selection(warning: &SyntaxWarning) -> (usize, usize) {
+    let mut spans = warning.anchor.source_spans();
+    spans.sort_by_key(|span| span.byte_start);
+    let Some(first) = spans.first() else {
+        return (0, 0);
+    };
+    let last = spans.last().expect("first span exists");
+    (first.byte_start, last.byte_end)
 }
 
 #[invariant(!source_label.is_empty())]
@@ -490,10 +721,7 @@ pub fn syntax_warning_display(
     let (selection_start, selection_length) = warning_selection(warning);
     let (line, column) = char_offset_to_line_column(source, selection_start);
     let experimental_cmavo = experimental_cmavo_text(warning);
-    let message = experimental_cmavo.as_ref().map_or_else(
-        || warning.message().to_owned(),
-        |cmavo| format!("{}: {cmavo}", warning.message()),
-    );
+    let message = warning_message(warning);
     new!(SyntaxWarningDisplay {
         source_label: source_label.to_owned(),
         kind: warning.kind,
@@ -553,6 +781,15 @@ fn experimental_cmavo_text(warning: &SyntaxWarning) -> Option<String> {
             .filter(|text| !text.trim().is_empty());
     }
     None
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn warning_message(warning: &SyntaxWarning) -> String {
+    experimental_cmavo_text(warning).map_or_else(
+        || warning.message().to_owned(),
+        |cmavo| format!("{}: {cmavo}", warning.message()),
+    )
 }
 
 #[requires(true)]

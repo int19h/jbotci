@@ -8,12 +8,4 @@ entry-id = "5366"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:36: 'rejzgike' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: 'jz' is not a permitted consonant pair (CLL 3.6)
-  "…u benji le skami rej👉zgike be sy.abu do gi do djica…"
-- not cmevla: 'jz' is not a permitted consonant pair (CLL 3.6)
-  "…u benji le skami rej👉zgike be sy.abu do gi do djica…"
-- not cmavo: cmavo 're' followed by 'j' which doesn't start a valid Lojban word
-  "…nu benji le skami re👉jzgike be sy.abu do gi do djic…"
-@ 35: "…lenu benji le skami 👉rejzgike be sy.abu do gi do dj…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

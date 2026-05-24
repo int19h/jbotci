@@ -8,8 +8,4 @@ entry-id = "5453"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'zgiaca'a' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "le zg👉iaca'a zgike cu no'e xamgu .ij…"
-@ 3: "le 👉zgiaca'a zgike cu no'e xamgu .…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

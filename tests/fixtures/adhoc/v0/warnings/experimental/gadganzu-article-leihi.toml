@@ -2,6 +2,21 @@ id = "adhoc.v0.warnings.experimental.gadganzu-article-leihi"
 lojban = "lei'i mlatu cu klama"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalCmavo", anchor-index = 0, anchor-text = "lei'i", span = [0, 5] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "leĭ'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "mlátu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } })))), relative_clauses: [], ku: None }))], cu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cmavo", byte-span = [0, 5], source-text = "lei'i", message = "experimental syntax: experimental cmavo: lei'i", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥20) {
+  leading_terms: [
+    Descriptor @[0‥11) {
+      descriptor: Cmavo @[0‥5) "leĭ'i",
+      relation: Gismu @[6‥11) "mlátu",
+    },
+  ],
+  cu: Cmavo @[12‥14) "cu",
+  Gismu @[15‥20) "kláma",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"leĭ'i","span":[0,5]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"mlátu","span":[6,11]}}}}}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[12,14]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[15,20]}}}}}}}}}}}}]}]}"""

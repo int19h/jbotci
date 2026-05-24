@@ -2,5 +2,19 @@ id = "adhoc.v0.warnings.experimental.empty-prenex"
 lojban = "zo'u mi klama"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [], zohu: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "zo'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
+
+[expectations.output.gentufa]
+tree = """
+Prenex @[0‥13) {
+  zohu: Cmavo @[0‥4) "zo'u",
+  Predicate @[5‥13) {
+    leading_terms: [
+      Cmavo @[5‥7) "mi",
+    ],
+    Gismu @[8‥13) "kláma",
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"zohu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'u","span":[0,4]}}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[8,13]}}}}}}}}}}}}}}]}]}"""

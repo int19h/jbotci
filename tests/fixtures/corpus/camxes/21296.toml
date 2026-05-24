@@ -8,12 +8,4 @@ entry-id = "21296"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'kyri' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
-  "le vreji pe la k👉yri,yr. cu po'o srana lenu nir…"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "le vreji pe la kyr👉i,yr. cu po'o srana lenu nirna"
-- not cmavo: cmavo 'ky' followed by 'r' which doesn't start a valid Lojban word
-  "le vreji pe la ky👉ri,yr. cu po'o srana lenu nirn…"
-@ 15: "le vreji pe la 👉kyri,yr. cu po'o srana lenu ni…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

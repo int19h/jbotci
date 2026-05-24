@@ -2,5 +2,29 @@ id = "adhoc.v0.warnings.experimental.empty-postposed-bei-linkargs"
 lojban = "lo broda be mi bei cu melbi"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Compound([Be { base: Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })), free_modifiers: [] }), be: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] }, fa: None, first_argument: Some(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })), free_modifiers: [] })), bei_links: [BeiLinkSyntax { bei: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "beĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 18, char_start: 15, char_end: 18, start: None, end: None } })), free_modifiers: [] }, fa: None, argument: None }], beho: None }])), relative_clauses: [], ku: None }))], cu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "mélbi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥27) {
+  leading_terms: [
+    Descriptor @[0‥18) {
+      descriptor: Cmavo @[0‥2) "lo",
+      relation: Be @[3‥18) {
+        Gismu @[3‥8) "bróda",
+        be: Cmavo @[9‥11) "be",
+        first_argument: Cmavo @[12‥14) "mi",
+        bei_links: [
+          BeiLink @[15‥18) {
+            bei: Cmavo @[15‥18) "beĭ",
+          },
+        ],
+      },
+    },
+  ],
+  cu: Cmavo @[19‥21) "cu",
+  Gismu @[22‥27) "mélbi",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[3,8]}}}}},"be":{"Bare":{"Bare":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}},"bei_links":[{"bei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"beĭ","span":[15,18]}}}}}]}}]}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[19,21]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"mélbi","span":[22,27]}}}}}}}}}}}}]}]}'

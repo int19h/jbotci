@@ -8,12 +8,4 @@ entry-id = "21141"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:47: ''would' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…adzu cu <mu'ei for '👉would have'> mukti le nu mi ze…"
-- not cmevla: cmevla (name) must end with a consonant
-  "…cadzu cu <mu'ei for 👉'would have'> mukti le nu mi z…"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…adzu cu <mu'ei for '👉would have'> mukti le nu mi ze…"
-@ 46: "…cadzu cu <mu'ei for 👉'would have'> mukti le nu mi z…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

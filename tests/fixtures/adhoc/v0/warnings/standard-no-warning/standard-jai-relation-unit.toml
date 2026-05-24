@@ -2,5 +2,14 @@ id = "adhoc.v0.warnings.standard-no-warning.standard-jai-relation-unit"
 lojban = "jai broda"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Jai { jai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "jaĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, tense_modal: None, inner_unit: Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } })), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.gentufa]
+tree = """
+Jai @[0‥9) {
+  jai: Cmavo @[0‥3) "jaĭ",
+  Gismu @[4‥9) "bróda",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"jaĭ","span":[0,3]}}}},"inner_unit":{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[4,9]}}}}}}}]}}}}}}}}]}]}'

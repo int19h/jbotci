@@ -8,12 +8,4 @@ entry-id = "6878"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:31: 'zveries' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "… xu do xabju la zver👉ies"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "… xu do xabju la zver👉ies"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…bi i xu do xabju la 👉zveries"
-@ 30: "…bi i xu do xabju la 👉zveries"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -8,12 +8,4 @@ entry-id = "13986"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'pimzlyr.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: 'mz' is not a permitted consonant pair (CLL 3.6)
-  "le nu tirna la pim👉zlyr. pe le rusko bangu -- NOT…"
-- not cmevla: 'mz' is not a permitted consonant pair (CLL 3.6)
-  "le nu tirna la pim👉zlyr. pe le rusko bangu -- NOT…"
-- not cmavo: cmavo 'pi' followed by 'm' which doesn't start a valid Lojban word
-  "le nu tirna la pi👉mzlyr. pe le rusko bangu -- NO…"
-@ 15: "le nu tirna la 👉pimzlyr. pe le rusko bangu -- …"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

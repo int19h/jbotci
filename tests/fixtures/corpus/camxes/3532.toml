@@ -8,12 +8,4 @@ entry-id = "3532"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:13: 'logfest' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "xruti fo la log👉fest puziku -- NOT SURE (morph…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "xruti fo la log👉fest puziku -- NOT SURE (morph…"
-- not cmavo: cmavo 'lo' followed by 'g' which doesn't start a valid Lojban word
-  "xruti fo la lo👉gfest puziku -- NOT SURE (morp…"
-@ 12: "xruti fo la 👉logfest puziku -- NOT SURE (mo…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

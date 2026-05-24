@@ -8,12 +8,4 @@ entry-id = "4257"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'ah' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "ah👉, space tense"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉ah, space tense"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "ah👉, space tense"
-@ 0: "👉ah, space tense"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

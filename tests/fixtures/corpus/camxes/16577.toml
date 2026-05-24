@@ -8,12 +8,4 @@ entry-id = "16577"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'sanxiyn' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "coi sanx👉iyn .io -- NOT SURE (morpholog…"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "coi sanx👉iyn .io -- NOT SURE (morpholog…"
-- not cmavo: cmavo 'sa' followed by 'n' which doesn't start a valid Lojban word
-  "coi sa👉nxiyn .io -- NOT SURE (morphol…"
-@ 4: "coi 👉sanxiyn .io -- NOT SURE (morph…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

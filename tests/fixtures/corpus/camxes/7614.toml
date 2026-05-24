@@ -8,12 +8,4 @@ entry-id = "7614"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'he's' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "he'👉s very nice"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉he's very nice"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "👉he's very nice"
-@ 0: "👉he's very nice"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

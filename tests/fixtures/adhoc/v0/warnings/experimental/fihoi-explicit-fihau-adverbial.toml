@@ -2,6 +2,26 @@ id = "adhoc.v0.warnings.experimental.fihoi-explicit-fihau-adverbial"
 lojban = "mi klama fi'oi broda fi'au"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalFihoiAdverbial", anchor-index = 2, anchor-text = "fi'oi", span = [9, 14] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }))), terms: [FihoiAdverbial { fihoi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } })), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), fihau: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi'aŭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None } })), free_modifiers: [] }) }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-fihoi-adverbial", byte-span = [9, 14], source-text = "fi'oi", message = "experimental syntax: FIhOI bridi/subsentence adverbial term", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥26) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Relation @[3‥26) {
+    Gismu @[3‥8) "kláma",
+    terms: [
+      FihoiAdverbial @[9‥26) {
+        fihoi: Cmavo @[9‥14) "fi'oĭ",
+        Gismu @[15‥20) "bróda",
+        fihau: Cmavo @[21‥26) "fi'aŭ",
+      },
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}}},"terms":[{"FihoiAdverbial":{"fihoi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'oĭ","span":[9,14]}}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[15,20]}}}}}}}}}}},"fihau":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'aŭ","span":[21,26]}}}}}}]}}}}}}}}]}]}"""

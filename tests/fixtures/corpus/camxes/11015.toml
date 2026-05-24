@@ -8,12 +8,4 @@ entry-id = "11015"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'you' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'y'
-  "👉you use goi"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉you use goi"
-- not cmavo: cmavo 'y' followed by 'o' which doesn't start a valid Lojban word
-  "y👉ou use goi"
-@ 0: "👉you use goi"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

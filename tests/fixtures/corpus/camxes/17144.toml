@@ -8,8 +8,4 @@ entry-id = "17144"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:42: 'ffs' is not a valid Lojban word:
-- geminated consonants are not allowed (CLL 3.6)
-  "…u za'a do cusku zo f👉fs .i e'o do cusku le mi jufra…"
-@ 41: "…'u za'a do cusku zo 👉ffs .i e'o do cusku le mi jufr…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

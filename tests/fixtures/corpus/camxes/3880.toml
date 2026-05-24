@@ -8,12 +8,4 @@ entry-id = "3880"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:10: 'vodkas' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "xalka la vod👉kas -- NOT SURE (morphology, v…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "xalka la vod👉kas -- NOT SURE (morphology, v…"
-- not cmavo: cmavo 'vo' followed by 'd' which doesn't start a valid Lojban word
-  "xalka la vo👉dkas -- NOT SURE (morphology, …"
-@ 9: "xalka la 👉vodkas -- NOT SURE (morphology…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

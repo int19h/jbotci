@@ -8,12 +8,4 @@ entry-id = "22378"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'http://compsoc.dur.ac.uk/whitespace/' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "u'isai la'e ny h👉ttp://compsoc.dur.ac.uk/whites…"
-- not cmevla: cmevla (name) must end with a consonant
-  "u'isai la'e ny 👉http://compsoc.dur.ac.uk/white…"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "u'isai la'e ny h👉ttp://compsoc.dur.ac.uk/whites…"
-@ 15: "u'isai la'e ny 👉http://compsoc.dur.ac.uk/white…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

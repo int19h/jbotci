@@ -8,8 +8,4 @@ entry-id = "10557"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:17: 'then' is not a valid Lojban word:
-- apostrophe is only allowed between two vowels (CLL 3.3)
-  "mi jai dicra mi t👉hen"
-@ 16: "mi jai dicra mi 👉then"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -2,5 +2,23 @@ id = "adhoc.v0.warnings.experimental.nohoi-selbri-relative-clause"
 lojban = "mi klama no'oi bajra"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: WithIndicator { base: Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "no'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }, nai: None }, free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "bájra" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-cmavo", byte-span = [9, 14], source-text = "no'oi", message = "experimental syntax: Zantufa experimental cmavo classification", word-index = 1 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥20) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  Compound @[3‥20) {
+    WithIndicator @[3‥14) {
+      Gismu @[3‥8) "kláma",
+      indicator: Cmavo @[9‥14) "no'oĭ",
+    },
+    Gismu @[15‥20) "bájra",
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}},"indicator":{"Cmavo":{"phonemes":"no'oĭ","span":[9,14]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bájra","span":[15,20]}}}}}]}}}}}}}}]}]}"""

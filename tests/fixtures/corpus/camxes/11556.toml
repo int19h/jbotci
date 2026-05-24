@@ -8,8 +8,4 @@ entry-id = "11556"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:52: 'diablos.' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "… mi dukse nelci la d👉iablos. remoi"
-@ 51: "…a mi dukse nelci la 👉diablos. remoi"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

@@ -12,7 +12,7 @@ raw = '[Bare(Fuhivla { phonemes: Phonemes { text: "ignóre" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "failure"
-error = { position = 2, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [9, 9], source-text = "", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "(.ignóre me)"

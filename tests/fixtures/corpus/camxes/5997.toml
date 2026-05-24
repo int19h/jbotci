@@ -8,12 +8,4 @@ entry-id = "5997"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:18: 'zeduard' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "mi puzi penmi la zed👉uard .iku'i mi na'e tavla .oi …"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "mi puzi penmi la zed👉uard .iku'i mi na'e tavla .oi …"
-- not cmavo: cmavo 'ze' followed by 'd' which doesn't start a valid Lojban word
-  "mi puzi penmi la ze👉duard .iku'i mi na'e tavla .oi…"
-@ 17: "mi puzi penmi la 👉zeduard .iku'i mi na'e tavla .…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

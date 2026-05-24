@@ -12,7 +12,7 @@ raw = """[LohuQuote { lohu: Cmavo { phonemes: Phonemes { text: "lo'u" }, span: S
 
 [expectations.syntax]
 status = "failure"
-error = { position = 1, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [13, 15], source-text = "co", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "([lo'u mi le'u] co le'u kláma)"

@@ -8,8 +8,4 @@ entry-id = "13416"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'SIodor.rid.' is not a valid Lojban word:
-- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "la S👉Iodor.rid. cmene mi"
-@ 3: "la 👉SIodor.rid. cmene mi"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

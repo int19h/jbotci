@@ -8,12 +8,4 @@ entry-id = "14892"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:7: 'wiki' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
-  "la zo 👉wiki"
-- not cmevla: cmevla (name) must end with a consonant
-  "la zo 👉wiki"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "la zo 👉wiki"
-@ 6: "la zo 👉wiki"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

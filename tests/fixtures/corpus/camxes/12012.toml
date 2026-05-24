@@ -8,12 +8,4 @@ entry-id = "12012"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'rood' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "coi ro👉od"
-- not cmevla: cmevla (name) must end with a consonant
-  "coi 👉rood"
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "coi ro👉od"
-@ 4: "coi 👉rood"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

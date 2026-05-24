@@ -8,12 +8,4 @@ entry-id = "15009"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:8: 'weiki' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
-  "sei zo 👉weiki na nenri le mi vlacku (w…"
-- not cmevla: cmevla (name) must end with a consonant
-  "sei zo 👉weiki na nenri le mi vlacku (w…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "sei zo 👉weiki na nenri le mi vlacku (w…"
-@ 7: "sei zo 👉weiki na nenri le mi vlacku (w…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

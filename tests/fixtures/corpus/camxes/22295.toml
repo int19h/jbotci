@@ -8,12 +8,4 @@ entry-id = "22295"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:22: '*' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got '*'
-  "…0 Feb 2004 17:46:52 👉* tsali sulks"
-- not cmevla: cmevla (name) must end with a consonant
-  "…0 Feb 2004 17:46:52 👉* tsali sulks"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "…0 Feb 2004 17:46:52 👉* tsali sulks"
-@ 21: "…0 Feb 2004 17:46:52 👉* tsali sulks"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

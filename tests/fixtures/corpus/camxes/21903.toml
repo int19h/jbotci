@@ -8,12 +8,4 @@ entry-id = "21903"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:16: 'pagpu' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "do raibratcana pag👉pu datpau klama kakne tezu'e l…"
-- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
-  "do raibratcana pag👉pu datpau klama kakne tezu'e l…"
-- not cmavo: cmavo 'pa' followed by 'g' which doesn't start a valid Lojban word
-  "do raibratcana pa👉gpu datpau klama kakne tezu'e …"
-@ 15: "do raibratcana 👉pagpu datpau klama kakne tezu'…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

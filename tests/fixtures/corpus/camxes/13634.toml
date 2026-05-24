@@ -8,12 +8,4 @@ entry-id = "13634"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:63: 'http://br.crashed.net/~slash/sketch01.gif' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…xra bau la lojban. h👉ttp://br.crashed.net/~slash/sk…"
-- not cmevla: cmevla (name) must end with a consonant
-  "…ixra bau la lojban. 👉http://br.crashed.net/~slash/s…"
-- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
-  "…xra bau la lojban. h👉ttp://br.crashed.net/~slash/sk…"
-@ 62: "…ixra bau la lojban. 👉http://br.crashed.net/~slash/s…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

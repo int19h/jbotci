@@ -2,6 +2,22 @@ id = "adhoc.v0.warnings.experimental.dictionary-coi-ohai"
 lojban = "o'ai do klama"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalDictionaryCoiVocative", anchor-index = 0, anchor-text = "o'ai", span = [0, 4] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "o'aĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-dictionary-coi-vocative", byte-span = [0, 4], source-text = "o'ai", message = "experimental syntax: dictionary-first COI experimental vocative cmavo", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥13) {
+  leading_free_modifiers: [
+    Vocative @[0‥7) {
+      vocative_markers: [
+        Cmavo @[0‥4) "o'aĭ",
+      ],
+      argument: Cmavo @[5‥7) "do",
+    },
+  ],
+  Gismu @[8‥13) "kláma",
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"o'aĭ","span":[0,4]}}}}],"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[5,7]}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[8,13]}}}}}}}}}}}}]}]}"""

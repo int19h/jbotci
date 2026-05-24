@@ -8,12 +8,4 @@ entry-id = "6727"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: '=' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected consonant r but got '='
-  "mi 👉= me"
-- not cmevla: cmevla (name) must end with a consonant
-  "mi 👉= me"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "mi 👉= me"
-@ 3: "mi 👉= me"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

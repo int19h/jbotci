@@ -8,12 +8,4 @@ entry-id = "20581"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'XFree86' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected vowel u but got 'F'
-  "la X👉Free86 girzu"
-- not cmevla: cmevla (name) must end with a consonant
-  "la 👉XFree86 girzu"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "la 👉XFree86 girzu"
-@ 3: "la 👉XFree86 girzu"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

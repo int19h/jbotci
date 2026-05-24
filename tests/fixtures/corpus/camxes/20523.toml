@@ -8,12 +8,4 @@ entry-id = "20523"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:4: 'attaches' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
-  "be at👉taches a sumti to any brivla"
-- not cmevla: geminated consonants are not allowed (CLL 3.6)
-  "be at👉taches a sumti to any brivla"
-- not cmavo: cmavo 'a' followed by 't' which doesn't start a valid Lojban word
-  "be a👉ttaches a sumti to any brivla"
-@ 3: "be 👉attaches a sumti to any brivla"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

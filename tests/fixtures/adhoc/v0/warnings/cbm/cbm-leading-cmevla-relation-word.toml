@@ -3,6 +3,15 @@ lojban = ".alis. broda"
 dialect = "(cbm)"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalCbmCmevlaRelationWord", anchor-index = 0, anchor-text = "alis", span = [1, 5] }]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(Bare(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None } })), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } })), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cbm-cmevla-relation-word", byte-span = [1, 5], source-text = "alis", message = "experimental syntax: CBM cmevla used as a relation word", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Compound @[1‥12) {
+  Cmevla @[1‥5) "alis",
+  Gismu @[7‥12) "bróda",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Cmevla":{"phonemes":"alis","span":[1,5]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[7,12]}}}}}]}}}}}}}}]}]}'

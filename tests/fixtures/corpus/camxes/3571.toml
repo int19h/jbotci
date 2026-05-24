@@ -12,7 +12,7 @@ raw = """[ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: Sou
 
 [expectations.syntax]
 status = "failure"
-error = { position = 6, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [53, 56], source-text = "zoi", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "([zoĭ ky Seqram ky] cu cméne mi leĭ prenrklingóno pe'a zoĭ)"

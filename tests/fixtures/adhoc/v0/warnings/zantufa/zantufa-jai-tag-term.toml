@@ -3,6 +3,21 @@ lojban = "jai pu mi klama"
 dialect = "(zantufa)"
 tags = ["v0-adhoc", "warnings"]
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "ExperimentalZantufaJaiTagTerm", anchor-index = 0, anchor-text = "jai", span = [0, 3] }]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [JaiTagged { jai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "jaĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, tag: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), free_modifiers: [] }) }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [0, 3], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 0 }]
+
+[expectations.output.gentufa]
+tree = """
+Predicate @[0‥15) {
+  leading_terms: [
+    JaiTagged @[0‥9) {
+      jai: Cmavo @[0‥3) "jaĭ",
+      tag: Cmavo @[4‥6) "pu",
+      Cmavo @[7‥9) "mi",
+    },
+  ],
+  Gismu @[10‥15) "kláma",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"JaiTagged":{"jai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"jaĭ","span":[0,3]}}}},"tag":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[4,6]}}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kláma","span":[10,15]}}}}}}}}}}}}]}]}'

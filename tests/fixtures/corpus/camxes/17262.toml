@@ -8,12 +8,4 @@ entry-id = "17262"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:59: 'samxruebe' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "… toi .a le dei samxr👉uebe pagbu vau pe'u ko tcidu l…"
-- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
-  "… toi .a le dei samxr👉uebe pagbu vau pe'u ko tcidu l…"
-- not cmavo: cmavo 'sa' followed by 'm' which doesn't start a valid Lojban word
-  "…cai toi .a le dei sa👉mxruebe pagbu vau pe'u ko tcid…"
-@ 58: "…uecai toi .a le dei 👉samxruebe pagbu vau pe'u ko tc…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

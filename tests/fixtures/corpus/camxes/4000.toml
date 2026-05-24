@@ -8,12 +8,4 @@ entry-id = "4000"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:5: 'jewel' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: expected apostrophe but got 'w'
-  "doi je👉wel .i do krefu ma"
-- not cmevla: cmevla (name) must end with a consonant
-  "doi 👉jewel .i do krefu ma"
-- not cmavo: cmavo 'je' followed by 'w' which doesn't start a valid Lojban word
-  "doi je👉wel .i do krefu ma"
-@ 4: "doi 👉jewel .i do krefu ma"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

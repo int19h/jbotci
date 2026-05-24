@@ -8,12 +8,4 @@ entry-id = "11202"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:17: 'cirdjrpitsa' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "cir" but got "djrpitsa"
-  "mi pu citka lei cir👉djrpitsa ca le cerni"
-- not cmevla: cmevla (name) must end with a consonant
-  "mi pu citka lei 👉cirdjrpitsa ca le cerni"
-- not cmavo: cmavo 'ci' followed by 'r' which doesn't start a valid Lojban word
-  "mi pu citka lei ci👉rdjrpitsa ca le cerni"
-@ 16: "mi pu citka lei 👉cirdjrpitsa ca le cerni"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

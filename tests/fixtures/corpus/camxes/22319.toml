@@ -8,12 +8,4 @@ entry-id = "22319"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'ready' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "re👉ady to receive"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉ready to receive"
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "re👉ady to receive"
-@ 0: "👉ready to receive"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

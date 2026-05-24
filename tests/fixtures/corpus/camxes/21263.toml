@@ -8,12 +8,4 @@ entry-id = "21263"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:24: 'euklid' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
-  "…jica lo na'e me la e👉uklid nu fenki"
-- not cmevla: cmevla (name) must end with a consonant
-  "…djica lo na'e me la 👉euklid nu fenki"
-- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
-  "…jica lo na'e me la e👉uklid nu fenki"
-@ 23: "…djica lo na'e me la 👉euklid nu fenki"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

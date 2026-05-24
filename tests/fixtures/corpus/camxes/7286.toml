@@ -8,12 +8,4 @@ entry-id = "7286"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:25: 'kamzifre' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: 'mz' is not a permitted consonant pair (CLL 3.6)
-  "…ambapli .onai lo kam👉zifre cu jundi vajni -- NOT SU…"
-- not cmevla: 'mz' is not a permitted consonant pair (CLL 3.6)
-  "…ambapli .onai lo kam👉zifre cu jundi vajni -- NOT SU…"
-- not cmavo: cmavo 'ka' followed by 'm' which doesn't start a valid Lojban word
-  "…kambapli .onai lo ka👉mzifre cu jundi vajni -- NOT S…"
-@ 24: "…o kambapli .onai lo 👉kamzifre cu jundi vajni -- NOT…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

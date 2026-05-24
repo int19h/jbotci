@@ -12,7 +12,7 @@ raw = '[Bare(Cmevla { phonemes: Phonemes { text: "intended" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "failure"
-error = { position = 2, allowed-next = [] }
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [10, 12], source-text = "se", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "(.intended. .u se)"

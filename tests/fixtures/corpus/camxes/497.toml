@@ -8,12 +8,4 @@ entry-id = "497"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:1: 'bongnanba' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "bon" but got "gnanba"
-  "bon👉gnanba"
-- not cmevla: cmevla (name) must end with a consonant
-  "👉bongnanba"
-- not cmavo: cmavo 'bo' followed by 'n' which doesn't start a valid Lojban word
-  "bo👉ngnanba"
-@ 0: "👉bongnanba"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

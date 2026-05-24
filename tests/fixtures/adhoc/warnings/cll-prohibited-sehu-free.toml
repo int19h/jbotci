@@ -1,6 +1,31 @@
 id = "adhoc.warnings.cll-prohibited-sehu-free"
 lojban = "sei broda se'u to mi toi"
 
-[expectations.warnings]
+[expectations.syntax]
 status = "success"
-items = [{ kind = "CllProhibitedFreeModifierPlacement", anchor-index = 3, anchor-text = "to", span = [15, 17] }]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }))), sehu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "se'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } })), free_modifiers: [To { to: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } })), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } })), free_modifiers: [] }))], vau: None })) }] }] }, toi: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "toĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 24, char_start: 21, char_end: 24, start: None, end: None } })), free_modifiers: [] }) }] }) }], leading_connective: None, paragraphs: [] }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.cll-prohibited-free-modifier-placement", byte-span = [15, 17], source-text = "to", message = "experimental syntax: free modifier placement prohibited by CLL grammar", word-index = 3 }]
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥24) {
+  leading_free_modifiers: [
+    Sei @[0‥24) {
+      sei: Cmavo @[0‥3) "seĭ",
+      relation: Gismu @[4‥9) "bróda",
+      sehu: Cmavo @[10‥14) "se'u",
+      free_modifiers: [
+        To @[15‥24) {
+          to: Cmavo @[15‥17) "to",
+          Term @[18‥20) {
+            terms: [
+              Cmavo @[18‥20) "mi",
+            ],
+          },
+          toi: Cmavo @[21‥24) "toĭ",
+        },
+      ],
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[4,9]}}}}},"sehu":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"se'u","span":[10,14]}}}},{"To":{"to":{"Bare":{"Bare":{"Cmavo":{"phonemes":"to","span":[15,17]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[18,20]}}}}}}]}}}}]}]},"toi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[21,24]}}}}}}]}}]}"""

@@ -8,12 +8,4 @@ entry-id = "19017"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:34: 'ston'endj.' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…cuska sedu'u la ston👉'endj. cu tarmi lo'e vibna co …"
-- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
-  "…cuska sedu'u la ston👉'endj. cu tarmi lo'e vibna co …"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "… cu cuska sedu'u la 👉ston'endj. cu tarmi lo'e vibna…"
-@ 33: "… cu cuska sedu'u la 👉ston'endj. cu tarmi lo'e vibna…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

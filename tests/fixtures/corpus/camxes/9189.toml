@@ -8,12 +8,4 @@ entry-id = "9189"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:7: 'strike' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: slinku'i: falls apart into consonant + rafsi string
-  "ninja 👉strike force! -- NOT SURE (mor…"
-- not cmevla: cmevla (name) must end with a consonant
-  "ninja 👉strike force! -- NOT SURE (mor…"
-- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
-  "ninja 👉strike force! -- NOT SURE (mor…"
-@ 6: "ninja 👉strike force! -- NOT SURE (mor…"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]

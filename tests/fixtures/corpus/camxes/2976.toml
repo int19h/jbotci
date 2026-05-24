@@ -8,12 +8,4 @@ entry-id = "2976"
 
 [expectations.syntax]
 status = "failure"
-error = { position = 0, allowed-next = [], message = """
-input:1:19: 'linuqs' is not a valid Lojban word:
-- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "lin" but got "uqs"
-  "…i ca tavla fi la lin👉uqs (q)"
-- not cmevla: cmevla (name) must end with a consonant
-  "mi ca tavla fi la 👉linuqs (q)"
-- not cmavo: cmavo 'li' followed by 'n' which doesn't start a valid Lojban word
-  "mi ca tavla fi la li👉nuqs (q)"
-@ 18: "mi ca tavla fi la 👉linuqs (q)"""" }
+diagnostics = [{ severity = "error", code = "morphology.invalid", byte-span = [0, 0], source-text = "", message = "invalid morphology" }]
