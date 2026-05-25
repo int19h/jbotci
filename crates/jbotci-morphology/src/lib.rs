@@ -62,7 +62,6 @@ pub struct MorphologyOptions {
     pub cmavo_dialect_entries: Vec<CmavoDialectEntry>,
     pub cmevla_as_relation_words: bool,
     pub uppercase_marks_stress: bool,
-    pub enforce_cgv_ban: bool,
     #[serde(default)]
     pub trace: TraceOptions,
 }
@@ -78,7 +77,6 @@ impl Default for MorphologyOptions {
             cmavo_dialect_entries: Vec::new(),
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
-            enforce_cgv_ban: true,
             trace: TraceOptions::disabled(),
         })
     }
@@ -87,19 +85,15 @@ impl Default for MorphologyOptions {
 impl MorphologyOptions {
     #[ensures(ret.cmavo_dialect_entries == definition.cmavo_entries)]
     #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
-    #[ensures(definition.features.contains(&DialectFeature::AllowCgv) -> !ret.enforce_cgv_ban)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
     #[requires(true)]
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
-        let enforce_cgv_ban = self.enforce_cgv_ban;
         let uppercase_marks_stress = self.uppercase_marks_stress;
         self.with_data(data! {
             cmavo_dialect_entries: definition.cmavo_entries.clone(),
             cmevla_as_relation_words: cmevla_as_relation_words
                 || definition.features.contains(&DialectFeature::Cbm),
-            enforce_cgv_ban: enforce_cgv_ban
-                && !definition.features.contains(&DialectFeature::AllowCgv),
             uppercase_marks_stress: uppercase_marks_stress
                 && !definition.features.contains(&DialectFeature::CaseInsensitive),
         })
@@ -112,10 +106,11 @@ impl MorphologyOptions {
     }
 }
 
+#[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 pub struct MorphologySegmentAttempt {
     pub result: Result<Vec<WordLike>, MorphologyError>,
+    pub warnings: Vec<MorphologyWarning>,
     pub trace: Option<TraceReport>,
 }
 
@@ -849,7 +844,6 @@ pub enum MorphologyErrorKind {
     ExpectedWord,
     UnrecognizedWord,
     InvalidApostrophe,
-    CgvBan,
     GeminatedConsonant,
     VoicingMismatch,
     ForbiddenConsonantPair,
@@ -874,7 +868,6 @@ impl MorphologyErrorKind {
             Self::ExpectedWord => "morphology.expected-word",
             Self::UnrecognizedWord => "morphology.unrecognized-word",
             Self::InvalidApostrophe => "morphology.invalid-apostrophe",
-            Self::CgvBan => "morphology.cgv-ban",
             Self::GeminatedConsonant => "morphology.geminated-consonant",
             Self::VoicingMismatch => "morphology.voicing-mismatch",
             Self::ForbiddenConsonantPair => "morphology.forbidden-consonant-pair",
@@ -899,7 +892,6 @@ impl MorphologyErrorKind {
             Self::ExpectedWord => "expected Lojban word",
             Self::UnrecognizedWord => "word is not a valid Lojban word",
             Self::InvalidApostrophe => "apostrophe is only allowed between vowels",
-            Self::CgvBan => "consonant-glide-vowel sequences are not allowed",
             Self::GeminatedConsonant => "geminated consonants are not allowed",
             Self::VoicingMismatch => "adjacent consonants must agree in voicing",
             Self::ForbiddenConsonantPair => "forbidden consonant pair",
@@ -914,6 +906,98 @@ impl MorphologyErrorKind {
             Self::InvalidQuoteMarker => "quote marker must be a single word",
             Self::InvalidZoiDelimiter => "ZOI delimiter must be a single non-y word",
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum MorphologyWarningKind {
+    ExperimentalCgv,
+}
+
+impl MorphologyWarningKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::ExperimentalCgv => "morphology.warning.experimental-cgv",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::ExperimentalCgv => "experimental morphology: consonant-glide-vowel sequence",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ExperimentalCgv => {
+                "consonant-glide-vowel sequence accepted as experimental morphology"
+            }
+        }
+    }
+}
+
+#[invariant(self.char_start < self.char_end, "morphology warnings must cover a non-empty span")]
+#[invariant(!self.text.is_empty(), "morphology warnings must preserve offending source text")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MorphologyWarning {
+    pub kind: MorphologyWarningKind,
+    pub char_start: usize,
+    pub char_end: usize,
+    pub text: String,
+    pub context: Option<MorphologyContext>,
+}
+
+impl MorphologyWarning {
+    #[requires(char_start < char_end)]
+    #[requires(!text.is_empty())]
+    #[ensures(ret.kind == kind)]
+    #[ensures(ret.char_start == char_start)]
+    #[ensures(ret.char_end == char_end)]
+    pub fn new(
+        kind: MorphologyWarningKind,
+        char_start: usize,
+        char_end: usize,
+        text: String,
+        context: Option<MorphologyContext>,
+    ) -> Self {
+        new!(MorphologyWarning {
+            kind: kind,
+            char_start: char_start,
+            char_end: char_end,
+            text: text,
+            context: context,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.code.is_empty())]
+    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+        morphology_diagnostic(
+            source_id,
+            source,
+            new!(MorphologyDiagnosticDetails {
+                severity: DiagnosticSeverity::Warning,
+                code: self.kind.code(),
+                message: self.kind.message(),
+            }),
+            self.char_start,
+            self.char_end,
+            self.kind.label(),
+            self.context.as_ref(),
+        )
+        .with_styled_notes(vec![morphology_detail_note(
+            self.kind.message(),
+            &self.text,
+            "accepted by the experimental consonant-glide-vowel relaxation",
+        )])
     }
 }
 
@@ -1028,6 +1112,7 @@ impl MorphologyError {
                 source_id.clone(),
                 source,
                 new!(MorphologyDiagnosticDetails {
+                    severity: DiagnosticSeverity::Error,
                     code: kind.code(),
                     message: kind.message(),
                 }),
@@ -1051,6 +1136,7 @@ impl MorphologyError {
                     source_id.clone(),
                     source,
                     new!(MorphologyDiagnosticDetails {
+                        severity: DiagnosticSeverity::Error,
                         code: "morphology.unterminated-zoi-quote",
                         message: "unterminated ZOI quote",
                     }),
@@ -1105,13 +1191,14 @@ fn morphology_detail_note(message: &str, text: &str, reason: &str) -> Diagnostic
 #[invariant(!self.code.is_empty())]
 #[invariant(!self.message.is_empty())]
 struct MorphologyDiagnosticDetails {
+    severity: DiagnosticSeverity,
     code: &'static str,
     message: &'static str,
 }
 
 #[requires(!label.is_empty())]
 #[requires(char_start <= char_end)]
-#[ensures(ret.code == details.code)]
+#[ensures(!ret.code.is_empty())]
 fn morphology_diagnostic(
     source_id: Option<SourceId>,
     source: &str,
@@ -1137,7 +1224,7 @@ fn morphology_diagnostic(
         labels.push(context_label);
     }
     Diagnostic::new(
-        DiagnosticSeverity::Error,
+        details.severity,
         DiagnosticPhase::Morphology,
         details.code.to_owned(),
         details.message.to_owned(),
@@ -1187,6 +1274,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_with_options_and_source_id_attempt(input, options, source_id)
+        .into_data()
         .result
 }
 
@@ -1198,13 +1286,15 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
     source_id: Option<SourceId>,
 ) -> MorphologySegmentAttempt {
     let attempt = grammar::segment_words_with_modifiers_attempt(input, options, source_id);
-    let result = attempt
+    let data = attempt.into_data();
+    let result = data
         .result
         .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries));
-    MorphologySegmentAttempt {
+    new!(MorphologySegmentAttempt {
         result,
-        trace: attempt.trace,
-    }
+        warnings: data.warnings,
+        trace: data.trace,
+    })
 }
 
 #[requires(true)]
@@ -1247,6 +1337,7 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers_raw_attempt(input, options, source_id)
+        .into_data()
         .result
         .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
 }
@@ -1765,8 +1856,21 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn default_options_enforce_cgv_ban() {
-        assert!(MorphologyOptions::default().enforce_cgv_ban);
+    fn cgv_relaxation_is_enabled_by_default_with_warning() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "la siatl.",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("CgV relaxation should permit cmevla");
+
+        assert_eq!(base_phonemes(&words[1]).as_deref(), Some("sĭatl"));
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(
+            data.warnings[0].kind,
+            MorphologyWarningKind::ExperimentalCgv
+        );
     }
 
     #[test]
@@ -1793,11 +1897,6 @@ mod tests {
                 MorphologyErrorKind::InvalidApostrophe,
                 "morphology.invalid-apostrophe",
                 "apostrophe is only allowed between vowels",
-            ),
-            (
-                MorphologyErrorKind::CgvBan,
-                "morphology.cgv-ban",
-                "consonant-glide-vowel sequences are not allowed",
             ),
             (
                 MorphologyErrorKind::GeminatedConsonant,
@@ -1875,6 +1974,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_warning_kind_codes_are_stable() {
+        let cases = [(
+            MorphologyWarningKind::ExperimentalCgv,
+            "morphology.warning.experimental-cgv",
+            "experimental morphology: consonant-glide-vowel sequence",
+        )];
+
+        for (kind, code, message) in cases {
+            assert_eq!(kind.code(), code);
+            assert_eq!(kind.message(), message);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_diagnostic_uses_precise_vowel_hiatus_span() {
         let error = segment_words_with_modifiers("aa").expect_err("vowel hiatus must fail");
         let diagnostic = error.to_diagnostic(None, "aa");
@@ -1907,12 +2022,19 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn morphology_diagnostic_maps_comma_crossing_cgv_span() {
+    fn morphology_warning_diagnostic_maps_comma_crossing_cgv_span() {
         let source = "melxi,or.";
-        let error = segment_words_with_modifiers(source).expect_err("CgV ban must fail");
-        let diagnostic = error.to_diagnostic(None, source);
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        data.result.expect("CgV relaxation should parse");
+        assert_eq!(data.warnings.len(), 1);
+        let diagnostic = data.warnings[0].to_diagnostic(None, source);
 
-        assert_eq!(diagnostic.code, "morphology.cgv-ban");
+        assert_eq!(diagnostic.code, "morphology.warning.experimental-cgv");
         let label = diagnostic.primary_label();
         assert_eq!(label.span.char_start, 3);
         assert_eq!(label.span.char_end, 7);
@@ -2004,17 +2126,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn applies_allow_cgv_dialect_to_morphology_options() {
-        let dialect = jbotci_dialect::parse_dialect_definition("(allow-cgv)").expect("dialect");
-        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-        let words = segment_words_with_modifiers_with_options("la siatl.", &options)
-            .expect("valid morphology");
-        assert_eq!(base_phonemes(&words[1]).as_deref(), Some("sĭatl"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn applies_case_insensitive_dialect_to_morphology_options() {
         let dialect =
             jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
@@ -2028,8 +2139,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_combined_dialect_formula_to_morphology_options() {
-        let dialect = jbotci_dialect::parse_dialect_definition("(allow-cgv case-insensitive)")
-            .expect("dialect");
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words = segment_words_with_modifiers_with_options("la ITALIAS.", &options)
             .expect("valid morphology");

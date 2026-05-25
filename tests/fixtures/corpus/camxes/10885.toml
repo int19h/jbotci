@@ -7,5 +7,6 @@ corpus = "camxes"
 entry-id = "10885"
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.cgv-ban", byte-span = [8, 11], source-text = "rie", message = "consonant-glide-vowel sequences are not allowed" }]
+status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Fuhivla { phonemes: Phonemes { text: "prenrsférĭe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 11, char_start: 0, char_end: 11, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [8, 11], source-text = "rie", message = "experimental morphology: consonant-glide-vowel sequence" }]

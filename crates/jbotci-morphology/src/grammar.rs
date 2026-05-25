@@ -4,8 +4,9 @@ use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
     Cmavo, MorphologyContext, MorphologyContextKind, MorphologyError, MorphologyErrorKind,
-    MorphologyOptions, MorphologySegmentAttempt, Phonemes, Verbatim, Word, WordKind, WordLike,
-    WordLikeData, canonical_text_eq, canonical_text_is_all, canonicalize_text, erasure_selmaho,
+    MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind,
+    Phonemes, Verbatim, Word, WordKind, WordLike, WordLikeData, canonical_text_eq,
+    canonical_text_is_all, canonicalize_text, erasure_selmaho,
 };
 
 #[requires(true)]
@@ -15,7 +16,9 @@ pub(crate) fn segment_words_with_modifiers(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_attempt(input, options, source_id).result
+    segment_words_with_modifiers_attempt(input, options, source_id)
+        .into_data()
+        .result
 }
 
 #[requires(true)]
@@ -35,7 +38,9 @@ pub(crate) fn segment_words_with_modifiers_raw(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_attempt(input, options, source_id).result
+    segment_words_with_modifiers_raw_attempt(input, options, source_id)
+        .into_data()
+        .result
 }
 
 #[requires(true)]
@@ -64,6 +69,7 @@ struct Segmenter<'a> {
     source_id: Option<SourceId>,
     chars: Vec<SourceChar>,
     index: usize,
+    warnings: Vec<MorphologyWarning>,
     trace: TraceRecorder,
 }
 
@@ -81,6 +87,7 @@ impl<'a> Segmenter<'a> {
                 .map(|(byte_offset, value)| SourceChar { byte_offset, value })
                 .collect(),
             index: 0,
+            warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
         }
     }
@@ -91,7 +98,11 @@ impl<'a> Segmenter<'a> {
         self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
         let result = self.segment_raw();
         let trace = self.trace.finish();
-        MorphologySegmentAttempt { result, trace }
+        new!(MorphologySegmentAttempt {
+            result,
+            warnings: self.warnings,
+            trace,
+        })
     }
 
     #[requires(true)]
@@ -919,8 +930,10 @@ impl<'a> Segmenter<'a> {
             if saw_separator && cursor < self.chars.len() {
                 let saved = self.index;
                 self.index = cursor;
+                let warning_count = self.warnings.len();
                 let maybe_word = self.next_plain_word();
                 let after_word = self.index;
+                self.warnings.truncate(warning_count);
                 self.index = saved;
                 if let Ok(word_with_modifiers) = maybe_word
                     && let Some(closing_word) = extract_word(&word_with_modifiers)
@@ -960,10 +973,12 @@ impl<'a> Segmenter<'a> {
         loop {
             self.skip_separators();
             let saved = self.index;
+            let warning_count = self.warnings.len();
             match self.next_plain_word() {
                 Ok(word) if is_y_word(&word) => {}
                 _ => {
                     self.index = saved;
+                    self.warnings.truncate(warning_count);
                     break;
                 }
             }
@@ -977,21 +992,27 @@ impl<'a> Segmenter<'a> {
             let before = self.index;
             self.skip_separators();
             let saved = self.index;
+            let word_warning_count = self.warnings.len();
             match self.next_plain_word() {
                 Ok(word) if is_y_word(&word) => {
                     let after_y = self.index;
                     self.skip_separators();
+                    let bu_warning_count = self.warnings.len();
                     let followed_by_bu = self
                         .next_plain_word()
                         .ok()
                         .is_some_and(|next| is_simple_cmavo_text(&next, "bu"));
+                    self.warnings.truncate(bu_warning_count);
                     self.index = if keep_y_before_bu && followed_by_bu {
                         saved
                     } else {
                         after_y
                     };
                 }
-                _ => self.index = saved,
+                _ => {
+                    self.index = saved;
+                    self.warnings.truncate(word_warning_count);
+                }
             }
             if self.index == before {
                 return Ok(true);
@@ -1146,7 +1167,7 @@ impl<'a> Segmenter<'a> {
     #[requires(!phonemes.is_empty())]
     #[ensures(true)]
     fn word_with_modifiers(
-        &self,
+        &mut self,
         start: usize,
         end: usize,
         kind: WordKind,
@@ -1174,7 +1195,30 @@ impl<'a> Segmenter<'a> {
         } else {
             Word::from_kind(kind, phonemes, span)
         };
+        self.warn_cgv_relaxation(start, end, kind);
         Ok(base_word_like(WordLike::bare(word)))
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(true)]
+    fn warn_cgv_relaxation(&mut self, start: usize, end: usize, kind: WordKind) {
+        let normalized = crate::segment::normalize_source_chars(
+            self.chars[start..end]
+                .iter()
+                .enumerate()
+                .map(|(offset, source_char)| (start + offset, source_char.value)),
+            self.options,
+        );
+        let Some(range) = crate::segment::cgv_source_range(&normalized) else {
+            return;
+        };
+        self.warnings.push(MorphologyWarning::new(
+            MorphologyWarningKind::ExperimentalCgv,
+            range.start,
+            range.end,
+            self.slice(range.start, range.end).to_owned(),
+            self.context(word_context_kind(kind), start, end),
+        ));
     }
 
     #[requires(true)]
@@ -1337,9 +1381,7 @@ impl<'a> Segmenter<'a> {
                 .map(|(offset, source_char)| (start + offset, source_char.value)),
             self.options,
         );
-        if let Some(violation) =
-            crate::segment::first_morphology_violation(&normalized, self.options)
-        {
+        if let Some(violation) = crate::segment::first_morphology_violation(&normalized) {
             return self.invalid_span(
                 violation.kind,
                 violation.start,
@@ -1886,6 +1928,26 @@ mod tests {
                 Some(MorphologyContextKind::Fuhivla),
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cgv_relaxation_does_not_turn_invalid_lujvo_like_forms_into_fuhivla() {
+        let error = segment_words_with_modifiers("language", &MorphologyOptions::default(), None)
+            .expect_err("CgV relaxation must not bypass fu'ivla shape parsing");
+
+        assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 0, 8, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fuhivla_with_initial_cluster_is_not_rejected_as_lujvo_like() {
+        let words = segment_words_with_modifiers("ctremna", &MorphologyOptions::default(), None)
+            .expect("valid fu'ivla morphology");
+
+        assert_eq!(bare_phonemes(&words), ["ctrémna"]);
     }
 
     #[test]

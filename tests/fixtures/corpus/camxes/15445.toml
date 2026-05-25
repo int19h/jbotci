@@ -7,5 +7,6 @@ corpus = "camxes"
 entry-id = "15445"
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.cgv-ban", byte-span = [4, 7], source-text = "tio", message = "consonant-glide-vowel sequences are not allowed" }]
+status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "functĭonal" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 10, char_start: 0, char_end: 10, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "jvo" }), Rafsi(Phonemes { text: "kátna" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 19, char_start: 11, char_end: 19, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [4, 7], source-text = "tio", message = "experimental morphology: consonant-glide-vowel sequence" }]

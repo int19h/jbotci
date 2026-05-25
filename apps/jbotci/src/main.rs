@@ -11,7 +11,7 @@ use jbotci_diagnostics::{
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{
-    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -574,6 +574,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 &morphology_options,
                 Some(SourceId(source_label.clone())),
             );
+            let attempt = attempt.into_data();
             let trace_stderr = render_cli_trace(
                 attempt.trace.as_ref(),
                 color_policy.stderr,
@@ -583,13 +584,18 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 Ok(words) => words,
                 Err(error) => {
                     stderr.write_all(trace_stderr.as_bytes())?;
-                    let diagnostic =
-                        error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+                    let mut diagnostics = morphology_warning_diagnostics(
+                        &attempt.warnings,
+                        Some(SourceId(source_label.clone())),
+                        &text,
+                    );
+                    diagnostics
+                        .push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
                     write_source_diagnostics(
                         stderr,
                         &source_label,
                         &text,
-                        std::slice::from_ref(&diagnostic),
+                        &diagnostics,
                         color_policy.stderr,
                         diagnostic_detail,
                         diagnostic_terminal_width,
@@ -598,6 +604,20 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 }
             };
             stderr.write_all(trace_stderr.as_bytes())?;
+            let diagnostics = morphology_warning_diagnostics(
+                &attempt.warnings,
+                Some(SourceId(source_label.clone())),
+                &text,
+            );
+            write_source_diagnostics(
+                stderr,
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                diagnostic_terminal_width,
+            )?;
             let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
             match input.format {
                 VlaseiFormat::Json => {
@@ -894,20 +914,27 @@ fn render_gentufa(
         &morphology_options,
         Some(SourceId(source_label.clone())),
     );
+    let morphology_attempt = morphology_attempt.into_data();
     let morphology_trace_stderr = render_cli_trace(
         morphology_attempt.trace.as_ref(),
         color_policy.stderr,
         diagnostic_terminal_width,
     );
+    let morphology_diagnostics = morphology_warning_diagnostics(
+        &morphology_attempt.warnings,
+        Some(SourceId(source_label.clone())),
+        &text,
+    );
     let words = match morphology_attempt.result {
         Ok(words) => words,
         Err(error) => {
-            let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
             let mut stderr = morphology_trace_stderr;
             stderr.push_str(&render_source_diagnostics(
                 &source_label,
                 &text,
-                std::slice::from_ref(&diagnostic),
+                &diagnostics,
                 color_policy.stderr,
                 diagnostic_detail,
                 diagnostic_terminal_width,
@@ -931,13 +958,14 @@ fn render_gentufa(
     let parsed = match parsed.result {
         Ok(parsed) => parsed,
         Err(error) => {
-            let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
             let mut stderr = morphology_trace_stderr;
             stderr.push_str(&trace_stderr);
             stderr.push_str(&render_source_diagnostics(
                 &source_label,
                 &text,
-                std::slice::from_ref(&diagnostic),
+                &diagnostics,
                 color_policy.stderr,
                 diagnostic_detail,
                 diagnostic_terminal_width,
@@ -949,11 +977,13 @@ fn render_gentufa(
             }));
         }
     };
-    let diagnostics = parsed
-        .warnings
-        .iter()
-        .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text))
-        .collect::<Vec<_>>();
+    let mut diagnostics = morphology_diagnostics;
+    diagnostics.extend(
+        parsed
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+    );
     let mut stderr = morphology_trace_stderr;
     stderr.push_str(&trace_stderr);
     stderr.push_str(&render_source_diagnostics(
@@ -1074,6 +1104,19 @@ fn render_source_diagnostics(
         },
     )
     .map_err(|error| anyhow!(error))
+}
+
+#[requires(true)]
+#[ensures(ret.len() == warnings.len())]
+fn morphology_warning_diagnostics(
+    warnings: &[MorphologyWarning],
+    source_id: Option<SourceId>,
+    source: &str,
+) -> Vec<Diagnostic> {
+    warnings
+        .iter()
+        .map(|warning| warning.to_diagnostic(source_id.clone(), source))
+        .collect()
 }
 
 #[requires(limit > 0)]
@@ -2161,6 +2204,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlasei_cgv_warning_keeps_json_stdout_clean() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "json", "siatl."])
+            .expect("vlasei json");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
+
+        assert_eq!(status, CliStatus::Success);
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        let _json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("morphology.warning.experimental-cgv"));
+        assert!(stderr.contains("experimental morphology"));
+        assert!(!stdout.contains("morphology.warning.experimental-cgv"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlasei_raw_output_is_debug_morphology() {
         let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "raw", "coi"])
             .expect("vlasei raw");
@@ -2319,6 +2381,28 @@ mod tests {
             assert!(!text.contains("\"constructor\""));
             assert!(!text.contains("\"kind\": \"node\""));
             assert!(!text.contains("\"leadingNai\""));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_morphology_warnings_go_to_stderr() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "json", "la", "siatl.", "cu", "klama",
+            ])
+            .expect("gentufa json");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            let _json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("morphology.warning.experimental-cgv"));
+            assert!(stderr.contains("experimental morphology"));
+            assert!(!stdout.contains("morphology.warning.experimental-cgv"));
         });
     }
 
@@ -2729,12 +2813,14 @@ mod tests {
         let mut error = Vec::new();
         let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
 
-        assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        assert_eq!(status, CliStatus::Success);
+        assert!(!output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("trace[morphology]"), "{stderr}");
-        assert!(!stderr.contains("unsupported word shape"), "{stderr}");
-        assert!(stderr.contains("morphology.cgv-ban"), "{stderr}");
+        assert!(
+            stderr.contains("morphology.warning.experimental-cgv"),
+            "{stderr}"
+        );
     }
 
     #[test]

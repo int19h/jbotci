@@ -334,7 +334,7 @@ fn writer_keeps_tree_and_output_values() {
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
-        dialect: Some("(allow-cgv)".into()),
+        dialect: Some("(case-insensitive)".into()),
         translation_en: None,
         gloss_en: None,
         tags: vec![],
@@ -383,7 +383,11 @@ fn writer_keeps_tree_and_output_values() {
     };
     write_fixture_file(&fixture_path, &test_case).expect("write fixture");
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
-    assert!(text.starts_with("id = \"adhoc.syntax\"\nlojban = \"coi\"\ndialect = \"(allow-cgv)\""));
+    assert!(
+        text.starts_with(
+            "id = \"adhoc.syntax\"\nlojban = \"coi\"\ndialect = \"(case-insensitive)\""
+        )
+    );
     assert!(text.contains("[expectations.output.vlasei]\njson = "));
     assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
     assert!(text.contains("tree = '\"coi\"'"));

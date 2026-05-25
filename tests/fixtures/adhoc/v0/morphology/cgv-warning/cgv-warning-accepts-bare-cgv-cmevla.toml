@@ -1,11 +1,11 @@
-id = "adhoc.v0.morphology.allow-cgv.allow-cgv-accepts-bare-cgv-cmevla"
+id = "adhoc.v0.morphology.cgv-warning.cgv-warning-accepts-bare-cgv-cmevla"
 lojban = "la siatl."
-dialect = "(allow-cgv)"
 tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
 raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "sĭatl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })]'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [3, 6], source-text = "sia", message = "experimental morphology: consonant-glide-vowel sequence" }]
 
 [expectations.output.vlasei]
 brackets = "(la .sĭatl.)"

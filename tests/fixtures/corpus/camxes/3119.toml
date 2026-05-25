@@ -7,5 +7,6 @@ corpus = "camxes"
 entry-id = "3119"
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.cgv-ban", byte-span = [4, 7], source-text = "dua", message = "consonant-glide-vowel sequences are not allowed" }]
+status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "edŭard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [4, 7], source-text = "dua", message = "experimental morphology: consonant-glide-vowel sequence" }]

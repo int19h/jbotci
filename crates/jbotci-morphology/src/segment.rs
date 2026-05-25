@@ -88,6 +88,25 @@ impl MorphologyViolation {
     }
 }
 
+#[invariant(self.start < self.end, "source ranges must cover a non-empty span")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SourceRange {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl SourceRange {
+    #[requires(start < end)]
+    #[ensures(ret.start == start)]
+    #[ensures(ret.end == end)]
+    fn new(start: usize, end: usize) -> Self {
+        new!(SourceRange {
+            start: start,
+            end: end,
+        })
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.iter().all(|item| is_valid_normalized_char(item.value)))]
 pub(crate) fn normalize_source_chars(
@@ -111,7 +130,6 @@ pub(crate) fn normalize_source_chars(
 #[ensures(ret.as_ref().is_none_or(|violation| violation.start < violation.end))]
 pub(crate) fn first_morphology_violation(
     chars: &[NormalizedSourceChar],
-    options: &MorphologyOptions,
 ) -> Option<MorphologyViolation> {
     let values = normalized_values(chars);
     let range = invalid_apostrophe_range(&values)
@@ -132,11 +150,6 @@ pub(crate) fn first_morphology_violation(
                 .map(|range| (MorphologyErrorKind::GeminatedConsonant, range))
         })
         .or_else(|| y_hiatus_range(&values).map(|range| (MorphologyErrorKind::YHiatus, range)))
-        .or_else(|| {
-            (options.enforce_cgv_ban)
-                .then(|| cgv_range(&values).map(|range| (MorphologyErrorKind::CgvBan, range)))
-                .flatten()
-        })
         .or_else(|| {
             vowel_hiatus_range(&values).map(|range| (MorphologyErrorKind::VowelHiatus, range))
         })
@@ -160,6 +173,13 @@ pub(crate) fn first_morphology_violation(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end))]
+pub(crate) fn cgv_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceRange> {
+    let values = normalized_values(chars);
+    cgv_range(&values).and_then(|range| source_range_from_normalized_range(chars, range))
+}
+
+#[requires(true)]
 #[ensures(ret.len() == chars.len())]
 fn normalized_values(chars: &[NormalizedSourceChar]) -> Vec<char> {
     chars.iter().map(|value| value.value).collect()
@@ -173,9 +193,20 @@ fn violation_from_normalized_range(
     kind: MorphologyErrorKind,
     range: Range<usize>,
 ) -> Option<MorphologyViolation> {
+    let range = source_range_from_normalized_range(chars, range)?;
+    Some(MorphologyViolation::new(kind, range.start, range.end))
+}
+
+#[requires(range.start < range.end)]
+#[requires(range.end <= chars.len())]
+#[ensures(ret.as_ref().is_some_and(|range| range.start < range.end))]
+fn source_range_from_normalized_range(
+    chars: &[NormalizedSourceChar],
+    range: Range<usize>,
+) -> Option<SourceRange> {
     let start = chars.get(range.start)?.source_index;
     let end = chars.get(range.end - 1)?.source_index + 1;
-    (start < end).then(|| MorphologyViolation::new(kind, start, end))
+    (start < end).then(|| SourceRange::new(start, end))
 }
 
 #[requires(true)]
@@ -201,7 +232,7 @@ pub(crate) fn classify_word_with_options(
     }
 
     let normalized_chars = text_chars(normalized_word);
-    let blocks_brivla = blocks_word_shape(&normalized_chars, options);
+    let blocks_brivla = blocks_word_shape(&normalized_chars);
 
     if !blocks_brivla && is_gismu(&stripped) {
         return Some((
@@ -618,11 +649,11 @@ fn starts_with_cluster(chars: &[char], start: usize) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptions) -> bool {
+pub(crate) fn is_cmevla_with_options(normalized: &str, _options: &MorphologyOptions) -> bool {
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
-        && !blocks_word_shape(&chars, options)
+        && !blocks_word_shape(&chars)
         && !has_forbidden_consonant_triple(&chars)
         && !has_forbidden_consonant_pair(&chars)
         && !has_digit_followed_by_nucleus(&chars)
@@ -636,12 +667,11 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptio
 
 #[requires(true)]
 #[ensures(true)]
-fn blocks_word_shape(chars: &[char], options: &MorphologyOptions) -> bool {
+fn blocks_word_shape(chars: &[char]) -> bool {
     has_invalid_apostrophe(chars)
         || has_digit_followed_by_nucleus(chars)
         || has_geminated_consonant(chars)
         || has_y_hiatus(chars)
-        || (options.enforce_cgv_ban && contains_cgv(chars))
         || has_vowel_hiatus(chars)
         || has_voicing_mismatch(chars)
         || has_forbidden_consonant_triple(chars)
@@ -896,12 +926,6 @@ fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
         }
     }
     None
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn contains_cgv(chars: &[char]) -> bool {
-    cgv_range(chars).is_some()
 }
 
 #[requires(true)]
@@ -1470,6 +1494,7 @@ fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bo
         || starts_jr_vowel(chars, index, end)
         || starts_consonantal_then_forbidden_initial(chars, index, end)
         || starts_gn_vowel(chars, index, end)
+        || starts_cgv_sequence(chars, index, end)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -1523,6 +1548,12 @@ fn starts_consonantal_then_forbidden_initial(chars: &[char], index: usize, end: 
 #[ensures(true)]
 fn starts_gn_vowel(chars: &[char], index: usize, end: usize) -> bool {
     index + 2 < end && chars[index] == 'g' && chars[index + 1] == 'n' && is_vowel(chars[index + 2])
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_cgv_sequence(chars: &[char], index: usize, end: usize) -> bool {
+    index < end && is_consonant(chars[index]) && starts_glide(chars, index + 1)
 }
 
 #[requires(start <= end && end <= chars.len())]

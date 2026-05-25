@@ -35,7 +35,6 @@ impl DialectError {
 pub enum DialectFeature {
     Cbm,
     Gadganzu,
-    AllowCgv,
     CaseInsensitive,
     SoiAdverbials,
     TermHierarchy,
@@ -55,7 +54,6 @@ impl DialectFeature {
         &[
             Self::Cbm,
             Self::Gadganzu,
-            Self::AllowCgv,
             Self::CaseInsensitive,
             Self::SoiAdverbials,
             Self::TermHierarchy,
@@ -75,7 +73,6 @@ impl DialectFeature {
         match self {
             Self::Cbm => "cbm",
             Self::Gadganzu => "gadganzu",
-            Self::AllowCgv => "allow-cgv",
             Self::CaseInsensitive => "case-insensitive",
             Self::SoiAdverbials => "soi-adverbials",
             Self::TermHierarchy => "term-hierarchy",
@@ -555,7 +552,6 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
         ("gadganzu", "(+GADGANZU)"),
-        ("allow-cgv", "(+ALLOW-CGV)"),
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
         ("soi-adverbials", "(+SOI-ADVERBIALS)"),
         ("term-hierarchy", "(+TERM-HIERARCHY)"),

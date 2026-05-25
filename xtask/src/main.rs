@@ -11,7 +11,9 @@ use clap::{Args, Parser, Subcommand};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
-    MorphologyError, MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
+    MorphologyError, MorphologyOptions, MorphologyWarning,
+    segment_words_with_modifiers_with_options_and_source_id,
+    segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, TreeRenderOptions,
@@ -634,22 +636,28 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
     let dialect = fixture.test_case.dialect_definition()?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = segment_words_with_modifiers_with_options_and_source_id(
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
         &morphology_options,
         Some(SourceId("<fixture>".to_owned())),
     );
+    let attempt = attempt.into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
 
-    match words {
+    match attempt.result {
         Err(error) => {
             let diagnostic = error.to_diagnostic(
                 Some(SourceId("<fixture>".to_owned())),
                 &fixture.test_case.lojban,
             );
-            let diagnostics = diagnostic_expectation_items(
+            let mut diagnostics = morphology_warning_diagnostics;
+            diagnostics.extend(diagnostic_expectation_items(
                 &fixture.test_case.lojban,
                 std::slice::from_ref(&diagnostic),
-            );
+            ));
             if migrate_morphology
                 || migrate_success_morphology_now_failure
                 || refresh_morphology_failure_diagnostics
@@ -681,17 +689,123 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
                     .syntax
                     .as_mut()
                     .expect("syntax expectation was checked")
-                    .diagnostics = diagnostics;
+                    .status = ExpectationStatus::Failure;
+                let syntax = fixture
+                    .test_case
+                    .expectations
+                    .syntax
+                    .as_mut()
+                    .expect("syntax expectation was checked");
+                syntax.raw = None;
+                syntax.diagnostics = diagnostics;
             }
         }
         Ok(words) => {
-            if migrate_syntax {
-                migrate_legacy_syntax_placeholder_after_morphology_success(
+            if migrate_morphology
+                || migrate_success_morphology_now_failure
+                || refresh_morphology_failure_diagnostics
+            {
+                refresh_morphology_success_expectations(
+                    fixture,
+                    &words,
+                    &morphology_warning_diagnostics,
+                )?;
+            }
+            if migrate_syntax
+                || migrate_syntax_parse_blocked_by_morphology
+                || refresh_syntax_blocking_morphology_diagnostics
+            {
+                refresh_syntax_after_morphology_success(
                     fixture,
                     &words,
                     &syntax_options,
+                    &morphology_warning_diagnostics,
                 )?;
             }
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn refresh_morphology_success_expectations(
+    fixture: &mut LoadedTestCase,
+    words: &[jbotci_morphology::WordLike],
+    diagnostics: &[fixtures::DiagnosticExpectation],
+) -> Result<()> {
+    let morphology = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_mut()
+        .expect("morphology expectation was checked");
+    morphology.status = ExpectationStatus::Success;
+    morphology.raw = Some(text_expectation(format_debug_value(words)));
+    morphology.diagnostics = diagnostics.to_vec();
+    let vlasei = ensure_vlasei_output(&mut fixture.test_case.expectations);
+    vlasei.json = Some(text_expectation(
+        compact_morphology_json_string_with_options(
+            words,
+            JsonRenderOptions {
+                indent: 0,
+                ..JsonRenderOptions::default()
+            },
+        )?,
+    ));
+    vlasei.brackets = Some(text_expectation(pretty_morphology_brackets_with_options(
+        words,
+        &fixture.test_case.lojban,
+        BracketRenderOptions {
+            color: false,
+            ..BracketRenderOptions::default()
+        },
+    )?));
+    vlasei.tree = Some(text_expectation(pretty_morphology_tree_with_options(
+        words,
+        &fixture.test_case.lojban,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            show_spans: true,
+            ..TreeRenderOptions::default()
+        },
+    )?));
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn refresh_syntax_after_morphology_success(
+    fixture: &mut LoadedTestCase,
+    words: &[jbotci_morphology::WordLike],
+    syntax_options: &ParseOptions,
+    morphology_diagnostics: &[fixtures::DiagnosticExpectation],
+) -> Result<()> {
+    let source = fixture.test_case.lojban.clone();
+    let syntax = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_mut()
+        .expect("syntax expectation was checked");
+    match parse_syntax_tree_with_source_and_options(words, &source, syntax_options) {
+        Ok(parsed) => {
+            syntax.status = ExpectationStatus::Success;
+            syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
+            let mut diagnostics = morphology_diagnostics.to_vec();
+            diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+                &source,
+                &parsed.warnings,
+            ));
+            syntax.diagnostics = diagnostics;
+        }
+        Err(error) => {
+            syntax.status = ExpectationStatus::Failure;
+            syntax.raw = None;
+            let mut diagnostics = morphology_diagnostics.to_vec();
+            diagnostics.extend(syntax_error_diagnostic_expectation_items(&source, &error));
+            syntax.diagnostics = diagnostics;
         }
     }
     Ok(())
@@ -727,34 +841,6 @@ fn clear_vlasei_output(expectations: &mut fixtures::Expectations) {
     if output.gentufa.is_none() {
         expectations.output = None;
     }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn migrate_legacy_syntax_placeholder_after_morphology_success(
-    fixture: &mut LoadedTestCase,
-    words: &[jbotci_morphology::WordLike],
-    syntax_options: &ParseOptions,
-) -> Result<()> {
-    let source = fixture.test_case.lojban.clone();
-    let syntax = fixture
-        .test_case
-        .expectations
-        .syntax
-        .as_mut()
-        .expect("syntax expectation was checked");
-    match parse_syntax_tree_with_source_and_options(words, &source, syntax_options) {
-        Ok(parsed) => {
-            syntax.status = ExpectationStatus::Success;
-            syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
-            syntax.diagnostics =
-                syntax_warning_diagnostic_expectation_items(&source, &parsed.warnings);
-        }
-        Err(error) => {
-            syntax.diagnostics = syntax_error_diagnostic_expectation_items(&source, &error);
-        }
-    }
-    Ok(())
 }
 
 #[requires(true)]
@@ -1067,8 +1153,23 @@ fn morphology_error_diagnostic_expectation_items(
 }
 
 #[requires(true)]
+#[ensures(ret.len() == warnings.len())]
+fn morphology_warning_diagnostic_expectation_items(
+    source: &str,
+    warnings: &[MorphologyWarning],
+) -> Vec<fixtures::DiagnosticExpectation> {
+    warnings
+        .iter()
+        .map(|warning| {
+            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        })
+        .collect()
+}
+
+#[requires(true)]
 #[ensures(true)]
-fn format_debug_value<T: std::fmt::Debug>(value: &T) -> String {
+fn format_debug_value<T: std::fmt::Debug + ?Sized>(value: &T) -> String {
     format!("{value:?}")
 }
 
@@ -2195,20 +2296,27 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     };
     let options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
         &options,
         Some(SourceId("<fixture>".to_owned())),
-    ) {
+    );
+    let attempt = attempt.into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    let words = match attempt.result {
         Ok(words) => words,
         Err(error) => {
             return match expectation.status {
                 ExpectationStatus::Failure => {
                     if !expectation.diagnostics.is_empty() {
-                        let actual = morphology_error_diagnostic_expectation_items(
+                        let mut actual = morphology_warning_diagnostics.clone();
+                        actual.extend(morphology_error_diagnostic_expectation_items(
                             &fixture.test_case.lojban,
                             &error,
-                        );
+                        ));
                         if expectation.diagnostics == actual {
                             syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
                                 .unwrap_or_else(FacetResult::passed)
@@ -2246,10 +2354,11 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => match expectation.status {
             ExpectationStatus::Success => {
                 if !expectation.diagnostics.is_empty() {
-                    let actual = syntax_warning_diagnostic_expectation_items(
+                    let mut actual = morphology_warning_diagnostics.clone();
+                    actual.extend(syntax_warning_diagnostic_expectation_items(
                         &fixture.test_case.lojban,
                         &parsed.warnings,
-                    );
+                    ));
                     if expectation.diagnostics != actual {
                         return FacetResult::failed(format!(
                             "syntax diagnostics mismatch: expected {:?}, got {actual:?}",
@@ -2328,10 +2437,11 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
             }
             ExpectationStatus::Failure => {
                 if !expectation.diagnostics.is_empty() {
-                    let actual = syntax_error_diagnostic_expectation_items(
+                    let mut actual = morphology_warning_diagnostics.clone();
+                    actual.extend(syntax_error_diagnostic_expectation_items(
                         &fixture.test_case.lojban,
                         &error,
-                    );
+                    ));
                     if expectation.diagnostics == actual {
                         syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
                             .unwrap_or_else(FacetResult::passed)
@@ -2391,28 +2501,47 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
                 Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
             };
-            match segment_words_with_modifiers_with_options_and_source_id(
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
                 &fixture.test_case.lojban,
                 &options,
                 Some(SourceId("<fixture>".to_owned())),
-            ) {
-                Ok(actual)
+            );
+            let attempt = attempt.into_data();
+            match attempt.result {
+                Ok(actual) => {
+                    if !expectation.diagnostics.is_empty() {
+                        let diagnostics = morphology_warning_diagnostic_expectation_items(
+                            &fixture.test_case.lojban,
+                            &attempt.warnings,
+                        );
+                        if expectation.diagnostics != diagnostics {
+                            return FacetResult::failed(format!(
+                                "morphology diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+                                expectation.diagnostics
+                            ));
+                        }
+                    }
+                    if expectation.raw.is_none() && !expectation.diagnostics.is_empty() {
+                        return FacetResult::passed();
+                    }
                     if expectation
                         .raw
                         .as_ref()
-                        .is_some_and(|raw| debug_value_matches(&actual, &raw.text)) =>
-                {
-                    FacetResult::passed()
+                        .is_some_and(|raw| debug_value_matches(&actual, &raw.text))
+                    {
+                        FacetResult::passed()
+                    } else {
+                        FacetResult::failed(format_text_mismatch(
+                            "morphology raw",
+                            expectation
+                                .raw
+                                .as_ref()
+                                .map(|raw| raw.text.as_str())
+                                .unwrap_or_default(),
+                            &format_debug_prefix(&actual),
+                        ))
+                    }
                 }
-                Ok(actual) => FacetResult::failed(format_text_mismatch(
-                    "morphology raw",
-                    expectation
-                        .raw
-                        .as_ref()
-                        .map(|raw| raw.text.as_str())
-                        .unwrap_or_default(),
-                    &format_debug_prefix(&actual),
-                )),
                 Err(error) => {
                     if !expectation.diagnostics.is_empty() {
                         let actual = morphology_error_diagnostic_expectation_items(

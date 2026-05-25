@@ -1,11 +1,11 @@
-id = "adhoc.v0.morphology.allow-cgv.allow-cgv-accepts-cgv-city-name"
+id = "adhoc.v0.morphology.cgv-warning.cgv-warning-accepts-cgv-city-name"
 lojban = "la .tokios."
-dialect = "(allow-cgv)"
 tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
 raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "tokĭos" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None } })]'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [6, 9], source-text = "kio", message = "experimental morphology: consonant-glide-vowel sequence" }]
 
 [expectations.output.vlasei]
 brackets = "(la .tokĭos.)"

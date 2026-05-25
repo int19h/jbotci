@@ -8,4 +8,4 @@ entry-id = "21895"
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.cgv-ban", byte-span = [7, 10], source-text = "guy", message = "consonant-glide-vowel sequences are not allowed" }]
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [7, 10], source-text = "guy", message = "experimental morphology: consonant-glide-vowel sequence" }, { severity = "error", code = "syntax.parse", byte-span = [7, 11], source-text = "guys", message = "syntax parse failed" }]

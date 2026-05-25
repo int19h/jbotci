@@ -164,10 +164,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "recorder state is deliberately mutable; public recorder methods enforce event and limit invariants",
     ),
     (
-        "crates/jbotci-morphology/src/lib.rs:MorphologySegmentAttempt",
-        "attempt combines parser result with optional trace report without extra cross-field constraints",
-    ),
-    (
         "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
         "trace renderer options are caller-selected presentation controls",
     ),
