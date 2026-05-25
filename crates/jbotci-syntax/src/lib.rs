@@ -540,8 +540,56 @@ fn merge_expectations_by_reason(expectations: &[SyntaxExpectation]) -> Vec<Synta
             *expectation = expectation.clone().with_data(data! { tokens: tokens });
         }
     }
+    retain_innermost_continue_expectations(&mut merged);
     merged.sort_by(compare_syntax_expectations);
     merged
+}
+
+#[requires(true)]
+#[ensures(expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+fn retain_innermost_continue_expectations(expectations: &mut Vec<SyntaxExpectation>) {
+    let keep = expectations
+        .iter()
+        .enumerate()
+        .map(|(index, expectation)| {
+            !has_deeper_continue_with_same_tokens(index, expectation, expectations)
+        })
+        .collect::<Vec<_>>();
+    let mut index = 0;
+    expectations.retain(|_| {
+        let keep_current = keep[index];
+        index += 1;
+        keep_current
+    });
+}
+
+#[requires(index < expectations.len())]
+#[requires(!expectation.tokens.is_empty())]
+#[ensures(true)]
+fn has_deeper_continue_with_same_tokens(
+    index: usize,
+    expectation: &SyntaxExpectation,
+    expectations: &[SyntaxExpectation],
+) -> bool {
+    let Some(construct) = continue_current_construct(&expectation.reason) else {
+        return false;
+    };
+    let depth = syntax_construct_depth(construct);
+    expectations.iter().enumerate().any(|(other_index, other)| {
+        other_index != index
+            && other.tokens == expectation.tokens
+            && continue_current_construct(&other.reason)
+                .is_some_and(|other_construct| syntax_construct_depth(other_construct) > depth)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|construct| !construct.is_empty()))]
+fn continue_current_construct(reason: &SyntaxExpectationReason) -> Option<&str> {
+    match reason.as_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { construct }) => Some(construct),
+        _ => None,
+    }
 }
 
 #[requires(!expectation.tokens.is_empty())]
@@ -1481,6 +1529,42 @@ mod tests {
         let text = segment_text(&syntax_detailed_segments(&expectations));
 
         assert!(text.contains("- argument (BRIVLA, GAhO, be or lo)"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn duplicate_continue_groups_keep_innermost_construct() {
+        let tokens = vec![
+            new!(SyntaxExpectedToken::Selmaho(Selmaho::Se)),
+            new!(SyntaxExpectedToken::Selmaho(Selmaho::Bihi)),
+        ];
+        let expectations = vec![
+            SyntaxExpectation::new(
+                tokens.clone(),
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "statement".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                tokens.clone(),
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "relation".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                tokens,
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "argument".to_owned(),
+                }),
+            ),
+        ];
+
+        let text = segment_text(&syntax_detailed_segments(&expectations));
+
+        assert!(text.contains("- BIhI or SE [continues argument]"));
+        assert!(!text.contains("[continues relation]"));
+        assert!(!text.contains("[continues statement]"));
     }
 
     #[test]
