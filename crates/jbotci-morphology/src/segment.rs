@@ -7,7 +7,10 @@ use crate::{Jvopau, MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
-use fast::{is_fast_initial_pair_chars, is_fast_permissible_consonant_pair};
+use fast::{
+    is_fast_experimental_permissible_consonant_pair, is_fast_initial_pair_chars,
+    is_fast_permissible_consonant_pair,
+};
 
 #[requires(true)]
 #[ensures(true)]
@@ -177,6 +180,13 @@ pub(crate) fn first_morphology_violation(
 pub(crate) fn cgv_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceRange> {
     let values = normalized_values(chars);
     cgv_range(&values).and_then(|range| source_range_from_normalized_range(chars, range))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end))]
+pub(crate) fn experimental_mz_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceRange> {
+    let values = normalized_values(chars);
+    mz_pair_range(&values).and_then(|range| source_range_from_normalized_range(chars, range))
 }
 
 #[requires(true)]
@@ -769,9 +779,29 @@ fn forbidden_consonant_pair_range(chars: &[char]) -> Option<Range<usize>> {
             return None;
         }
         let next = next_non_comma_index(chars, index + 1)?;
-        (is_consonant(chars[next]) && !is_fast_permissible_consonant_pair(*value, chars[next]))
-            .then_some(index..next + 1)
+        (is_consonant(chars[next])
+            && !mz_pair(*value, chars[next])
+            && !is_fast_permissible_consonant_pair(*value, chars[next]))
+        .then_some(index..next + 1)
     })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn mz_pair_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !is_consonant(*value) {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        mz_pair(*value, chars[next]).then_some(index..next + 1)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret == (first == 'm' && second == 'z'))]
+fn mz_pair(first: char, second: char) -> bool {
+    first == 'm' && second == 'z'
 }
 
 #[requires(true)]
@@ -1018,7 +1048,7 @@ fn is_gismu(word: &str) -> bool {
                 && is_consonant(*c)
                 && is_consonant(*d)
                 && is_vowel(*e)
-                && is_fast_permissible_consonant_pair(*c, *d))
+                && is_fast_experimental_permissible_consonant_pair(*c, *d))
                 || (is_fast_initial_pair_chars(*a, *b)
                     && is_vowel(*c)
                     && is_consonant(*d)

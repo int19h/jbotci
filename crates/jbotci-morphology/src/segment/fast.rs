@@ -65,7 +65,7 @@ fn is_fast_simple_gismu(word: &str) -> bool {
                 && is_fast_consonant(*c)
                 && is_fast_consonant(*d)
                 && is_fast_vowel(*e)
-                && is_fast_permissible_consonant_pair(*c, *d))
+                && is_fast_experimental_permissible_consonant_pair(*c, *d))
                 || (is_fast_initial_pair_chars(*a, *b)
                     && is_fast_vowel(*c)
                     && is_fast_consonant(*d)
@@ -147,7 +147,7 @@ fn fast_rafsi_boundaries_are_valid(parts: &[&str]) -> bool {
             return true;
         };
         if is_fast_consonant(left_tail) && is_fast_consonant(right_head) {
-            is_fast_permissible_consonant_pair(left_tail, right_head)
+            is_fast_experimental_permissible_consonant_pair(left_tail, right_head)
                 && !(left_tail == 'n'
                     && (right.starts_with("ts")
                         || right.starts_with("tc")
@@ -256,6 +256,12 @@ pub(super) fn is_fast_initial_pair_chars(first: char, second: char) -> bool {
 #[ensures(true)]
 pub(super) fn is_fast_permissible_consonant_pair(first: char, second: char) -> bool {
     matches!(fast_consonant_pair_class(first, second), Some(1 | 2))
+}
+
+#[requires(true)]
+#[ensures(ret == (is_fast_permissible_consonant_pair(first, second) || (first == 'm' && second == 'z')))]
+pub(super) fn is_fast_experimental_permissible_consonant_pair(first: char, second: char) -> bool {
+    is_fast_permissible_consonant_pair(first, second) || (first == 'm' && second == 'z')
 }
 
 #[requires(true)]

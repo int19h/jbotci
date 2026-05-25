@@ -1195,13 +1195,18 @@ impl<'a> Segmenter<'a> {
         } else {
             Word::from_kind(kind, phonemes, span)
         };
-        self.warn_cgv_relaxation(start, end, kind);
+        self.warn_experimental_morphology_relaxations(start, end, kind);
         Ok(base_word_like(WordLike::bare(word)))
     }
 
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
-    fn warn_cgv_relaxation(&mut self, start: usize, end: usize, kind: WordKind) {
+    fn warn_experimental_morphology_relaxations(
+        &mut self,
+        start: usize,
+        end: usize,
+        kind: WordKind,
+    ) {
         let normalized = crate::segment::normalize_source_chars(
             self.chars[start..end]
                 .iter()
@@ -1209,16 +1214,23 @@ impl<'a> Segmenter<'a> {
                 .map(|(offset, source_char)| (start + offset, source_char.value)),
             self.options,
         );
-        let Some(range) = crate::segment::cgv_source_range(&normalized) else {
-            return;
-        };
-        self.warnings.push(MorphologyWarning::new(
-            MorphologyWarningKind::ExperimentalCgv,
-            range.start,
-            range.end,
-            self.slice(range.start, range.end).to_owned(),
-            self.context(word_context_kind(kind), start, end),
-        ));
+        let mut warnings = Vec::new();
+        if let Some(range) = crate::segment::cgv_source_range(&normalized) {
+            warnings.push((MorphologyWarningKind::ExperimentalCgv, range));
+        }
+        if let Some(range) = crate::segment::experimental_mz_source_range(&normalized) {
+            warnings.push((MorphologyWarningKind::ExperimentalMz, range));
+        }
+        warnings.sort_by_key(|(_, range)| (range.start, range.end));
+        for (warning_kind, range) in warnings {
+            self.warnings.push(MorphologyWarning::new(
+                warning_kind,
+                range.start,
+                range.end,
+                self.slice(range.start, range.end).to_owned(),
+                self.context(word_context_kind(kind), start, end),
+            ));
+        }
     }
 
     #[requires(true)]
@@ -1913,8 +1925,8 @@ mod tests {
         let cases = [
             ("basza", MorphologyErrorKind::VoicingMismatch, 2, 4),
             ("lapda", MorphologyErrorKind::VoicingMismatch, 2, 4),
-            ("namzi", MorphologyErrorKind::ForbiddenConsonantPair, 2, 4),
             ("basca", MorphologyErrorKind::ForbiddenConsonantPair, 2, 4),
+            ("najza", MorphologyErrorKind::ForbiddenConsonantPair, 2, 4),
         ];
 
         for (source, expected_kind, expected_start, expected_end) in cases {
@@ -1928,6 +1940,56 @@ mod tests {
                 Some(MorphologyContextKind::Fuhivla),
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mz_relaxation_accepts_gismu_shape_with_warning() {
+        let attempt =
+            segment_words_with_modifiers_attempt("namzi", &MorphologyOptions::default(), None);
+        let data = attempt.into_data();
+        let words = data
+            .result
+            .expect("MZ relaxation should permit gismu shape");
+
+        assert_eq!(bare_phonemes(&words), ["námzi"]);
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(data.warnings[0].kind, MorphologyWarningKind::ExperimentalMz);
+        assert_eq!(data.warnings[0].char_start, 2);
+        assert_eq!(data.warnings[0].char_end, 4);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mz_relaxation_accepts_lujvo_boundary_with_warning() {
+        let attempt =
+            segment_words_with_modifiers_attempt("kamzifre", &MorphologyOptions::default(), None);
+        let data = attempt.into_data();
+        let words = data
+            .result
+            .expect("MZ relaxation should permit lujvo boundary");
+
+        assert_eq!(bare_phonemes(&words), ["kamzífre"]);
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(data.warnings[0].kind, MorphologyWarningKind::ExperimentalMz);
+        assert_eq!(data.warnings[0].char_start, 2);
+        assert_eq!(data.warnings[0].char_end, 4);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mz_relaxation_does_not_make_mz_an_initial_pair() {
+        assert!(
+            crate::segment::classify_word_with_options(
+                "mzai",
+                "mzai",
+                &MorphologyOptions::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]

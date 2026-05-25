@@ -2177,6 +2177,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlasei_mz_warning_keeps_json_stdout_clean() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "json", "namzi"])
+            .expect("vlasei json");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
+
+        assert_eq!(status, CliStatus::Success);
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        let _json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("morphology.warning.experimental-mz"));
+        assert!(stderr.contains("experimental morphology: MZ consonant pair"));
+        assert!(!stdout.contains("morphology.warning.experimental-mz"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlasei_raw_output_is_debug_morphology() {
         let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "raw", "coi"])
             .expect("vlasei raw");

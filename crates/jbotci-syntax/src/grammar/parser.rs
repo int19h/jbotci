@@ -8,6 +8,9 @@ use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::cell::Cell;
 
+type OptionalWordWithFreeModifiers = Option<Box<WithFreeModifiers<WithIndicators<WordLike>>>>;
+type OptionalWordFreeModifierSplit = (OptionalWordWithFreeModifiers, Vec<FreeModifierSyntax>);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct LeadingIStatementSyntax {
@@ -237,10 +240,7 @@ fn attach_tense_modal_free_modifiers(
 fn split_optional_word_free_modifiers(
     word: Option<WithIndicators<WordLike>>,
     free_modifiers: Vec<FreeModifierSyntax>,
-) -> (
-    Option<Box<WithFreeModifiers<WithIndicators<WordLike>>>>,
-    Vec<FreeModifierSyntax>,
-) {
+) -> OptionalWordFreeModifierSplit {
     match word {
         Some(word) => (
             Some(Box::new(WithFreeModifiers::new(word, free_modifiers))),

@@ -914,6 +914,7 @@ impl MorphologyErrorKind {
 #[invariant(true)]
 pub enum MorphologyWarningKind {
     ExperimentalCgv,
+    ExperimentalMz,
 }
 
 impl MorphologyWarningKind {
@@ -922,6 +923,7 @@ impl MorphologyWarningKind {
     pub fn code(self) -> &'static str {
         match self {
             Self::ExperimentalCgv => "morphology.warning.experimental-cgv",
+            Self::ExperimentalMz => "morphology.warning.experimental-mz",
         }
     }
 
@@ -930,6 +932,7 @@ impl MorphologyWarningKind {
     pub fn message(self) -> &'static str {
         match self {
             Self::ExperimentalCgv => "experimental morphology: consonant-glide-vowel sequence",
+            Self::ExperimentalMz => "experimental morphology: MZ consonant pair",
         }
     }
 
@@ -940,6 +943,18 @@ impl MorphologyWarningKind {
             Self::ExperimentalCgv => {
                 "consonant-glide-vowel sequence accepted as experimental morphology"
             }
+            Self::ExperimentalMz => "MZ consonant pair accepted as experimental morphology",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn detail_reason(self) -> &'static str {
+        match self {
+            Self::ExperimentalCgv => {
+                "accepted by the experimental consonant-glide-vowel relaxation"
+            }
+            Self::ExperimentalMz => "accepted by the experimental MZ consonant-pair relaxation",
         }
     }
 }
@@ -996,7 +1011,7 @@ impl MorphologyWarning {
         .with_styled_notes(vec![morphology_detail_note(
             self.kind.message(),
             &self.text,
-            "accepted by the experimental consonant-glide-vowel relaxation",
+            self.kind.detail_reason(),
         )])
     }
 }
@@ -1876,6 +1891,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mz_relaxation_is_enabled_by_default_with_warning() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "la djeimz.",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("MZ relaxation should permit cmevla");
+
+        assert_eq!(base_phonemes(&words[1]).as_deref(), Some("djeĭmz"));
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(data.warnings[0].kind, MorphologyWarningKind::ExperimentalMz);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_error_kind_codes_are_stable() {
         let cases = [
             (
@@ -1975,11 +2007,18 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn morphology_warning_kind_codes_are_stable() {
-        let cases = [(
-            MorphologyWarningKind::ExperimentalCgv,
-            "morphology.warning.experimental-cgv",
-            "experimental morphology: consonant-glide-vowel sequence",
-        )];
+        let cases = [
+            (
+                MorphologyWarningKind::ExperimentalCgv,
+                "morphology.warning.experimental-cgv",
+                "experimental morphology: consonant-glide-vowel sequence",
+            ),
+            (
+                MorphologyWarningKind::ExperimentalMz,
+                "morphology.warning.experimental-mz",
+                "experimental morphology: MZ consonant pair",
+            ),
+        ];
 
         for (kind, code, message) in cases {
             assert_eq!(kind.code(), code);
@@ -2039,6 +2078,28 @@ mod tests {
         assert_eq!(label.span.char_start, 3);
         assert_eq!(label.span.char_end, 7);
         assert_eq!(&source[label.span.byte_start..label.span.byte_end], "xi,o");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_warning_diagnostic_maps_comma_crossing_mz_span() {
+        let source = "nam,zi";
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        data.result.expect("MZ relaxation should parse");
+        assert_eq!(data.warnings.len(), 1);
+        let diagnostic = data.warnings[0].to_diagnostic(None, source);
+
+        assert_eq!(diagnostic.code, "morphology.warning.experimental-mz");
+        let label = diagnostic.primary_label();
+        assert_eq!(label.span.char_start, 2);
+        assert_eq!(label.span.char_end, 5);
+        assert_eq!(&source[label.span.byte_start..label.span.byte_end], "m,z");
     }
 
     #[test]
