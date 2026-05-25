@@ -184,6 +184,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree macro test wrapper has no marker-specific payload rule",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:TreePathStep::SequenceIndex",
+        "tree path sequence indices accept every usize value",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
         "validation error wrapper carries path and entry diagnostics",
     ),

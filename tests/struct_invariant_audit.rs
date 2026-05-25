@@ -368,6 +368,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree field metadata is generated from static model definitions",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:TreePath",
+        "tree paths are any ordered sequence of validated path steps; tree-relative validity is checked during lookup",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:LeafNode",
         "tree macro test fixture intentionally has no extra field invariant",
     ),

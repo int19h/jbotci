@@ -44,6 +44,36 @@ fn expand_tree_model(mut items: Vec<Item>) -> syn::Result<proc_macro2::TokenStre
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>;
+
+            fn path_to_node<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+            ) -> Option<::jbotci_tree::TreePath> {
+                let mut path = ::jbotci_tree::TreePath::new();
+                if self.path_to_node_from(target, &mut path) {
+                    Some(path)
+                } else {
+                    None
+                }
+            }
+
+            fn node_at_path<'tree>(
+                &'tree self,
+                path: &::jbotci_tree::TreePath,
+            ) -> Option<NodeRef<'tree>> {
+                self.node_at_path_steps(path.steps())
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool;
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>>;
         }
 
         #wrapper_impls
@@ -295,6 +325,8 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
         Item::Enum(item) => node_ref_enum_is_variant_arms(item),
         _ => Vec::new(),
     });
+    let equality_arms = node_ref_equality_arms(items);
+    let hash_arms = node_ref_hash_arms(items);
     Ok(quote! {
         #[derive(Clone, Copy, Debug)]
         pub enum NodeRef<'tree> {
@@ -311,6 +343,28 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
             pub fn is_variant(self) -> bool {
                 match self {
                     #(#is_variant_arms,)*
+                }
+            }
+        }
+
+        impl ::core::cmp::PartialEq for NodeRef<'_> {
+            fn eq(&self, other: &Self) -> bool {
+                match (*self, *other) {
+                    #(#equality_arms,)*
+                    _ => false,
+                }
+            }
+        }
+
+        impl ::core::cmp::Eq for NodeRef<'_> {}
+
+        impl ::core::hash::Hash for NodeRef<'_> {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: ::core::hash::Hasher,
+            {
+                match *self {
+                    #(#hash_arms,)*
                 }
             }
         }
@@ -367,6 +421,49 @@ fn node_ref_enum_is_variant_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStrea
         .collect()
 }
 
+fn node_ref_equality_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
+    node_ref_variant_idents(items)
+        .into_iter()
+        .map(|ident| {
+            quote! {
+                (NodeRef::#ident(left), NodeRef::#ident(right)) => ::core::ptr::eq(left, right)
+            }
+        })
+        .collect()
+}
+
+fn node_ref_hash_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
+    node_ref_variant_idents(items)
+        .into_iter()
+        .enumerate()
+        .map(|(tag, ident)| {
+            quote! {
+                NodeRef::#ident(node) => {
+                    ::core::hash::Hash::hash(&#tag, state);
+                    ::core::hash::Hash::hash(&(node as *const _ as usize), state);
+                }
+            }
+        })
+        .collect()
+}
+
+fn node_ref_variant_idents(items: &[Item]) -> Vec<Ident> {
+    items
+        .iter()
+        .flat_map(|item| match item {
+            Item::Struct(item) => vec![item.ident.clone()],
+            Item::Enum(item) => {
+                let enum_ident = &item.ident;
+                item.variants
+                    .iter()
+                    .map(|variant| node_ref_variant_ident(enum_ident, &variant.ident))
+                    .collect()
+            }
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
 fn node_ref_variant_ident(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
     format_ident!("{enum_ident}{variant_ident}")
 }
@@ -394,6 +491,21 @@ fn atom_trait_impls(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenSt
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
                 {
                     visitor.visit_atom(AtomRef::#variant(self));
+                }
+
+                fn path_to_node_from<'tree>(
+                    &'tree self,
+                    _target: NodeRef<'tree>,
+                    _path: &mut ::jbotci_tree::TreePath,
+                ) -> bool {
+                    false
+                }
+
+                fn node_at_path_steps<'tree>(
+                    &'tree self,
+                    _steps: &[::jbotci_tree::TreePathStep],
+                ) -> Option<NodeRef<'tree>> {
+                    None
                 }
             }
         }
@@ -425,6 +537,21 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
             {
                 (**self).visit_in_order(visitor);
             }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                (**self).path_to_node_from(target, path)
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                (**self).node_at_path_steps(steps)
+            }
         }
 
         impl<T: TreeNode> TreeNode for Option<T> {
@@ -435,6 +562,23 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
                 if let Some(value) = self {
                     value.visit_in_order(visitor);
                 }
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                self.as_ref()
+                    .is_some_and(|value| value.path_to_node_from(target, path))
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                self.as_ref()
+                    .and_then(|value| value.node_at_path_steps(steps))
             }
         }
 
@@ -449,6 +593,30 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
                 }
                 visitor.exit_sequence();
             }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                for (index, value) in self.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                    if value.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                self.get(index)?.node_at_path_steps(rest)
+            }
         }
 
         impl<T: TreeNode> TreeNode for ::vec1::Vec1<T> {
@@ -461,6 +629,30 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
                     value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                for (index, value) in self.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                    if value.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                self.get(index)?.node_at_path_steps(rest)
             }
         }
 
@@ -479,6 +671,30 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
                 }
                 visitor.exit_sequence();
             }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                for (index, value) in self.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                    if value.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                self.get(index)?.node_at_path_steps(rest)
+            }
         }
 
         impl<A> TreeNode for ::vec1::smallvec_v1::SmallVec1<A>
@@ -495,6 +711,30 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
                     value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                for (index, value) in self.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                    if value.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                self.get(index)?.node_at_path_steps(rest)
             }
         }
     }
@@ -532,6 +772,26 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
                 quote!(&self.#index)
             })
     })?;
+    let paths = field_paths(&item.fields, |index, field| {
+        field
+            .ident
+            .as_ref()
+            .map(|ident| quote!(&self.#ident))
+            .unwrap_or_else(|| {
+                let index = syn::Index::from(index);
+                quote!(&self.#index)
+            })
+    })?;
+    let child_lookups = field_child_lookups(&item.fields, |index, field| {
+        field
+            .ident
+            .as_ref()
+            .map(|ident| quote!(&self.#ident))
+            .unwrap_or_else(|| {
+                let index = syn::Index::from(index);
+                quote!(&self.#index)
+            })
+    })?;
     Ok(quote! {
         impl TreeNode for #ident {
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
@@ -542,6 +802,30 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
                 visitor.enter_node(node);
                 #(#visits)*
                 visitor.exit_node(node);
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                let node = NodeRef::#ident(self);
+                if node == target {
+                    return true;
+                }
+                #(#paths)*
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                if steps.is_empty() {
+                    return Some(NodeRef::#ident(self));
+                }
+                #(#child_lookups)*
+                None
             }
         }
     })
@@ -567,6 +851,14 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                         let ident = field.ident.as_ref().unwrap();
                         quote!(#ident)
                     })?;
+                    let paths = field_paths(&variant.fields, |_index, field| {
+                        let ident = field.ident.as_ref().unwrap();
+                        quote!(#ident)
+                    })?;
+                    let child_lookups = field_child_lookups(&variant.fields, |_index, field| {
+                        let ident = field.ident.as_ref().unwrap();
+                        quote!(#ident)
+                    })?;
                     let pattern = if uses_data_patterns {
                         quote!(
                             ::bityzba::data!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
@@ -574,14 +866,34 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                     } else {
                         quote!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
                     };
-                    Ok(quote! {
+                    let visit_arm = quote! {
                         #pattern => {
                             let node = NodeRef::#node_ref_variant(self);
                             visitor.enter_node(node);
                             #(#visits)*
                             visitor.exit_node(node);
                         }
-                    })
+                    };
+                    let path_arm = quote! {
+                        #pattern => {
+                            let node = NodeRef::#node_ref_variant(self);
+                            if node == target {
+                                return true;
+                            }
+                            #(#paths)*
+                            false
+                        }
+                    };
+                    let child_lookup_arm = quote! {
+                        #pattern => {
+                            if steps.is_empty() {
+                                return Some(NodeRef::#node_ref_variant(self));
+                            }
+                            #(#child_lookups)*
+                            None
+                        }
+                    };
+                    Ok((visit_arm, path_arm, child_lookup_arm))
                 }
                 Fields::Unnamed(fields) => {
                     let bindings = (0..fields.unnamed.len())
@@ -592,6 +904,14 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                         let ident = &bindings[index];
                         quote!(#ident)
                     })?;
+                    let paths = field_paths(&variant.fields, |index, _field| {
+                        let ident = &bindings[index];
+                        quote!(#ident)
+                    })?;
+                    let child_lookups = field_child_lookups(&variant.fields, |index, _field| {
+                        let ident = &bindings[index];
+                        quote!(#ident)
+                    })?;
                     let pattern = if uses_data_patterns {
                         quote!(
                             ::bityzba::data!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
@@ -599,14 +919,34 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                     } else {
                         quote!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
                     };
-                    Ok(quote! {
+                    let visit_arm = quote! {
                         #pattern => {
                             let node = NodeRef::#node_ref_variant(self);
                             visitor.enter_node(node);
                             #(#visits)*
                             visitor.exit_node(node);
                         }
-                    })
+                    };
+                    let path_arm = quote! {
+                        #pattern => {
+                            let node = NodeRef::#node_ref_variant(self);
+                            if node == target {
+                                return true;
+                            }
+                            #(#paths)*
+                            false
+                        }
+                    };
+                    let child_lookup_arm = quote! {
+                        #pattern => {
+                            if steps.is_empty() {
+                                return Some(NodeRef::#node_ref_variant(self));
+                            }
+                            #(#child_lookups)*
+                            None
+                        }
+                    };
+                    Ok((visit_arm, path_arm, child_lookup_arm))
                 }
                 Fields::Unit => {
                     let pattern = if uses_data_patterns {
@@ -614,17 +954,31 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                     } else {
                         quote!(#enum_ident::#variant_ident)
                     };
-                    Ok(quote! {
+                    let visit_arm = quote! {
                         #pattern => {
                             let node = NodeRef::#node_ref_variant(self);
                             visitor.enter_node(node);
                             visitor.exit_node(node);
                         }
-                    })
+                    };
+                    let path_arm = quote! {
+                        #pattern => {
+                            NodeRef::#node_ref_variant(self) == target
+                        }
+                    };
+                    let child_lookup_arm = quote! {
+                        #pattern => {
+                            steps.is_empty().then_some(NodeRef::#node_ref_variant(self))
+                        }
+                    };
+                    Ok((visit_arm, path_arm, child_lookup_arm))
                 }
             }
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    let visit_arms = arms.iter().map(|(visit_arm, _, _)| visit_arm);
+    let path_arms = arms.iter().map(|(_, path_arm, _)| path_arm);
+    let child_lookup_arms = arms.iter().map(|(_, _, child_lookup_arm)| child_lookup_arm);
     let match_value = if uses_data_patterns {
         quote!(self.as_data())
     } else {
@@ -637,7 +991,26 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
                 match #match_value {
-                    #(#arms)*
+                    #(#visit_arms)*
+                }
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                match #match_value {
+                    #(#path_arms)*
+                }
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                match #match_value {
+                    #(#child_lookup_arms)*
                 }
             }
         }
@@ -757,7 +1130,7 @@ where
                 let primary = flags.primary;
                 let access = access(index, field);
                 Some(Ok(quote! {
-                    let field_ref = ::jbotci_tree::FieldRef::new(#name, #primary);
+                    let field_ref = ::jbotci_tree::FieldRef::new(#name, #index, #primary);
                     visitor.enter_field(field_ref);
                     TreeNode::visit_in_order(#access, visitor);
                     visitor.exit_field(field_ref);
@@ -766,6 +1139,64 @@ where
             Err(error) => Some(Err(error)),
         })
         .collect()
+}
+
+fn field_paths<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
+where
+    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
+{
+    fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
+            Ok(flags) if flags.skip => None,
+            Ok(_) => {
+                let name = field_name_tokens(field);
+                let access = access(index, field);
+                Some(Ok(quote! {
+                    path.push(::jbotci_tree::TreePathStep::field(#name, #index));
+                    if TreeNode::path_to_node_from(#access, target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }))
+            }
+            Err(error) => Some(Err(error)),
+        })
+        .collect()
+}
+
+fn field_child_lookups<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
+where
+    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
+{
+    fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
+            Ok(flags) if flags.skip => None,
+            Ok(_) => {
+                let name = field_name_tokens(field);
+                let access = access(index, field);
+                Some(Ok(quote! {
+                    if let Some((step, rest)) = steps.split_first()
+                        && step.is_field(#name, #index)
+                    {
+                        return TreeNode::node_at_path_steps(#access, rest);
+                    }
+                }))
+            }
+            Err(error) => Some(Err(error)),
+        })
+        .collect()
+}
+
+fn field_name_tokens(field: &syn::Field) -> proc_macro2::TokenStream {
+    let name = field.ident.as_ref().map(Ident::to_string);
+    match name {
+        Some(name) => quote!(Some(#name)),
+        None => quote!(None),
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

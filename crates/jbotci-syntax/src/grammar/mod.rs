@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use std::collections::VecDeque;
 
 use chumsky::Boxed;
@@ -288,6 +288,9 @@ fn word_anchor_byte_start(word: &WithIndicators<WordLike>) -> Option<usize> {
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    crate::syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub(crate) fn parse_syntax_tree(
     words: &[WordLike],
     options: &ParseOptions,
@@ -297,6 +300,9 @@ pub(crate) fn parse_syntax_tree(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    crate::syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub(crate) fn parse_syntax_tree_with_source(
     words: &[WordLike],
     source: Option<&str>,
@@ -307,6 +313,9 @@ pub(crate) fn parse_syntax_tree_with_source(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    crate::syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub(crate) fn parse_syntax_tree_with_source_attempt(
     words: &[WordLike],
     source: Option<&str>,
@@ -328,6 +337,9 @@ pub(crate) fn parse_syntax_tree_with_source_attempt(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse_tree| {
+    crate::text_syntax_leaf_spans_match_words(words, parse_tree)
+}))]
 pub(crate) fn parse_text(
     words: &[WordLike],
     options: &ParseOptions,

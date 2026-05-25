@@ -10,7 +10,7 @@ extern crate self as jbotci_syntax;
 use std::{cmp::Ordering, fmt};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
     DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, source_span_from_byte_offsets,
@@ -48,6 +48,28 @@ impl TextSyntax {
         let mut visitor = SourceSpanVisitor { visitor };
         self.visit_in_order(&mut visitor);
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn text_syntax_leaf_spans_match_words(
+    words: &[WordLike],
+    parse_tree: &TextSyntax,
+) -> bool {
+    let mut expected_refs = Vec::new();
+    for word in words {
+        word.source_spans_into(&mut expected_refs);
+    }
+    let expected: Vec<_> = expected_refs.into_iter().cloned().collect();
+    let mut actual = Vec::new();
+    parse_tree.visit_source_spans(&mut |span| actual.push(span.clone()));
+    actual == expected
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn syntax_parse_leaf_spans_match_words(words: &[WordLike], parse: &SyntaxParse) -> bool {
+    text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
 }
 
 #[invariant(true)]
@@ -776,6 +798,9 @@ fn construct_segment(text: &str) -> DiagnosticTextSegment {
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse_tree| {
+    text_syntax_leaf_spans_match_words(words, parse_tree)
+}))]
 pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSyntax, SyntaxError> {
     grammar::parse_text(words, options)
 }
@@ -1340,12 +1365,18 @@ fn warning_word_text(word: &WithIndicators<WordLike>) -> String {
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub fn parse_syntax_tree(words: &[WordLike]) -> Result<SyntaxParse, SyntaxError> {
     parse_syntax_tree_with_options(words, &ParseOptions::default())
 }
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub fn parse_syntax_tree_with_options(
     words: &[WordLike],
     options: &ParseOptions,
@@ -1355,6 +1386,9 @@ pub fn parse_syntax_tree_with_options(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub fn parse_syntax_tree_with_source_and_options(
     words: &[WordLike],
     source: &str,
@@ -1365,6 +1399,9 @@ pub fn parse_syntax_tree_with_source_and_options(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
 pub fn parse_syntax_tree_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,
@@ -1379,6 +1416,32 @@ mod tests {
     use bityzba::{data, ensures, new, requires};
 
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_syntax_tree_paths_round_trip_on_real_parse() {
+        use crate::ast::TreeNode as _;
+        use jbotci_tree::{TreePath, TreePathStep};
+
+        let words =
+            jbotci_morphology::segment_words_with_modifiers("mi klama").expect("valid morphology");
+        let parsed = parse_syntax_tree(&words).expect("valid syntax");
+        let tree = parsed.parse_tree.as_ref();
+        let paragraph = tree.paragraphs.first().expect("parse has a paragraph");
+        let target = ast::NodeRef::ParagraphSyntax(paragraph);
+
+        let path = tree.path_to_node(target).expect("paragraph is in tree");
+
+        assert_eq!(
+            path,
+            TreePath::from_steps(vec![
+                TreePathStep::field(Some("paragraphs"), 5),
+                TreePathStep::sequence_index(0),
+            ])
+        );
+        assert_eq!(tree.node_at_path(&path), Some(target));
+    }
 
     #[test]
     #[requires(true)]

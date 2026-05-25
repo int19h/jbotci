@@ -1893,11 +1893,48 @@ impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {
     {
         self.value.visit_in_order(visitor);
         if !self.free_modifiers.is_empty() {
-            let field_ref = jbotci_tree::FieldRef::new(Some("free_modifiers"), false);
+            let field_ref = jbotci_tree::FieldRef::new(Some("free_modifiers"), 1, false);
             visitor.enter_field(field_ref);
             self.free_modifiers.visit_in_order(visitor);
             visitor.exit_field(field_ref);
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn path_to_node_from<'tree>(
+        &'tree self,
+        target: NodeRef<'tree>,
+        path: &mut jbotci_tree::TreePath,
+    ) -> bool {
+        if self.value.path_to_node_from(target, path) {
+            return true;
+        }
+        if !self.free_modifiers.is_empty() {
+            path.push(jbotci_tree::TreePathStep::field(Some("free_modifiers"), 1));
+            if self.free_modifiers.path_to_node_from(target, path) {
+                return true;
+            }
+            path.pop();
+        }
+        false
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn node_at_path_steps<'tree>(
+        &'tree self,
+        steps: &[jbotci_tree::TreePathStep],
+    ) -> Option<NodeRef<'tree>> {
+        if let Some(node) = self.value.node_at_path_steps(steps) {
+            return Some(node);
+        }
+        if let Some((step, rest)) = steps.split_first()
+            && step.is_field(Some("free_modifiers"), 1)
+        {
+            return self.free_modifiers.node_at_path_steps(rest);
+        }
+        None
     }
 }
 
