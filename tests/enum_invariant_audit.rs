@@ -220,10 +220,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "selmaho strings come from the static morphology table",
     ),
     (
-        "crates/jbotci-morphology/src/lib.rs:MorphologyError::Unsupported",
-        "diagnostic enum records rejected parser inputs",
-    ),
-    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
         "diagnostic enum records rejected parser inputs",
     ),

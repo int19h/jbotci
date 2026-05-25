@@ -7,18 +7,9 @@ corpus = "camxes"
 entry-id = "20776"
 
 [expectations.morphology]
-status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "using" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [9, 9], source-text = "", message = "ZOI delimiter must be a single non-y word" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [6, 9], source-text = "zoi", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(.using. zoĭ)"
-tree = """
-[
-  Cmevla @[0‥5) "using",
-  Cmavo @[6‥9) "zoĭ",
-]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"using","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"zoĭ","span":[6,9]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [9, 9], source-text = "", message = "ZOI delimiter must be a single non-y word" }]

@@ -7,24 +7,9 @@ corpus = "camxes"
 entry-id = "1213"
 
 [expectations.morphology]
-status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "me" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 21, char_start: 12, char_end: 21, start: None, end: None }, text: "spaghetti" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 32, char_start: 28, char_end: 32, start: None, end: None } })]"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [32, 32], source-text = "", message = "ZOI delimiter must be a single non-y word" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [28, 32], source-text = "la'o", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(me [la'o ly spaghetti ly] la'o)"
-tree = """
-[
-  Cmavo @[0‥2) "me",
-  ZoiQuote @[3‥25) {
-    zoi: Cmavo @[3‥7) "la'o",
-    opening_delimiter: Cmavo @[8‥10) "ly",
-    quoted_text: Verbatim @[12‥21) "spaghetti",
-    closing_delimiter: Cmavo @[23‥25) "ly",
-  },
-  Cmavo @[28‥32) "la'o",
-]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[8,10]}},"quoted_text":{"span":[12,21],"text":"spaghetti"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[23,25]}}}},{"Bare":{"Cmavo":{"phonemes":"la'o","span":[28,32]}}}]"""
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [32, 32], source-text = "", message = "ZOI delimiter must be a single non-y word" }]

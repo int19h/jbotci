@@ -7,18 +7,9 @@ corpus = "camxes"
 entry-id = "22502"
 
 [expectations.morphology]
-status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "ór" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [5, 5], source-text = "", message = "expected Lojban word" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [3, 5], source-text = "zo", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(.ór. zo)"
-tree = """
-[
-  Cmevla @[0‥2) "ór",
-  Cmavo @[3‥5) "zo",
-]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"ór","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"zo","span":[3,5]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [5, 5], source-text = "", message = "expected Lojban word" }]

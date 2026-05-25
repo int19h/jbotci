@@ -841,29 +841,173 @@ where
     Ok(Verbatim::new(map_span(data.span)?, data.text))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum MorphologyErrorKind {
+    InvalidCharacter,
+    ExpectedWord,
+    UnrecognizedWord,
+    InvalidApostrophe,
+    CgvBan,
+    GeminatedConsonant,
+    VoicingMismatch,
+    ForbiddenConsonantPair,
+    ForbiddenConsonantTriple,
+    VowelHiatus,
+    YHiatus,
+    BreveNotGlide,
+    DigitApostrophe,
+    DigitVowel,
+    Slinkuhi,
+    InvalidLujvo,
+    InvalidQuoteMarker,
+    InvalidZoiDelimiter,
+}
+
+impl MorphologyErrorKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::InvalidCharacter => "morphology.invalid-character",
+            Self::ExpectedWord => "morphology.expected-word",
+            Self::UnrecognizedWord => "morphology.unrecognized-word",
+            Self::InvalidApostrophe => "morphology.invalid-apostrophe",
+            Self::CgvBan => "morphology.cgv-ban",
+            Self::GeminatedConsonant => "morphology.geminated-consonant",
+            Self::VoicingMismatch => "morphology.voicing-mismatch",
+            Self::ForbiddenConsonantPair => "morphology.forbidden-consonant-pair",
+            Self::ForbiddenConsonantTriple => "morphology.forbidden-consonant-triple",
+            Self::VowelHiatus => "morphology.vowel-hiatus",
+            Self::YHiatus => "morphology.y-hiatus",
+            Self::BreveNotGlide => "morphology.breve-not-glide",
+            Self::DigitApostrophe => "morphology.digit-apostrophe",
+            Self::DigitVowel => "morphology.digit-vowel",
+            Self::Slinkuhi => "morphology.slinkuhi",
+            Self::InvalidLujvo => "morphology.invalid-lujvo",
+            Self::InvalidQuoteMarker => "morphology.invalid-quote-marker",
+            Self::InvalidZoiDelimiter => "morphology.invalid-zoi-delimiter",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::InvalidCharacter => "invalid character in Lojban word",
+            Self::ExpectedWord => "expected Lojban word",
+            Self::UnrecognizedWord => "word is not a valid Lojban word",
+            Self::InvalidApostrophe => "apostrophe is only allowed between vowels",
+            Self::CgvBan => "consonant-glide-vowel sequences are not allowed",
+            Self::GeminatedConsonant => "geminated consonants are not allowed",
+            Self::VoicingMismatch => "adjacent consonants must agree in voicing",
+            Self::ForbiddenConsonantPair => "forbidden consonant pair",
+            Self::ForbiddenConsonantTriple => "forbidden consonant triple",
+            Self::VowelHiatus => "vowels in hiatus are not allowed",
+            Self::YHiatus => "y cannot be followed by a non-y vowel nucleus",
+            Self::BreveNotGlide => "breve-marked vowel is not in a glide position",
+            Self::DigitApostrophe => "digit cannot be followed by apostrophe",
+            Self::DigitVowel => "digit cannot be followed by a vowel",
+            Self::Slinkuhi => "slinku'i form is not a valid word",
+            Self::InvalidLujvo => "invalid lujvo decomposition",
+            Self::InvalidQuoteMarker => "quote marker must be a single word",
+            Self::InvalidZoiDelimiter => "ZOI delimiter must be a single non-y word",
+        }
+    }
+}
+
+impl fmt::Display for MorphologyErrorKind {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.message())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum MorphologyContextKind {
+    Cmavo,
+    Gismu,
+    Lujvo,
+    Fuhivla,
+    Cmevla,
+    ZoQuote,
+    ZoiQuote,
+    LohuQuote,
+    SingleWordQuote,
+    Bu,
+    Zei,
+}
+
+impl MorphologyContextKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Cmavo => "while parsing cmavo",
+            Self::Gismu => "while parsing gismu",
+            Self::Lujvo => "while parsing lujvo",
+            Self::Fuhivla => "while parsing fu'ivla",
+            Self::Cmevla => "while parsing cmevla",
+            Self::ZoQuote => "while parsing ZO quote",
+            Self::ZoiQuote => "while parsing ZOI quote",
+            Self::LohuQuote => "while parsing LOhU quote",
+            Self::SingleWordQuote => "while parsing single-word quote",
+            Self::Bu => "while applying BU",
+            Self::Zei => "while applying ZEI",
+        }
+    }
+}
+
+#[invariant(self.char_start < self.char_end, "morphology context labels must cover a non-empty span")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MorphologyContext {
+    pub kind: MorphologyContextKind,
+    pub char_start: usize,
+    pub char_end: usize,
+}
+
+impl MorphologyContext {
+    #[requires(char_start < char_end)]
+    #[ensures(ret.char_start == char_start)]
+    #[ensures(ret.char_end == char_end)]
+    pub fn new(kind: MorphologyContextKind, char_start: usize, char_end: usize) -> Self {
+        new!(MorphologyContext {
+            kind: kind,
+            char_start: char_start,
+            char_end: char_end,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(&self) -> &'static str {
+        self.kind.label()
+    }
+}
+
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Unsupported => true)]
 #[invariant(::Invalid => true)]
 #[invariant(::UnterminatedZoiQuote => true)]
 #[invariant(::SourceSpan(_) => true)]
 pub enum MorphologyError {
-    #[error("unsupported morphology at character {char_offset}: `{word}` ({reason})")]
-    Unsupported {
-        char_offset: usize,
-        word: String,
-        reason: String,
-    },
-    #[error("invalid morphology at character {char_offset}: `{word}` ({reason})")]
+    #[error("{kind} at character {char_start}: `{text}`")]
     Invalid {
-        char_offset: usize,
-        word: String,
-        reason: String,
+        kind: MorphologyErrorKind,
+        char_start: usize,
+        char_end: usize,
+        text: String,
+        context: Option<MorphologyContext>,
     },
     #[error("unterminated ZOI quote, expected closing delimiter `{delimiter}`")]
     UnterminatedZoiQuote {
         char_offset: usize,
         delimiter: String,
+        context: Option<MorphologyContext>,
     },
     #[error("invalid source span: {0}")]
     SourceSpan(#[from] SourceLocationError),
@@ -874,55 +1018,46 @@ impl MorphologyError {
     #[ensures(!ret.code.is_empty())]
     pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
         match self {
-            Self::Unsupported {
-                char_offset,
-                word,
-                reason,
-            } => morphology_diagnostic(
-                source_id,
-                source,
-                "morphology.unsupported",
-                "unsupported morphology",
-                *char_offset,
-                char_offset + word.chars().count(),
-                reason,
-            )
-            .with_styled_notes(vec![morphology_detail_note(
-                "unsupported morphology",
-                word,
-                reason,
-            )]),
             Self::Invalid {
-                char_offset,
-                word,
-                reason,
+                kind,
+                char_start,
+                char_end,
+                text,
+                context,
             } => morphology_diagnostic(
-                source_id,
+                source_id.clone(),
                 source,
-                "morphology.invalid",
-                "invalid morphology",
-                *char_offset,
-                char_offset + word.chars().count(),
-                reason,
+                new!(MorphologyDiagnosticDetails {
+                    code: kind.code(),
+                    message: kind.message(),
+                }),
+                *char_start,
+                *char_end,
+                kind.message(),
+                context.as_ref(),
             )
             .with_styled_notes(vec![morphology_detail_note(
-                "invalid morphology",
-                word,
-                reason,
+                kind.message(),
+                text,
+                kind.message(),
             )]),
             Self::UnterminatedZoiQuote {
                 char_offset,
                 delimiter,
+                context,
             } => {
                 let source_end = source.chars().count();
                 morphology_diagnostic(
-                    source_id,
+                    source_id.clone(),
                     source,
-                    "morphology.unterminated-zoi-quote",
-                    "unterminated ZOI quote",
+                    new!(MorphologyDiagnosticDetails {
+                        code: "morphology.unterminated-zoi-quote",
+                        message: "unterminated ZOI quote",
+                    }),
                     *char_offset,
                     source_end,
                     &format!("expected closing delimiter `{delimiter}`"),
+                    context.as_ref(),
                 )
                 .with_styled_notes(vec![morphology_detail_note(
                     "unterminated ZOI quote",
@@ -967,28 +1102,46 @@ fn morphology_detail_note(message: &str, text: &str, reason: &str) -> Diagnostic
     )
 }
 
-#[requires(!code.is_empty())]
-#[requires(!message.is_empty())]
+#[invariant(!self.code.is_empty())]
+#[invariant(!self.message.is_empty())]
+struct MorphologyDiagnosticDetails {
+    code: &'static str,
+    message: &'static str,
+}
+
 #[requires(!label.is_empty())]
 #[requires(char_start <= char_end)]
-#[ensures(ret.code == code)]
+#[ensures(ret.code == details.code)]
 fn morphology_diagnostic(
     source_id: Option<SourceId>,
     source: &str,
-    code: &str,
-    message: &str,
+    details: MorphologyDiagnosticDetails,
     char_start: usize,
     char_end: usize,
     label: &str,
+    context: Option<&MorphologyContext>,
 ) -> Diagnostic {
-    let span = source_span_from_char_offsets(source_id, source, char_start, char_end)
+    let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)
         .expect("morphology errors store offsets derived from the same source text");
+    let mut labels = vec![DiagnosticLabel::new(span, label.to_owned(), true)];
+    if let Some(context_label) = context.and_then(|context| {
+        source_span_from_char_offsets(
+            source_id.clone(),
+            source,
+            context.char_start,
+            context.char_end,
+        )
+        .ok()
+        .map(|span| DiagnosticLabel::new(span, context.label().to_owned(), false))
+    }) {
+        labels.push(context_label);
+    }
     Diagnostic::new(
         DiagnosticSeverity::Error,
         DiagnosticPhase::Morphology,
-        code.to_owned(),
-        message.to_owned(),
-        vec![DiagnosticLabel::new(span, label.to_owned(), true)],
+        details.code.to_owned(),
+        details.message.to_owned(),
+        labels,
         Vec::new(),
         None,
     )
@@ -1047,21 +1200,10 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
     let attempt = grammar::segment_words_with_modifiers_attempt(input, options, source_id);
     let result = attempt
         .result
-        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
-        .map_err(public_morphology_error);
+        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries));
     MorphologySegmentAttempt {
         result,
         trace: attempt.trace,
-    }
-}
-
-#[requires(true)]
-#[ensures(matches!(ret, MorphologyError::Invalid { .. }))]
-fn public_morphology_error(error: MorphologyError) -> MorphologyError {
-    MorphologyError::Invalid {
-        char_offset: 0,
-        word: String::new(),
-        reason: error.to_string(),
     }
 }
 
@@ -1625,6 +1767,156 @@ mod tests {
     #[ensures(true)]
     fn default_options_enforce_cgv_ban() {
         assert!(MorphologyOptions::default().enforce_cgv_ban);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_error_kind_codes_are_stable() {
+        let cases = [
+            (
+                MorphologyErrorKind::InvalidCharacter,
+                "morphology.invalid-character",
+                "invalid character in Lojban word",
+            ),
+            (
+                MorphologyErrorKind::ExpectedWord,
+                "morphology.expected-word",
+                "expected Lojban word",
+            ),
+            (
+                MorphologyErrorKind::UnrecognizedWord,
+                "morphology.unrecognized-word",
+                "word is not a valid Lojban word",
+            ),
+            (
+                MorphologyErrorKind::InvalidApostrophe,
+                "morphology.invalid-apostrophe",
+                "apostrophe is only allowed between vowels",
+            ),
+            (
+                MorphologyErrorKind::CgvBan,
+                "morphology.cgv-ban",
+                "consonant-glide-vowel sequences are not allowed",
+            ),
+            (
+                MorphologyErrorKind::GeminatedConsonant,
+                "morphology.geminated-consonant",
+                "geminated consonants are not allowed",
+            ),
+            (
+                MorphologyErrorKind::VoicingMismatch,
+                "morphology.voicing-mismatch",
+                "adjacent consonants must agree in voicing",
+            ),
+            (
+                MorphologyErrorKind::ForbiddenConsonantPair,
+                "morphology.forbidden-consonant-pair",
+                "forbidden consonant pair",
+            ),
+            (
+                MorphologyErrorKind::ForbiddenConsonantTriple,
+                "morphology.forbidden-consonant-triple",
+                "forbidden consonant triple",
+            ),
+            (
+                MorphologyErrorKind::VowelHiatus,
+                "morphology.vowel-hiatus",
+                "vowels in hiatus are not allowed",
+            ),
+            (
+                MorphologyErrorKind::YHiatus,
+                "morphology.y-hiatus",
+                "y cannot be followed by a non-y vowel nucleus",
+            ),
+            (
+                MorphologyErrorKind::BreveNotGlide,
+                "morphology.breve-not-glide",
+                "breve-marked vowel is not in a glide position",
+            ),
+            (
+                MorphologyErrorKind::DigitApostrophe,
+                "morphology.digit-apostrophe",
+                "digit cannot be followed by apostrophe",
+            ),
+            (
+                MorphologyErrorKind::DigitVowel,
+                "morphology.digit-vowel",
+                "digit cannot be followed by a vowel",
+            ),
+            (
+                MorphologyErrorKind::Slinkuhi,
+                "morphology.slinkuhi",
+                "slinku'i form is not a valid word",
+            ),
+            (
+                MorphologyErrorKind::InvalidLujvo,
+                "morphology.invalid-lujvo",
+                "invalid lujvo decomposition",
+            ),
+            (
+                MorphologyErrorKind::InvalidQuoteMarker,
+                "morphology.invalid-quote-marker",
+                "quote marker must be a single word",
+            ),
+            (
+                MorphologyErrorKind::InvalidZoiDelimiter,
+                "morphology.invalid-zoi-delimiter",
+                "ZOI delimiter must be a single non-y word",
+            ),
+        ];
+
+        for (kind, code, message) in cases {
+            assert_eq!(kind.code(), code);
+            assert_eq!(kind.message(), message);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_diagnostic_uses_precise_vowel_hiatus_span() {
+        let error = segment_words_with_modifiers("aa").expect_err("vowel hiatus must fail");
+        let diagnostic = error.to_diagnostic(None, "aa");
+
+        assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
+        let label = diagnostic.primary_label();
+        assert_eq!(label.span.byte_start, 0);
+        assert_eq!(label.span.byte_end, 2);
+        assert_eq!(label.span.char_start, 0);
+        assert_eq!(label.span.char_end, 2);
+        assert_eq!(label.message, "vowels in hiatus are not allowed");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_diagnostic_maps_non_ascii_source_span() {
+        let source = "éa";
+        let error = segment_words_with_modifiers(source).expect_err("vowel hiatus must fail");
+        let diagnostic = error.to_diagnostic(None, source);
+
+        assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
+        let label = diagnostic.primary_label();
+        assert_eq!(label.span.byte_start, 0);
+        assert_eq!(label.span.byte_end, 3);
+        assert_eq!(label.span.char_start, 0);
+        assert_eq!(label.span.char_end, 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_diagnostic_maps_comma_crossing_cgv_span() {
+        let source = "melxi,or.";
+        let error = segment_words_with_modifiers(source).expect_err("CgV ban must fail");
+        let diagnostic = error.to_diagnostic(None, source);
+
+        assert_eq!(diagnostic.code, "morphology.cgv-ban");
+        let label = diagnostic.primary_label();
+        assert_eq!(label.span.char_start, 3);
+        assert_eq!(label.span.char_end, 7);
+        assert_eq!(&source[label.span.byte_start..label.span.byte_end], "xi,o");
     }
 
     #[test]

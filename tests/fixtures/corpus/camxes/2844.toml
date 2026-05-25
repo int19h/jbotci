@@ -7,29 +7,9 @@ corpus = "camxes"
 entry-id = "2844"
 
 [expectations.morphology]
-status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "jímpe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "smúni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "fe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 30, char_start: 28, char_end: 30, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 39, char_start: 30, char_end: 39, start: None, end: None }, text: " advanced" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 47, char_start: 44, char_end: 47, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [47, 47], source-text = "", message = "ZOI delimiter must be a single non-y word" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [44, 47], source-text = "zoi", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(mi na jímpe le smúni fe [zoĭ gy advanced gy] zoĭ)"
-tree = """
-[
-  Cmavo @[0‥2) "mi",
-  Cmavo @[3‥5) "na",
-  Gismu @[6‥11) "jímpe",
-  Cmavo @[12‥14) "le",
-  Gismu @[15‥20) "smúni",
-  Cmavo @[21‥23) "fe",
-  ZoiQuote @[24‥42) {
-    zoi: Cmavo @[24‥27) "zoĭ",
-    opening_delimiter: Cmavo @[28‥30) "gy",
-    quoted_text: Verbatim @[30‥39) "advanced",
-    closing_delimiter: Cmavo @[40‥42) "gy",
-  },
-  Cmavo @[44‥47) "zoĭ",
-]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"jímpe","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[12,14]}}},{"Bare":{"Gismu":{"phonemes":"smúni","span":[15,20]}}},{"Bare":{"Cmavo":{"phonemes":"fe","span":[21,23]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[28,30]}},"quoted_text":{"span":[30,39],"text":" advanced"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[40,42]}}}},{"Bare":{"Cmavo":{"phonemes":"zoĭ","span":[44,47]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [47, 47], source-text = "", message = "ZOI delimiter must be a single non-y word" }]

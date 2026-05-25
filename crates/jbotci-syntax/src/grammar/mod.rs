@@ -1154,7 +1154,7 @@ mod tests {
                 })
                 .is_err()
             );
-            assert!(try_new!(RelationUnitSyntax::Mehoi(free_word("go'oi"))).is_err());
+            assert!(try_new!(RelationUnitSyntax::Mehoi(free_word("go'oi broda"))).is_err());
         });
     }
 

@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand};
-use jbotci_diagnostics::Diagnostic;
+use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
     MorphologyError, MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
@@ -131,6 +131,8 @@ struct FixtureRunArgs {
 struct FixtureRewriteArgs {
     #[arg(default_value = "tests/fixtures")]
     roots: Vec<PathBuf>,
+    #[arg(long)]
+    migrate_morphology_diagnostics: bool,
     #[arg(long, hide = true)]
     chunk_worker: bool,
     #[arg(long = "path", hide = true)]
@@ -404,7 +406,8 @@ fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
 #[ensures(true)]
 fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.chunk_worker {
-        let summary = fixture_rewrite_paths(args.paths, false)?;
+        let summary =
+            fixture_rewrite_paths(args.paths, false, args.migrate_morphology_diagnostics)?;
         println!(
             "fixtures={}, rewritten={}",
             summary.processed, summary.rewritten
@@ -412,16 +415,19 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         return Ok(());
     }
     if !args.paths.is_empty() {
-        let summary = fixture_rewrite_paths(args.paths, true)?;
+        let summary = fixture_rewrite_paths(args.paths, true, args.migrate_morphology_diagnostics)?;
         println!("rewrote {} fixture(s)", summary.rewritten);
         return Ok(());
     }
-    fixture_rewrite_subprocess_chunks(args.roots)
+    fixture_rewrite_subprocess_chunks(args.roots, args.migrate_morphology_diagnostics)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn fixture_rewrite_subprocess_chunks(roots: Vec<PathBuf>) -> Result<()> {
+fn fixture_rewrite_subprocess_chunks(
+    roots: Vec<PathBuf>,
+    migrate_morphology_diagnostics: bool,
+) -> Result<()> {
     let mut paths = Vec::new();
     for root in &roots {
         paths.extend(
@@ -433,7 +439,7 @@ fn fixture_rewrite_subprocess_chunks(roots: Vec<PathBuf>) -> Result<()> {
     let exe = std::env::current_exe().context("resolving xtask executable")?;
     let mut summary = RewriteSummary::default();
     for chunk in paths.chunks(FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE) {
-        let output = fixture_rewrite_chunk_output(&exe, chunk)?;
+        let output = fixture_rewrite_chunk_output(&exe, chunk, migrate_morphology_diagnostics)?;
         if !output.stderr.is_empty() {
             eprint!("{}", String::from_utf8_lossy(&output.stderr));
         }
@@ -460,9 +466,16 @@ fn fixture_rewrite_subprocess_chunks(roots: Vec<PathBuf>) -> Result<()> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
-fn fixture_rewrite_chunk_output(exe: &Path, chunk: &[PathBuf]) -> Result<std::process::Output> {
+fn fixture_rewrite_chunk_output(
+    exe: &Path,
+    chunk: &[PathBuf],
+    migrate_morphology_diagnostics: bool,
+) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command.arg("fixture-rewrite").arg("--chunk-worker");
+    if migrate_morphology_diagnostics {
+        command.arg("--migrate-morphology-diagnostics");
+    }
     for path in chunk {
         command.arg("--path").arg(path);
     }
@@ -512,7 +525,11 @@ impl RewriteSummary {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
-fn fixture_rewrite_paths(paths: Vec<PathBuf>, report_progress: bool) -> Result<RewriteSummary> {
+fn fixture_rewrite_paths(
+    paths: Vec<PathBuf>,
+    report_progress: bool,
+    migrate_morphology_diagnostics: bool,
+) -> Result<RewriteSummary> {
     let mut rewritten = 0usize;
     let total = paths.len();
     for (index, path) in paths.into_iter().enumerate() {
@@ -525,8 +542,17 @@ fn fixture_rewrite_paths(paths: Vec<PathBuf>, report_progress: bool) -> Result<R
             .with_context(|| format!("reading fixture `{}`", path.display()))?;
         let mut fixture = load_fixture_path(&path)
             .with_context(|| format!("loading fixture `{}`", path.display()))?;
-        refresh_fixture_expectations(&mut fixture)
-            .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+        if migrate_morphology_diagnostics {
+            migrate_legacy_morphology_diagnostics(&mut fixture).with_context(|| {
+                format!(
+                    "migrating morphology diagnostics in fixture `{}`",
+                    path.display()
+                )
+            })?;
+        } else {
+            refresh_fixture_expectations(&mut fixture)
+                .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+        }
         write_fixture_file(&path, &fixture.test_case)
             .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
         let after = fs::read_to_string(&path)
@@ -545,6 +571,248 @@ fn fixture_rewrite_paths(paths: Vec<PathBuf>, report_progress: bool) -> Result<R
 #[ensures(processed == total -> ret)]
 fn should_report_fixture_rewrite_progress(processed: usize, total: usize) -> bool {
     processed == 1 || processed == total || processed.is_multiple_of(100)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result<()> {
+    let migrate_morphology = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .is_some_and(expectation_has_legacy_morphology_placeholder);
+    let migrate_syntax = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(expectation_has_legacy_morphology_placeholder);
+    let migrate_success_morphology_now_failure = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .is_some_and(|morphology| morphology.status == ExpectationStatus::Success);
+    let refresh_morphology_failure_diagnostics = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .is_some_and(|morphology| {
+            morphology.status == ExpectationStatus::Failure
+                && diagnostics_are_morphology(&morphology.diagnostics)
+        });
+    let migrate_syntax_parse_blocked_by_morphology = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(|syntax| {
+            syntax.status == ExpectationStatus::Failure
+                && syntax_has_single_parse_diagnostic(&syntax.diagnostics)
+        });
+    let refresh_syntax_blocking_morphology_diagnostics = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(|syntax| {
+            syntax.status == ExpectationStatus::Failure
+                && diagnostics_are_morphology(&syntax.diagnostics)
+        });
+    let should_migrate = migrate_morphology
+        || migrate_syntax
+        || migrate_success_morphology_now_failure
+        || refresh_morphology_failure_diagnostics
+        || migrate_syntax_parse_blocked_by_morphology
+        || refresh_syntax_blocking_morphology_diagnostics;
+    if !should_migrate {
+        return Ok(());
+    }
+
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+
+    match words {
+        Err(error) => {
+            let diagnostic = error.to_diagnostic(
+                Some(SourceId("<fixture>".to_owned())),
+                &fixture.test_case.lojban,
+            );
+            let diagnostics = diagnostic_expectation_items(
+                &fixture.test_case.lojban,
+                std::slice::from_ref(&diagnostic),
+            );
+            if migrate_morphology
+                || migrate_success_morphology_now_failure
+                || refresh_morphology_failure_diagnostics
+            {
+                fixture
+                    .test_case
+                    .expectations
+                    .morphology
+                    .as_mut()
+                    .expect("morphology expectation was checked")
+                    .status = ExpectationStatus::Failure;
+                let morphology = fixture
+                    .test_case
+                    .expectations
+                    .morphology
+                    .as_mut()
+                    .expect("morphology expectation was checked");
+                morphology.raw = None;
+                morphology.diagnostics = diagnostics.clone();
+                clear_vlasei_output(&mut fixture.test_case.expectations);
+            }
+            if migrate_syntax
+                || migrate_syntax_parse_blocked_by_morphology
+                || refresh_syntax_blocking_morphology_diagnostics
+            {
+                fixture
+                    .test_case
+                    .expectations
+                    .syntax
+                    .as_mut()
+                    .expect("syntax expectation was checked")
+                    .diagnostics = diagnostics;
+            }
+        }
+        Ok(words) => {
+            if migrate_syntax {
+                migrate_legacy_syntax_placeholder_after_morphology_success(
+                    fixture,
+                    &words,
+                    &syntax_options,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_has_single_parse_diagnostic(diagnostics: &[fixtures::DiagnosticExpectation]) -> bool {
+    matches!(
+        diagnostics,
+        [diagnostic]
+            if diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.code == "syntax.parse"
+    )
+}
+
+#[requires(true)]
+#[ensures(ret -> !diagnostics.is_empty())]
+fn diagnostics_are_morphology(diagnostics: &[fixtures::DiagnosticExpectation]) -> bool {
+    !diagnostics.is_empty()
+        && diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code.starts_with("morphology."))
+}
+
+#[requires(true)]
+#[ensures(expectations.output.as_ref().and_then(|output| output.vlasei.as_ref()).is_none())]
+fn clear_vlasei_output(expectations: &mut fixtures::Expectations) {
+    let Some(output) = &mut expectations.output else {
+        return;
+    };
+    output.vlasei = None;
+    if output.gentufa.is_none() {
+        expectations.output = None;
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn migrate_legacy_syntax_placeholder_after_morphology_success(
+    fixture: &mut LoadedTestCase,
+    words: &[jbotci_morphology::WordLike],
+    syntax_options: &ParseOptions,
+) -> Result<()> {
+    let source = fixture.test_case.lojban.clone();
+    let syntax = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_mut()
+        .expect("syntax expectation was checked");
+    match parse_syntax_tree_with_source_and_options(words, &source, syntax_options) {
+        Ok(parsed) => {
+            syntax.status = ExpectationStatus::Success;
+            syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
+            syntax.diagnostics =
+                syntax_warning_diagnostic_expectation_items(&source, &parsed.warnings);
+        }
+        Err(error) => {
+            syntax.diagnostics = syntax_error_diagnostic_expectation_items(&source, &error);
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expectation_has_legacy_morphology_placeholder<T>(expectation: &T) -> bool
+where
+    T: HasDiagnosticExpectations,
+{
+    expectation.status() == ExpectationStatus::Failure
+        && is_legacy_morphology_placeholder(expectation.diagnostics())
+}
+
+#[contract_trait]
+trait HasDiagnosticExpectations {
+    #[requires(true)]
+    #[ensures(matches!(ret, ExpectationStatus::Success | ExpectationStatus::Failure | ExpectationStatus::Pending | ExpectationStatus::NotApplicable))]
+    fn status(&self) -> ExpectationStatus;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostics(&self) -> &[fixtures::DiagnosticExpectation];
+}
+
+#[contract_trait]
+impl HasDiagnosticExpectations for fixtures::MorphologyExpectation {
+    fn status(&self) -> ExpectationStatus {
+        self.status
+    }
+
+    fn diagnostics(&self) -> &[fixtures::DiagnosticExpectation] {
+        &self.diagnostics
+    }
+}
+
+#[contract_trait]
+impl HasDiagnosticExpectations for fixtures::SyntaxExpectation {
+    fn status(&self) -> ExpectationStatus {
+        self.status
+    }
+
+    fn diagnostics(&self) -> &[fixtures::DiagnosticExpectation] {
+        &self.diagnostics
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_legacy_morphology_placeholder(diagnostics: &[fixtures::DiagnosticExpectation]) -> bool {
+    matches!(
+        diagnostics,
+        [diagnostic]
+            if diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.code == "morphology.invalid"
+                && diagnostic.byte_span == [0, 0]
+                && diagnostic.source_text.is_empty()
+                && diagnostic.message.as_deref() == Some("invalid morphology")
+                && diagnostic.word_index.is_none()
+    )
 }
 
 #[requires(true)]

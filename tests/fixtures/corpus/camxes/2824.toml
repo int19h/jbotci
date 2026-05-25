@@ -7,26 +7,9 @@ corpus = "camxes"
 entry-id = "2824"
 
 [expectations.morphology]
-status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "cméne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 24, char_start: 18, char_end: 24, start: None, end: None }, text: " gfoot" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 32, char_start: 29, char_end: 32, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [32, 32], source-text = "", message = "ZOI delimiter must be a single non-y word" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [29, 32], source-text = "zoi", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(pu se cméne [zoĭ gy gfoot gy] zoĭ)"
-tree = """
-[
-  Cmavo @[0‥2) "pu",
-  Cmavo @[3‥5) "se",
-  Gismu @[6‥11) "cméne",
-  ZoiQuote @[12‥27) {
-    zoi: Cmavo @[12‥15) "zoĭ",
-    opening_delimiter: Cmavo @[16‥18) "gy",
-    quoted_text: Verbatim @[18‥24) "gfoot",
-    closing_delimiter: Cmavo @[25‥27) "gy",
-  },
-  Cmavo @[29‥32) "zoĭ",
-]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"pu","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"cméne","span":[6,11]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[12,15]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[16,18]}},"quoted_text":{"span":[18,24],"text":" gfoot"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[25,27]}}}},{"Bare":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.invalid-zoi-delimiter", byte-span = [32, 32], source-text = "", message = "ZOI delimiter must be a single non-y word" }]

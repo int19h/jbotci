@@ -2248,7 +2248,8 @@ mod tests {
         assert_eq!(status, CliStatus::Failure);
         assert!(output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("morphology.invalid"));
+        assert!(stderr.contains("morphology.vowel-hiatus"));
+        assert!(stderr.contains("vowels in hiatus are not allowed"));
         assert!(stderr.contains("aa"));
         assert!(!stderr.contains("jbotci:"));
         assert!(!stderr.contains("\x1b["));
@@ -2713,7 +2714,8 @@ mod tests {
         assert!(output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("morphology detail:"));
-        assert!(stderr.contains("invalid morphology"));
+        assert!(stderr.contains("vowels in hiatus are not allowed"));
+        assert!(stderr.contains("while parsing fu'ivla"));
         assert!(stderr.contains("reason"));
     }
 
@@ -2731,8 +2733,8 @@ mod tests {
         assert!(output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("trace[morphology]"), "{stderr}");
-        assert!(stderr.contains("unsupported word shape"), "{stderr}");
-        assert!(stderr.contains("morphology.invalid"), "{stderr}");
+        assert!(!stderr.contains("unsupported word shape"), "{stderr}");
+        assert!(stderr.contains("morphology.cgv-ban"), "{stderr}");
     }
 
     #[test]

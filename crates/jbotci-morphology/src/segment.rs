@@ -1,7 +1,9 @@
-use bityzba::{ensures, requires};
+use std::ops::Range;
+
+use bityzba::{ensures, invariant, new, requires};
 use vec1::Vec1;
 
-use crate::{Jvopau, MorphologyOptions, Phonemes, WordKind};
+use crate::{Jvopau, MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
@@ -55,6 +57,125 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
         .collect()
+}
+
+#[invariant(is_valid_normalized_char(self.value))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NormalizedSourceChar {
+    pub source_index: usize,
+    pub value: char,
+}
+
+#[invariant(self.start < self.end, "morphology violations must cover a non-empty source range")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct MorphologyViolation {
+    pub kind: MorphologyErrorKind,
+    pub start: usize,
+    pub end: usize,
+}
+
+impl MorphologyViolation {
+    #[requires(start < end)]
+    #[ensures(ret.kind == kind)]
+    #[ensures(ret.start == start)]
+    #[ensures(ret.end == end)]
+    fn new(kind: MorphologyErrorKind, start: usize, end: usize) -> Self {
+        new!(MorphologyViolation {
+            kind: kind,
+            start: start,
+            end: end,
+        })
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|item| is_valid_normalized_char(item.value)))]
+pub(crate) fn normalize_source_chars(
+    chars: impl IntoIterator<Item = (usize, char)>,
+    options: &MorphologyOptions,
+) -> Vec<NormalizedSourceChar> {
+    chars
+        .into_iter()
+        .filter_map(|(source_index, value)| {
+            normalize_char(value, options).map(|normalized| {
+                new!(NormalizedSourceChar {
+                    source_index: source_index,
+                    value: normalized,
+                })
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|violation| violation.start < violation.end))]
+pub(crate) fn first_morphology_violation(
+    chars: &[NormalizedSourceChar],
+    options: &MorphologyOptions,
+) -> Option<MorphologyViolation> {
+    let values = normalized_values(chars);
+    let range = invalid_apostrophe_range(&values)
+        .map(|range| (MorphologyErrorKind::InvalidApostrophe, range))
+        .or_else(|| {
+            digit_apostrophe_range(&values)
+                .map(|range| (MorphologyErrorKind::DigitApostrophe, range))
+        })
+        .or_else(|| {
+            digit_followed_by_nucleus_range(&values)
+                .map(|range| (MorphologyErrorKind::DigitVowel, range))
+        })
+        .or_else(|| {
+            breve_not_glide_range(&values).map(|range| (MorphologyErrorKind::BreveNotGlide, range))
+        })
+        .or_else(|| {
+            geminated_consonant_range(&values)
+                .map(|range| (MorphologyErrorKind::GeminatedConsonant, range))
+        })
+        .or_else(|| y_hiatus_range(&values).map(|range| (MorphologyErrorKind::YHiatus, range)))
+        .or_else(|| {
+            (options.enforce_cgv_ban)
+                .then(|| cgv_range(&values).map(|range| (MorphologyErrorKind::CgvBan, range)))
+                .flatten()
+        })
+        .or_else(|| {
+            vowel_hiatus_range(&values).map(|range| (MorphologyErrorKind::VowelHiatus, range))
+        })
+        .or_else(|| {
+            voicing_mismatch_range(&values)
+                .map(|range| (MorphologyErrorKind::VoicingMismatch, range))
+        })
+        .or_else(|| {
+            forbidden_consonant_triple_range(&values)
+                .map(|range| (MorphologyErrorKind::ForbiddenConsonantTriple, range))
+        })
+        .or_else(|| {
+            forbidden_consonant_pair_range(&values)
+                .map(|range| (MorphologyErrorKind::ForbiddenConsonantPair, range))
+        })
+        .or_else(|| {
+            slinkuhi_slice(&values, 0, values.len())
+                .then_some((MorphologyErrorKind::Slinkuhi, 0..values.len()))
+        });
+    range.and_then(|(kind, range)| violation_from_normalized_range(chars, kind, range))
+}
+
+#[requires(true)]
+#[ensures(ret.len() == chars.len())]
+fn normalized_values(chars: &[NormalizedSourceChar]) -> Vec<char> {
+    chars.iter().map(|value| value.value).collect()
+}
+
+#[requires(range.start < range.end)]
+#[requires(range.end <= chars.len())]
+#[ensures(ret.as_ref().is_some_and(|violation| violation.start < violation.end))]
+fn violation_from_normalized_range(
+    chars: &[NormalizedSourceChar],
+    kind: MorphologyErrorKind,
+    range: Range<usize>,
+) -> Option<MorphologyViolation> {
+    let start = chars.get(range.start)?.source_index;
+    let end = chars.get(range.end - 1)?.source_index + 1;
+    (start < end).then(|| MorphologyViolation::new(kind, start, end))
 }
 
 #[requires(true)]
@@ -525,11 +646,18 @@ fn blocks_word_shape(chars: &[char], options: &MorphologyOptions) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_invalid_apostrophe(chars: &[char]) -> bool {
-    chars.iter().enumerate().any(|(index, value)| {
-        *value == '\''
+    invalid_apostrophe_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn invalid_apostrophe_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        (*value == '\''
             && (!previous_non_comma(chars, index)
                 .is_some_and(|(_, previous)| can_precede_apostrophe(previous))
-                || !starts_with_nucleus(chars, index + 1))
+                || !starts_with_nucleus(chars, index + 1)))
+        .then_some(index..index + 1)
     })
 }
 
@@ -542,18 +670,33 @@ fn can_precede_apostrophe(value: char) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_geminated_consonant(chars: &[char]) -> bool {
-    chars.iter().enumerate().any(|(index, value)| {
-        is_consonant(*value)
-            && next_non_comma_index(chars, index + 1).is_some_and(|next| chars[next] == *value)
+    geminated_consonant_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn geminated_consonant_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !is_consonant(*value) {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        (chars[next] == *value).then_some(index..next + 1)
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn has_forbidden_consonant_triple(chars: &[char]) -> bool {
+    forbidden_consonant_triple_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn forbidden_consonant_triple_range(chars: &[char]) -> Option<Range<usize>> {
     let mut first = None;
     let mut second = None;
-    for value in chars.iter().copied() {
+    for (index, value) in chars.iter().copied().enumerate() {
         if !is_consonant(value) {
             first = None;
             second = None;
@@ -563,43 +706,67 @@ fn has_forbidden_consonant_triple(chars: &[char]) -> bool {
             (first, second, value),
             (Some('n'), Some('d'), 'j' | 'z') | (Some('n'), Some('t'), 'c' | 's')
         ) {
-            return true;
+            return Some(index - 2..index + 1);
         }
         first = second;
         second = Some(value);
     }
-    false
+    None
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn has_forbidden_consonant_pair(chars: &[char]) -> bool {
-    chars.iter().enumerate().any(|(index, value)| {
-        is_consonant(*value)
-            && next_non_comma_index(chars, index + 1).is_some_and(|next| {
-                is_consonant(chars[next])
-                    && !is_fast_permissible_consonant_pair(*value, chars[next])
-            })
+    forbidden_consonant_pair_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn forbidden_consonant_pair_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !is_consonant(*value) {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        (is_consonant(chars[next]) && !is_fast_permissible_consonant_pair(*value, chars[next]))
+            .then_some(index..next + 1)
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn has_digit_followed_by_nucleus(chars: &[char]) -> bool {
-    chars.iter().enumerate().any(|(index, value)| {
-        value.is_ascii_digit()
-            && next_non_comma_index(chars, index + 1)
-                .is_some_and(|next| starts_with_nucleus(chars, next))
+    digit_followed_by_nucleus_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn digit_followed_by_nucleus_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !value.is_ascii_digit() {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        starts_with_nucleus(chars, next).then_some(index..nucleus_end_for_span(chars, next))
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn has_y_hiatus(chars: &[char]) -> bool {
-    chars.iter().enumerate().any(|(index, value)| {
-        is_y(*value)
-            && next_non_comma_index(chars, index + 1)
-                .is_some_and(|next| !is_y(chars[next]) && starts_with_nucleus(chars, next))
+    y_hiatus_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn y_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !is_y(*value) {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        (!is_y(chars[next]) && starts_with_nucleus(chars, next))
+            .then_some(index..nucleus_end_for_span(chars, next))
     })
 }
 
@@ -723,15 +890,86 @@ fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
 #[requires(true)]
 #[ensures(true)]
 fn contains_cgv(chars: &[char]) -> bool {
+    cgv_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn cgv_range(chars: &[char]) -> Option<Range<usize>> {
     for (index, value) in chars.iter().copied().enumerate() {
         if !matches!(value, 'i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ') || !starts_glide(chars, index) {
             continue;
         }
-        if previous_non_comma(chars, index).is_some_and(|(_, previous)| is_consonant(previous)) {
-            return true;
+        if let Some((previous_index, previous)) = previous_non_comma(chars, index)
+            && is_consonant(previous)
+        {
+            return Some(previous_index..glide_end_for_span(chars, index));
         }
     }
-    false
+    None
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn digit_apostrophe_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        if !value.is_ascii_digit() {
+            return None;
+        }
+        let next = next_non_comma_index(chars, index + 1)?;
+        (chars[next] == '\'').then_some(index..next + 1)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn breve_not_glide_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        let invalid = match *value {
+            'ĭ' => !is_i_semivowel(chars, index),
+            'ŭ' => !is_u_semivowel(chars, index),
+            _ => false,
+        };
+        invalid.then_some(index..index + 1)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn voicing_mismatch_range(chars: &[char]) -> Option<Range<usize>> {
+    chars.iter().enumerate().find_map(|(index, value)| {
+        let first_voicing = obstruent_voicing(*value)?;
+        let next = next_non_comma_index(chars, index + 1)?;
+        let second_voicing = obstruent_voicing(chars[next])?;
+        (first_voicing != second_voicing).then_some(index..next + 1)
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn obstruent_voicing(value: char) -> Option<bool> {
+    match value {
+        'b' | 'd' | 'g' | 'j' | 'v' | 'z' => Some(true),
+        'c' | 'f' | 'k' | 'p' | 's' | 't' | 'x' => Some(false),
+        _ => None,
+    }
+}
+
+#[requires(start < chars.len())]
+#[ensures(ret > start && ret <= chars.len())]
+fn nucleus_end_for_span(chars: &[char], start: usize) -> usize {
+    raw_diphthong_end(chars, start)
+        .map(|(_, end)| end)
+        .unwrap_or(start + 1)
+}
+
+#[requires(start < chars.len())]
+#[ensures(ret > start && ret <= chars.len())]
+fn glide_end_for_span(chars: &[char], start: usize) -> usize {
+    next_non_comma_index(chars, start + 1)
+        .filter(|next| starts_with_nucleus(chars, *next))
+        .map(|next| nucleus_end_for_span(chars, next))
+        .unwrap_or(start + 1)
 }
 
 #[requires(true)]
@@ -1661,12 +1899,19 @@ fn has_consonant_cluster(chars: &[char]) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_vowel_hiatus(chars: &[char]) -> bool {
+    vowel_hiatus_range(chars).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
     for index in 0..chars.len() {
         if !is_vowel(chars[index]) {
             continue;
         }
         if starts_repeated_glide_diphthong_sequence(chars, index) {
-            return true;
+            let next = next_non_comma_index(chars, index + 1).unwrap_or(index + 1);
+            return Some(index..nucleus_end_for_span(chars, next));
         }
         if starts_glide(chars, index) {
             continue;
@@ -1677,11 +1922,13 @@ fn has_vowel_hiatus(chars: &[char]) -> bool {
         if next_non_comma_index(chars, index + 1).is_some_and(|next| starts_glide(chars, next)) {
             continue;
         }
-        if next_starts_nucleus(chars, index + 1) {
-            return true;
+        if let Some(next) = next_non_comma_index(chars, index + 1)
+            && starts_with_nucleus(chars, next)
+        {
+            return Some(index..nucleus_end_for_span(chars, next));
         }
     }
-    false
+    None
 }
 
 #[requires(start <= chars.len())]
