@@ -52,8 +52,8 @@ struct Cli {
     detailed_errors: bool,
     #[arg(long = "trace-phase", global = true, value_enum)]
     trace_phase: Option<CliTracePhase>,
-    #[arg(long = "trace-limit", global = true, default_value_t = DEFAULT_TRACE_LIMIT)]
-    trace_limit: usize,
+    #[arg(long = "trace-limit", global = true)]
+    trace_limit: Option<usize>,
     #[arg(long = "trace-list", global = true)]
     trace_list: bool,
     #[command(subcommand)]
@@ -209,6 +209,17 @@ struct CliParsedTraceSpec {
 struct CliTraceConfig {
     phase: TracePhase,
     limit: usize,
+}
+
+#[invariant(!self.command_name.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CliTraceValidation {
+    command_name: &'static str,
+    trace_phase: Option<TracePhase>,
+    trace_limit_present: bool,
+    trace_list: bool,
+    supports_morphology: bool,
+    supports_syntax: bool,
 }
 
 impl From<CliTracePhase> for TracePhase {
@@ -517,7 +528,9 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     } else {
         DiagnosticDetailMode::Summary
     };
-    if cli.trace_limit == 0 {
+    let trace_limit = cli.trace_limit.unwrap_or(DEFAULT_TRACE_LIMIT);
+    let trace_limit_present = cli.trace_limit.is_some();
+    if trace_limit == 0 {
         bail!("--trace-limit must be greater than 0");
     }
     let requested_trace_phase = cli.trace_phase.map(TracePhase::from);
@@ -525,17 +538,30 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
         Command::Vlasei(mut input) => {
             normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
             validate_vlasei_options(&input)?;
+            validate_trace_controls(
+                &input.trace,
+                new!(CliTraceValidation {
+                    command_name: "vlasei",
+                    trace_phase: requested_trace_phase,
+                    trace_limit_present,
+                    trace_list: cli.trace_list,
+                    supports_morphology: true,
+                    supports_syntax: false,
+                }),
+            )?;
             if cli.trace_list {
                 write_trace_filter_list(
                     stdout,
                     requested_trace_phase.unwrap_or(TracePhase::Morphology),
+                    true,
+                    false,
                 )?;
                 return Ok(CliStatus::Success);
             }
             let morphology_trace_options = trace_options(
                 &input.trace,
                 requested_trace_phase.unwrap_or(TracePhase::Morphology),
-                cli.trace_limit,
+                trace_limit,
             )?;
             let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
             let text = input.read_text()?;
@@ -614,11 +640,25 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
             }
             Ok(CliStatus::Success)
         }
-        Command::Gentufa(input) => {
+        Command::Gentufa(mut input) => {
+            normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
+            validate_trace_controls(
+                &input.trace,
+                new!(CliTraceValidation {
+                    command_name: "gentufa",
+                    trace_phase: requested_trace_phase,
+                    trace_limit_present,
+                    trace_list: cli.trace_list,
+                    supports_morphology: true,
+                    supports_syntax: true,
+                }),
+            )?;
             if cli.trace_list {
                 write_trace_filter_list(
                     stdout,
                     requested_trace_phase.unwrap_or(TracePhase::Syntax),
+                    true,
+                    true,
                 )?;
                 return Ok(CliStatus::Success);
             }
@@ -631,39 +671,90 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 diagnostic_terminal_width,
                 CliTraceConfig {
                     phase: requested_trace_phase.unwrap_or(TracePhase::Syntax),
-                    limit: cli.trace_limit,
+                    limit: trace_limit,
                 },
             )
         }
         Command::Mulgau(input) => {
+            validate_trace_controls_for_unsupported_command(
+                "mulgau",
+                &input.trace,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
             Ok(CliStatus::Success)
         }
         Command::Tersmu(input) => {
+            validate_trace_controls_for_unsupported_command(
+                "tersmu",
+                &input.trace,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             let _ = input.read_text()?;
             command_not_implemented("tersmu")?;
             Ok(CliStatus::Success)
         }
         Command::Vlacku(_input) => {
+            validate_trace_controls_for_unsupported_command(
+                "vlacku",
+                &None,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             command_not_implemented("vlacku")?;
             Ok(CliStatus::Success)
         }
         Command::Jvozba(_input) => {
+            validate_trace_controls_for_unsupported_command(
+                "jvozba",
+                &None,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             command_not_implemented("jvozba")?;
             Ok(CliStatus::Success)
         }
         Command::Cukta(_input) => {
+            validate_trace_controls_for_unsupported_command(
+                "cukta",
+                &None,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             command_not_implemented("cukta")?;
             Ok(CliStatus::Success)
         }
         Command::Zbasu(input) => {
+            validate_trace_controls_for_unsupported_command(
+                "zbasu",
+                &input.trace,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
             let _ = input.read_text()?;
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
         #[cfg(feature = "grammar-debug")]
-        Command::Gerna(input) => run_gerna(input, stdout),
+        Command::Gerna(input) => {
+            validate_trace_controls_for_unsupported_command(
+                "gerna",
+                &None,
+                requested_trace_phase,
+                trace_limit_present,
+                cli.trace_list,
+            )?;
+            run_gerna(input, stdout)
+        }
     }
 }
 
@@ -1083,15 +1174,112 @@ fn is_known_trace_filter(name: &str) -> bool {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn write_trace_filter_list<W: Write>(stdout: &mut W, phase: TracePhase) -> Result<()> {
+fn validate_trace_controls(
+    trace: &Option<Option<String>>,
+    options: CliTraceValidation,
+) -> Result<()> {
+    let trace_enabled = trace.is_some();
+    if options.trace_list && trace_enabled {
+        bail!("`--trace-list` cannot be combined with `--trace`");
+    }
+    if options.trace_limit_present && !trace_enabled {
+        bail!("`--trace-limit` requires `--trace`");
+    }
+    if options.trace_phase.is_some() && !trace_enabled && !options.trace_list {
+        bail!("`--trace-phase` requires `--trace` or `--trace-list`");
+    }
+    if options.trace_list && !options.supports_morphology && !options.supports_syntax {
+        bail!(
+            "`--trace-list` is not supported with `{}`",
+            options.command_name
+        );
+    }
+    if trace_enabled && !options.supports_morphology && !options.supports_syntax {
+        bail!("`--trace` is not supported with `{}`", options.command_name);
+    }
+    if let Some(phase) = options.trace_phase
+        && !trace_phase_supported(phase, options.supports_morphology, options.supports_syntax)
+    {
+        bail!(
+            "`--trace-phase {}` is not supported with `{}`",
+            trace_phase_argument(phase),
+            options.command_name
+        );
+    }
+    Ok(())
+}
+
+#[requires(!command_name.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_trace_controls_for_unsupported_command(
+    command_name: &'static str,
+    trace: &Option<Option<String>>,
+    trace_phase: Option<TracePhase>,
+    trace_limit_present: bool,
+    trace_list: bool,
+) -> Result<()> {
+    validate_trace_controls(
+        trace,
+        new!(CliTraceValidation {
+            command_name,
+            trace_phase,
+            trace_limit_present,
+            trace_list,
+            supports_morphology: false,
+            supports_syntax: false,
+        }),
+    )
+}
+
+#[requires(true)]
+#[ensures(matches!(phase, TracePhase::All) && (supports_morphology || supports_syntax) -> ret)]
+fn trace_phase_supported(
+    phase: TracePhase,
+    supports_morphology: bool,
+    supports_syntax: bool,
+) -> bool {
     match phase {
-        TracePhase::Morphology => {
+        TracePhase::Morphology => supports_morphology,
+        TracePhase::Syntax => supports_syntax,
+        TracePhase::All => supports_morphology || supports_syntax,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn trace_phase_argument(phase: TracePhase) -> &'static str {
+    match phase {
+        TracePhase::Morphology => "morphology",
+        TracePhase::Syntax => "syntax",
+        TracePhase::All => "all",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_trace_filter_list<W: Write>(
+    stdout: &mut W,
+    phase: TracePhase,
+    supports_morphology: bool,
+    supports_syntax: bool,
+) -> Result<()> {
+    match phase {
+        TracePhase::Morphology if supports_morphology => {
             write_trace_filter_group(stdout, "morphology", MORPHOLOGY_TRACE_FILTERS)?
         }
-        TracePhase::Syntax => write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?,
+        TracePhase::Syntax if supports_syntax => {
+            write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?
+        }
         TracePhase::All => {
-            write_trace_filter_group(stdout, "morphology", MORPHOLOGY_TRACE_FILTERS)?;
-            write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?;
+            if supports_morphology {
+                write_trace_filter_group(stdout, "morphology", MORPHOLOGY_TRACE_FILTERS)?;
+            }
+            if supports_syntax {
+                write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?;
+            }
+        }
+        TracePhase::Morphology | TracePhase::Syntax => {
+            bail!("unsupported trace phase `{}`", trace_phase_argument(phase));
         }
     }
     Ok(())
@@ -1738,7 +1926,7 @@ mod tests {
         ])
         .expect("trace options");
         assert_eq!(cli.trace_phase, Some(CliTracePhase::All));
-        assert_eq!(cli.trace_limit, 7);
+        assert_eq!(cli.trace_limit, Some(7));
         let Command::Gentufa(input) = cli.command else {
             panic!("expected gentufa command")
         };
@@ -1777,6 +1965,80 @@ mod tests {
         assert!(stdout.contains("syntax:"));
         assert!(stdout.contains("- argument"));
         assert!(stdout.contains("- free modifier"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trace_context_flags_require_trace_or_trace_list() {
+        let cases = [
+            (
+                ["jbotci", "--trace-phase", "syntax", "gentufa", "coi"].as_slice(),
+                "`--trace-phase` requires `--trace` or `--trace-list`",
+            ),
+            (
+                ["jbotci", "--trace-limit", "3", "gentufa", "coi"].as_slice(),
+                "`--trace-limit` requires `--trace`",
+            ),
+            (
+                [
+                    "jbotci",
+                    "gentufa",
+                    "--trace-list",
+                    "--trace",
+                    "argument:3",
+                    "coi",
+                ]
+                .as_slice(),
+                "`--trace-list` cannot be combined with `--trace`",
+            ),
+        ];
+        for (args, message) in cases {
+            let cli = Cli::try_parse_from(args).expect("trace context parses");
+            let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+                .expect_err("trace context rejected");
+            assert!(error.to_string().contains(message), "{error}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trace_phase_is_validated_for_command() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "--trace-phase",
+            "syntax",
+            "vlasei",
+            "--trace",
+            "coi",
+        ])
+        .expect("vlasei trace parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("syntax trace rejected for vlasei");
+        assert!(
+            error
+                .to_string()
+                .contains("`--trace-phase syntax` is not supported with `vlasei`"),
+            "{error}"
+        );
+
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "--trace-phase",
+            "morphology",
+            "gentufa",
+            "--trace-list",
+        ])
+        .expect("trace list phase parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("trace list run");
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty());
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        assert!(stdout.contains("morphology:"));
+        assert!(!stdout.contains("syntax:"));
     }
 
     #[test]
