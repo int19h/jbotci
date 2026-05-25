@@ -12,11 +12,12 @@ use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
-    BracketRenderOptions, DiagnosticDetailMode, DiagnosticRenderOptions, GlideMark,
-    JsonRenderOptions, PhonemeRenderOptions, StressMark, TreeRenderOptions,
-    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
-    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options, render_diagnostics,
+    BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
+    DiagnosticRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
+    TreeRenderOptions, compact_morphology_json_string_with_options,
+    compact_syntax_json_string_with_options, pretty_brackets_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    pretty_tree_with_options, render_diagnostics,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
@@ -360,9 +361,16 @@ fn run() -> Result<CliStatus> {
         stdout: stream_supports_ansi_color(concolor::Stream::Stdout),
         stderr: stream_supports_ansi_color(concolor::Stream::Stderr),
     };
+    let diagnostic_terminal_width = stderr_terminal_width();
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    run_cli_with_color_policy(cli, &mut stdout, &mut stderr, color_policy)
+    run_cli_with_color_policy_and_width(
+        cli,
+        &mut stdout,
+        &mut stderr,
+        color_policy,
+        diagnostic_terminal_width,
+    )
 }
 
 #[requires(true)]
@@ -383,6 +391,24 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
     stdout: &mut WOut,
     stderr: &mut WErr,
     color_policy: CliColorPolicy,
+) -> Result<CliStatus> {
+    run_cli_with_color_policy_and_width(
+        cli,
+        stdout,
+        stderr,
+        color_policy,
+        DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+    )
+}
+
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
     let diagnostic_detail = if cli.detailed_errors {
@@ -413,6 +439,7 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
                         std::slice::from_ref(&diagnostic),
                         color_policy.stderr,
                         diagnostic_detail,
+                        diagnostic_terminal_width,
                     )?;
                     return Ok(CliStatus::Failure);
                 }
@@ -459,9 +486,14 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
             }
             Ok(CliStatus::Success)
         }
-        Command::Gentufa(input) => {
-            run_gentufa(input, stdout, stderr, color_policy, diagnostic_detail)
-        }
+        Command::Gentufa(input) => run_gentufa(
+            input,
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_detail,
+            diagnostic_terminal_width,
+        ),
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
@@ -492,7 +524,7 @@ fn run_cli_with_color_policy<WOut: Write, WErr: Write>(
     }
 }
 
-#[requires(true)]
+#[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_gentufa<WOut: Write, WErr: Write>(
     input: GentufaInput,
@@ -500,24 +532,38 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
+    diagnostic_terminal_width: usize,
 ) -> Result<CliStatus> {
-    let rendered = render_gentufa_on_large_stack(input, color_policy, diagnostic_detail)?;
+    let rendered = render_gentufa_on_large_stack(
+        input,
+        color_policy,
+        diagnostic_detail,
+        diagnostic_terminal_width,
+    )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(rendered.stdout.as_bytes())?;
     Ok(rendered.status)
 }
 
-#[requires(true)]
+#[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa_on_large_stack(
     input: GentufaInput,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
+    diagnostic_terminal_width: usize,
 ) -> Result<GentufaRendered> {
     let worker = std::thread::Builder::new()
         .name("jbotci-gentufa".to_owned())
         .stack_size(SYNTAX_WORKER_STACK_SIZE)
-        .spawn(move || render_gentufa(input, color_policy, diagnostic_detail))
+        .spawn(move || {
+            render_gentufa(
+                input,
+                color_policy,
+                diagnostic_detail,
+                diagnostic_terminal_width,
+            )
+        })
         .context("failed to spawn gentufa syntax worker")?;
     match worker.join() {
         Ok(result) => result,
@@ -525,12 +571,13 @@ fn render_gentufa_on_large_stack(
     }
 }
 
-#[requires(true)]
+#[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa(
     input: GentufaInput,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
+    diagnostic_terminal_width: usize,
 ) -> Result<GentufaRendered> {
     validate_gentufa_options(&input)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
@@ -551,6 +598,7 @@ fn render_gentufa(
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
                 diagnostic_detail,
+                diagnostic_terminal_width,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -570,6 +618,7 @@ fn render_gentufa(
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
                 diagnostic_detail,
+                diagnostic_terminal_width,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
@@ -589,6 +638,7 @@ fn render_gentufa(
         &diagnostics,
         color_policy.stderr,
         diagnostic_detail,
+        diagnostic_terminal_width,
     )?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     let mut stdout = String::new();
@@ -654,6 +704,7 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
 }
 
 #[requires(!source_label.is_empty())]
+#[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn write_source_diagnostics<W: Write>(
     stderr: &mut W,
@@ -662,6 +713,7 @@ fn write_source_diagnostics<W: Write>(
     diagnostics: &[Diagnostic],
     color_enabled: bool,
     diagnostic_detail: DiagnosticDetailMode,
+    diagnostic_terminal_width: usize,
 ) -> Result<()> {
     let rendered = render_source_diagnostics(
         source_label,
@@ -669,12 +721,14 @@ fn write_source_diagnostics<W: Write>(
         diagnostics,
         color_enabled,
         diagnostic_detail,
+        diagnostic_terminal_width,
     )?;
     stderr.write_all(rendered.as_bytes())?;
     Ok(())
 }
 
 #[requires(!source_label.is_empty())]
+#[requires(diagnostic_terminal_width > 0)]
 #[ensures(diagnostics.is_empty() -> ret.as_ref().is_ok_and(String::is_empty))]
 #[ensures(!diagnostics.is_empty() -> ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn render_source_diagnostics(
@@ -683,6 +737,7 @@ fn render_source_diagnostics(
     diagnostics: &[Diagnostic],
     color_enabled: bool,
     diagnostic_detail: DiagnosticDetailMode,
+    diagnostic_terminal_width: usize,
 ) -> Result<String> {
     render_diagnostics(
         source_label,
@@ -691,6 +746,7 @@ fn render_source_diagnostics(
         DiagnosticRenderOptions {
             color: color_enabled,
             detail: diagnostic_detail,
+            terminal_width: diagnostic_terminal_width,
         },
     )
     .map_err(|error| anyhow!(error))
@@ -908,6 +964,15 @@ fn read_text_input(file: Option<&PathBuf>, text: &[String]) -> Result<String> {
 #[ensures(true)]
 fn stream_supports_ansi_color(stream: concolor::Stream) -> bool {
     concolor::get(stream).ansi_color()
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn stderr_terminal_width() -> usize {
+    terminal_size::terminal_size_of(std::io::stderr())
+        .map(|(terminal_size::Width(width), _height)| usize::from(width))
+        .filter(|width| *width > 0)
+        .unwrap_or(DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH)
 }
 
 #[requires(true)]
@@ -1435,7 +1500,7 @@ mod tests {
         assert_eq!(status, CliStatus::Failure);
         assert!(output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("[morphology.invalid] Error"));
+        assert!(stderr.contains("morphology.invalid"));
         assert!(stderr.contains("aa"));
         assert!(!stderr.contains("jbotci:"));
         assert!(!stderr.contains("\x1b["));
@@ -1634,7 +1699,7 @@ mod tests {
                 let stderr = String::from_utf8(error).expect("stderr utf8");
                 assert!(stdout.starts_with('{'));
                 assert!(!stdout.contains("warning:"));
-                assert!(stderr.contains("Warning: experimental syntax"));
+                assert!(stderr.contains("experimental syntax"), "{stderr}");
                 assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
                 assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
                 assert!(stderr.contains("fi'oi"));
@@ -1659,7 +1724,7 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("[syntax.parse] Error"));
+            assert!(stderr.contains("syntax.parse"), "{stderr}");
             assert!(stderr.contains("syntax parse failed"));
             assert!(stderr.contains("expected one of:"));
             assert!(stderr.contains("{be}"));
@@ -1667,6 +1732,34 @@ mod tests {
             assert!(!stderr.contains("needs one of:"));
             assert!(stderr.contains("ku"));
             assert!(!stderr.contains("jbotci:"));
+            assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
+        run_on_large_stack(|| {
+            let cli =
+                Cli::try_parse_from(["jbotci", "gentufa", "gleki", "ku", "klama", "zei", "klama"])
+                    .expect("gentufa parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli_with_color_policy_and_width(
+                cli,
+                &mut output,
+                &mut error,
+                CliColorPolicy::same(false),
+                40,
+            )
+            .expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("expected one of:"));
+            assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
         });
     }

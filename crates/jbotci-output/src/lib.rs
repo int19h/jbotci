@@ -8,7 +8,9 @@ mod surface;
 mod tree;
 
 use bityzba::{invariant, requires};
-pub use diagnostics::{DiagnosticRenderOptions, render_diagnostics};
+pub use diagnostics::{
+    DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
+};
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
