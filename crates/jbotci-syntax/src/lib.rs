@@ -7,7 +7,7 @@ mod grammar;
 
 extern crate self as jbotci_syntax;
 
-use std::fmt;
+use std::{cmp::Ordering, fmt};
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -216,6 +216,7 @@ pub enum SyntaxError {
         reason: String,
         expected: Vec<String>,
         expectations: Vec<SyntaxExpectation>,
+        context: Option<SyntaxConstructContext>,
     },
 }
 
@@ -288,6 +289,54 @@ impl SyntaxWordCategory {
     }
 }
 
+#[invariant(!construct.is_empty())]
+#[invariant(byte_start <= byte_end)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct SyntaxConstructContext {
+    pub construct: String,
+    pub byte_start: usize,
+    pub byte_end: usize,
+}
+
+impl SyntaxConstructContext {
+    #[requires(!construct.is_empty())]
+    #[requires(byte_start <= byte_end)]
+    #[ensures(true)]
+    pub fn new(construct: String, byte_start: usize, byte_end: usize) -> Self {
+        new!(SyntaxConstructContext {
+            construct,
+            byte_start,
+            byte_end,
+        })
+    }
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret <= 6)]
+pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
+    match construct {
+        "free modifier" => 6,
+        "argument" => 5,
+        "term" => 4,
+        "relation" => 3,
+        "subsentence" => 2,
+        "statement" => 1,
+        "text" | "parse_text" | "end of input" | "syntax construct" => 0,
+        _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
+    }
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret == matches!(construct, "text" | "parse_text"))]
+pub(crate) fn syntax_construct_is_root(construct: &str) -> bool {
+    match construct {
+        "text" | "parse_text" => true,
+        "free modifier" | "argument" | "term" | "relation" | "subsentence" | "statement"
+        | "end of input" | "syntax construct" => false,
+        _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
+    }
+}
+
 #[invariant(::ContinueCurrent { construct } => !construct.is_empty())]
 #[invariant(::StartNested { construct } => !construct.is_empty())]
 #[invariant(::EndThenStart { starts, ends } => !starts.is_empty() && ends.iter().all(|construct| !construct.is_empty()))]
@@ -353,15 +402,36 @@ impl SyntaxError {
                 reason,
                 expected,
                 expectations,
+                context,
             } => {
-                let span = source_span_from_byte_offsets(source_id, source, *byte_start, *byte_end)
-                    .expect("syntax errors store offsets derived from the same source text");
+                let span = source_span_from_byte_offsets(
+                    source_id.clone(),
+                    source,
+                    *byte_start,
+                    *byte_end,
+                )
+                .expect("syntax errors store offsets derived from the same source text");
+                let mut labels = vec![DiagnosticLabel::new(span, reason.clone(), true)];
+                if let Some(context) = context {
+                    let context_span = source_span_from_byte_offsets(
+                        source_id,
+                        source,
+                        context.byte_start,
+                        context.byte_end,
+                    )
+                    .expect("syntax contexts store offsets derived from the same source text");
+                    labels.push(DiagnosticLabel::new(
+                        context_span,
+                        format!("while parsing {}", context.construct),
+                        false,
+                    ));
+                }
                 Diagnostic::new(
                     DiagnosticSeverity::Error,
                     DiagnosticPhase::Syntax,
                     "syntax.parse".to_owned(),
                     "syntax parse failed".to_owned(),
-                    vec![DiagnosticLabel::new(span, reason.clone(), true)],
+                    labels,
                     Vec::new(),
                     None,
                 )
@@ -409,6 +479,7 @@ fn syntax_summary_segments_from_expectations(
             }
         }
     }
+    sort_syntax_tokens(&mut tokens);
     let mut segments = vec![plain_segment("expected one of: ")];
     push_comma_token_list(&mut segments, &tokens);
     segments
@@ -462,6 +533,14 @@ fn merge_expectations_by_reason(expectations: &[SyntaxExpectation]) -> Vec<Synta
             merged.push(expectation.clone());
         }
     }
+    for expectation in &mut merged {
+        let mut tokens = expectation.tokens.clone();
+        sort_syntax_tokens(&mut tokens);
+        if tokens != expectation.tokens {
+            *expectation = expectation.clone().with_data(data! { tokens: tokens });
+        }
+    }
+    merged.sort_by(compare_syntax_expectations);
     merged
 }
 
@@ -482,15 +561,19 @@ fn push_expectation_segments(
         }
         data!(SyntaxExpectationReason::StartNested { construct }) => {
             segments.push(construct_segment(construct));
-            segments.push(punctuation_segment(" ("));
-            push_token_list(segments, &expectation.tokens);
-            segments.push(punctuation_segment(")"));
+            if !token_list_redundantly_names_construct(construct, &expectation.tokens) {
+                segments.push(punctuation_segment(" ("));
+                push_token_list(segments, &expectation.tokens);
+                segments.push(punctuation_segment(")"));
+            }
         }
         data!(SyntaxExpectationReason::EndThenStart { starts, ends }) => {
             segments.push(construct_segment(starts));
-            segments.push(punctuation_segment(" ("));
-            push_token_list(segments, &expectation.tokens);
-            segments.push(punctuation_segment(")"));
+            if !token_list_redundantly_names_construct(starts, &expectation.tokens) {
+                segments.push(punctuation_segment(" ("));
+                push_token_list(segments, &expectation.tokens);
+                segments.push(punctuation_segment(")"));
+            }
             if !ends.is_empty() {
                 segments.push(punctuation_segment(" ["));
                 segments.push(keyword_segment("ends"));
@@ -500,6 +583,137 @@ fn push_expectation_segments(
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_syntax_expectations(left: &SyntaxExpectation, right: &SyntaxExpectation) -> Ordering {
+    let depth_order =
+        syntax_reason_sort_depth(&right.reason).cmp(&syntax_reason_sort_depth(&left.reason));
+    if depth_order != Ordering::Equal {
+        return depth_order;
+    }
+
+    let reason_order =
+        syntax_reason_sort_order(&left.reason).cmp(&syntax_reason_sort_order(&right.reason));
+    if reason_order != Ordering::Equal {
+        return reason_order;
+    }
+
+    let construct_order =
+        syntax_reason_sort_construct(&left.reason).cmp(syntax_reason_sort_construct(&right.reason));
+    if construct_order != Ordering::Equal {
+        return construct_order;
+    }
+
+    let end_order = syntax_reason_ends(&left.reason).cmp(syntax_reason_ends(&right.reason));
+    if end_order != Ordering::Equal {
+        return end_order;
+    }
+
+    compare_syntax_token_slices(&left.tokens, &right.tokens)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_reason_sort_depth(reason: &SyntaxExpectationReason) -> usize {
+    syntax_construct_depth(syntax_reason_sort_construct(reason))
+}
+
+#[requires(true)]
+#[ensures(ret <= 2)]
+fn syntax_reason_sort_order(reason: &SyntaxExpectationReason) -> u8 {
+    match reason.as_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { .. }) => 0,
+        data!(SyntaxExpectationReason::StartNested { .. }) => 1,
+        data!(SyntaxExpectationReason::EndThenStart { .. }) => 2,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_reason_sort_construct(reason: &SyntaxExpectationReason) -> &str {
+    match reason.as_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { construct })
+        | data!(SyntaxExpectationReason::StartNested { construct }) => construct,
+        data!(SyntaxExpectationReason::EndThenStart { starts, .. }) => starts,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_reason_ends(reason: &SyntaxExpectationReason) -> &[String] {
+    match reason.as_data() {
+        data!(SyntaxExpectationReason::EndThenStart { ends, .. }) => ends,
+        _ => &[],
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_syntax_token_slices(
+    left: &[SyntaxExpectedToken],
+    right: &[SyntaxExpectedToken],
+) -> Ordering {
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| compare_syntax_expected_tokens(left, right))
+        .find(|order| *order != Ordering::Equal)
+        .unwrap_or_else(|| left.len().cmp(&right.len()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sort_syntax_tokens(tokens: &mut [SyntaxExpectedToken]) {
+    tokens.sort_by(compare_syntax_expected_tokens);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_syntax_expected_tokens(
+    left: &SyntaxExpectedToken,
+    right: &SyntaxExpectedToken,
+) -> Ordering {
+    syntax_expected_token_sort_category(left)
+        .cmp(&syntax_expected_token_sort_category(right))
+        .then_with(|| {
+            syntax_expected_token_sort_text(left).cmp(syntax_expected_token_sort_text(right))
+        })
+}
+
+#[requires(true)]
+#[ensures(ret <= 4)]
+fn syntax_expected_token_sort_category(token: &SyntaxExpectedToken) -> u8 {
+    match token.as_data() {
+        data!(SyntaxExpectedToken::WordCategory(_)) => 0,
+        data!(SyntaxExpectedToken::Selmaho(_)) => 1,
+        data!(SyntaxExpectedToken::Cmavo(_)) => 2,
+        data!(SyntaxExpectedToken::EndOfInput) => 3,
+        data!(SyntaxExpectedToken::Named(_)) => 4,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_expected_token_sort_text(token: &SyntaxExpectedToken) -> &str {
+    match token.as_data() {
+        data!(SyntaxExpectedToken::Cmavo(cmavo)) => cmavo.canonical_text(),
+        data!(SyntaxExpectedToken::Selmaho(selmaho)) => selmaho.name(),
+        data!(SyntaxExpectedToken::WordCategory(category)) => category.display_name(),
+        data!(SyntaxExpectedToken::EndOfInput) => "end of input",
+        data!(SyntaxExpectedToken::Named(name)) => name,
+    }
+}
+
+#[requires(!construct.is_empty())]
+#[requires(!tokens.is_empty())]
+#[ensures(ret -> tokens.len() == 1)]
+fn token_list_redundantly_names_construct(construct: &str, tokens: &[SyntaxExpectedToken]) -> bool {
+    construct == "end of input"
+        && matches!(
+            tokens,
+            [token] if matches!(token.as_data(), data!(SyntaxExpectedToken::EndOfInput))
+        )
 }
 
 #[requires(!tokens.is_empty())]
@@ -1158,4 +1372,145 @@ pub fn parse_syntax_tree_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use bityzba::{data, ensures, new, requires};
+
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_expected_tokens_sort_by_category_then_text() {
+        let mut tokens = vec![
+            new!(SyntaxExpectedToken::Named("input".to_owned())),
+            new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo)),
+            new!(SyntaxExpectedToken::EndOfInput),
+            new!(SyntaxExpectedToken::Selmaho(Selmaho::Gaho)),
+            new!(SyntaxExpectedToken::Cmavo(Cmavo::Be)),
+            new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::Brivla
+            )),
+        ];
+
+        sort_syntax_tokens(&mut tokens);
+
+        let texts = tokens
+            .iter()
+            .map(SyntaxExpectedToken::summary_text)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            texts,
+            ["BRIVLA", "GAhO", "be", "lo", "end of input", "input"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn detailed_expectation_groups_sort_by_depth_and_reason() {
+        let expectations = vec![
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::EndOfInput)],
+                new!(SyntaxExpectationReason::EndThenStart {
+                    starts: "end of input".to_owned(),
+                    ends: vec!["statement".to_owned()],
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Ga))],
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "relation".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "argument".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Brivla,
+                ))],
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "argument".to_owned(),
+                }),
+            ),
+        ];
+
+        let text = segment_text(&syntax_detailed_segments(&expectations));
+
+        let continue_argument = text
+            .find("- BRIVLA [continues argument]")
+            .expect("argument continuation");
+        let start_argument = text.find("- argument (lo)").expect("argument start");
+        let continue_relation = text
+            .find("- GA [continues relation]")
+            .expect("relation continuation");
+        let end_statement = text
+            .find("- end of input [ends statement]")
+            .expect("end-of-input expectation");
+        assert!(continue_argument < start_argument);
+        assert!(start_argument < continue_relation);
+        assert!(continue_relation < end_statement);
+        assert!(!text.contains("end of input (end of input)"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn detailed_group_tokens_are_sorted() {
+        let expectations = vec![SyntaxExpectation::new(
+            vec![
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo)),
+                new!(SyntaxExpectedToken::Selmaho(Selmaho::Gaho)),
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Be)),
+                new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Brivla
+                )),
+            ],
+            new!(SyntaxExpectationReason::StartNested {
+                construct: "argument".to_owned(),
+            }),
+        )];
+
+        let text = segment_text(&syntax_detailed_segments(&expectations));
+
+        assert!(text.contains("- argument (BRIVLA, GAhO, be or lo)"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn summary_tokens_are_sorted() {
+        let expectations = vec![SyntaxExpectation::new(
+            vec![
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo)),
+                new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Brivla
+                )),
+                new!(SyntaxExpectedToken::Selmaho(Selmaho::Gaho)),
+            ],
+            new!(SyntaxExpectationReason::StartNested {
+                construct: "argument".to_owned(),
+            }),
+        )];
+
+        let text = segment_text(&syntax_summary_segments_from_expectations(&expectations));
+
+        assert_eq!(text, "expected one of: BRIVLA, GAhO, lo");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_text(segments: &[DiagnosticTextSegment]) -> String {
+        segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<String>()
+    }
 }

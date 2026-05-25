@@ -1027,6 +1027,7 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
             reason: "unknown Chumsky syntax error".to_owned(),
             expected: Vec::new(),
             expectations: Vec::new(),
+            context: None,
         };
     };
 
@@ -1044,6 +1045,7 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
         reason,
         expected,
         expectations,
+        context: error.current_context(),
     }
 }
 

@@ -1792,7 +1792,35 @@ mod tests {
             assert!(stderr.contains("{be}"));
             assert!(stderr.contains("BRIVLA"));
             assert!(stderr.contains("[ends relation, statement or text]"));
+            assert!(!stderr.contains("end of input (end of input)"));
+            let argument = stderr.find("- argument").expect("argument group");
+            let relation = stderr
+                .find("[continues relation]")
+                .expect("relation continuation group");
+            let end = stderr.find("[ends relation").expect("end group");
+            assert!(argument < relation);
+            assert!(relation < end);
             assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_syntax_error_labels_unique_current_construct() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--detailed-errors", "mi", "cu"])
+                .expect("gentufa detailed parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("while parsing statement"), "{stderr}");
+            assert!(stderr.contains("mi cu"));
+            assert!(stderr.contains("needs one of:"));
         });
     }
 

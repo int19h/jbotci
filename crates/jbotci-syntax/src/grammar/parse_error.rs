@@ -6,8 +6,9 @@ use chumsky::util::MaybeRef;
 
 use super::{Span, Token};
 use crate::{
-    SyntaxExpectation, SyntaxExpectationReason, SyntaxExpectationReasonData, SyntaxExpectedToken,
-    SyntaxExpectedTokenData,
+    SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
+    SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
+    syntax_construct_is_root,
 };
 
 #[invariant(true)]
@@ -15,7 +16,7 @@ use crate::{
 pub(super) struct SyntaxParseError<'tokens> {
     inner: Rich<'tokens, Token, Span>,
     expected_groups: Vec<ExpectedTokenGroup>,
-    contexts: Vec<String>,
+    context_paths: Vec<Vec<SyntaxConstructContext>>,
 }
 
 #[invariant(!tokens.is_empty())]
@@ -52,7 +53,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self {
             inner: Rich::custom(span, message),
             expected_groups: Vec::new(),
-            contexts: Vec::new(),
+            context_paths: empty_context_paths(),
         }
     }
 
@@ -62,7 +63,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self {
             inner: Rich::custom(span, "unexpected input".to_owned()),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
-            contexts: Vec::new(),
+            context_paths: empty_context_paths(),
         }
     }
 
@@ -91,12 +92,13 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
     pub(super) fn expectations(&self) -> Vec<SyntaxExpectation> {
         let mut expectations = Vec::new();
+        let contexts = merged_context_names(&self.context_paths);
         for group in &self.expected_groups {
             if !group.tokens.is_empty() {
                 let reason = group
                     .reason
                     .clone()
-                    .unwrap_or_else(|| expectation_reason(&group.tokens, &self.contexts));
+                    .unwrap_or_else(|| expectation_reason(&group.tokens, &contexts));
                 expectations.push(SyntaxExpectation::new(group.tokens.clone(), reason));
             }
         }
@@ -110,7 +112,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
                     vec![token],
                     expectation_reason(
                         &[new!(SyntaxExpectedToken::Named("input".to_owned()))],
-                        &self.contexts,
+                        &contexts,
                     ),
                 ));
             }
@@ -119,10 +121,16 @@ impl<'tokens> SyntaxParseError<'tokens> {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+    pub(super) fn current_context(&self) -> Option<SyntaxConstructContext> {
+        select_current_context(&self.context_paths)
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     pub(super) fn merge_for_report(mut self, other: Self) -> Self {
         append_unique_groups(&mut self.expected_groups, other.expected_groups);
-        append_unique_strings(&mut self.contexts, other.contexts);
+        append_unique_context_paths(&mut self.context_paths, other.context_paths);
         self
     }
 }
@@ -139,7 +147,7 @@ where
         merged.inner =
             <Rich<'tokens, Token, Span> as Error<'tokens, I>>::merge(merged.inner, other.inner);
         append_unique_groups(&mut merged.expected_groups, other.expected_groups);
-        append_unique_strings(&mut merged.contexts, other.contexts);
+        append_unique_context_paths(&mut merged.context_paths, other.context_paths);
         merged
     }
 }
@@ -167,7 +175,7 @@ where
         Self {
             inner,
             expected_groups,
-            contexts: Vec::new(),
+            context_paths: empty_context_paths(),
         }
     }
 
@@ -208,7 +216,7 @@ where
             <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::replace_expected_found(
                 self.inner, expected, found, span,
             );
-        self.contexts.clear();
+        self.context_paths = empty_context_paths();
         self
     }
 
@@ -246,21 +254,22 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn in_context(&mut self, label: L, span: I::Span) {
+        let context = label
+            .clone()
+            .try_into()
+            .ok()
+            .and_then(|pattern| context_from_rich_pattern(&pattern))
+            .map(|construct| SyntaxConstructContext::new(construct, span.start, span.end));
         <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::in_context(
             &mut self.inner,
             label.clone(),
             span,
         );
-        if let Some(context) = label
-            .try_into()
-            .ok()
-            .and_then(|pattern| context_from_rich_pattern(&pattern))
-            && !self.contexts.contains(&context)
-        {
+        if let Some(context) = context {
             for group in &mut self.expected_groups {
-                apply_context_to_group(group, &context);
+                apply_context_to_group(group, &context.construct);
             }
-            self.contexts.push(context);
+            push_context_to_paths(&mut self.context_paths, context);
         }
     }
 }
@@ -391,21 +400,82 @@ fn expectation_reason(
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
+    vec![Vec::new()]
+}
+
+#[requires(true)]
 #[ensures(true)]
-fn append_unique_groups(target: &mut Vec<ExpectedTokenGroup>, source: Vec<ExpectedTokenGroup>) {
-    for group in source {
-        if !group.tokens.is_empty() && !target.contains(&group) {
-            target.push(group);
+fn push_context_to_paths(
+    paths: &mut Vec<Vec<SyntaxConstructContext>>,
+    context: SyntaxConstructContext,
+) {
+    if paths.is_empty() {
+        paths.push(Vec::new());
+    }
+    for path in paths {
+        path.push(context.clone());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_unique_context_paths(
+    target: &mut Vec<Vec<SyntaxConstructContext>>,
+    source: Vec<Vec<SyntaxConstructContext>>,
+) {
+    for path in source {
+        if !target.contains(&path) {
+            target.push(path);
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn append_unique_strings(target: &mut Vec<String>, source: Vec<String>) {
-    for item in source {
-        if !target.contains(&item) {
-            target.push(item);
+fn merged_context_names(paths: &[Vec<SyntaxConstructContext>]) -> Vec<String> {
+    let mut names = Vec::new();
+    for path in paths {
+        for context in path {
+            if !names.contains(&context.construct) {
+                names.push(context.construct.clone());
+            }
+        }
+    }
+    names
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn select_current_context(paths: &[Vec<SyntaxConstructContext>]) -> Option<SyntaxConstructContext> {
+    let shortest_path_len = paths.iter().map(Vec::len).min()?;
+    let mut selected = None;
+    for outer_index in 0..shortest_path_len {
+        let candidate = &paths[0][paths[0].len() - 1 - outer_index];
+        if paths
+            .iter()
+            .all(|path| path.get(path.len() - 1 - outer_index) == Some(candidate))
+        {
+            selected = Some(candidate);
+        } else {
+            break;
+        }
+    }
+    let selected = selected?;
+    if syntax_construct_is_root(&selected.construct) {
+        None
+    } else {
+        Some(selected.clone())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_unique_groups(target: &mut Vec<ExpectedTokenGroup>, source: Vec<ExpectedTokenGroup>) {
+    for group in source {
+        if !group.tokens.is_empty() && !target.contains(&group) {
+            target.push(group);
         }
     }
 }
@@ -481,6 +551,86 @@ mod tests {
         )));
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_context_uses_single_branch_innermost_context() {
+        let mut error = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut error, "relation", 0..8);
+        in_context_span(&mut error, "statement", 0..8);
+        in_context_span(&mut error, "text", 0..8);
+
+        let context = error.current_context().expect("selected context");
+
+        assert_eq!(context.construct, "relation");
+        assert_eq!([context.byte_start, context.byte_end], [0, 8]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_context_peels_to_common_parent_across_branches() {
+        let mut argument = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut argument, "argument", 4..8);
+        in_context_span(&mut argument, "relation", 0..8);
+        in_context_span(&mut argument, "statement", 0..8);
+        in_context_span(&mut argument, "text", 0..8);
+        let mut term = SyntaxParseError::expected(Span::from(8..10), vec![named_token("fa")]);
+        in_context_span(&mut term, "term", 4..8);
+        in_context_span(&mut term, "relation", 0..8);
+        in_context_span(&mut term, "statement", 0..8);
+        in_context_span(&mut term, "text", 0..8);
+
+        let context = argument
+            .merge_for_report(term)
+            .current_context()
+            .expect("selected context");
+
+        assert_eq!(context.construct, "relation");
+        assert_eq!([context.byte_start, context.byte_end], [0, 8]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_context_omits_root_only_ambiguity() {
+        let mut argument = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut argument, "argument", 0..8);
+        in_context_span(&mut argument, "text", 0..8);
+        let mut relation = SyntaxParseError::expected(Span::from(8..10), vec![named_token("ga")]);
+        in_context_span(&mut relation, "relation", 0..8);
+        in_context_span(&mut relation, "text", 0..8);
+
+        assert!(
+            argument
+                .merge_for_report(relation)
+                .current_context()
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_context_treats_matching_construct_with_different_span_as_ambiguous() {
+        let mut first = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut first, "argument", 0..8);
+        in_context_span(&mut first, "statement", 0..8);
+        in_context_span(&mut first, "text", 0..8);
+        let mut second = SyntaxParseError::expected(Span::from(8..10), vec![named_token("le")]);
+        in_context_span(&mut second, "argument", 3..8);
+        in_context_span(&mut second, "statement", 0..8);
+        in_context_span(&mut second, "text", 0..8);
+
+        let context = first
+            .merge_for_report(second)
+            .current_context()
+            .expect("selected context");
+
+        assert_eq!(context.construct, "statement");
+        assert_eq!([context.byte_start, context.byte_end], [0, 8]);
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(true)]
     fn named_token(text: &str) -> SyntaxExpectedToken {
@@ -500,10 +650,20 @@ mod tests {
     #[requires(!label.is_empty())]
     #[ensures(true)]
     fn in_context(error: &mut SyntaxParseError<'static>, label: &'static str) {
+        in_context_span(error, label, 0..0);
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(true)]
+    fn in_context_span(
+        error: &mut SyntaxParseError<'static>,
+        label: &'static str,
+        span: std::ops::Range<usize>,
+    ) {
         <SyntaxParseError<'static> as LabelError<
             'static,
             ParserInput<'static>,
             &'static str,
-        >>::in_context(error, label, Span::from(0..0));
+        >>::in_context(error, label, Span::from(span));
     }
 }
