@@ -137,12 +137,13 @@ fn colorize_at_depth(depth: usize, text: String, options: BracketRenderOptions) 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn ansi_color_for_depth(depth: usize) -> &'static str {
-    match depth % 5 {
+    match depth % 6 {
         0 => "\x1b[35m",
-        1 => "\x1b[34m",
+        1 => "\x1b[94m",
         2 => "\x1b[32m",
         3 => "\x1b[31m",
-        _ => "\x1b[33m",
+        4 => "\x1b[33m",
+        _ => "\x1b[96m",
     }
 }
 
@@ -153,5 +154,76 @@ fn ansi_parent_color_for_depth(depth: usize) -> &'static str {
         "\x1b[0m"
     } else {
         ansi_color_for_depth(depth - 1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn flatten_collapses_deeply_nested_single_child_groups() {
+        let expr = SExpr::Node(vec![SExpr::Node(vec![SExpr::Node(vec![SExpr::Leaf(
+            String::from("foo"),
+        )])])]);
+
+        let flattened = flatten(expr);
+
+        assert_eq!(flattened, SExpr::Leaf(String::from("foo")));
+        assert_eq!(render_bracketed(&flattened), "foo");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_collapses_single_non_empty_child_after_filtering_empty_children() {
+        let expr = SExpr::Node(vec![
+            SExpr::Node(Vec::new()),
+            SExpr::Leaf(String::from("foo")),
+            SExpr::Node(Vec::new()),
+        ]);
+
+        assert_eq!(render_bracketed(&expr), "foo");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn color_cycle_uses_bright_blue_and_bright_cyan() {
+        let expected = [
+            "\x1b[35m", "\x1b[94m", "\x1b[32m", "\x1b[31m", "\x1b[33m", "\x1b[96m",
+        ];
+
+        for (depth, color) in expected.iter().enumerate() {
+            assert_eq!(ansi_color_for_depth(depth), *color);
+            assert_eq!(ansi_color_for_depth(depth + expected.len()), *color);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colorized_text_restores_updated_parent_depth_color() {
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+
+        assert_eq!(
+            colorize_at_depth(0, String::from("foo"), options),
+            "\x1b[35mfoo\x1b[0m"
+        );
+        assert_eq!(
+            colorize_at_depth(2, String::from("foo"), options),
+            "\x1b[32mfoo\x1b[94m"
+        );
+        assert_eq!(
+            colorize_at_depth(6, String::from("foo"), options),
+            "\x1b[35mfoo\x1b[96m"
+        );
     }
 }

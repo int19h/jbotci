@@ -281,6 +281,11 @@ Here it is immediately clear when looking at the definition of the struct that t
 All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` from `build.rs` with the `contract_scanner` feature enabled. The scanner is syntactic: it checks explicit source attributes under `src`, `tests`, `benches`, `examples`, and `build.rs`; it does not inspect macro expansions and does not count contracts hidden inside `cfg_attr`.
 
 
+# Build
+
+Always build the `jbotci` release binary before you wrap up your work.
+
+
 # Test suite
 
 In all cases, when updating expectations, be VERY careful and do not blindly assume that new output is correct. Ideally expectations need to be updated manually rather than taking the output of the parser. When that is infeasible (e.g. you have more than a few hundred expectations that need updating), you need to definitively ascertain that the change is purely surface representation before doing any kind of automatic expectation update whatsoever. That is, if the change is predictable and mechanical, write a script that validates this while comparing the old and the new expectations, and only for those entries where such a script confirms that it is indeed only that mechanical change that is the difference, it is okay to update with new output; any cases that get flagged as more than that need careful *manual* review individually, one by one.
