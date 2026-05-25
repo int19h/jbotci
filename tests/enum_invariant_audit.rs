@@ -256,24 +256,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "constructor contracts enforce UI/CAI/Y and NAI marker shape",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:Statement::Fragment",
-        "legacy facade enum delegates validity to Fragment",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:Fragment::Other",
-        "legacy facade fragment preserves parser words without extra structure",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:FreeModifier::Words",
-        "legacy facade modifier preserves parser words without extra structure",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:Connective::Words",
-        "legacy facade connective preserves parser words without extra structure",
-    ),
-    (
         "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",
         "diagnostic enum records parser error location and message",
+    ),
+    (
+        "crates/jbotci-semantics/src/lib.rs:SemanticsError::NotImplemented",
+        "semantic builder placeholder has no payload beyond the diagnostic variant",
     ),
     (
         "crates/jbotci-syntax/src/tree.rs:PredicateTail3Syntax::GekSentence",

@@ -316,18 +316,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "mutable classification state is projected into validated tense structs",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:LojbanText",
-        "legacy facade preserves parsed text structure from validated TextSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:Paragraph",
-        "legacy facade preserves parsed paragraph structure from validated ParagraphSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:ParagraphStatement",
-        "legacy facade preserves parsed statement structure from validated ParagraphStatementSyntax",
-    ),
-    (
         "crates/jbotci-syntax/src/lib.rs:ParseOptions",
         "parse options are independent caller-selected controls",
     ),

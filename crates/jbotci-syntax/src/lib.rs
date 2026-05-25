@@ -26,10 +26,8 @@ use thiserror::Error;
 pub mod ast {
     pub use crate::grammar::ast::*;
 }
-use ast::{
-    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
-};
-pub use ast::{Indicator, IndicatorData};
+use ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TreeNode as SyntaxAstTreeNode};
+pub use ast::{Indicator, IndicatorData, TextSyntax};
 
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
@@ -120,106 +118,6 @@ impl ParseOptions {
     pub fn with_trace_options(mut self, trace: TraceOptions) -> Self {
         self.trace = trace;
         self
-    }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LojbanText {
-    pub leading_nai: Vec<WithIndicators<WordLike>>,
-    pub leading_cmevla: Vec<WithIndicators<WordLike>>,
-    pub leading_indicators: Vec<Indicator>,
-    pub leading_free_modifiers: Vec<FreeModifier>,
-    pub leading_connective: Option<Connective>,
-    pub paragraphs: Vec<Paragraph>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Paragraph {
-    pub i: Option<WithIndicators<WordLike>>,
-    pub niho: Vec<WithIndicators<WordLike>>,
-    pub free_modifiers: Vec<FreeModifier>,
-    pub statements: Vec<ParagraphStatement>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ParagraphStatement {
-    pub i: Option<WithIndicators<WordLike>>,
-    pub connective: Option<Connective>,
-    pub free_modifiers: Vec<FreeModifier>,
-    pub statement: Option<Statement>,
-}
-
-#[invariant(true)]
-#[invariant(::Fragment(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "fragment", rename_all = "kebab-case")]
-pub enum Statement {
-    Fragment(Fragment),
-    Placeholder,
-}
-
-impl Statement {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn fragment(fragment: Fragment) -> Self {
-        Statement::Fragment(fragment)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn placeholder() -> Self {
-        Statement::Placeholder
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Other(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
-pub enum Fragment {
-    Other(Vec<WithIndicators<WordLike>>),
-}
-
-impl Fragment {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn other(words: Vec<WithIndicators<WordLike>>) -> Self {
-        Fragment::Other(words)
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Words(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
-pub enum FreeModifier {
-    Words(Vec<WithIndicators<WordLike>>),
-}
-
-impl FreeModifier {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
-        FreeModifier::Words(words)
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Words(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
-pub enum Connective {
-    Words(Vec<WithIndicators<WordLike>>),
-}
-
-impl Connective {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
-        Connective::Words(words)
     }
 }
 
@@ -878,17 +776,8 @@ fn construct_segment(text: &str) -> DiagnosticTextSegment {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<LojbanText, SyntaxError> {
+pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSyntax, SyntaxError> {
     grammar::parse_text(words, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_raw_text(
-    words: &[WordLike],
-    options: &ParseOptions,
-) -> Result<ast::TextSyntax, SyntaxError> {
-    grammar::parse_raw_text(words, options)
 }
 
 #[cfg(feature = "grammar-debug")]

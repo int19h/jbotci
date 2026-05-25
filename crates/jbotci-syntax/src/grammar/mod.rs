@@ -14,8 +14,7 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
-    Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
-    ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxExpectedToken, SyntaxParse,
+    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
     SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, WithIndicators,
 };
 
@@ -332,39 +331,6 @@ pub(crate) fn parse_syntax_tree_with_source_attempt(
 pub(crate) fn parse_text(
     words: &[WordLike],
     options: &ParseOptions,
-) -> Result<LojbanText, SyntaxError> {
-    let tokens = syntax_tokens(words);
-    let text = parser::parse_statement(&tokens, None, options)?.text;
-    let data!(TextSyntax {
-        leading_nai,
-        leading_cmevla,
-        leading_indicators,
-        leading_free_modifiers,
-        leading_connective,
-        paragraphs,
-    }) = text.into_data();
-    let paragraphs = paragraphs
-        .into_iter()
-        .map(public_paragraph)
-        .collect::<Vec<_>>();
-    Ok(LojbanText {
-        leading_nai,
-        leading_cmevla,
-        leading_indicators,
-        leading_free_modifiers: leading_free_modifiers
-            .into_iter()
-            .map(public_free_modifier)
-            .collect(),
-        leading_connective: leading_connective.map(|connective| public_connective(*connective)),
-        paragraphs,
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn parse_raw_text(
-    words: &[WordLike],
-    options: &ParseOptions,
 ) -> Result<TextSyntax, SyntaxError> {
     let tokens = syntax_tokens(words);
     Ok(parser::parse_statement(&tokens, None, options)?.text)
@@ -482,67 +448,6 @@ fn is_indicator_word(word: &Word) -> bool {
 fn should_attach_indicator(prev: &WithIndicators<WordLike>, indicator: &Word) -> bool {
     !(indicator.is_selmaho(Selmaho::Roi)
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn public_paragraph(paragraph: ParagraphSyntax) -> Paragraph {
-    let data!(ParagraphSyntax {
-        i,
-        niho,
-        free_modifiers,
-        statements,
-    }) = paragraph.into_data();
-    Paragraph {
-        i,
-        niho,
-        free_modifiers: free_modifiers
-            .into_iter()
-            .map(public_free_modifier)
-            .collect(),
-        statements: statements
-            .into_iter()
-            .map(public_paragraph_statement)
-            .collect(),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn public_paragraph_statement(statement: ParagraphStatementSyntax) -> ParagraphStatement {
-    let data!(ParagraphStatementSyntax {
-        i,
-        connective,
-        free_modifiers,
-        statement,
-    }) = statement.into_data();
-    ParagraphStatement {
-        i,
-        connective: connective.map(|connective| public_connective(*connective)),
-        free_modifiers: free_modifiers
-            .into_iter()
-            .map(public_free_modifier)
-            .collect(),
-        statement: statement.map(|statement| public_statement(*statement)),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn public_statement(statement: StatementSyntax) -> Statement {
-    Statement::fragment(Fragment::other(statement.words()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn public_free_modifier(free_modifier: FreeModifierSyntax) -> FreeModifier {
-    FreeModifier::words(free_modifier.words())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn public_connective(connective: ConnectiveSyntax) -> Connective {
-    Connective::words(connective.words())
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 
 use bityzba::{invariant, requires};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::LojbanText;
+use jbotci_syntax::TextSyntax;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -31,6 +31,7 @@ pub struct SemanticStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[invariant(true)]
 pub enum StatementContent {
     Empty,
     Placeholder,
@@ -43,6 +44,8 @@ pub struct ScopedModifier {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::NotImplemented => true)]
 pub enum SemanticsError {
     #[error("semantic analysis is not implemented yet")]
     NotImplemented,
@@ -50,6 +53,6 @@ pub enum SemanticsError {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn build_semantic_text(_syntax: &LojbanText) -> Result<SemanticText, SemanticsError> {
+pub fn build_semantic_text(_syntax: &TextSyntax) -> Result<SemanticText, SemanticsError> {
     Err(SemanticsError::NotImplemented)
 }
