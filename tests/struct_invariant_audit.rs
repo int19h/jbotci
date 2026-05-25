@@ -20,6 +20,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
+        "apps/jbotci/src/main.rs:GernaInput",
+        "nightly grammar-export CLI args delegate validation to clap and command code",
+    ),
+    (
         "apps/jbotci/src/main.rs:JvozbaInput",
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
@@ -274,6 +278,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/parser.rs:LeadingIStatementSyntax",
         "private parser staging node is consumed into validated paragraph nodes",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:ParserDialectConfig",
+        "parser dialect config is an independent feature-flag snapshot",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:ParserDialectConfigScope",
+        "parser dialect config scope only stores the previous thread-local snapshot for restoration",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",

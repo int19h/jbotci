@@ -116,6 +116,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "collection frame permits empty values while traversal is in progress",
     ),
     (
+        "apps/jbotci/src/main.rs:Command::Gerna",
+        "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
         "builder stack frame validity is governed by enter/exit sequencing",
     ),

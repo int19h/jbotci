@@ -5,6 +5,7 @@ use crate::SyntaxExpectedTokenData;
 use chumsky::input::MapExtra;
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
+use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -31,6 +32,83 @@ enum TermContinuationSyntax {
         tails: Vec<(ConnectiveSyntax, TermSyntax)>,
     },
     None,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct ParserDialectConfig {
+    term_hierarchy_enabled: bool,
+    cbm_enabled: bool,
+    soi_adverbials_enabled: bool,
+    zantufa_adverbials_enabled: bool,
+    zantufa_connectives_enabled: bool,
+    zantufa_quotes_enabled: bool,
+    zantufa_tags_enabled: bool,
+}
+
+impl ParserDialectConfig {
+    #[requires(true)]
+    #[ensures(!ret.term_hierarchy_enabled)]
+    const fn empty() -> Self {
+        Self {
+            term_hierarchy_enabled: false,
+            cbm_enabled: false,
+            soi_adverbials_enabled: false,
+            zantufa_adverbials_enabled: false,
+            zantufa_connectives_enabled: false,
+            zantufa_quotes_enabled: false,
+            zantufa_tags_enabled: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_options(options: &ParseOptions) -> Self {
+        let features = &options.dialect.features;
+        Self {
+            term_hierarchy_enabled: features.contains(&DialectFeature::TermHierarchy),
+            cbm_enabled: features.contains(&DialectFeature::Cbm),
+            soi_adverbials_enabled: features.contains(&DialectFeature::SoiAdverbials),
+            zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
+            zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
+            zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
+            zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
+        }
+    }
+}
+
+thread_local! {
+    static PARSER_DIALECT_CONFIG: Cell<ParserDialectConfig> =
+        const { Cell::new(ParserDialectConfig::empty()) };
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct ParserDialectConfigScope {
+    previous: ParserDialectConfig,
+}
+
+impl ParserDialectConfigScope {
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter(config: ParserDialectConfig) -> Self {
+        let previous = PARSER_DIALECT_CONFIG.with(|current| current.replace(config));
+        Self { previous }
+    }
+}
+
+impl Drop for ParserDialectConfigScope {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        PARSER_DIALECT_CONFIG.with(|current| current.set(self.previous));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parser_dialect_config() -> ParserDialectConfig {
+    PARSER_DIALECT_CONFIG.with(Cell::get)
 }
 
 #[requires(true)]
@@ -219,6 +297,9 @@ fn statement_parser<'tokens>(
     source: Option<&'tokens str>,
     options: &ParseOptions,
 ) -> BoxedParser<'tokens, TextSyntax> {
+    let _dialect_scope =
+        ParserDialectConfigScope::enter(ParserDialectConfig::from_options(options));
+    let dialect = parser_dialect_config();
     let mut text = Recursive::declare();
     let mut argument = Recursive::declare();
     let mut relation = Recursive::declare();
@@ -226,11 +307,6 @@ fn statement_parser<'tokens>(
     let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
     let mut term = Recursive::declare();
-    let term_hierarchy_enabled = options
-        .dialect
-        .features
-        .contains(&DialectFeature::TermHierarchy);
-    let cbm_enabled = options.dialect.features.contains(&DialectFeature::Cbm);
     argument.define(
         argument_parser_with(
             argument.clone(),
@@ -383,6 +459,34 @@ fn statement_parser<'tokens>(
             })
         });
     let tagged_term = choice((tagged_term_before_tag, tagged_term_before_non_relation));
+    let noiha_terminator =
+        if dialect.zantufa_adverbials_enabled {
+            cmavo(Cmavo::Fehu)
+                .map(Ok)
+                .or(cmavo(Cmavo::Ku).map_with(
+                    |ku,
+                     extra: &mut MapExtra<
+                        'tokens,
+                        '_,
+                        ParserInput<'tokens>,
+                        ParseExtra<'tokens>,
+                    >| {
+                        extra
+                            .state()
+                            .warn(ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi, &ku);
+                        Err(Box::new(ku))
+                    },
+                ))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not()
+                .boxed()
+        } else {
+            cmavo(Cmavo::Fehu)
+                .map(Ok)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not()
+                .boxed()
+        };
     let noiha_adverbial = selmaho(Selmaho::Noiha)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument_tail_with(
@@ -392,28 +496,7 @@ fn statement_parser<'tokens>(
             subsentence.clone(),
             free_modifier.clone(),
         ))
-        .then(
-            cmavo(Cmavo::Fehu)
-                .map(Ok)
-                .or(
-                    feature_cmavo("KU", Cmavo::Ku, DialectFeature::ZantufaAdverbials).map_with(
-                        |ku,
-                         extra: &mut MapExtra<
-                            'tokens,
-                            '_,
-                            ParserInput<'tokens>,
-                            ParseExtra<'tokens>,
-                        >| {
-                            extra
-                                .state()
-                                .warn(ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi, &ku);
-                            Err(Box::new(ku))
-                        },
-                    ),
-                )
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
+        .then(noiha_terminator)
         .map(
             |(
                 ((noiha, leading_free_modifiers), (tail_elements, relation, relative_clauses)),
@@ -484,15 +567,7 @@ fn statement_parser<'tokens>(
             })
         })
         .boxed();
-    let soi_adverbials_enabled = options
-        .dialect
-        .features
-        .contains(&DialectFeature::SoiAdverbials);
-    let zantufa_tags_enabled = options
-        .dialect
-        .features
-        .contains(&DialectFeature::ZantufaTags);
-    let base_simple_term = if soi_adverbials_enabled {
+    let base_simple_term = if dialect.soi_adverbials_enabled {
         let non_jai_term = choice((
             fa_term.clone(),
             tagged_term.clone(),
@@ -503,7 +578,7 @@ fn statement_parser<'tokens>(
             argument_term.clone(),
             bare_na_term.clone(),
         ));
-        if zantufa_tags_enabled {
+        if dialect.zantufa_tags_enabled {
             zantufa_jai_tag_term.or(non_jai_term).boxed()
         } else {
             non_jai_term.boxed()
@@ -518,7 +593,7 @@ fn statement_parser<'tokens>(
             argument_term,
             bare_na_term,
         ));
-        if zantufa_tags_enabled {
+        if dialect.zantufa_tags_enabled {
             zantufa_jai_tag_term.or(non_jai_term).boxed()
         } else {
             non_jai_term.boxed()
@@ -611,12 +686,12 @@ fn statement_parser<'tokens>(
                 )
             })
             .boxed();
-        let post_bo_argument_gate = if term_hierarchy_enabled {
+        let post_bo_argument_gate = if dialect.term_hierarchy_enabled {
             empty().to(()).boxed()
         } else {
             argument.clone().rewind().not().boxed()
         };
-        let post_bo_trailing_argument_gate = if term_hierarchy_enabled {
+        let post_bo_trailing_argument_gate = if dialect.term_hierarchy_enabled {
             empty().to(()).boxed()
         } else {
             argument.clone().rewind().not().boxed()
@@ -1566,7 +1641,7 @@ fn statement_parser<'tokens>(
     .or_not()
     .map(Option::unwrap_or_default);
 
-    let leading_cmevla = if cbm_enabled {
+    let leading_cmevla = if dialect.cbm_enabled {
         empty().map(|_| Vec::new()).boxed()
     } else {
         cmevla_word().repeated().collect::<Vec<_>>().boxed()
@@ -1619,6 +1694,23 @@ fn statement_parser<'tokens>(
 
     text.define(text_body.labelled("text").as_context());
     text.then_ignore(end()).boxed()
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn syntax_grammar_ebnf(options: &ParseOptions) -> String {
+    statement_parser(None, options).debug().to_ebnf()
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn syntax_grammar_svg(options: &ParseOptions) -> String {
+    statement_parser(None, options)
+        .debug()
+        .to_railroad_svg()
+        .to_string()
 }
 
 #[requires(true)]
@@ -2123,6 +2215,7 @@ fn raw_words_until<'tokens>(
 ) -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     token_matching(
         "replacement word",
+        "REPLACEMENT WORD",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::ReplacementWord,
         ))],
@@ -3643,6 +3736,8 @@ where
                 )),
             }
         })
+        .labelled("QUOTE")
+        .as_terminal()
         .map_with(
             |argument,
              extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
@@ -4550,6 +4645,7 @@ fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    let dialect = parser_dialect_config();
     let ga = selmaho(Selmaho::Se)
         .or_not()
         .then(selmaho(Selmaho::Ga))
@@ -4585,7 +4681,7 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             let extra = [Some(gi), bo].into_iter().flatten().collect::<Vec<_>>();
             append_connective_words(connective, extra)
         });
-    let zantufa_initial_gi = feature_cmavo("GI", Cmavo::Gi, DialectFeature::ZantufaConnectives)
+    let zantufa_initial_gi = cmavo(Cmavo::Gi)
         .map_with(
             |gi, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
                 extra
@@ -4613,7 +4709,11 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             cmavo.extend(bo);
             connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
         });
-    choice((ga, zantufa_initial_gi, joik_jek_gi, modal_gi)).boxed()
+    if dialect.zantufa_connectives_enabled {
+        choice((ga, zantufa_initial_gi, joik_jek_gi, modal_gi)).boxed()
+    } else {
+        choice((ga, joik_jek_gi, modal_gi)).boxed()
+    }
 }
 
 #[requires(true)]
@@ -4682,18 +4782,23 @@ where
 #[requires(true)]
 #[ensures(true)]
 fn optional_gihi_terminator<'tokens>() -> BoxedParser<'tokens, Option<WithIndicators<WordLike>>> {
-    feature_cmavo("GIhI", Cmavo::Gihi, DialectFeature::ZantufaConnectives)
-        .map_with(
-            |gihi, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
-                extra.state().warn(
-                    ExperimentalConstruct::ExperimentalZantufaForethoughtGihi,
-                    &gihi,
-                );
-                gihi
-            },
-        )
-        .or_not()
-        .boxed()
+    if parser_dialect_config().zantufa_connectives_enabled {
+        cmavo(Cmavo::Gihi)
+            .map_with(
+                |gihi,
+                 extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                    extra.state().warn(
+                        ExperimentalConstruct::ExperimentalZantufaForethoughtGihi,
+                        &gihi,
+                    );
+                    gihi
+                },
+            )
+            .or_not()
+            .boxed()
+    } else {
+        empty().map(|_| None).boxed()
+    }
 }
 
 #[requires(true)]
@@ -5066,6 +5171,8 @@ where
                 ))
             }
         })
+        .labelled(marker_cmavo.canonical_text())
+        .as_terminal()
         .map_with(
             move |word,
                   extra: &mut MapExtra<
@@ -5089,7 +5196,6 @@ where
 #[ensures(true)]
 fn delimited_quoted_relation_unit<'tokens, F, B>(
     marker_cmavo: Cmavo,
-    required_feature: Option<DialectFeature>,
     free_modifier: F,
     build: B,
 ) -> BoxedParser<'tokens, RelationUnitSyntax>
@@ -5125,18 +5231,13 @@ where
             ));
         }
         let state: &mut ParserState = input.state();
-        if required_feature.is_some_and(|feature| !state.feature_enabled(feature)) {
-            input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected(
-                span,
-                vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
-            ));
-        }
         if let Some(construct) = quoted_relation_unit_warning(marker_cmavo) {
             state.warn(construct, &word);
         }
         Ok(word)
     })
+    .labelled(marker_cmavo.canonical_text())
+    .as_terminal()
     .then(free_modifier.repeated().collect::<Vec<_>>())
     .map(move |(word, free_modifiers)| build(wrapped_word(word, free_modifiers)))
     .boxed()
@@ -5174,6 +5275,7 @@ where
         + Clone
         + 'tokens,
 {
+    let zantufa_quotes_enabled = parser_dialect_config().zantufa_quotes_enabled;
     let tense_modal_with_free_modifiers = tense_modal()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
@@ -5220,17 +5322,14 @@ where
         single_word_quoted_relation_unit(Cmavo::Gohoi, free_modifier.clone(), |word| {
             new!(RelationUnitSyntax::Gohoi(word))
         });
-    let muhoi_unit = delimited_quoted_relation_unit(
-        Cmavo::Muhoi,
-        Some(DialectFeature::ZantufaQuotes),
-        free_modifier.clone(),
-        |word| new!(RelationUnitSyntax::Muhoi(word)),
-    );
-    let luhei_unit = feature_cmavo("LUhEI", Cmavo::Luhei, DialectFeature::ZantufaQuotes)
+    let muhoi_unit = delimited_quoted_relation_unit(Cmavo::Muhoi, free_modifier.clone(), |word| {
+        new!(RelationUnitSyntax::Muhoi(word))
+    });
+    let luhei_unit = cmavo(Cmavo::Luhei)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text.clone())
         .then(
-            feature_cmavo("LIhAU", Cmavo::Lihau, DialectFeature::ZantufaQuotes)
+            cmavo(Cmavo::Lihau)
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .or_not(),
         )
@@ -5243,7 +5342,7 @@ where
         })
         .boxed();
 
-    let brivla_word_unit = brivla_relation_word()
+    let brivla_word_unit = brivla_relation_word(parser_dialect_config().cbm_enabled)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(word, free_modifiers)| {
             new!(RelationUnitSyntax::Word(wrapped_word(word, free_modifiers)))
@@ -5323,9 +5422,8 @@ where
         });
 
     let se_unit = recursive(|se_unit| {
-        let nahe_inner_unit = selmaho(Selmaho::Nahe)
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(choice((
+        let nahe_inner_choices = if zantufa_quotes_enabled {
+            choice((
                 se_unit.clone(),
                 me_unit.clone(),
                 mehoi_unit.clone(),
@@ -5337,7 +5435,25 @@ where
                 moi_unit.clone(),
                 goha_unit.clone(),
                 word_unit.clone(),
-            )))
+            ))
+            .boxed()
+        } else {
+            choice((
+                se_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                xohi_unit.clone(),
+                nuha_unit.clone(),
+                moi_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+            .boxed()
+        };
+        let nahe_inner_unit = selmaho(Selmaho::Nahe)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(nahe_inner_choices)
             .map(|((nahe, free_modifiers), inner_unit)| {
                 new!(RelationUnitSyntax::Nahe {
                     nahe: wrapped_word(nahe, free_modifiers),
@@ -5401,20 +5517,37 @@ where
                     inner_unit: Box::new(inner_unit),
                 })
             });
-        choice((
-            se_inner_unit,
-            nahe_inner_unit,
-            me_unit.clone(),
-            mehoi_unit.clone(),
-            gohoi_unit.clone(),
-            muhoi_unit.clone(),
-            luhei_unit.clone(),
-            ke_unit.clone(),
-            moi_unit.clone(),
-            nuha_unit.clone(),
-            goha_unit.clone(),
-            word_unit.clone(),
-        ))
+        if zantufa_quotes_enabled {
+            choice((
+                se_inner_unit,
+                nahe_inner_unit,
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
+                ke_unit.clone(),
+                moi_unit.clone(),
+                nuha_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+            .boxed()
+        } else {
+            choice((
+                se_inner_unit,
+                nahe_inner_unit,
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                ke_unit.clone(),
+                moi_unit.clone(),
+                nuha_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+            .boxed()
+        }
     })
     .boxed();
 
@@ -5442,23 +5575,43 @@ where
     let nahe_unit = recursive(|nahe_unit| {
         selmaho(Selmaho::Nahe)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(choice((
-                wrapped_tense_unit.clone(),
-                ke_unit.clone(),
-                me_unit.clone(),
-                mehoi_unit.clone(),
-                gohoi_unit.clone(),
-                muhoi_unit.clone(),
-                luhei_unit.clone(),
-                xohi_unit.clone(),
-                nuha_unit.clone(),
-                moi_unit.clone(),
-                se_unit.clone(),
-                jai_unit.clone(),
-                nahe_unit,
-                goha_unit.clone(),
-                word_unit.clone(),
-            )))
+            .then(if zantufa_quotes_enabled {
+                choice((
+                    wrapped_tense_unit.clone(),
+                    ke_unit.clone(),
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    muhoi_unit.clone(),
+                    luhei_unit.clone(),
+                    xohi_unit.clone(),
+                    nuha_unit.clone(),
+                    moi_unit.clone(),
+                    se_unit.clone(),
+                    jai_unit.clone(),
+                    nahe_unit,
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            } else {
+                choice((
+                    wrapped_tense_unit.clone(),
+                    ke_unit.clone(),
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    xohi_unit.clone(),
+                    nuha_unit.clone(),
+                    moi_unit.clone(),
+                    se_unit.clone(),
+                    jai_unit.clone(),
+                    nahe_unit,
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            })
             .map(|((nahe, free_modifiers), inner_unit)| {
                 new!(RelationUnitSyntax::Nahe {
                     nahe: wrapped_word(nahe, free_modifiers),
@@ -5528,48 +5681,92 @@ where
             })
         });
 
-    let base_unit = choice((
-        goha_raho_unit.clone(),
-        me_unit.clone(),
-        mehoi_unit.clone(),
-        gohoi_unit.clone(),
-        muhoi_unit.clone(),
-        luhei_unit.clone(),
-        se_abstraction_unit.clone(),
-        abstraction_subsentence_unit.clone(),
-        se_jai_unit.clone(),
-        jai_unit.clone(),
-        nahe_unit.clone(),
-        se_unit.clone(),
-        ke_unit.clone(),
-        xohi_unit.clone(),
-        nuha_unit.clone(),
-        moi_unit.clone(),
-        word_unit.clone(),
-        goha_unit.clone(),
-    ))
-    .boxed();
-    let base_unit_for_cei = choice((
-        goha_raho_unit.clone(),
-        me_unit.clone(),
-        mehoi_unit.clone(),
-        gohoi_unit.clone(),
-        muhoi_unit.clone(),
-        luhei_unit.clone(),
-        se_abstraction_unit.clone(),
-        abstraction_subsentence_unit.clone(),
-        se_jai_unit,
-        jai_unit.clone(),
-        nahe_unit.clone(),
-        se_unit.clone(),
-        ke_unit.clone(),
-        xohi_unit,
-        nuha_unit.clone(),
-        moi_unit.clone(),
-        goha_unit.clone(),
-        word_unit.clone(),
-    ))
-    .boxed();
+    let base_unit = if zantufa_quotes_enabled {
+        choice((
+            goha_raho_unit.clone(),
+            me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            muhoi_unit.clone(),
+            luhei_unit.clone(),
+            se_abstraction_unit.clone(),
+            abstraction_subsentence_unit.clone(),
+            se_jai_unit.clone(),
+            jai_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            xohi_unit.clone(),
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            word_unit.clone(),
+            goha_unit.clone(),
+        ))
+        .boxed()
+    } else {
+        choice((
+            goha_raho_unit.clone(),
+            me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            se_abstraction_unit.clone(),
+            abstraction_subsentence_unit.clone(),
+            se_jai_unit.clone(),
+            jai_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            xohi_unit.clone(),
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            word_unit.clone(),
+            goha_unit.clone(),
+        ))
+        .boxed()
+    };
+    let base_unit_for_cei = if zantufa_quotes_enabled {
+        choice((
+            goha_raho_unit.clone(),
+            me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            muhoi_unit.clone(),
+            luhei_unit.clone(),
+            se_abstraction_unit.clone(),
+            abstraction_subsentence_unit.clone(),
+            se_jai_unit,
+            jai_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            xohi_unit,
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        ))
+        .boxed()
+    } else {
+        choice((
+            goha_raho_unit.clone(),
+            me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            se_abstraction_unit.clone(),
+            abstraction_subsentence_unit.clone(),
+            se_jai_unit,
+            jai_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            xohi_unit,
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        ))
+        .boxed()
+    };
     let be_link = be_link_parser(argument.clone(), free_modifier.clone());
     let selbri_relative_clause = cmavo(Cmavo::Nohoi)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5850,6 +6047,7 @@ where
         + 'tokens,
 {
     recursive(|inner_relation| {
+        let zantufa_quotes_enabled = parser_dialect_config().zantufa_quotes_enabled;
         let me_argument = argument.clone().or(letter_string().map(|letter| {
             new!(ArgumentSyntax::Letter {
                 letter: WithFreeModifiers::new(word_run(letter), Vec::new()),
@@ -5889,17 +6087,15 @@ where
             single_word_quoted_relation_unit(Cmavo::Gohoi, free_modifier.clone(), |word| {
                 new!(RelationUnitSyntax::Gohoi(word))
             });
-        let muhoi_unit = delimited_quoted_relation_unit(
-            Cmavo::Muhoi,
-            Some(DialectFeature::ZantufaQuotes),
-            free_modifier.clone(),
-            |word| new!(RelationUnitSyntax::Muhoi(word)),
-        );
-        let luhei_unit = feature_cmavo("LUhEI", Cmavo::Luhei, DialectFeature::ZantufaQuotes)
+        let muhoi_unit =
+            delimited_quoted_relation_unit(Cmavo::Muhoi, free_modifier.clone(), |word| {
+                new!(RelationUnitSyntax::Muhoi(word))
+            });
+        let luhei_unit = cmavo(Cmavo::Luhei)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(text.clone())
             .then(
-                feature_cmavo("LIhAU", Cmavo::Lihau, DialectFeature::ZantufaQuotes)
+                cmavo(Cmavo::Lihau)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )
@@ -5911,7 +6107,7 @@ where
                 })
             })
             .boxed();
-        let brivla_word_unit = brivla_relation_word()
+        let brivla_word_unit = brivla_relation_word(parser_dialect_config().cbm_enabled)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| {
                 new!(RelationUnitSyntax::Word(wrapped_word(word, free_modifiers)))
@@ -6079,20 +6275,37 @@ where
                         inner_unit: Box::new(inner_unit),
                     })
                 });
-            choice((
-                se_inner_unit,
-                nahe_inner_unit,
-                me_unit.clone(),
-                mehoi_unit.clone(),
-                gohoi_unit.clone(),
-                muhoi_unit.clone(),
-                luhei_unit.clone(),
-                ke_unit.clone(),
-                moi_unit.clone(),
-                nuha_unit.clone(),
-                goha_unit.clone(),
-                word_unit.clone(),
-            ))
+            if zantufa_quotes_enabled {
+                choice((
+                    se_inner_unit,
+                    nahe_inner_unit,
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    muhoi_unit.clone(),
+                    luhei_unit.clone(),
+                    ke_unit.clone(),
+                    moi_unit.clone(),
+                    nuha_unit.clone(),
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            } else {
+                choice((
+                    se_inner_unit,
+                    nahe_inner_unit,
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    ke_unit.clone(),
+                    moi_unit.clone(),
+                    nuha_unit.clone(),
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            }
         })
         .boxed();
         let jai_unit = cmavo(Cmavo::Jai)
@@ -6151,48 +6364,92 @@ where
             })
             .boxed();
 
-        let base_unit = choice((
-            goha_raho_unit.clone(),
-            me_unit.clone(),
-            mehoi_unit.clone(),
-            gohoi_unit.clone(),
-            muhoi_unit.clone(),
-            luhei_unit.clone(),
-            se_abstraction_unit.clone(),
-            abstraction_subsentence_unit.clone(),
-            se_jai_unit.clone(),
-            jai_unit.clone(),
-            nahe_unit.clone(),
-            se_unit.clone(),
-            ke_unit.clone(),
-            xohi_unit.clone(),
-            nuha_unit.clone(),
-            moi_unit.clone(),
-            word_unit.clone(),
-            goha_unit.clone(),
-        ))
-        .boxed();
-        let base_unit_for_cei = choice((
-            goha_raho_unit.clone(),
-            me_unit.clone(),
-            mehoi_unit.clone(),
-            gohoi_unit.clone(),
-            muhoi_unit.clone(),
-            luhei_unit.clone(),
-            se_abstraction_unit,
-            abstraction_subsentence_unit,
-            se_jai_unit,
-            jai_unit,
-            nahe_unit.clone(),
-            se_unit.clone(),
-            ke_unit.clone(),
-            xohi_unit,
-            nuha_unit.clone(),
-            moi_unit.clone(),
-            goha_unit.clone(),
-            word_unit.clone(),
-        ))
-        .boxed();
+        let base_unit = if zantufa_quotes_enabled {
+            choice((
+                goha_raho_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
+                se_abstraction_unit.clone(),
+                abstraction_subsentence_unit.clone(),
+                se_jai_unit.clone(),
+                jai_unit.clone(),
+                nahe_unit.clone(),
+                se_unit.clone(),
+                ke_unit.clone(),
+                xohi_unit.clone(),
+                nuha_unit.clone(),
+                moi_unit.clone(),
+                word_unit.clone(),
+                goha_unit.clone(),
+            ))
+            .boxed()
+        } else {
+            choice((
+                goha_raho_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                se_abstraction_unit.clone(),
+                abstraction_subsentence_unit.clone(),
+                se_jai_unit.clone(),
+                jai_unit.clone(),
+                nahe_unit.clone(),
+                se_unit.clone(),
+                ke_unit.clone(),
+                xohi_unit.clone(),
+                nuha_unit.clone(),
+                moi_unit.clone(),
+                word_unit.clone(),
+                goha_unit.clone(),
+            ))
+            .boxed()
+        };
+        let base_unit_for_cei = if zantufa_quotes_enabled {
+            choice((
+                goha_raho_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
+                se_abstraction_unit,
+                abstraction_subsentence_unit,
+                se_jai_unit,
+                jai_unit,
+                nahe_unit.clone(),
+                se_unit.clone(),
+                ke_unit.clone(),
+                xohi_unit,
+                nuha_unit.clone(),
+                moi_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+            .boxed()
+        } else {
+            choice((
+                goha_raho_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                se_abstraction_unit,
+                abstraction_subsentence_unit,
+                se_jai_unit,
+                jai_unit,
+                nahe_unit.clone(),
+                se_unit.clone(),
+                ke_unit.clone(),
+                xohi_unit,
+                nuha_unit.clone(),
+                moi_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+            .boxed()
+        };
         let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
             base_unit
                 .then(be_link.clone().or_not())
@@ -6593,6 +6850,7 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let dialect = parser_dialect_config();
     let prefixes = selmaho(Selmaho::Nahe)
         .then(selmaho(Selmaho::Se).or_not())
         .map(|(nahe, se)| {
@@ -6602,14 +6860,14 @@ fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSynta
         })
         .or(selmaho(Selmaho::Se).map(|se| vec![se]));
     let zantufa_prefix = choice((
-        feature_cmavo("NAhE", Cmavo::Nahe, DialectFeature::ZantufaTags),
-        feature_cmavo("NAhE", Cmavo::Tohe, DialectFeature::ZantufaTags),
-        feature_cmavo("NAhE", Cmavo::Nohe, DialectFeature::ZantufaTags),
-        feature_cmavo("NAhE", Cmavo::Jeha, DialectFeature::ZantufaTags),
-        feature_cmavo("SE", Cmavo::Se, DialectFeature::ZantufaTags),
-        feature_cmavo("SE", Cmavo::Te, DialectFeature::ZantufaTags),
-        feature_cmavo("SE", Cmavo::Ve, DialectFeature::ZantufaTags),
-        feature_cmavo("SE", Cmavo::Xe, DialectFeature::ZantufaTags),
+        cmavo(Cmavo::Nahe),
+        cmavo(Cmavo::Tohe),
+        cmavo(Cmavo::Nohe),
+        cmavo(Cmavo::Jeha),
+        cmavo(Cmavo::Se),
+        cmavo(Cmavo::Te),
+        cmavo(Cmavo::Ve),
+        cmavo(Cmavo::Xe),
     ));
     let atom = choice((
         selmaho(Selmaho::Fa).map(|fa| (vec![fa.clone()], Some(fa))),
@@ -6664,7 +6922,11 @@ fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSynta
             tense_modal_from_leaves(prefix_leaves, Vec::new())
         });
 
-    choice((prefixed, fa, zantufa_recursive)).boxed()
+    if dialect.zantufa_tags_enabled {
+        choice((prefixed, fa, zantufa_recursive)).boxed()
+    } else {
+        choice((prefixed, fa)).boxed()
+    }
 }
 
 #[requires(true)]

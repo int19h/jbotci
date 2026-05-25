@@ -8,7 +8,6 @@ use chumsky::input::{Checkpoint, Cursor};
 use chumsky::inspector::Inspector;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
@@ -45,24 +44,17 @@ pub(super) struct ParsedStatement {
 pub(super) struct ParserState {
     anchor_byte_starts: Vec<Option<usize>>,
     warnings: Vec<SyntaxWarning>,
-    dialect_features: std::collections::BTreeSet<DialectFeature>,
 }
 
 impl ParserState {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
     pub(super) fn new(words: &[WithIndicators<WordLike>], options: &ParseOptions) -> Self {
+        let _ = options;
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             warnings: Vec::new(),
-            dialect_features: options.dialect.features.clone(),
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn feature_enabled(&self, feature: DialectFeature) -> bool {
-        self.dialect_features.contains(&feature)
     }
 
     #[requires(true)]
@@ -222,6 +214,20 @@ pub(crate) fn parse_raw_text(
 ) -> Result<TextSyntax, SyntaxError> {
     let tokens = syntax_tokens(words);
     Ok(parser::parse_statement(&tokens, None, options)?.text)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(crate) fn syntax_grammar_ebnf(options: &ParseOptions) -> String {
+    parser::syntax_grammar_ebnf(options)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(crate) fn syntax_grammar_svg(options: &ParseOptions) -> String {
+    parser::syntax_grammar_svg(options)
 }
 
 #[requires(true)]

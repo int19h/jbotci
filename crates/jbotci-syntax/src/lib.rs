@@ -327,6 +327,24 @@ pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
 }
 
 #[requires(!construct.is_empty())]
+#[ensures(ret -> !construct.is_empty())]
+pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
+    matches!(
+        construct,
+        "free modifier"
+            | "argument"
+            | "term"
+            | "relation"
+            | "subsentence"
+            | "statement"
+            | "text"
+            | "parse_text"
+            | "end of input"
+            | "syntax construct"
+    )
+}
+
+#[requires(!construct.is_empty())]
 #[ensures(ret == matches!(construct, "text" | "parse_text"))]
 pub(crate) fn syntax_construct_is_root(construct: &str) -> bool {
     match construct {
@@ -851,6 +869,20 @@ pub fn parse_raw_text(
     options: &ParseOptions,
 ) -> Result<ast::TextSyntax, SyntaxError> {
     grammar::parse_raw_text(words, options)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn syntax_grammar_ebnf(options: &ParseOptions) -> String {
+    grammar::syntax_grammar_ebnf(options)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn syntax_grammar_svg(options: &ParseOptions) -> String {
+    grammar::syntax_grammar_svg(options)
 }
 
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
@@ -1587,6 +1619,33 @@ mod tests {
         let text = segment_text(&syntax_summary_segments_from_expectations(&expectations));
 
         assert_eq!(text, "expected one of: BRIVLA, GAhO, lo");
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_debug_ebnf_contains_terminal_labels() {
+        let output = syntax_grammar_ebnf(&ParseOptions::default());
+
+        assert!(output.contains("argument"));
+        assert!(output.contains("BRIVLA"));
+        assert!(output.contains("QUOTE"));
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_debug_dialect_changes_generated_grammar() {
+        let default_output = syntax_grammar_ebnf(&ParseOptions::default());
+        let dialect = jbotci_dialect::parse_dialect_definition("(zantufa-quotes)")
+            .expect("valid dialect definition");
+        let zantufa_options = ParseOptions::default().with_dialect_definition(&dialect);
+        let zantufa_output = syntax_grammar_ebnf(&zantufa_options);
+
+        assert_ne!(default_output, zantufa_output);
+        assert!(zantufa_output.contains("mu'oi"));
     }
 
     #[requires(true)]

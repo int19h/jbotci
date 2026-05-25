@@ -8,7 +8,7 @@ use super::{Span, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    syntax_construct_is_root,
+    syntax_construct_is_known, syntax_construct_is_root,
 };
 
 #[invariant(true)]
@@ -318,11 +318,12 @@ fn syntax_expected_token_from_rich_pattern(
 #[requires(true)]
 #[ensures(true)]
 fn context_from_rich_pattern(pattern: &RichPattern<'_, Token>) -> Option<String> {
-    match pattern {
-        RichPattern::Label(label) => Some(label.to_string()),
-        RichPattern::Identifier(identifier) => Some(identifier.clone()),
-        _ => None,
-    }
+    let construct = match pattern {
+        RichPattern::Label(label) => label.to_string(),
+        RichPattern::Identifier(identifier) => identifier.clone(),
+        _ => return None,
+    };
+    syntax_construct_is_known(&construct).then_some(construct)
 }
 
 #[requires(!construct.is_empty())]

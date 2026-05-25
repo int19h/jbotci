@@ -21,6 +21,8 @@ use jbotci_output::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
+#[cfg(feature = "grammar-debug")]
+use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use owo_colors::OwoColorize;
 
 const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
@@ -57,6 +59,7 @@ struct Cli {
 #[invariant(::Jvozba(..) => true)]
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
+#[invariant(::Gerna(..) => true)]
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
     Vlasei(VlaseiInput),
@@ -74,6 +77,9 @@ enum Command {
     Cukta(SearchInput),
     #[command(name = "zbasu")]
     Zbasu(TextInput),
+    #[cfg(feature = "grammar-debug")]
+    #[command(name = "gerna", visible_alias = "grammar")]
+    Gerna(GernaInput),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +145,13 @@ enum VlaseiFormat {
     Raw,
     #[value(alias = "djeisone")]
     Json,
+}
+
+#[cfg(feature = "grammar-debug")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum GernaFormat {
+    Ebnf,
+    Svg,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -309,6 +322,32 @@ impl GentufaInput {
         read_text_input(self.file.as_ref(), &self.text)
     }
 
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
+    }
+}
+
+#[cfg(feature = "grammar-debug")]
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct GernaInput {
+    #[arg(
+        long = "turtai",
+        visible_alias = "format",
+        default_value_t = GernaFormat::Ebnf,
+        value_enum
+    )]
+    format: GernaFormat,
+    #[arg(short = 'o', long = "output-file")]
+    output_file: Option<PathBuf>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
+}
+
+#[cfg(feature = "grammar-debug")]
+impl GernaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn dialect_definition(&self) -> Result<DialectDefinition> {
@@ -521,6 +560,8 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
+        #[cfg(feature = "grammar-debug")]
+        Command::Gerna(input) => run_gerna(input, stdout),
     }
 }
 
@@ -569,6 +610,64 @@ fn render_gentufa_on_large_stack(
         Ok(result) => result,
         Err(_) => bail!("gentufa syntax worker panicked"),
     }
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_gerna<WOut: Write>(input: GernaInput, stdout: &mut WOut) -> Result<CliStatus> {
+    let output_file = input.output_file.clone();
+    let rendered = render_gerna_on_large_stack(input)?;
+    write_gerna_output(stdout, output_file.as_ref(), &rendered)?;
+    Ok(CliStatus::Success)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_gerna_on_large_stack(input: GernaInput) -> Result<String> {
+    let worker = std::thread::Builder::new()
+        .name("jbotci-gerna".to_owned())
+        .stack_size(SYNTAX_WORKER_STACK_SIZE)
+        .spawn(move || render_gerna(input))
+        .context("failed to spawn gerna syntax worker")?;
+    match worker.join() {
+        Ok(result) => result,
+        Err(_) => bail!("gerna syntax worker panicked"),
+    }
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gerna(input: GernaInput) -> Result<String> {
+    let dialect = input.dialect_definition()?;
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
+    Ok(match input.format {
+        GernaFormat::Ebnf => syntax_grammar_ebnf(&options),
+        GernaFormat::Svg => syntax_grammar_svg(&options),
+    })
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(!rendered.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_gerna_output<WOut: Write>(
+    stdout: &mut WOut,
+    output_file: Option<&PathBuf>,
+    rendered: &str,
+) -> Result<()> {
+    let mut output = rendered.to_owned();
+    if !output.ends_with('\n') {
+        output.push('\n');
+    }
+    if let Some(path) = output_file {
+        fs::write(path, output)
+            .with_context(|| format!("failed to write grammar output to `{}`", path.display()))?;
+    } else {
+        stdout.write_all(output.as_bytes())?;
+    }
+    Ok(())
 }
 
 #[requires(diagnostic_terminal_width > 0)]
@@ -1084,6 +1183,8 @@ fn command_not_implemented(command: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(feature = "grammar-debug"))]
+    use clap::CommandFactory;
     use clap::error::ErrorKind;
     use jbotci_dialect::DialectFeature;
     use jbotci_morphology::segment_words_with_modifiers;
@@ -1107,6 +1208,17 @@ mod tests {
         ));
         assert!(Cli::try_parse_from(["jbotci", "server"]).is_err());
         assert!(Cli::try_parse_from(["jbotci", "selfu"]).is_err());
+    }
+
+    #[cfg(not(feature = "grammar-debug"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stable_cli_omits_gerna() {
+        assert!(Cli::try_parse_from(["jbotci", "gerna"]).is_err());
+        let help = Cli::command().render_long_help().to_string();
+        assert!(!help.contains("gerna"));
+        assert!(!help.contains("grammar"));
     }
 
     #[test]
@@ -1194,6 +1306,46 @@ mod tests {
                 .expect("dialect definition")
                 .features
                 .contains(&DialectFeature::ZantufaConnectives)
+        );
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_gerna_formats_and_flags() {
+        let Command::Gerna(default_input) = Cli::try_parse_from(["jbotci", "gerna"])
+            .expect("default gerna")
+            .command
+        else {
+            panic!("expected gerna command")
+        };
+        assert_eq!(default_input.format, GernaFormat::Ebnf);
+        assert!(default_input.output_file.is_none());
+
+        let Command::Gerna(svg_input) =
+            Cli::try_parse_from(["jbotci", "gerna", "--format", "svg", "-o", "grammar.svg"])
+                .expect("gerna svg")
+                .command
+        else {
+            panic!("expected gerna command")
+        };
+        assert_eq!(svg_input.format, GernaFormat::Svg);
+        assert_eq!(svg_input.output_file, Some(PathBuf::from("grammar.svg")));
+
+        let Command::Gerna(dialect_input) =
+            Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(zantufa-quotes)"])
+                .expect("gerna dialect")
+                .command
+        else {
+            panic!("expected gerna command")
+        };
+        assert!(
+            dialect_input
+                .dialect_definition()
+                .expect("dialect definition")
+                .features
+                .contains(&DialectFeature::ZantufaQuotes)
         );
     }
 
@@ -1793,11 +1945,12 @@ mod tests {
             assert!(stderr.contains("BRIVLA"));
             assert!(stderr.contains("[ends relation, statement or text]"));
             assert!(!stderr.contains("end of input (end of input)"));
-            let argument = stderr.find("- argument").expect("argument group");
-            let relation = stderr
+            let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
+            let argument = compact_stderr.find("- argument").expect("argument group");
+            let relation = compact_stderr
                 .find("[continues relation]")
                 .expect("relation continuation group");
-            let end = stderr.find("[ends relation").expect("end group");
+            let end = compact_stderr.find("[ends relation").expect("end group");
             assert!(argument < relation);
             assert!(relation < end);
             assert!(!stderr.contains("\x1b["));
@@ -1940,6 +2093,95 @@ mod tests {
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("raw nonzero indent rejected");
         assert!(error.to_string().contains("only supports `0`"));
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gerna_ebnf_outputs_named_grammar() {
+        let cli = Cli::try_parse_from(["jbotci", "gerna", "--format", "ebnf"]).expect("gerna ebnf");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("gerna ebnf run");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(output.contains("argument"));
+        assert!(output.contains("BRIVLA"));
+        assert!(output.contains("QUOTE"));
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gerna_svg_outputs_svg_document() {
+        let cli = Cli::try_parse_from(["jbotci", "gerna", "--format", "svg"]).expect("gerna svg");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("gerna svg run");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+        assert!(output.contains("<svg"));
+        assert!(output.contains("argument"));
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gerna_output_file_writes_without_stdout() {
+        let path = std::env::temp_dir().join(format!(
+            "jbotci-gerna-{}-{}.ebnf",
+            std::process::id(),
+            "output-file"
+        ));
+        let _ = fs::remove_file(&path);
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "gerna",
+            "--format",
+            "ebnf",
+            "--output-file",
+            path.to_str().expect("temporary path is utf8"),
+        ])
+        .expect("gerna output file");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("gerna output run");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(output.is_empty());
+        assert!(error.is_empty());
+        let file_output = fs::read_to_string(&path).expect("grammar output file");
+        let _ = fs::remove_file(&path);
+        assert!(file_output.contains("argument"));
+    }
+
+    #[cfg(feature = "grammar-debug")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gerna_dialect_changes_output() {
+        let default_cli = Cli::try_parse_from(["jbotci", "gerna"]).expect("default gerna");
+        let zantufa_cli = Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(zantufa-quotes)"])
+            .expect("zantufa gerna");
+        let mut default_output = Vec::new();
+        let mut zantufa_output = Vec::new();
+
+        run_cli(default_cli, &mut default_output, &mut Vec::new(), false)
+            .expect("default gerna run");
+        run_cli(zantufa_cli, &mut zantufa_output, &mut Vec::new(), false)
+            .expect("zantufa gerna run");
+
+        let default_output = String::from_utf8(default_output).expect("default utf8");
+        let zantufa_output = String::from_utf8(zantufa_output).expect("zantufa utf8");
+        assert_ne!(default_output, zantufa_output);
+        assert!(zantufa_output.contains("mu'oi"));
     }
 
     #[test]

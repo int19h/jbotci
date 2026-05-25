@@ -3,9 +3,9 @@ use std::ops::Range;
 use crate::{ExperimentalConstruct, Indicator, WithIndicators};
 use bityzba::{data, new, requires};
 use chumsky::error::RichReason;
+use chumsky::input::MapExtra;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
@@ -17,22 +17,9 @@ use crate::{SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWor
 pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
         "cmavo",
+        cmavo.canonical_text(),
         vec![new!(SyntaxExpectedToken::Cmavo(cmavo))],
         move |word| parser_word_is_cmavo(word, cmavo),
-    )
-}
-
-#[requires(!label.is_empty())]
-#[ensures(true)]
-pub(super) fn feature_cmavo<'tokens>(
-    label: &'static str,
-    cmavo: Cmavo,
-    feature: DialectFeature,
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching_with_state(
-        label,
-        vec![new!(SyntaxExpectedToken::Cmavo(cmavo))],
-        move |word, state| parser_word_is_cmavo(word, cmavo) && state.feature_enabled(feature),
     )
 }
 
@@ -40,6 +27,7 @@ pub(super) fn feature_cmavo<'tokens>(
 #[ensures(true)]
 pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
+        selmaho.name(),
         selmaho.name(),
         vec![new!(SyntaxExpectedToken::Selmaho(selmaho))],
         move |word| parser_word_is_selmaho(word, selmaho),
@@ -54,6 +42,7 @@ pub(super) fn cmavo_one_of<'tokens>(
     cmavo: &'static [Cmavo],
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
+        label,
         label,
         cmavo
             .iter()
@@ -116,6 +105,7 @@ pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLik
 pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
         "KOhA argument",
+        "KOhA argument",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::KohaArgument,
         ))],
@@ -128,6 +118,7 @@ pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<Wo
 pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
         "relation word",
+        "RELATION WORD",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::RelationWord,
         ))],
@@ -137,23 +128,45 @@ pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Wo
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching_with_state(
+pub(super) fn brivla_relation_word<'tokens>(
+    cbm_enabled: bool,
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    let brivla = token_matching(
+        "BRIVLA",
         "BRIVLA",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::Brivla
         ))],
-        |word, state| {
-            is_brivla_relation_word(word)
-                || (is_cmevla_word(word) && state.feature_enabled(DialectFeature::Cbm))
-        },
-    )
+        is_brivla_relation_word,
+    );
+    if cbm_enabled {
+        brivla
+            .or(cmevla_word().map_with(
+                |word,
+                 extra: &mut MapExtra<
+                    'tokens,
+                    '_,
+                    super::ParserInput<'tokens>,
+                    super::ParseExtra<'tokens>,
+                >| {
+                    extra.state().warn(
+                        ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+                        &word,
+                    );
+                    word
+                },
+            ))
+            .boxed()
+    } else {
+        brivla
+    }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
+        "CMEVLA",
         "CMEVLA",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::Cmevla
@@ -167,6 +180,7 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Word
 pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(
         "letter word",
+        "LETTER WORD",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::LetterWord,
         ))],
@@ -175,9 +189,11 @@ pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Word
 }
 
 #[requires(!label.is_empty())]
+#[requires(!debug_label.is_empty())]
 #[ensures(true)]
 pub(super) fn token_matching<'tokens>(
     label: &'static str,
+    debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
     predicate: impl Fn(&WithIndicators<WordLike>) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
@@ -201,47 +217,8 @@ pub(super) fn token_matching<'tokens>(
             }
         }
     })
-    .boxed()
-}
-
-#[requires(!label.is_empty())]
-#[ensures(true)]
-fn token_matching_with_state<'tokens>(
-    label: &'static str,
-    expected: Vec<SyntaxExpectedToken>,
-    predicate: impl Fn(&WithIndicators<WordLike>, &ParserState) -> bool + Clone + 'tokens,
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    assert!(
-        !expected.is_empty(),
-        "token parsers must declare expected tokens"
-    );
-    custom(move |input| {
-        let checkpoint = input.save();
-        let cursor = input.cursor();
-        match input.next() {
-            Some(word) => {
-                let state: &mut ParserState = input.state();
-                if !predicate(&word, state) {
-                    let span = input.span_since(&cursor);
-                    input.rewind(checkpoint);
-                    return Err(SyntaxParseError::expected(span, expected.clone()));
-                }
-                if label == "BRIVLA" && is_cmevla_word(&word) {
-                    state.warn(
-                        ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
-                        &word,
-                    );
-                }
-                warn_experimental_cmavo(state, label, &word);
-                Ok(word)
-            }
-            _ => {
-                let span = input.span_since(&cursor);
-                input.rewind(checkpoint);
-                Err(SyntaxParseError::expected(span, expected.clone()))
-            }
-        }
-    })
+    .labelled(debug_label)
+    .as_terminal()
     .boxed()
 }
 
