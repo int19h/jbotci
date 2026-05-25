@@ -128,6 +128,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub(super) fn context_paths(&self) -> &[Vec<SyntaxConstructContext>] {
+        &self.context_paths
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub(super) fn merge_for_report(mut self, other: Self) -> Self {
         append_unique_groups(&mut self.expected_groups, other.expected_groups);
         append_unique_context_paths(&mut self.context_paths, other.context_paths);

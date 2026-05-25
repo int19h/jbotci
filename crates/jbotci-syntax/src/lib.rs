@@ -15,6 +15,7 @@ use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
     DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, source_span_from_byte_offsets,
 };
+pub use jbotci_diagnostics::{TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport};
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::SourceId;
@@ -29,6 +30,18 @@ use ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
 };
 pub use ast::{Indicator, IndicatorData};
+
+pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
+    "text",
+    "statement",
+    "subsentence",
+    "relation",
+    "term",
+    "argument",
+    "free modifier",
+    "token",
+    "rewind",
+];
 
 impl TextSyntax {
     #[requires(true)]
@@ -82,16 +95,16 @@ fn is_indicator_word(word: &Word) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct TraceOptions {
-    pub level: u8,
-    pub filter: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub struct SyntaxParseAttempt {
+    pub result: Result<SyntaxParse, SyntaxError>,
+    pub trace: Option<TraceReport>,
 }
 
 impl ParseOptions {
@@ -99,6 +112,13 @@ impl ParseOptions {
     #[ensures(ret.dialect == *definition)]
     pub fn with_dialect_definition(mut self, definition: &DialectDefinition) -> Self {
         self.dialect = definition.clone();
+        self
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn with_trace_options(mut self, trace: TraceOptions) -> Self {
+        self.trace = trace;
         self
     }
 }
@@ -1452,6 +1472,16 @@ pub fn parse_syntax_tree_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tree_with_source_and_options_attempt(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
+    grammar::parse_syntax_tree_with_source_attempt(words, Some(source), options)
 }
 
 #[cfg(test)]

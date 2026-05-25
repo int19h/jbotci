@@ -6,21 +6,26 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use jbotci_diagnostics::Diagnostic;
+use jbotci_diagnostics::{
+    DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
+};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{
-    MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions,
+    segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
     DiagnosticRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
-    TreeRenderOptions, compact_morphology_json_string_with_options,
+    TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
     compact_syntax_json_string_with_options, pretty_brackets_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_tree_with_options, render_diagnostics,
+    pretty_tree_with_options, render_diagnostics, render_trace_report,
 };
 use jbotci_source::SourceId;
-use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
+use jbotci_syntax::{
+    ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_with_source_and_options_attempt,
+};
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use owo_colors::OwoColorize;
@@ -45,6 +50,12 @@ struct Cli {
     color: concolor_clap::ColorChoice,
     #[arg(long = "detailed-errors", global = true)]
     detailed_errors: bool,
+    #[arg(long = "trace-phase", global = true, value_enum)]
+    trace_phase: Option<CliTracePhase>,
+    #[arg(long = "trace-limit", global = true, default_value_t = DEFAULT_TRACE_LIMIT)]
+    trace_limit: usize,
+    #[arg(long = "trace-list", global = true)]
+    trace_list: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -179,6 +190,39 @@ enum CliGlideMark {
     Breve,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliTracePhase {
+    Morphology,
+    Syntax,
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CliParsedTraceSpec {
+    level: TraceLevel,
+    filter: Option<TraceFilter>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct CliTraceConfig {
+    phase: TracePhase,
+    limit: usize,
+}
+
+impl From<CliTracePhase> for TracePhase {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CliTracePhase) -> Self {
+        match value {
+            CliTracePhase::Morphology => Self::Morphology,
+            CliTracePhase::Syntax => Self::Syntax,
+            CliTracePhase::All => Self::All,
+        }
+    }
+}
+
 impl From<CliGlideMark> for GlideMark {
     #[requires(true)]
     #[ensures(true)]
@@ -202,8 +246,14 @@ struct VlaseiInput {
         value_enum
     )]
     format: VlaseiFormat,
-    #[arg(long = "trace", alias = "plivei")]
-    trace: Option<String>,
+    #[arg(
+        long = "trace",
+        alias = "plivei",
+        value_name = "SPEC",
+        num_args = 0..=1,
+        default_missing_value = "1"
+    )]
+    trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
@@ -243,8 +293,14 @@ impl VlaseiInput {
 struct TextInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
-    #[arg(long = "trace", alias = "plivei")]
-    trace: Option<String>,
+    #[arg(
+        long = "trace",
+        alias = "plivei",
+        value_name = "SPEC",
+        num_args = 0..=1,
+        default_missing_value = "1"
+    )]
+    trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
@@ -283,8 +339,14 @@ struct GentufaInput {
         value_enum
     )]
     format: GentufaFormat,
-    #[arg(long = "trace", alias = "plivei")]
-    trace: Option<String>,
+    #[arg(
+        long = "trace",
+        alias = "plivei",
+        value_name = "SPEC",
+        num_args = 0..=1,
+        default_missing_value = "1"
+    )]
+    trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
@@ -455,20 +517,46 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     } else {
         DiagnosticDetailMode::Summary
     };
+    if cli.trace_limit == 0 {
+        bail!("--trace-limit must be greater than 0");
+    }
+    let requested_trace_phase = cli.trace_phase.map(TracePhase::from);
     match cli.command {
-        Command::Vlasei(input) => {
+        Command::Vlasei(mut input) => {
+            normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
             validate_vlasei_options(&input)?;
+            if cli.trace_list {
+                write_trace_filter_list(
+                    stdout,
+                    requested_trace_phase.unwrap_or(TracePhase::Morphology),
+                )?;
+                return Ok(CliStatus::Success);
+            }
+            let morphology_trace_options = trace_options(
+                &input.trace,
+                requested_trace_phase.unwrap_or(TracePhase::Morphology),
+                cli.trace_limit,
+            )?;
             let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
             let text = input.read_text()?;
             let dialect = input.dialect_definition()?;
-            let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-            let words = match segment_words_with_modifiers_with_options_and_source_id(
+            let morphology_options = MorphologyOptions::default()
+                .with_dialect_definition(&dialect)
+                .with_trace_options(morphology_trace_options);
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
                 &text,
                 &morphology_options,
                 Some(SourceId(source_label.clone())),
-            ) {
+            );
+            let trace_stderr = render_cli_trace(
+                attempt.trace.as_ref(),
+                color_policy.stderr,
+                diagnostic_terminal_width,
+            );
+            let words = match attempt.result {
                 Ok(words) => words,
                 Err(error) => {
+                    stderr.write_all(trace_stderr.as_bytes())?;
                     let diagnostic =
                         error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
                     write_source_diagnostics(
@@ -483,6 +571,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                     return Ok(CliStatus::Failure);
                 }
             };
+            stderr.write_all(trace_stderr.as_bytes())?;
             let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
             match input.format {
                 VlaseiFormat::Json => {
@@ -525,14 +614,27 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
             }
             Ok(CliStatus::Success)
         }
-        Command::Gentufa(input) => run_gentufa(
-            input,
-            stdout,
-            stderr,
-            color_policy,
-            diagnostic_detail,
-            diagnostic_terminal_width,
-        ),
+        Command::Gentufa(input) => {
+            if cli.trace_list {
+                write_trace_filter_list(
+                    stdout,
+                    requested_trace_phase.unwrap_or(TracePhase::Syntax),
+                )?;
+                return Ok(CliStatus::Success);
+            }
+            run_gentufa(
+                input,
+                stdout,
+                stderr,
+                color_policy,
+                diagnostic_detail,
+                diagnostic_terminal_width,
+                CliTraceConfig {
+                    phase: requested_trace_phase.unwrap_or(TracePhase::Syntax),
+                    limit: cli.trace_limit,
+                },
+            )
+        }
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
@@ -566,6 +668,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
 }
 
 #[requires(diagnostic_terminal_width > 0)]
+#[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_gentufa<WOut: Write, WErr: Write>(
     input: GentufaInput,
@@ -574,12 +677,14 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
     diagnostic_terminal_width: usize,
+    trace: CliTraceConfig,
 ) -> Result<CliStatus> {
     let rendered = render_gentufa_on_large_stack(
         input,
         color_policy,
         diagnostic_detail,
         diagnostic_terminal_width,
+        trace,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(rendered.stdout.as_bytes())?;
@@ -587,12 +692,14 @@ fn run_gentufa<WOut: Write, WErr: Write>(
 }
 
 #[requires(diagnostic_terminal_width > 0)]
+#[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa_on_large_stack(
     input: GentufaInput,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
     diagnostic_terminal_width: usize,
+    trace: CliTraceConfig,
 ) -> Result<GentufaRendered> {
     let worker = std::thread::Builder::new()
         .name("jbotci-gentufa".to_owned())
@@ -603,6 +710,7 @@ fn render_gentufa_on_large_stack(
                 color_policy,
                 diagnostic_detail,
                 diagnostic_terminal_width,
+                trace,
             )
         })
         .context("failed to spawn gentufa syntax worker")?;
@@ -671,34 +779,48 @@ fn write_gerna_output<WOut: Write>(
 }
 
 #[requires(diagnostic_terminal_width > 0)]
+#[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_gentufa(
-    input: GentufaInput,
+    mut input: GentufaInput,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
     diagnostic_terminal_width: usize,
+    trace: CliTraceConfig,
 ) -> Result<GentufaRendered> {
+    normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
     validate_gentufa_options(&input)?;
+    let morphology_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
+    let syntax_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
     let dialect = input.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
+    let morphology_options = MorphologyOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(morphology_trace_options);
+    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &text,
         &morphology_options,
         Some(SourceId(source_label.clone())),
-    ) {
+    );
+    let morphology_trace_stderr = render_cli_trace(
+        morphology_attempt.trace.as_ref(),
+        color_policy.stderr,
+        diagnostic_terminal_width,
+    );
+    let words = match morphology_attempt.result {
         Ok(words) => words,
         Err(error) => {
             let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
-            let stderr = render_source_diagnostics(
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&render_source_diagnostics(
                 &source_label,
                 &text,
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
                 diagnostic_detail,
                 diagnostic_terminal_width,
-            )?;
+            )?);
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
                 stdout: String::new(),
@@ -706,19 +828,29 @@ fn render_gentufa(
             }));
         }
     };
-    let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let parsed = match parse_syntax_tree_with_source_and_options(&words, &text, &parse_options) {
+    let parse_options = ParseOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(syntax_trace_options);
+    let parsed = parse_syntax_tree_with_source_and_options_attempt(&words, &text, &parse_options);
+    let trace_stderr = render_cli_trace(
+        parsed.trace.as_ref(),
+        color_policy.stderr,
+        diagnostic_terminal_width,
+    );
+    let parsed = match parsed.result {
         Ok(parsed) => parsed,
         Err(error) => {
             let diagnostic = error.to_diagnostic(Some(SourceId(source_label.clone())), &text);
-            let stderr = render_source_diagnostics(
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&trace_stderr);
+            stderr.push_str(&render_source_diagnostics(
                 &source_label,
                 &text,
                 std::slice::from_ref(&diagnostic),
                 color_policy.stderr,
                 diagnostic_detail,
                 diagnostic_terminal_width,
-            )?;
+            )?);
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
                 stdout: String::new(),
@@ -731,14 +863,16 @@ fn render_gentufa(
         .iter()
         .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text))
         .collect::<Vec<_>>();
-    let stderr = render_source_diagnostics(
+    let mut stderr = morphology_trace_stderr;
+    stderr.push_str(&trace_stderr);
+    stderr.push_str(&render_source_diagnostics(
         &source_label,
         &text,
         &diagnostics,
         color_policy.stderr,
         diagnostic_detail,
         diagnostic_terminal_width,
-    )?;
+    )?);
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
     let mut stdout = String::new();
     match input.format {
@@ -849,6 +983,147 @@ fn render_source_diagnostics(
         },
     )
     .map_err(|error| anyhow!(error))
+}
+
+#[requires(limit > 0)]
+#[ensures(ret.as_ref().is_ok_and(|options| trace.is_none() == !options.enabled) || ret.is_err())]
+fn trace_options(
+    trace: &Option<Option<String>>,
+    phase: TracePhase,
+    limit: usize,
+) -> Result<TraceOptions> {
+    let Some(spec) = trace else {
+        return Ok(TraceOptions::disabled());
+    };
+    let spec = spec.as_deref().unwrap_or("1");
+    let spec = parse_trace_spec(spec)?;
+    Ok(TraceOptions::enabled(spec.level, spec.filter, phase, limit))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|parsed| parsed.filter.as_ref().is_none_or(|filter| !filter.name.is_empty())) || ret.is_err())]
+fn parse_trace_spec(spec: &str) -> Result<CliParsedTraceSpec> {
+    if spec.is_empty() {
+        bail!("invalid trace specification: empty value");
+    }
+    if spec.chars().all(|character| character.is_ascii_digit()) {
+        let value = spec
+            .parse::<u8>()
+            .with_context(|| format!("invalid trace level `{spec}`"))?;
+        let level = TraceLevel::from_number(value).map_err(|error| anyhow!(error))?;
+        return Ok(CliParsedTraceSpec {
+            level,
+            filter: None,
+        });
+    }
+    if let Some((filter, level)) = spec.split_once(':') {
+        if filter.is_empty() || level.is_empty() {
+            bail!("invalid trace specification `{spec}`; use N, rule, or rule:N");
+        }
+        let value = level
+            .parse::<u8>()
+            .with_context(|| format!("invalid trace level `{level}`"))?;
+        let level = TraceLevel::from_number(value).map_err(|error| anyhow!(error))?;
+        return Ok(CliParsedTraceSpec {
+            level,
+            filter: Some(TraceFilter::new(filter.to_owned())),
+        });
+    }
+    Ok(CliParsedTraceSpec {
+        level: TraceLevel::All,
+        filter: Some(TraceFilter::new(spec.to_owned())),
+    })
+}
+
+#[requires(true)]
+#[ensures(trace.as_ref().is_none_or(|value| value.as_ref().is_none_or(|text| !text.is_empty())))]
+fn normalize_trace_text_input(
+    trace: &mut Option<Option<String>>,
+    file: &Option<PathBuf>,
+    text: &mut Vec<String>,
+) {
+    let Some(Some(spec)) = trace.as_ref() else {
+        return;
+    };
+    if file.is_some() || !text.is_empty() || trace_spec_can_stand_alone(spec) {
+        return;
+    }
+    let text_arg = spec.clone();
+    *trace = Some(None);
+    text.push(text_arg);
+}
+
+#[requires(true)]
+#[ensures(spec.is_empty() -> !ret)]
+fn trace_spec_can_stand_alone(spec: &str) -> bool {
+    if spec.is_empty() {
+        return false;
+    }
+    if spec
+        .parse::<u8>()
+        .is_ok_and(|value| TraceLevel::from_number(value).is_ok())
+    {
+        return true;
+    }
+    if let Some((filter, level)) = spec.split_once(':') {
+        return !filter.is_empty()
+            && level
+                .parse::<u8>()
+                .is_ok_and(|value| TraceLevel::from_number(value).is_ok())
+            && is_known_trace_filter(filter);
+    }
+    is_known_trace_filter(spec)
+}
+
+#[requires(true)]
+#[ensures(ret -> !name.is_empty())]
+fn is_known_trace_filter(name: &str) -> bool {
+    SYNTAX_TRACE_FILTERS.contains(&name) || MORPHOLOGY_TRACE_FILTERS.contains(&name)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_trace_filter_list<W: Write>(stdout: &mut W, phase: TracePhase) -> Result<()> {
+    match phase {
+        TracePhase::Morphology => {
+            write_trace_filter_group(stdout, "morphology", MORPHOLOGY_TRACE_FILTERS)?
+        }
+        TracePhase::Syntax => write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?,
+        TracePhase::All => {
+            write_trace_filter_group(stdout, "morphology", MORPHOLOGY_TRACE_FILTERS)?;
+            write_trace_filter_group(stdout, "syntax", SYNTAX_TRACE_FILTERS)?;
+        }
+    }
+    Ok(())
+}
+
+#[requires(!title.is_empty())]
+#[requires(names.iter().all(|name| !name.is_empty()))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_trace_filter_group<W: Write>(stdout: &mut W, title: &str, names: &[&str]) -> Result<()> {
+    writeln!(stdout, "{title}:")?;
+    for name in names {
+        writeln!(stdout, "- {name}")?;
+    }
+    Ok(())
+}
+
+#[requires(terminal_width > 0)]
+#[ensures(ret.is_empty() || ret.ends_with('\n'))]
+fn render_cli_trace(
+    report: Option<&TraceReport>,
+    color_enabled: bool,
+    terminal_width: usize,
+) -> String {
+    report.map_or_else(String::new, |report| {
+        render_trace_report(
+            report,
+            TraceRenderOptions {
+                color: color_enabled,
+                terminal_width,
+            },
+        )
+    })
 }
 
 #[requires(true)]
@@ -1448,6 +1723,65 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_trace_options_and_aliases() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "--trace-phase",
+            "all",
+            "--trace-limit",
+            "7",
+            "gentufa",
+            "--trace",
+            "argument:3",
+            "mi",
+            "klama",
+        ])
+        .expect("trace options");
+        assert_eq!(cli.trace_phase, Some(CliTracePhase::All));
+        assert_eq!(cli.trace_limit, 7);
+        let Command::Gentufa(input) = cli.command else {
+            panic!("expected gentufa command")
+        };
+        assert_eq!(input.trace, Some(Some("argument:3".to_owned())));
+        assert_eq!(input.text, vec!["mi".to_owned(), "klama".to_owned()]);
+
+        let alias_cli =
+            Cli::try_parse_from(["jbotci", "vlasei", "--plivei", "2", "coi"]).expect("alias");
+        let Command::Vlasei(input) = alias_cli.command else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(input.trace, Some(Some("2".to_owned())));
+        assert_eq!(input.text, vec!["coi".to_owned()]);
+
+        let bare = trace_options(&Some(None), TracePhase::Syntax, 7).expect("bare trace");
+        assert!(bare.enabled);
+        assert_eq!(bare.level, TraceLevel::Top);
+        assert_eq!(bare.phase, TracePhase::Syntax);
+        assert_eq!(bare.limit, 7);
+        assert!(trace_options(&Some(Some("5".to_owned())), TracePhase::Syntax, 7).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trace_list_prints_known_filters() {
+        let cli =
+            Cli::try_parse_from(["jbotci", "gentufa", "--trace-list"]).expect("trace list parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("trace list run");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty());
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        assert!(stdout.contains("syntax:"));
+        assert!(stdout.contains("- argument"));
+        assert!(stdout.contains("- free modifier"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_unknown_gentufa_format_and_word_kind_flag() {
         assert_eq!(
             Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "xml", "coi"])
@@ -1980,6 +2314,102 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_trace_writes_to_stderr_and_keeps_json_stdout_clean() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--trace", "1", "--turtai", "json", "mi", "klama",
+            ])
+            .expect("gentufa trace parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Success);
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            let _: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+            assert!(!stdout.contains("trace["));
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("trace[syntax]"), "{stderr}");
+            assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_trace_before_text_uses_default_trace_level() {
+        run_on_large_stack(|| {
+            let cli =
+                Cli::try_parse_from(["jbotci", "gentufa", "--trace", "gleki ku klama zei klama"])
+                    .expect("bare trace parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("trace[syntax]"), "{stderr}");
+            assert!(stderr.contains("syntax.parse"), "{stderr}");
+            assert!(!stderr.contains("syntax worker panicked"), "{stderr}");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trace_color_policy_controls_ansi() {
+        run_on_large_stack(|| {
+            let always_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--color=always",
+                "--trace",
+                "argument:3",
+                "gleki",
+                "ku",
+                "klama",
+                "zei",
+                "klama",
+            ])
+            .expect("always color trace parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status = run_cli(always_cli, &mut output, &mut error, false)
+                .expect("always color trace run");
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("\x1b["), "{stderr}");
+
+            let never_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--color=never",
+                "--trace",
+                "argument:3",
+                "gleki",
+                "ku",
+                "klama",
+                "zei",
+                "klama",
+            ])
+            .expect("never color trace parses");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            let status =
+                run_cli(never_cli, &mut output, &mut error, true).expect("never color trace run");
+            assert_eq!(status, CliStatus::Failure);
+            assert!(output.is_empty());
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stderr.contains("trace[syntax]"), "{stderr}");
+            assert!(!stderr.contains("\x1b["), "{stderr}");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn detailed_syntax_error_color_controls_word_braces() {
         run_on_large_stack(|| {
             let cli = Cli::try_parse_from([
@@ -2023,6 +2453,24 @@ mod tests {
         assert!(stderr.contains("morphology detail:"));
         assert!(stderr.contains("invalid morphology"));
         assert!(stderr.contains("reason"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_trace_writes_morphology_stderr() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--trace", "1", "melxi,or."])
+            .expect("vlasei trace parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
+
+        assert_eq!(status, CliStatus::Failure);
+        assert!(output.is_empty());
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stderr.contains("trace[morphology]"), "{stderr}");
+        assert!(stderr.contains("unsupported word shape"), "{stderr}");
+        assert!(stderr.contains("morphology.invalid"), "{stderr}");
     }
 
     #[test]

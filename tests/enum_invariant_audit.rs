@@ -72,6 +72,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper delegates validity to SourceLocationError",
     ),
     (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceOptionError::InvalidLevel",
+        "diagnostic enum records rejected trace levels",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceRecorder::Active",
+        "active recorder state owns trace invariants while the enum only selects enabled storage",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",
         "render entry delegates all validity to TreeValue",
     ),

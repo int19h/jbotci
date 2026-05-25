@@ -8,12 +8,15 @@ use chumsky::input::{Checkpoint, Cursor};
 use chumsky::inspector::Inspector;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
+use jbotci_diagnostics::{
+    TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
+};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
     Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
     ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxExpectedToken, SyntaxParse,
-    SyntaxWarning, SyntaxWordCategory, WithIndicators,
+    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, WithIndicators,
 };
 
 pub(crate) mod ast;
@@ -39,21 +42,43 @@ pub(super) struct ParsedStatement {
     pub warnings: Vec<SyntaxWarning>,
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub(super) struct ParsedStatementAttempt {
+    pub result: Result<ParsedStatement, SyntaxError>,
+    pub trace: Option<TraceReport>,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub(super) struct ParserStateFinish {
+    pub warnings: Vec<SyntaxWarning>,
+    pub trace: Option<TraceReport>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub(crate) struct ParserCheckpoint {
+    warning_count: usize,
+    trace_save: bool,
+}
+
 #[derive(Debug, Clone, Default)]
 #[invariant(true)]
 pub(super) struct ParserState {
     anchor_byte_starts: Vec<Option<usize>>,
     warnings: Vec<SyntaxWarning>,
+    trace: TraceRecorder,
 }
 
 impl ParserState {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
     pub(super) fn new(words: &[WithIndicators<WordLike>], options: &ParseOptions) -> Self {
-        let _ = options;
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             warnings: Vec::new(),
+            trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
         }
     }
 
@@ -90,15 +115,79 @@ impl ParserState {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn finish_warnings(self) -> Vec<SyntaxWarning> {
+    #[ensures(ret.trace.as_ref().is_none_or(|report| report.phase == TracePhase::Syntax))]
+    pub(super) fn finish(self) -> ParserStateFinish {
         let mut deduped = Vec::new();
         for warning in self.warnings {
             if !deduped.contains(&warning) {
                 deduped.push(warning);
             }
         }
-        deduped
+        ParserStateFinish {
+            warnings: deduped,
+            trace: self.trace.finish(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(self.trace, TraceRecorder::Disabled) -> !ret)]
+    pub(super) fn trace_enabled(&self) -> bool {
+        self.trace.is_enabled()
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(self.trace, TraceRecorder::Disabled) -> !ret)]
+    pub(super) fn trace_should_record(&self, level: TraceLevel, label: &str) -> bool {
+        self.trace.should_record(level, label)
+    }
+
+    #[requires(byte_start <= byte_end)]
+    #[ensures(true)]
+    pub(super) fn trace_event(
+        &mut self,
+        level: TraceLevel,
+        kind: TraceEventKind,
+        label: &str,
+        byte_start: usize,
+        byte_end: usize,
+        detail: impl FnOnce() -> Option<String>,
+    ) {
+        self.trace
+            .record_with_detail(level, kind, label, byte_start, byte_end, detail);
+    }
+
+    #[requires(byte_start <= byte_end)]
+    #[ensures(true)]
+    pub(super) fn trace_enter_construct(
+        &mut self,
+        level: TraceLevel,
+        label: &str,
+        byte_start: usize,
+        byte_end: usize,
+    ) {
+        self.trace
+            .enter_construct(level, label, byte_start, byte_end);
+    }
+
+    #[requires(byte_start <= byte_end)]
+    #[ensures(true)]
+    pub(super) fn trace_exit_construct(
+        &mut self,
+        level: TraceLevel,
+        kind: TraceEventKind,
+        label: &str,
+        byte_start: usize,
+        byte_end: usize,
+        detail: impl FnOnce() -> Option<String>,
+    ) {
+        self.trace
+            .exit_construct(level, kind, label, byte_start, byte_end, detail);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn trace_failure_summary(&mut self, failure: TraceFailureSummary) {
+        self.trace.set_failure(failure);
     }
 
     #[requires(true)]
@@ -117,26 +206,75 @@ impl ParserState {
 }
 
 impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
-    type Checkpoint = usize;
+    type Checkpoint = ParserCheckpoint;
 
     #[requires(true)]
     #[ensures(true)]
-    fn on_token(&mut self, _token: &Token) {}
+    fn on_token(&mut self, token: &Token) {
+        if !self.trace_should_record(TraceLevel::Primitives, "token") {
+            return;
+        }
+        let span = token
+            .core_word()
+            .source_spans()
+            .into_iter()
+            .next()
+            .map(|span| span.byte_start..span.byte_end)
+            .unwrap_or(0..0);
+        self.trace_event(
+            TraceLevel::Primitives,
+            TraceEventKind::Token,
+            "token",
+            span.start,
+            span.end,
+            || Some(trace_word_label(token)),
+        );
+    }
 
     #[requires(true)]
-    #[ensures(ret == self.warnings.len())]
-    fn on_save<'parse>(&self, _cursor: &Cursor<'tokens, 'parse, ParserInput<'tokens>>) -> usize {
-        self.warnings.len()
+    #[ensures(ret.warning_count == self.warnings.len())]
+    fn on_save<'parse>(
+        &self,
+        _cursor: &Cursor<'tokens, 'parse, ParserInput<'tokens>>,
+    ) -> ParserCheckpoint {
+        ParserCheckpoint {
+            warning_count: self.warnings.len(),
+            trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
+        }
     }
 
     #[requires(true)]
     #[ensures(self.warnings.len() <= old(self.warnings.len()))]
     fn on_rewind<'parse>(
         &mut self,
-        marker: &Checkpoint<'tokens, 'parse, ParserInput<'tokens>, usize>,
+        marker: &Checkpoint<'tokens, 'parse, ParserInput<'tokens>, ParserCheckpoint>,
     ) {
-        self.warnings.truncate(*marker.inspector());
+        if marker.inspector().trace_save {
+            self.trace_event(
+                TraceLevel::Primitives,
+                TraceEventKind::Save,
+                "save",
+                0,
+                0,
+                || None,
+            );
+        }
+        self.trace_event(
+            TraceLevel::Primitives,
+            TraceEventKind::Rewind,
+            "rewind",
+            0,
+            0,
+            || None,
+        );
+        self.warnings.truncate(marker.inspector().warning_count);
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn trace_word_label(token: &Token) -> String {
+    token.core_word().to_string()
 }
 
 #[requires(true)]
@@ -165,12 +303,28 @@ pub(crate) fn parse_syntax_tree_with_source(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
+    parse_syntax_tree_with_source_attempt(words, source, options).result
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_syntax_tree_with_source_attempt(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
-    let parsed = parser::parse_statement(&tokens, source, options)?;
-    Ok(new!(SyntaxParse {
-        parse_tree: Box::new(parsed.text),
-        warnings: parsed.warnings,
-    }))
+    let parsed = parser::parse_statement_attempt(&tokens, source, options);
+    let result = parsed.result.map(|parsed| {
+        new!(SyntaxParse {
+            parse_tree: Box::new(parsed.text),
+            warnings: parsed.warnings,
+        })
+    });
+    SyntaxParseAttempt {
+        result,
+        trace: parsed.trace,
+    }
 }
 
 #[requires(true)]

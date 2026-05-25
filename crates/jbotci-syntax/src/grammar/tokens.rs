@@ -6,11 +6,17 @@ use chumsky::error::RichReason;
 use chumsky::input::MapExtra;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
+use jbotci_diagnostics::{
+    TraceContext, TraceEventKind, TraceFailureBranch, TraceFailureSummary, TraceLevel,
+};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
-use super::{BoxedParser, ParserState, SpannedToken, SyntaxParseError};
-use crate::{SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory};
+use super::{BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxParseError};
+use crate::{
+    SyntaxConstructContext, SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData,
+    SyntaxWordCategory,
+};
 
 #[requires(true)]
 #[ensures(true)]
@@ -201,18 +207,37 @@ pub(super) fn token_matching<'tokens>(
         !expected.is_empty(),
         "token parsers must declare expected tokens"
     );
-    custom(move |input| {
+    custom::<_, ParserInput<'tokens>, WithIndicators<WordLike>, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {
             Some(word) if predicate(&word) => {
+                let span = word.core_word().byte_range().unwrap_or(0..0);
                 let state: &mut ParserState = input.state();
                 warn_experimental_cmavo(state, label, &word);
+                state.trace_event(
+                    TraceLevel::Primitives,
+                    TraceEventKind::TerminalSuccess,
+                    debug_label,
+                    span.start,
+                    span.end,
+                    || Some(word.core_word().to_string()),
+                );
                 Ok(word)
             }
             _ => {
                 let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
+                let byte_start = span.start.min(span.end);
+                let byte_end = span.start.max(span.end);
+                input.state().trace_event(
+                    TraceLevel::Primitives,
+                    TraceEventKind::TerminalFailure,
+                    debug_label,
+                    byte_start,
+                    byte_end,
+                    || Some(expected_token_detail(&expected)),
+                );
                 Err(SyntaxParseError::expected(span, expected.clone()))
             }
         }
@@ -220,6 +245,19 @@ pub(super) fn token_matching<'tokens>(
     .labelled(debug_label)
     .as_terminal()
     .boxed()
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(!ret.is_empty())]
+fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
+    format!(
+        "expected {}",
+        expected
+            .iter()
+            .map(SyntaxExpectedToken::summary_text)
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 #[requires(!label.is_empty())]
@@ -1024,6 +1062,69 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
         expectations,
         context: error.current_context(),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|summary| !summary.reason.is_empty()))]
+pub(super) fn syntax_trace_failure_summary(
+    errors: &[SyntaxParseError<'_>],
+) -> Option<TraceFailureSummary> {
+    let farthest_start = errors.iter().map(|error| error.span().start).max()?;
+    let farthest = errors
+        .iter()
+        .filter(|error| error.span().start == farthest_start)
+        .collect::<Vec<_>>();
+    let merged = farthest
+        .iter()
+        .map(|error| (*error).clone())
+        .reduce(SyntaxParseError::merge_for_report)?;
+    let expected = merged.expected_strings();
+    let reason = match merged.reason() {
+        RichReason::Custom(message) => message.to_string(),
+        RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
+        RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
+    };
+    let branches = farthest
+        .into_iter()
+        .flat_map(trace_failure_branches)
+        .collect::<Vec<_>>();
+    Some(new!(TraceFailureSummary {
+        byte_start: merged.span().start,
+        byte_end: merged.span().end,
+        reason,
+        branches,
+        current_context: merged.current_context().map(trace_context),
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn trace_failure_branches(error: &SyntaxParseError<'_>) -> Vec<TraceFailureBranch> {
+    let expected = error.expected_strings();
+    if error.context_paths().is_empty() {
+        return vec![TraceFailureBranch {
+            contexts: Vec::new(),
+            expected,
+        }];
+    }
+    error
+        .context_paths()
+        .iter()
+        .map(|path| TraceFailureBranch {
+            contexts: path.iter().cloned().map(trace_context).collect(),
+            expected: expected.clone(),
+        })
+        .collect()
+}
+
+#[requires(!context.construct.is_empty())]
+#[ensures(ret.construct == context.construct)]
+fn trace_context(context: SyntaxConstructContext) -> TraceContext {
+    TraceContext::new(
+        context.construct.clone(),
+        context.byte_start,
+        context.byte_end,
+    )
 }
 
 #[requires(true)]

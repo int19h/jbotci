@@ -11,7 +11,8 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
-    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, source_span_from_char_offsets,
+    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TraceReport,
+    source_span_from_char_offsets,
 };
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
@@ -28,6 +29,29 @@ pub use tree::{
     WordLikeData,
 };
 
+pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
+    "morphology",
+    "segment",
+    "digit sequence",
+    "LOhU quote",
+    "ZOI quote",
+    "single-word quote",
+    "ZO quote",
+    "FAhO",
+    "BU attachment",
+    "SI erasure",
+    "SA erasure",
+    "SU erasure",
+    "ZEI lujvo",
+    "word",
+    "CMAVO",
+    "CMAVO prefix",
+    "GISMU",
+    "LUJVO",
+    "FUHIVLA",
+    "CMEVLA",
+];
+
 #[invariant(self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -39,6 +63,8 @@ pub struct MorphologyOptions {
     pub cmevla_as_relation_words: bool,
     pub uppercase_marks_stress: bool,
     pub enforce_cgv_ban: bool,
+    #[serde(default)]
+    pub trace: TraceOptions,
 }
 
 impl Default for MorphologyOptions {
@@ -53,6 +79,7 @@ impl Default for MorphologyOptions {
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
             enforce_cgv_ban: true,
+            trace: TraceOptions::disabled(),
         })
     }
 }
@@ -77,6 +104,19 @@ impl MorphologyOptions {
                 && !definition.features.contains(&DialectFeature::CaseInsensitive),
         })
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn with_trace_options(self, trace: TraceOptions) -> Self {
+        self.with_data(data! { trace: trace })
+    }
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub struct MorphologySegmentAttempt {
+    pub result: Result<Vec<WordLike>, MorphologyError>,
+    pub trace: Option<TraceReport>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -993,8 +1033,36 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_with_modifiers(input, options, source_id)
+    segment_words_with_modifiers_with_options_and_source_id_attempt(input, options, source_id)
+        .result
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> MorphologySegmentAttempt {
+    let attempt = grammar::segment_words_with_modifiers_attempt(input, options, source_id);
+    let result = attempt
+        .result
         .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
+        .map_err(public_morphology_error);
+    MorphologySegmentAttempt {
+        result,
+        trace: attempt.trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, MorphologyError::Invalid { .. }))]
+fn public_morphology_error(error: MorphologyError) -> MorphologyError {
+    MorphologyError::Invalid {
+        char_offset: 0,
+        word: String::new(),
+        reason: error.to_string(),
+    }
 }
 
 #[requires(true)]
@@ -1036,7 +1104,8 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_with_modifiers_raw(input, options, source_id)
+    grammar::segment_words_with_modifiers_raw_attempt(input, options, source_id)
+        .result
         .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
 }
 

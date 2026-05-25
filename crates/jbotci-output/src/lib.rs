@@ -5,6 +5,7 @@ mod diagnostics;
 mod json;
 mod sexpr;
 mod surface;
+mod trace;
 mod tree;
 
 use bityzba::{invariant, requires};
@@ -18,6 +19,7 @@ use jbotci_syntax::ast::TextSyntax;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+pub use trace::{TraceRenderOptions, render_trace_report};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

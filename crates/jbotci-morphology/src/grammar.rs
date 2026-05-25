@@ -1,15 +1,12 @@
 use bityzba::{data, ensures, invariant, requires};
-use chumsky::error::Rich;
-use chumsky::prelude::*;
-use chumsky::span::SimpleSpan;
+use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    Cmavo, MorphologyError, MorphologyOptions, Phonemes, Verbatim, Word, WordKind, WordLike,
-    WordLikeData, canonical_text_eq, canonical_text_is_all, canonicalize_text, erasure_selmaho,
+    Cmavo, MorphologyError, MorphologyOptions, MorphologySegmentAttempt, Phonemes, Verbatim, Word,
+    WordKind, WordLike, WordLikeData, canonical_text_eq, canonical_text_is_all, canonicalize_text,
+    erasure_selmaho,
 };
-
-type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
 
 #[requires(true)]
 #[ensures(true)]
@@ -18,7 +15,17 @@ pub(crate) fn segment_words_with_modifiers(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw(input, options, source_id)
+    segment_words_with_modifiers_attempt(input, options, source_id).result
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn segment_words_with_modifiers_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> MorphologySegmentAttempt {
+    segment_words_with_modifiers_raw_attempt(input, options, source_id)
 }
 
 #[requires(true)]
@@ -28,32 +35,18 @@ pub(crate) fn segment_words_with_modifiers_raw(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    parser(input, options.clone(), source_id)
-        .parse(input)
-        .into_result()
-        .map_err(|errors| morphology_error(input, errors))
+    segment_words_with_modifiers_raw_attempt(input, options, source_id).result
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn parser<'src>(
-    input: &'src str,
-    options: MorphologyOptions,
+pub(crate) fn segment_words_with_modifiers_raw_attempt(
+    input: &str,
+    options: &MorphologyOptions,
     source_id: Option<SourceId>,
-) -> impl Parser<'src, &'src str, Vec<WordLike>, MorphExtra<'src>> {
-    custom::<_, &'src str, Vec<WordLike>, MorphExtra<'src>>(move |inp| {
-        let before = inp.cursor();
-        let start_span: SimpleSpan = inp.span_since(&before);
-        match Segmenter::new(input, &options, source_id.clone()).segment_raw() {
-            Ok(words) => {
-                for _ in input.chars() {
-                    inp.skip();
-                }
-                Ok(words)
-            }
-            Err(error) => Err(Rich::custom(start_span, error.to_string())),
-        }
-    })
+) -> MorphologySegmentAttempt {
+    let segmenter = Segmenter::new(input, options, source_id);
+    segmenter.segment_raw_attempt()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -71,6 +64,7 @@ struct Segmenter<'a> {
     source_id: Option<SourceId>,
     chars: Vec<SourceChar>,
     index: usize,
+    trace: TraceRecorder,
 }
 
 impl<'a> Segmenter<'a> {
@@ -87,12 +81,22 @@ impl<'a> Segmenter<'a> {
                 .map(|(byte_offset, value)| SourceChar { byte_offset, value })
                 .collect(),
             index: 0,
+            trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw(mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    fn segment_raw_attempt(mut self) -> MorphologySegmentAttempt {
+        self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
+        let result = self.segment_raw();
+        let trace = self.trace.finish();
+        MorphologySegmentAttempt { result, trace }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_raw(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
             if self.index == self.chars.len() {
@@ -104,25 +108,115 @@ impl<'a> Segmenter<'a> {
         Ok(acc)
     }
 
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn trace_step(
+        &mut self,
+        level: TraceLevel,
+        label: &str,
+        start: usize,
+        end: usize,
+        detail: impl FnOnce() -> Option<String>,
+    ) {
+        let byte_start = self.byte_offset(start);
+        let byte_end = self.byte_offset(end);
+        self.trace.record_with_detail(
+            level,
+            TraceEventKind::MorphologyStep,
+            label,
+            byte_start,
+            byte_end,
+            detail,
+        );
+    }
+
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn trace_failure(
+        &mut self,
+        label: &str,
+        start: usize,
+        end: usize,
+        detail: impl FnOnce() -> Option<String>,
+    ) {
+        let byte_start = self.byte_offset(start);
+        let byte_end = self.byte_offset(end);
+        self.trace.record_with_detail(
+            TraceLevel::Top,
+            TraceEventKind::MorphologyFailure,
+            label,
+            byte_start,
+            byte_end,
+            detail,
+        );
+    }
+
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn trace_slice_detail(
+        &self,
+        level: TraceLevel,
+        label: &str,
+        start: usize,
+        end: usize,
+    ) -> Option<String> {
+        if self.trace.should_record(level, label) {
+            Some(self.slice(start, end).to_owned())
+        } else {
+            None
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn next_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         self.skip_separators();
+        let segment_start = self.index;
+        self.trace_step(
+            TraceLevel::Detailed,
+            "segment",
+            segment_start,
+            segment_start,
+            || None,
+        );
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
             let candidate_end = self.candidate_end(self.index);
             if self.is_digit_sequence_candidate(self.index, candidate_end) {
+                let detail = self.trace_slice_detail(
+                    TraceLevel::Detailed,
+                    "digit sequence",
+                    self.index,
+                    candidate_end,
+                );
+                self.trace_step(
+                    TraceLevel::Detailed,
+                    "digit sequence",
+                    self.index,
+                    candidate_end,
+                    move || detail,
+                );
                 return self.digit_sequence();
             }
         }
         let start = self.index;
         let word = self.next_plain_word()?;
         if is_simple_cmavo_text(&word, "lo'u") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "LOhU quote",
+                start,
+                self.index,
+                || None,
+            );
             return self.lohu_quote(word);
         }
         if is_simple_cmavo_text(&word, "zoi")
             || is_simple_cmavo_text(&word, "la'o")
             || is_simple_cmavo_text(&word, "mu'oi")
         {
+            self.trace_step(TraceLevel::Detailed, "ZOI quote", start, self.index, || {
+                None
+            });
             return self.zoi_quote(word);
         }
         if is_simple_cmavo_text(&word, "zo'oi")
@@ -131,12 +225,21 @@ impl<'a> Segmenter<'a> {
             || is_simple_cmavo_text(&word, "me'oi")
             || is_simple_cmavo_text(&word, "go'oi")
         {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "single-word quote",
+                start,
+                self.index,
+                || None,
+            );
             return self.single_word_quote(word);
         }
         if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
+            self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
             return self.zo_quote(word);
         }
         if is_simple_cmavo_text(&word, "fa'o") {
+            self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
             self.index = self.chars.len();
             return Ok(vec![word]);
         }
@@ -171,9 +274,23 @@ impl<'a> Segmenter<'a> {
         token: WordLike,
     ) -> Result<(), MorphologyError> {
         if is_simple_cmavo_text(&token, "bu") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "BU attachment",
+                self.index,
+                self.index,
+                || None,
+            );
             return self.handle_bu(acc, token);
         }
         if is_simple_cmavo_text(&token, "si") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "SI erasure",
+                self.index,
+                self.index,
+                || None,
+            );
             self.handle_si(acc);
             return Ok(());
         }
@@ -181,13 +298,34 @@ impl<'a> Segmenter<'a> {
             return Ok(());
         }
         if is_simple_cmavo_text(&token, "sa") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "SA erasure",
+                self.index,
+                self.index,
+                || None,
+            );
             return self.handle_sa(acc);
         }
         if is_simple_cmavo_text(&token, "su") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "SU erasure",
+                self.index,
+                self.index,
+                || None,
+            );
             self.handle_su(acc);
             return Ok(());
         }
         if is_simple_cmavo_text(&token, "zei") {
+            self.trace_step(
+                TraceLevel::Detailed,
+                "ZEI lujvo",
+                self.index,
+                self.index,
+                || None,
+            );
             return self.handle_zei(acc, token);
         }
         acc.push(token);
@@ -206,6 +344,9 @@ impl<'a> Segmenter<'a> {
         }
         let raw = self.slice(start, end);
         if let Some((invalid_index, invalid_char)) = self.first_invalid_word_char(start, end) {
+            self.trace_failure("word", invalid_index, invalid_index + 1, || {
+                Some(format!("unsupported character `{invalid_char}`"))
+            });
             return Err(self.invalid_at(
                 invalid_index,
                 &invalid_char.to_string(),
@@ -214,6 +355,9 @@ impl<'a> Segmenter<'a> {
         }
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
         if normalized.is_empty() {
+            self.trace_failure("word", start, end, || {
+                Some("no valid morphology characters".to_owned())
+            });
             return Err(self.invalid_at(start, raw, "no valid morphology characters"));
         }
 
@@ -223,11 +367,21 @@ impl<'a> Segmenter<'a> {
             && matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
         {
             self.index = end;
+            self.trace_step(
+                TraceLevel::Top,
+                word_kind_trace_label(kind),
+                start,
+                end,
+                || Some(raw.to_owned()),
+            );
             return self.word_with_modifiers(start, end, kind, phonemes);
         }
 
         if crate::segment::is_cmevla_with_options(&normalized, self.options) {
             self.index = end;
+            self.trace_step(TraceLevel::Top, "CMEVLA", start, end, || {
+                Some(raw.to_owned())
+            });
             return self.word_with_modifiers(
                 start,
                 end,
@@ -238,11 +392,22 @@ impl<'a> Segmenter<'a> {
 
         if let Some(phonemes) = crate::segment::parse_cmavo_form(&normalized) {
             self.index = end;
+            self.trace_step(TraceLevel::Top, "CMAVO", start, end, || {
+                Some(raw.to_owned())
+            });
             return self.word_with_modifiers(start, end, WordKind::Cmavo, phonemes);
         }
 
         if let Some(cmavo) = self.cmavo_prefix(start, end) {
             self.index = cmavo.end;
+            let detail = self.trace_slice_detail(TraceLevel::Top, "CMAVO prefix", start, cmavo.end);
+            self.trace_step(
+                TraceLevel::Top,
+                "CMAVO prefix",
+                start,
+                cmavo.end,
+                move || detail,
+            );
             return self.word_with_modifiers(start, cmavo.end, WordKind::Cmavo, cmavo.phonemes);
         }
 
@@ -250,9 +415,19 @@ impl<'a> Segmenter<'a> {
             crate::segment::classify_word_with_options(raw, &normalized, self.options)
         {
             self.index = end;
+            self.trace_step(
+                TraceLevel::Top,
+                word_kind_trace_label(kind),
+                start,
+                end,
+                || Some(raw.to_owned()),
+            );
             return self.word_with_modifiers(start, end, kind, phonemes);
         }
 
+        self.trace_failure("word", start, end, || {
+            Some("unsupported word shape".to_owned())
+        });
         Err(self.unsupported_at(
             start,
             raw,
@@ -954,32 +1129,16 @@ impl<'a> Segmenter<'a> {
     }
 }
 
-#[ensures(matches!(ret, MorphologyError::Invalid { ref reason, .. } if !reason.is_empty()) || !matches!(ret, MorphologyError::Invalid { .. }))]
 #[requires(true)]
-fn morphology_error(input: &str, errors: Vec<Rich<'_, char>>) -> MorphologyError {
-    let Some(error) = errors.into_iter().next() else {
-        return MorphologyError::Invalid {
-            char_offset: 0,
-            word: String::new(),
-            reason: "unknown Chumsky morphology error".to_owned(),
-        };
-    };
-    let span = error.span();
-    MorphologyError::Invalid {
-        char_offset: char_offset(input, span.start),
-        word: input
-            .get(span.start..span.end)
-            .unwrap_or_default()
-            .to_owned(),
-        reason: error.to_string(),
+#[ensures(!ret.is_empty())]
+fn word_kind_trace_label(kind: WordKind) -> &'static str {
+    match kind {
+        WordKind::Cmavo => "CMAVO",
+        WordKind::Gismu => "GISMU",
+        WordKind::Lujvo => "LUJVO",
+        WordKind::Fuhivla => "FUHIVLA",
+        WordKind::Cmevla => "CMEVLA",
     }
-}
-
-#[requires(byte_offset <= input.len())]
-#[requires(input.is_char_boundary(byte_offset))]
-#[ensures(ret <= input.chars().count())]
-fn char_offset(input: &str, byte_offset: usize) -> usize {
-    input[..byte_offset].chars().count()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

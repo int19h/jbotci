@@ -3,6 +3,7 @@ use super::tokens::*;
 use super::*;
 use crate::SyntaxExpectedTokenData;
 use chumsky::input::MapExtra;
+use chumsky::primitive::custom;
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::cell::Cell;
@@ -271,11 +272,21 @@ pub(super) fn parse_statement(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<ParsedStatement, SyntaxError> {
+    parse_statement_attempt(words, source, options).result
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn parse_statement_attempt(
+    words: &[WithIndicators<WordLike>],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> ParsedStatementAttempt {
     let tokens = spanned_tokens(words);
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
     let mut state = ParserState::new(words, options);
 
-    let text = statement_parser(source, options)
+    let result = statement_parser(source, options)
         .then_ignore(end())
         .parse_with_state(
             tokens
@@ -283,12 +294,33 @@ pub(super) fn parse_statement(
                 .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
             &mut state,
         )
-        .into_result()
-        .map_err(syntax_error)?;
-    Ok(ParsedStatement {
-        text,
-        warnings: state.finish_warnings(),
-    })
+        .into_result();
+
+    match result {
+        Ok(text) => {
+            let finished = state.finish();
+            ParsedStatementAttempt {
+                result: Ok(ParsedStatement {
+                    text,
+                    warnings: finished.warnings,
+                }),
+                trace: finished.trace,
+            }
+        }
+        Err(errors) => {
+            if state.trace_enabled()
+                && let Some(summary) = syntax_trace_failure_summary(&errors)
+            {
+                state.trace_failure_summary(summary);
+            }
+            let error = syntax_error(errors);
+            let finished = state.finish();
+            ParsedStatementAttempt {
+                result: Err(error),
+                trace: finished.trace,
+            }
+        }
+    }
 }
 
 #[requires(true)]
@@ -307,7 +339,8 @@ fn statement_parser<'tokens>(
     let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
     let mut term = Recursive::declare();
-    argument.define(
+    argument.define(syntax_context(
+        "argument",
         argument_parser_with(
             argument.clone(),
             relation.clone(),
@@ -316,18 +349,16 @@ fn statement_parser<'tokens>(
             text.clone(),
             free_modifier.clone(),
             source,
-        )
-        .labelled("argument")
-        .as_context()
-        .boxed(),
-    );
+        ),
+    ));
     let tense_modal_with_free_modifiers = tense_modal()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
             attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
         })
         .boxed();
-    relation.define(
+    relation.define(syntax_context(
+        "relation",
         relation_parser_with(
             argument.clone(),
             relation.clone(),
@@ -335,11 +366,8 @@ fn statement_parser<'tokens>(
             text.clone(),
             free_modifier.clone(),
             source,
-        )
-        .labelled("relation")
-        .as_context()
-        .boxed(),
-    );
+        ),
+    ));
 
     let argument_term = argument
         .clone()
@@ -778,7 +806,7 @@ fn statement_parser<'tokens>(
             )
             .boxed()
     };
-    term.define(term_body.labelled("term").as_context().boxed());
+    term.define(syntax_context("term", term_body));
     let tail_term = cmavo(Cmavo::I)
         .rewind()
         .not()
@@ -1116,11 +1144,10 @@ fn statement_parser<'tokens>(
                 })
             },
         );
-    subsentence.define(
-        choice((prenex_subsentence, plain_subsentence))
-            .labelled("subsentence")
-            .as_context(),
-    );
+    subsentence.define(syntax_context(
+        "subsentence",
+        choice((prenex_subsentence, plain_subsentence)),
+    ));
     let predicate_statement_bo_continuation = predicate_tail_connective()
         .then(tense_modal_with_free_modifiers.clone().or_not())
         .then(cmavo(Cmavo::Bo))
@@ -1486,8 +1513,9 @@ fn statement_parser<'tokens>(
             None => statement,
         });
 
-    statement.define(iau_statement_body.labelled("statement").as_context());
-    free_modifier.define(
+    statement.define(syntax_context("statement", iau_statement_body));
+    free_modifier.define(syntax_context(
+        "free modifier",
         choice((
             replacement_free(free_modifier.clone()),
             mai_free(free_modifier.clone()),
@@ -1501,10 +1529,8 @@ fn statement_parser<'tokens>(
                 subsentence.clone(),
                 free_modifier.clone(),
             ),
-        ))
-        .labelled("free modifier")
-        .as_context(),
-    );
+        )),
+    ));
 
     let paragraph_statement_body = choice((statement.clone(), fragment_statement.clone())).boxed();
     let initial_statement = paragraph_statement_body.clone().map(|statement| {
@@ -1692,8 +1718,67 @@ fn statement_parser<'tokens>(
             },
         );
 
-    text.define(text_body.labelled("text").as_context());
+    text.define(syntax_context("text", text_body));
     text.then_ignore(end()).boxed()
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_context<'tokens, O: 'tokens>(
+    construct: &'static str,
+    parser: impl Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
+) -> BoxedParser<'tokens, O> {
+    trace_enter(construct)
+        .ignore_then(
+            parser
+                .labelled(construct)
+                .as_context()
+                .map_with(move |output, extra| {
+                    let span: Span = extra.span();
+                    let byte_start = span.start.min(span.end);
+                    let byte_end = span.start.max(span.end);
+                    extra.state().trace_exit_construct(
+                        TraceLevel::Top,
+                        TraceEventKind::ConstructSuccess,
+                        construct,
+                        byte_start,
+                        byte_end,
+                        || None,
+                    );
+                    output
+                })
+                .map_err_with_state(move |error, span: Span, state| {
+                    let byte_start = span.start.min(span.end);
+                    let byte_end = span.start.max(span.end);
+                    state.trace_exit_construct(
+                        TraceLevel::Top,
+                        TraceEventKind::ConstructFailure,
+                        construct,
+                        byte_start,
+                        byte_end,
+                        || None,
+                    );
+                    error
+                }),
+        )
+        .boxed()
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn trace_enter<'tokens>(construct: &'static str) -> BoxedParser<'tokens, ()> {
+    custom::<_, ParserInput<'tokens>, (), ParseExtra<'tokens>>(move |input| {
+        if input
+            .state()
+            .trace_should_record(TraceLevel::Top, construct)
+        {
+            input
+                .state()
+                .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
+        }
+        Ok(())
+    })
+    .boxed()
 }
 
 #[cfg(feature = "grammar-debug")]

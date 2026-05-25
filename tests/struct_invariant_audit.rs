@@ -44,6 +44,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "resolved color policy is two independent stream decisions",
     ),
     (
+        "apps/jbotci/src/main.rs:CliParsedTraceSpec",
+        "trace spec parsing validates level and filter shape before constructing this transport value",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliTraceConfig",
+        "trace limit is validated once at CLI entry and phase is a closed enum",
+    ),
+    (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
         "contract scanner fixture intentionally contains accepted no-op markers",
     ),
@@ -146,6 +154,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:Score",
         "Lensisku score is an opaque upstream ranking value",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceFailureBranch",
+        "branch context and expectation payloads are collected from structured parser metadata",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceRecorderState",
+        "recorder state is deliberately mutable; public recorder methods enforce event and limit invariants",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologySegmentAttempt",
+        "attempt combines parser result with optional trace report without extra cross-field constraints",
+    ),
+    (
+        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
+        "trace renderer options are caller-selected presentation controls",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:SelmahoIndexEntry",
@@ -320,8 +344,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "visitor wraps a callback without adding semantic state",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:TraceOptions",
-        "trace options are independent caller-selected controls",
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParsedStatementAttempt",
+        "syntax attempt combines parser result with optional trace report without extra cross-field constraints",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
+        "checkpoint mirrors Chumsky save state with warning count plus whether trace would record the save",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
+        "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxParseAttempt",
+        "parse attempt combines parser result with optional trace report without extra cross-field constraints",
     ),
     (
         "crates/jbotci-syntax/src/tree.rs:ArgumentConnectionSyntax",
