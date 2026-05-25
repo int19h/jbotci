@@ -1,0 +1,17 @@
+id = "adhoc.v0.morphology.streaming.adjacent-cmavo-brivla-lonublanu"
+lojban = "lonublanu"
+tags = ["v0-adhoc", "morphology", "streaming-morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[Bare(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "nu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "blánu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } })]'
+
+[expectations.output.vlasei]
+brackets = "(lo nu blánu)"
+tree = """
+[
+  Cmavo @[0‥2) "lo",
+  Cmavo @[2‥4) "nu",
+  Gismu @[4‥9) "blánu",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"nu","span":[2,4]}}},{"Bare":{"Gismu":{"phonemes":"blánu","span":[4,9]}}}]'

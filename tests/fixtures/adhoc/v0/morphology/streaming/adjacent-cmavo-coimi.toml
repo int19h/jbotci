@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.streaming.adjacent-cmavo-coimi"
+lojban = "coimi"
+tags = ["v0-adhoc", "morphology", "streaming-morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })]'
+
+[expectations.output.vlasei]
+brackets = "(coĭ mi)"
+tree = """
+[
+  Cmavo @[0‥3) "coĭ",
+  Cmavo @[3‥5) "mi",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}]'

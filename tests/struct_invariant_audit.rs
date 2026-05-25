@@ -180,10 +180,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed index entry is generated from owned validated buckets",
     ),
     (
-        "crates/jbotci-morphology/src/grammar.rs:CmavoPrefix",
-        "cmavo prefix is an internal parser cursor over table-derived text",
-    ),
-    (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
         "segmenter is mutable parser state whose invariants are algorithm-local",
     ),

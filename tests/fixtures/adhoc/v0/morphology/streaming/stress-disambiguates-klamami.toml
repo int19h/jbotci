@@ -1,0 +1,16 @@
+id = "adhoc.v0.morphology.streaming.stress-disambiguates-klamami"
+lojban = "KLAmami"
+tags = ["v0-adhoc", "morphology", "streaming-morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })]'
+
+[expectations.output.vlasei]
+brackets = "(kláma mi)"
+tree = """
+[
+  Gismu @[0‥5) "kláma",
+  Cmavo @[5‥7) "mi",
+]"""
+json = '[{"Bare":{"Gismu":{"phonemes":"kláma","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}]'

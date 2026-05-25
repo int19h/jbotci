@@ -1,0 +1,15 @@
+id = "adhoc.v0.morphology.streaming.unstressed-klamami-stays-one-word"
+lojban = "klamami"
+tags = ["v0-adhoc", "morphology", "streaming-morphology"]
+
+[expectations.morphology]
+status = "success"
+raw = '[Bare(Fuhivla { phonemes: Phonemes { text: "klamámi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } })]'
+
+[expectations.output.vlasei]
+brackets = "klamámi"
+tree = """
+[
+  Fuhivla @[0‥7) "klamámi",
+]"""
+json = '[{"Bare":{"Fuhivla":{"phonemes":"klamámi","span":[0,7]}}}]'

@@ -1,4 +1,4 @@
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
@@ -338,12 +338,35 @@ impl<'a> Segmenter<'a> {
         self.skip_separators();
         let start = self.index;
         let candidate_end = self.candidate_end(start);
-        let end = self.trim_trailing_commas(start, candidate_end);
-        if start == candidate_end || start == end {
+        if start == candidate_end {
             return Err(self.invalid_at(start, "", "expected Lojban word"));
         }
-        let raw = self.slice(start, end);
-        if let Some((invalid_index, invalid_char)) = self.first_invalid_word_char(start, end) {
+        if let Some(candidate) = self.streaming_word_candidate(start, candidate_end) {
+            let data!(StreamingWordCandidate {
+                end,
+                kind,
+                phonemes
+            }) = candidate.into_data();
+            let raw = self.slice(start, end);
+            self.index = end;
+            self.trace_step(
+                TraceLevel::Top,
+                word_kind_trace_label(kind),
+                start,
+                end,
+                || Some(raw.to_owned()),
+            );
+            return self.word_with_modifiers(start, end, kind, phonemes);
+        }
+
+        let error_end = self.trim_trailing_commas(start, candidate_end);
+        if start == error_end {
+            return Err(self.invalid_at(start, "", "expected Lojban word"));
+        }
+        let raw = self.slice(start, error_end);
+        if let Some((invalid_index, invalid_char)) =
+            self.first_invalid_word_char(start, candidate_end)
+        {
             self.trace_failure("word", invalid_index, invalid_index + 1, || {
                 Some(format!("unsupported character `{invalid_char}`"))
             });
@@ -355,77 +378,12 @@ impl<'a> Segmenter<'a> {
         }
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
         if normalized.is_empty() {
-            self.trace_failure("word", start, end, || {
+            self.trace_failure("word", start, error_end, || {
                 Some("no valid morphology characters".to_owned())
             });
             return Err(self.invalid_at(start, raw, "no valid morphology characters"));
         }
-
-        if let Some((kind, phonemes)) =
-            crate::segment::classify_word_with_options(raw, &normalized, self.options)
-            && !self.has_blocking_cmavo_prefix(start, end)
-            && matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
-        {
-            self.index = end;
-            self.trace_step(
-                TraceLevel::Top,
-                word_kind_trace_label(kind),
-                start,
-                end,
-                || Some(raw.to_owned()),
-            );
-            return self.word_with_modifiers(start, end, kind, phonemes);
-        }
-
-        if crate::segment::is_cmevla_with_options(&normalized, self.options) {
-            self.index = end;
-            self.trace_step(TraceLevel::Top, "CMEVLA", start, end, || {
-                Some(raw.to_owned())
-            });
-            return self.word_with_modifiers(
-                start,
-                end,
-                WordKind::Cmevla,
-                crate::segment::canonicalize_word_phonemes(&normalized),
-            );
-        }
-
-        if let Some(phonemes) = crate::segment::parse_cmavo_form(&normalized) {
-            self.index = end;
-            self.trace_step(TraceLevel::Top, "CMAVO", start, end, || {
-                Some(raw.to_owned())
-            });
-            return self.word_with_modifiers(start, end, WordKind::Cmavo, phonemes);
-        }
-
-        if let Some(cmavo) = self.cmavo_prefix(start, end) {
-            self.index = cmavo.end;
-            let detail = self.trace_slice_detail(TraceLevel::Top, "CMAVO prefix", start, cmavo.end);
-            self.trace_step(
-                TraceLevel::Top,
-                "CMAVO prefix",
-                start,
-                cmavo.end,
-                move || detail,
-            );
-            return self.word_with_modifiers(start, cmavo.end, WordKind::Cmavo, cmavo.phonemes);
-        }
-
-        if let Some((kind, phonemes)) =
-            crate::segment::classify_word_with_options(raw, &normalized, self.options)
-        {
-            self.index = end;
-            self.trace_step(
-                TraceLevel::Top,
-                word_kind_trace_label(kind),
-                start,
-                end,
-                || Some(raw.to_owned()),
-            );
-            return self.word_with_modifiers(start, end, kind, phonemes);
-        }
-
-        self.trace_failure("word", start, end, || {
+        self.trace_failure("word", start, error_end, || {
             Some("unsupported word shape".to_owned())
         });
         Err(self.unsupported_at(
@@ -433,6 +391,105 @@ impl<'a> Segmenter<'a> {
             raw,
             "the Rust Chumsky morphology port does not yet cover this word shape",
         ))
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_word_candidate(
+        &self,
+        start: usize,
+        candidate_end: usize,
+    ) -> Option<StreamingWordCandidate> {
+        self.streaming_brivla_candidate(start, candidate_end)
+            .or_else(|| self.streaming_cmevla_candidate(start, candidate_end))
+            .or_else(|| self.streaming_cmavo_candidate(start, candidate_end))
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_brivla_candidate(
+        &self,
+        start: usize,
+        candidate_end: usize,
+    ) -> Option<StreamingWordCandidate> {
+        ((start + 1)..=candidate_end).find_map(|end| {
+            if !self.post_word_ok_for_brivla(start, end) {
+                return None;
+            }
+            let raw = self.slice(start, end);
+            let normalized = crate::segment::normalize_word_with_options(raw, self.options);
+            let (kind, phonemes) =
+                crate::segment::classify_word_with_options(raw, &normalized, self.options)?;
+            if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
+                return None;
+            }
+            if self.has_blocking_cmavo_prefix(start, end) {
+                return None;
+            }
+            Some(new!(StreamingWordCandidate {
+                end: end,
+                kind: kind,
+                phonemes: phonemes,
+            }))
+        })
+    }
+
+    #[requires(start < end && end <= self.chars.len())]
+    #[ensures(true)]
+    fn post_word_ok_for_brivla(&self, start: usize, end: usize) -> bool {
+        let normalized =
+            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
+        if has_explicit_brivla_stress(&normalized) {
+            explicit_brivla_stress_is_valid(&normalized) && self.post_word_at(end)
+        } else {
+            self.pause_at(end)
+        }
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_cmevla_candidate(
+        &self,
+        start: usize,
+        candidate_end: usize,
+    ) -> Option<StreamingWordCandidate> {
+        ((start + 1)..=candidate_end).find_map(|end| {
+            if !self.pause_at(end) {
+                return None;
+            }
+            let raw = self.slice(start, end);
+            let normalized = crate::segment::normalize_word_with_options(raw, self.options);
+            if !crate::segment::is_cmevla_with_options(&normalized, self.options) {
+                return None;
+            }
+            Some(new!(StreamingWordCandidate {
+                end: end,
+                kind: WordKind::Cmevla,
+                phonemes: crate::segment::canonicalize_word_phonemes(&normalized),
+            }))
+        })
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_cmavo_candidate(
+        &self,
+        start: usize,
+        candidate_end: usize,
+    ) -> Option<StreamingWordCandidate> {
+        ((start + 1)..=candidate_end).find_map(|end| {
+            let phonemes = crate::segment::parse_cmavo_form(
+                &crate::segment::normalize_word_with_options(self.slice(start, end), self.options),
+            )?;
+            if !self.cmavo_boundary_ok(start, end, candidate_end) {
+                return None;
+            }
+            Some(new!(StreamingWordCandidate {
+                end: end,
+                kind: WordKind::Cmavo,
+                phonemes: phonemes,
+            }))
+        })
     }
 
     #[requires(true)]
@@ -841,33 +898,6 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|prefix| prefix.end > start && prefix.end <= end && !prefix.phonemes.is_empty()))]
-    fn cmavo_prefix(&self, start: usize, end: usize) -> Option<CmavoPrefix> {
-        let whole_candidate =
-            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
-        if crate::segment::is_cmevla_with_options(&whole_candidate, self.options)
-            || crate::segment::starts_with_cvcy_lujvo(&whole_candidate)
-        {
-            return None;
-        }
-        ((start + 1)..=end).find_map(|prefix_end| {
-            let phonemes =
-                crate::segment::parse_cmavo_form(&crate::segment::normalize_word_with_options(
-                    self.slice(start, prefix_end),
-                    self.options,
-                ))?;
-            if self.cmavo_boundary_ok(start, prefix_end, end) {
-                Some(CmavoPrefix {
-                    end: prefix_end,
-                    phonemes,
-                })
-            } else {
-                None
-            }
-        })
-    }
-
-    #[requires(start <= end && end <= self.chars.len())]
     #[ensures(ret.is_none_or(|(index, _)| index >= start && index < end))]
     fn first_invalid_word_char(&self, start: usize, end: usize) -> Option<(usize, char)> {
         self.chars[start..end]
@@ -907,7 +937,7 @@ impl<'a> Segmenter<'a> {
         prefix_end: usize,
         candidate_end: usize,
     ) -> bool {
-        if prefix_end == candidate_end {
+        if self.pause_at(prefix_end) {
             return true;
         }
         let prefix = crate::segment::normalize_word_with_options(
@@ -921,27 +951,60 @@ impl<'a> Segmenter<'a> {
         if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
             return false;
         }
-        !starts_with_nucleus(&text_chars(&remainder), 0)
-            && self.candidate_starts_with_supported_word(prefix_end, candidate_end)
+        !self.starts_with_nucleus_at(prefix_end) && self.lojban_word_starts_at(prefix_end)
     }
 
-    #[requires(start <= end && end <= self.chars.len())]
+    #[requires(index <= self.chars.len())]
     #[ensures(true)]
-    fn candidate_starts_with_supported_word(&self, start: usize, end: usize) -> bool {
-        if self.first_invalid_word_char(start, end).is_some() {
+    fn post_word_at(&self, index: usize) -> bool {
+        self.pause_at(index)
+            || (!self.starts_with_nucleus_at(index) && self.lojban_word_starts_at(index))
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(true)]
+    fn pause_at(&self, index: usize) -> bool {
+        let index = self.skip_commas_index(index);
+        index == self.chars.len() || self.is_word_separator_at(index)
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(true)]
+    fn starts_with_nucleus_at(&self, index: usize) -> bool {
+        let index = self.skip_commas_index(index);
+        if index >= self.chars.len() || self.is_word_separator_at(index) {
             return false;
         }
-        let raw = self.slice(start, end);
-        let normalized = crate::segment::normalize_word_with_options(raw, self.options);
-        crate::segment::classify_word_with_options(raw, &normalized, self.options).is_some()
-            || ((start + 1)..=end).any(|prefix_end| {
-                crate::segment::parse_cmavo_form(&crate::segment::normalize_word_with_options(
-                    self.slice(start, prefix_end),
-                    self.options,
-                ))
-                .is_some()
-                    && self.cmavo_boundary_ok(start, prefix_end, end)
-            })
+        let end = self.candidate_end(index);
+        let normalized =
+            crate::segment::normalize_word_with_options(self.slice(index, end), self.options);
+        starts_with_nucleus(&text_chars(&normalized), 0)
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(true)]
+    fn lojban_word_starts_at(&self, index: usize) -> bool {
+        let index = self.skip_commas_index(index);
+        if index >= self.chars.len() || self.is_word_separator_at(index) {
+            return false;
+        }
+        self.streaming_word_candidate(index, self.candidate_end(index))
+            .is_some()
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(ret >= index && ret <= self.chars.len())]
+    fn skip_commas_index(&self, index: usize) -> usize {
+        let mut cursor = index;
+        while cursor < self.chars.len()
+            && self
+                .chars
+                .get(cursor)
+                .is_some_and(|source_char| source_char.value == ',')
+        {
+            cursor += 1;
+        }
+        cursor
     }
 
     #[requires(start <= end && end <= self.chars.len())]
@@ -1141,10 +1204,12 @@ fn word_kind_trace_label(kind: WordKind) -> &'static str {
     }
 }
 
+#[invariant(self.end > 0, "streaming word candidates must consume input")]
+#[invariant(!self.phonemes.is_empty(), "streaming word candidates must have phonemes")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct CmavoPrefix {
+struct StreamingWordCandidate {
     end: usize,
+    kind: WordKind,
     phonemes: String,
 }
 
@@ -1320,6 +1385,48 @@ fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn has_explicit_brivla_stress(normalized_word: &str) -> bool {
+    normalized_word
+        .chars()
+        .any(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
+    let chars = text_chars(normalized_word);
+    let full_vowels = chars
+        .iter()
+        .enumerate()
+        .filter_map(|(index, value)| is_full_vowel(*value).then_some(index))
+        .collect::<Vec<_>>();
+    let stressed = full_vowels
+        .iter()
+        .copied()
+        .filter(|index| {
+            chars
+                .get(*index)
+                .is_some_and(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+        })
+        .collect::<Vec<_>>();
+    full_vowels
+        .iter()
+        .rev()
+        .nth(1)
+        .is_some_and(|penultimate| stressed.as_slice() == [*penultimate])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_full_vowel(value: char) -> bool {
+    matches!(
+        value,
+        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú'
+    )
+}
+
 #[requires(index <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|(found, _)| *found < old(index) && *found < chars.len()))]
 fn previous_non_comma(chars: &[char], mut index: usize) -> Option<(usize, char)> {
@@ -1473,6 +1580,58 @@ mod tests {
         assert_eq!(bare_phonemes(&words), ["mi", "kláma", "do"]);
         assert_eq!(bare_span(&words[1]).map(|span| span.byte_start), Some(3));
         assert_eq!(bare_span(&words[1]).map(|span| span.byte_end), Some(8));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn segments_adjacent_cmavo_and_brivla() {
+        let words = segment_words_with_modifiers(
+            "coimi miklama lonublanu coicai",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
+
+        assert_eq!(
+            bare_phonemes(&words),
+            [
+                "coĭ", "mi", "mi", "kláma", "lo", "nu", "blánu", "coĭ", "caĭ"
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_stress_disambiguates_brivla_before_adjacent_cmavo() {
+        let words = segment_words_with_modifiers("KLAmami", &MorphologyOptions::default(), None)
+            .expect("valid morphology");
+
+        assert_eq!(bare_phonemes(&words), ["kláma", "mi"]);
+        assert_eq!(bare_span(&words[0]).map(|span| span.byte_end), Some(5));
+        assert_eq!(bare_span(&words[1]).map(|span| span.byte_start), Some(5));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unstressed_brivla_prefix_does_not_split_before_adjacent_cmavo() {
+        let words = segment_words_with_modifiers("klamami", &MorphologyOptions::default(), None)
+            .expect("valid morphology");
+
+        assert_eq!(bare_phonemes(&words), ["klamámi"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trailing_comma_is_pause_not_word_text() {
+        let words = segment_words_with_modifiers("klama,", &MorphologyOptions::default(), None)
+            .expect("valid morphology");
+
+        assert_eq!(bare_phonemes(&words), ["kláma"]);
+        assert_eq!(bare_span(&words[0]).map(|span| span.byte_end), Some(5));
     }
 
     #[test]
