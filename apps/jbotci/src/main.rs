@@ -30,8 +30,6 @@ use jbotci_syntax::{
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use owo_colors::OwoColorize;
 
-const SYNTAX_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
-
 #[derive(Debug, Parser)]
 #[command(name = "jbotci")]
 #[command(about = "Command-line Lojban toolkit")]
@@ -790,7 +788,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
 ) -> Result<CliStatus> {
-    let rendered = render_gentufa_on_large_stack(
+    let rendered = render_gentufa(
         input,
         color_policy,
         diagnostic_detail,
@@ -802,58 +800,14 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     Ok(rendered.status)
 }
 
-#[requires(diagnostic_terminal_width > 0)]
-#[requires(trace.limit > 0)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn render_gentufa_on_large_stack(
-    input: GentufaInput,
-    color_policy: CliColorPolicy,
-    diagnostic_detail: DiagnosticDetailMode,
-    diagnostic_terminal_width: usize,
-    trace: CliTraceConfig,
-) -> Result<GentufaRendered> {
-    let worker = std::thread::Builder::new()
-        .name("jbotci-gentufa".to_owned())
-        .stack_size(SYNTAX_WORKER_STACK_SIZE)
-        .spawn(move || {
-            render_gentufa(
-                input,
-                color_policy,
-                diagnostic_detail,
-                diagnostic_terminal_width,
-                trace,
-            )
-        })
-        .context("failed to spawn gentufa syntax worker")?;
-    match worker.join() {
-        Ok(result) => result,
-        Err(_) => bail!("gentufa syntax worker panicked"),
-    }
-}
-
 #[cfg(feature = "grammar-debug")]
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_gerna<WOut: Write>(input: GernaInput, stdout: &mut WOut) -> Result<CliStatus> {
     let output_file = input.output_file.clone();
-    let rendered = render_gerna_on_large_stack(input)?;
+    let rendered = render_gerna(input)?;
     write_gerna_output(stdout, output_file.as_ref(), &rendered)?;
     Ok(CliStatus::Success)
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn render_gerna_on_large_stack(input: GernaInput) -> Result<String> {
-    let worker = std::thread::Builder::new()
-        .name("jbotci-gerna".to_owned())
-        .stack_size(SYNTAX_WORKER_STACK_SIZE)
-        .spawn(move || render_gerna(input))
-        .context("failed to spawn gerna syntax worker")?;
-    match worker.join() {
-        Ok(result) => result,
-        Err(_) => bail!("gerna syntax worker panicked"),
-    }
 }
 
 #[cfg(feature = "grammar-debug")]
@@ -2152,7 +2106,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_default_output_matches_bracket_renderer() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa default");
             let mut output = Vec::new();
@@ -2364,7 +2318,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_json_outputs_typed_syntax_tree() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "--format", "djeisone", "mi", "klama"])
                     .expect("gentufa json");
@@ -2388,7 +2342,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_morphology_warnings_go_to_stderr() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "json", "la", "siatl.", "cu", "klama",
             ])
@@ -2410,7 +2364,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_tree_outputs_collapsed_syntax_tree() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "tree", "mi", "klama"])
                 .expect("gentufa tree");
             let mut output = Vec::new();
@@ -2431,7 +2385,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_tree_preserves_source_order_for_connected_relation() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "tree", "gleki", "je", "klama",
             ])
@@ -2454,7 +2408,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_tree_preserves_source_order_for_binary_math() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "tree", "li", "pa", "su'i", "re",
             ])
@@ -2477,7 +2431,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_indent_zero_makes_tree_single_line() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "tree", "--indent", "0", "mi", "klama",
             ])
@@ -2498,7 +2452,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_indent_zero_makes_json_single_line() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "json", "--indent", "0", "mi", "klama",
             ])
@@ -2517,36 +2471,29 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_warnings_go_to_stderr() {
-        std::thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(|| {
-                let cli = Cli::try_parse_from([
-                    "jbotci", "gentufa", "--format", "djeisone", "mi", "klama", "fi'oi", "broda",
-                ])
-                .expect("gentufa warning parse");
-                let mut output = Vec::new();
-                let mut error = Vec::new();
-                run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--format", "djeisone", "mi", "klama", "fi'oi", "broda",
+        ])
+        .expect("gentufa warning parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
 
-                let stdout = String::from_utf8(output).expect("stdout utf8");
-                let stderr = String::from_utf8(error).expect("stderr utf8");
-                assert!(stdout.starts_with('{'));
-                assert!(!stdout.contains("warning:"));
-                assert!(stderr.contains("experimental syntax"), "{stderr}");
-                assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
-                assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
-                assert!(stderr.contains("fi'oi"));
-            })
-            .expect("spawn warning test")
-            .join()
-            .expect("warning test thread");
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(stdout.starts_with('{'));
+        assert!(!stdout.contains("warning:"));
+        assert!(stderr.contains("experimental syntax"), "{stderr}");
+        assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
+        assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
+        assert!(stderr.contains("fi'oi"));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_syntax_errors_go_to_stderr() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "gleki", "ku", "klama", "zei", "klama"])
                     .expect("gentufa parses");
@@ -2573,7 +2520,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "gleki", "ku", "klama", "zei", "klama"])
                     .expect("gentufa parses");
@@ -2601,7 +2548,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci",
                 "gentufa",
@@ -2642,7 +2589,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_syntax_error_labels_unique_current_construct() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--detailed-errors", "mi", "cu"])
                 .expect("gentufa detailed parses");
             let mut output = Vec::new();
@@ -2662,7 +2609,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_trace_writes_to_stderr_and_keeps_json_stdout_clean() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--trace", "1", "--turtai", "json", "mi", "klama",
             ])
@@ -2685,7 +2632,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn bare_trace_before_text_uses_default_trace_level() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "--trace", "gleki ku klama zei klama"])
                     .expect("bare trace parses");
@@ -2706,7 +2653,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn trace_color_policy_controls_ansi() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let always_cli = Cli::try_parse_from([
                 "jbotci",
                 "gentufa",
@@ -2758,7 +2705,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn detailed_syntax_error_color_controls_word_braces() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci",
                 "gentufa",
@@ -2827,7 +2774,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn warning_context_includes_verbatim_quote_text() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "zo'oi", "gleki"])
                 .expect("zo'oi warning parse");
             let mut output = Vec::new();
@@ -2846,7 +2793,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_raw_output_is_debug_syntax_parse() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "raw", "mi", "klama"])
                 .expect("gentufa raw");
             let mut output = Vec::new();
@@ -2864,7 +2811,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_raw_indent_zero_uses_compact_debug() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--turtai", "raw", "--indent", "0", "mi", "klama",
             ])
@@ -3013,7 +2960,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_color_flag_forces_ansi_bracket_output() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color", "mi", "klama"])
                 .expect("gentufa color");
             assert_eq!(cli.color, concolor_clap::ColorChoice::Always);
@@ -3030,7 +2977,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_color_flag_forces_ansi_tree_output() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--color", "--format", "vipcihe", "mi", "klama",
             ])
@@ -3111,12 +3058,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(test)
-            .expect("spawn large-stack test")
-            .join()
-            .expect("large-stack test thread");
+    fn run_on_normal_stack(test: impl FnOnce()) {
+        test();
     }
 }

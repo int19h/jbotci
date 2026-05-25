@@ -584,7 +584,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn syntax_tree_json_matches_existing_compact_shape() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             for text in [
                 "mi klama",
                 ".ui mi klama",
@@ -603,12 +603,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_large_stack(f: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(f)
-            .expect("spawn large-stack JSON output test")
-            .join()
-            .expect("large-stack JSON output test thread");
+    fn run_on_normal_stack(f: impl FnOnce()) {
+        f();
     }
 }

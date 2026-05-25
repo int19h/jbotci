@@ -558,7 +558,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_basic_predicate_with_leading_and_tail_terms() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("do mamta mi").expect("valid morphology");
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
@@ -571,7 +571,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn rejects_stray_cu() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("cu").expect("valid morphology");
 
             let error = parse_syntax_tree(&words, &ParseOptions::default()).expect_err("invalid");
@@ -584,7 +584,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_grouped_math_operator() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("li re ke su'i ke'e ci du li mu")
                 .expect("valid morphology");
 
@@ -598,7 +598,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_bo_connected_math_operator() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("li re su'i je bo vu'u ci du li mu")
                 .expect("valid morphology");
 
@@ -612,7 +612,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_pehe_termset_with_cehe_connectives_under_contracts() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers(
                 "mi klama le zarci ce'e le briju pe'e je le zdani ce'e le ckule",
             )
@@ -630,7 +630,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_emphasized_goha_relation_under_contracts() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("le lojbo cu ba'e du le loglo")
                 .expect("valid morphology");
 
@@ -646,7 +646,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_statement_connective_with_flattened_fiho_relation_under_contracts() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("i fi'o ke broda brode bo mi klama")
                 .expect("valid morphology");
 
@@ -663,7 +663,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn keeps_i_connectives_out_of_tail_terms() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());
 
             assert!(raw.contains("Connected"));
@@ -676,7 +676,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn classifies_mohi_as_spatial_movement_not_koha() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let raw = parse_tree_debug(
                 "le verba mo'i ri'u cadzu le bisli",
                 &ParseOptions::default(),
@@ -696,7 +696,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_v0_joik_and_cehe_argument_connective_cases() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             for source in [
                 "la djeimyz. cebo la djordj. bruna remei",
                 "mi joibo do cu broda",
@@ -712,7 +712,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn bare_vowel_cmavo_are_not_implicit_letters() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("a cmene").expect("valid morphology");
             assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
 
@@ -725,7 +725,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn core_word_strips_syntax_wrappers_but_preserves_word_like_unit() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let mut words = segment_words_with_modifiers("zo coi").expect("valid morphology");
             let quote = words.remove(0);
             let wrapped = WithFreeModifiers::new(
@@ -748,7 +748,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn quote_warning_anchor_covers_whole_core_word_like() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let parsed = parse_source("mi tavla zo'oi broda", &ParseOptions::default());
             let quote_warning = parsed
                 .warnings
@@ -768,7 +768,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn non_lu_quotes_do_not_warn_for_quoted_experimental_cmavo() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             for source in [
                 "mi tavla zo li'oi",
                 "mi tavla zo'oi li'oi",
@@ -790,7 +790,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn lu_quote_warns_for_inner_experimental_cmavo() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let parsed = parse_source("mi cusku lu li'oi li'u", &ParseOptions::default());
             assert!(has_warning_kind(
                 &parsed,
@@ -803,7 +803,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn experimental_indicator_warning_anchors_indicator_word() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let parsed = parse_source("mi li'oi klama", &ParseOptions::default());
             let warning = parsed
                 .warnings
@@ -823,7 +823,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_experimental_muhei_roi_tense_with_warning() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let parsed = parse_source("mi so'emu'ei spuda", &ParseOptions::default());
 
             assert!(format!("{:?}", parsed.parse_tree).contains("TenseModal"));
@@ -838,7 +838,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_quote_relation_units() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words =
                 segment_words_with_modifiers("lu'ei mi klama li'au").expect("valid morphology");
 
@@ -870,7 +870,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_jai_tag_terms() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words =
                 segment_words_with_modifiers("jai pu mi cu klama").expect("valid morphology");
 
@@ -891,7 +891,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_poiha_brigahi_ku() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("noi'a klama ku mi cu broda")
                 .expect("valid morphology");
 
@@ -912,7 +912,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn accepts_zantufa_cmavo_table_entries_with_warning() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("mi bo'ei do").expect("valid morphology");
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default())
@@ -928,7 +928,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_initial_gi_gek() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("gi je mi klama gi do klama")
                 .expect("valid morphology");
 
@@ -952,7 +952,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_gihi_forethought_terminator() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("ge mi klama gi do klama gi'i")
                 .expect("valid morphology");
 
@@ -973,7 +973,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn warns_for_jek_gek_and_bo_gek_extensions() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("je gi mi klama gi do klama")
                 .expect("valid morphology");
             let parsed =
@@ -1001,7 +1001,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn warns_for_flat_tag_forms() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words =
                 segment_words_with_modifiers("na'e fa mi cu klama").expect("valid morphology");
 
@@ -1027,7 +1027,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gates_zantufa_recursive_tags() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("na'e se na'e se fa mi cu klama")
                 .expect("valid morphology");
 
@@ -1048,7 +1048,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn classifies_v0_dictionary_first_cases_by_dictionary_selmaho() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let cases = [
                 (
                     "a'oi do klama",
@@ -1096,7 +1096,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cbm_accepts_cmevla_relation_in_descriptor_arguments() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let source = "lo .alis. broda cu melbi";
             let baseline_words = segment_words_with_modifiers(source).expect("valid morphology");
             assert!(parse_syntax_tree(&baseline_words, &ParseOptions::default()).is_err());
@@ -1114,7 +1114,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cbm_warns_for_cmevla_relation_words() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
 
@@ -1135,7 +1135,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn rejects_wrong_enum_variant_cmavo_markers() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let subsentence = sample_subsentence();
 
             assert!(
@@ -1150,7 +1150,7 @@ mod tests {
                 try_new!(ArgumentSyntax::BridiDescription {
                     lohoi: free_word("lo'oi"),
                     subsentence: Box::new(subsentence),
-                    kuhau: Some(free_word("ku'o")),
+                    kuhau: Some(Box::new(free_word("ku'o"))),
                 })
                 .is_err()
             );
@@ -1162,7 +1162,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn rejects_wrong_struct_cmavo_markers() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let argument = sample_argument();
             let relation = sample_relation();
             let subsentence = sample_subsentence();
@@ -1173,7 +1173,7 @@ mod tests {
             assert!(
                 try_new!(GoiRelativeClauseSyntax {
                     goi: free_word("le"),
-                    argument: argument.clone(),
+                    argument: Box::new(argument.clone()),
                     gehu: None,
                 })
                 .is_err()
@@ -1181,8 +1181,8 @@ mod tests {
             assert!(
                 try_new!(SelbriRelativeClauseSyntax {
                     nohoi: free_word("no'oi"),
-                    relation: relation.clone(),
-                    kuhoi: Some(free_word("ku'o")),
+                    relation: Box::new(relation.clone()),
+                    kuhoi: Some(Box::new(free_word("ku'o"))),
                 })
                 .is_err()
             );
@@ -1195,18 +1195,18 @@ mod tests {
             assert!(
                 try_new!(DescriptorSyntax {
                     outer_quantifier: None,
-                    descriptor: Some(free_word("lo")),
+                    descriptor: Some(Box::new(free_word("lo"))),
                     tail_elements: Vec::new(),
                     relation: None,
                     relative_clauses: Vec::new(),
-                    ku: Some(free_word("ku'o")),
+                    ku: Some(Box::new(free_word("ku'o"))),
                 })
                 .is_err()
             );
             assert!(
                 try_new!(BeiLinkSyntax {
                     bei: free_word("be"),
-                    fa: Some(free_word("fa")),
+                    fa: Some(Box::new(free_word("fa"))),
                     argument: None,
                 })
                 .is_err()
@@ -1214,8 +1214,8 @@ mod tests {
             assert!(
                 try_new!(PredicateSyntax {
                     leading_terms: Vec::new(),
-                    cu: Some(free_word("ku")),
-                    predicate_tail: predicate_tail.clone(),
+                    cu: Some(Box::new(free_word("ku"))),
+                    predicate_tail: Box::new(predicate_tail.clone()),
                     free_modifiers: Vec::new(),
                 })
                 .is_err()
@@ -1225,8 +1225,8 @@ mod tests {
                     connective: connective.clone(),
                     tense_modal: None,
                     ke: free_word("ke"),
-                    predicate_tail: predicate_tail.clone(),
-                    kehe: Some(free_word("ku")),
+                    predicate_tail: Box::new(predicate_tail.clone()),
+                    kehe: Some(Box::new(free_word("ku"))),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -1239,7 +1239,7 @@ mod tests {
                     tense_modal: None,
                     bo: free_word("boi"),
                     cu: None,
-                    predicate_tail: predicate_tail2,
+                    predicate_tail: Box::new(predicate_tail2),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -1270,7 +1270,7 @@ mod tests {
                 try_new!(FihoModalSyntax {
                     nahe: None,
                     fiho: free_word("fe'u"),
-                    relation: relation.clone(),
+                    relation: Box::new(relation.clone()),
                     fehu: None,
                 })
                 .is_err()
@@ -1281,7 +1281,7 @@ mod tests {
                     nai: None,
                     additional_nu: Vec::new(),
                     subsentence: Box::new(subsentence),
-                    kei: Some(free_word("ku")),
+                    kei: Some(Box::new(free_word("ku"))),
                 })
                 .is_err()
             );
@@ -1296,7 +1296,7 @@ mod tests {
             assert!(
                 try_new!(CeiAssignmentSyntax {
                     cei: free_word("bei"),
-                    relation_unit: new!(RelationUnitSyntax::Word(free_word("klama"))),
+                    relation_unit: Box::new(new!(RelationUnitSyntax::Word(free_word("klama")))),
                 })
                 .is_err()
             );
@@ -1387,10 +1387,10 @@ mod tests {
             .as_ref()
             .expect("parsed statement");
         let predicate = match statement.as_data() {
-            data!(StatementSyntax::Predicate(predicate)) => predicate.clone(),
+            data!(StatementSyntax::Predicate(predicate)) => *predicate.clone(),
             _ => panic!("test helper expected a predicate statement"),
         };
-        new!(SubsentenceSyntax::Plain(predicate))
+        new!(SubsentenceSyntax::Plain(Box::new(predicate)))
     }
 
     #[requires(true)]
@@ -1411,21 +1411,21 @@ mod tests {
         let data!(SubsentenceSyntax::Plain(predicate)) = sample_subsentence().into_data() else {
             panic!("test helper expected a predicate subsentence");
         };
-        predicate
+        *predicate
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn sample_predicate_tail() -> PredicateTailSyntax {
         let data!(PredicateSyntax { predicate_tail, .. }) = sample_predicate().into_data();
-        predicate_tail
+        *predicate_tail
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn sample_predicate_tail2() -> PredicateTail2Syntax {
         let predicate_tail = sample_predicate_tail();
-        predicate_tail.first.first
+        *predicate_tail.first.first
     }
 
     #[requires(true)]
@@ -1443,12 +1443,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(test)
-            .expect("spawn large-stack syntax test")
-            .join()
-            .expect("large-stack syntax test thread");
+    fn run_on_normal_stack(test: impl FnOnce()) {
+        test();
     }
 }

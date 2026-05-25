@@ -9,35 +9,35 @@ use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assigns_simple_sentence_tokens_once_in_order() {
-    run_on_large_stack(|| assert_source_assignment("mi cu klama la zdani"));
+    run_on_normal_stack(|| assert_source_assignment("mi cu klama la zdani"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_single_word_quote_text() {
-    run_on_large_stack(|| assert_source_assignment("zo .ai"));
+    run_on_normal_stack(|| assert_source_assignment("zo .ai"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_zoi_raw_quoted_text() {
-    run_on_large_stack(|| assert_source_assignment("zoi gy Steve gy"));
+    run_on_normal_stack(|| assert_source_assignment("zoi gy Steve gy"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_non_ascii_spans() {
-    run_on_large_stack(|| assert_source_assignment("zoi gy café gy"));
+    run_on_normal_stack(|| assert_source_assignment("zoi gy café gy"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
-    run_on_large_stack(|| {
+    run_on_normal_stack(|| {
         let dialect =
             parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
         let options = ParseOptions::default().with_dialect_definition(&dialect);
@@ -50,7 +50,7 @@ fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_zantufa_jai_tag_term() {
-    run_on_large_stack(|| {
+    run_on_normal_stack(|| {
         let dialect =
             parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
         let options = ParseOptions::default().with_dialect_definition(&dialect);
@@ -63,7 +63,7 @@ fn syntax_assignment_handles_zantufa_jai_tag_term() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_zantufa_poiha_brigahi() {
-    run_on_large_stack(|| {
+    run_on_normal_stack(|| {
         let dialect =
             parse_dialect_definition("(+ZANTUFA-ADVERBIALS)").expect("valid dialect definition");
         let options = ParseOptions::default().with_dialect_definition(&dialect);
@@ -76,7 +76,7 @@ fn syntax_assignment_handles_zantufa_poiha_brigahi() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_v0_experimental_linkargs() {
-    run_on_large_stack(|| {
+    run_on_normal_stack(|| {
         for source in [
             "lo be mi broda cu melbi",
             "lo be broda cu melbi",
@@ -93,7 +93,7 @@ fn syntax_assignment_handles_v0_experimental_linkargs() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
-    run_on_large_stack(|| {
+    run_on_normal_stack(|| {
         let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect definition");
         let options = ParseOptions::default().with_dialect_definition(&dialect);
 
@@ -109,13 +109,8 @@ fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
 
 #[requires(true)]
 #[ensures(true)]
-fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
-        .spawn(test)
-        .expect("spawn large-stack source assignment test")
-        .join()
-        .expect("large-stack source assignment test thread");
+fn run_on_normal_stack(test: impl FnOnce()) {
+    test();
 }
 
 #[requires(!source.is_empty())]

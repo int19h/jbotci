@@ -1681,10 +1681,10 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
         }) => be_link_node(
             relation_unit(base, source),
             be,
-            fa.as_ref(),
+            fa.as_deref(),
             first_argument.as_deref(),
             bei_links,
-            beho.as_ref(),
+            beho.as_deref(),
             source,
             false,
         ),
@@ -1698,10 +1698,10 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
         }) => be_link_node(
             relation_unit(base, source),
             be,
-            fa.as_ref(),
+            fa.as_deref(),
             first_argument.as_deref(),
             bei_links,
-            beho.as_ref(),
+            beho.as_deref(),
             source,
             true,
         ),
@@ -2083,7 +2083,13 @@ fn connective_parts(value: &ConnectiveSyntax) -> ConnectivePartsRef<'_> {
             na,
             cmavo,
             nai,
-        }) => (se.as_ref(), nahe.as_ref(), na.as_ref(), cmavo, nai.as_ref()),
+        }) => (
+            se.as_deref(),
+            nahe.as_deref(),
+            na.as_deref(),
+            cmavo,
+            nai.as_deref(),
+        ),
     }
 }
 

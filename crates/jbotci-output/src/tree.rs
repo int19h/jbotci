@@ -1093,7 +1093,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn colorizes_visible_span_markers_with_white_offsets() {
-        let output = run_on_large_stack(|| {
+        let output = run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("mi klama").expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
             pretty_tree_with_options(
@@ -1152,7 +1152,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn renders_single_line_when_indent_is_zero() {
-        run_on_large_stack(|| {
+        run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("mi klama").expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
             let output = pretty_tree_with_options(
@@ -1176,7 +1176,7 @@ mod tests {
     #[ensures(!ret.is_empty())]
     fn render(text: &str, color: bool) -> String {
         let text = text.to_owned();
-        run_on_large_stack(move || {
+        run_on_normal_stack(move || {
             let words = segment_words_with_modifiers(&text).expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
             pretty_tree_with_options(
@@ -1194,12 +1194,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_large_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
-        std::thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(f)
-            .expect("spawn large-stack output test")
-            .join()
-            .expect("large-stack output test thread")
+    fn run_on_normal_stack<R>(f: impl FnOnce() -> R) -> R {
+        f()
     }
 }

@@ -457,9 +457,9 @@ impl FreeModifierSyntax {
                 new_words,
                 lehai,
             }) => {
-                let mut words = lohai.into_iter().collect::<Vec<_>>();
+                let mut words = lohai.into_iter().map(|word| *word).collect::<Vec<_>>();
                 words.extend(old_words);
-                words.extend(sahai);
+                words.extend(sahai.map(|word| *word));
                 words.extend(new_words);
                 words.extend(lehai.words());
                 words
@@ -1553,6 +1553,10 @@ impl ConnectiveSyntax {
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     ) -> Self {
+        let se = se.map(Box::new);
+        let nahe = nahe.map(Box::new);
+        let na = na.map(Box::new);
+        let nai = nai.map(Box::new);
         match kind {
             ConnectiveKind::Afterthought => new!(ConnectiveSyntax::Afterthought {
                 se,
@@ -1637,11 +1641,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Afterthought,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
             data!(ConnectiveSyntax::Relation {
                 se,
@@ -1651,11 +1655,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Relation,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
             data!(ConnectiveSyntax::PredicateTail {
                 se,
@@ -1665,11 +1669,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::PredicateTail,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
             data!(ConnectiveSyntax::Forethought {
                 se,
@@ -1679,11 +1683,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Forethought,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
             data!(ConnectiveSyntax::NonLogical {
                 se,
@@ -1693,11 +1697,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::NonLogical,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
             data!(ConnectiveSyntax::Interval {
                 se,
@@ -1707,11 +1711,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Interval,
-                se,
-                nahe,
-                na,
+                se: se.map(|word| *word),
+                nahe: nahe.map(|word| *word),
+                na: na.map(|word| *word),
                 cmavo,
-                nai,
+                nai: nai.map(|word| *word),
             },
         }
     }
@@ -2568,7 +2572,7 @@ impl TermSyntax {
                 words
             }
             data!(TermSyntax::NaKu { na, na_ku }) => {
-                let mut words = vec![na];
+                let mut words = vec![*na];
                 words.extend(na_ku.words());
                 words
             }
@@ -2942,7 +2946,7 @@ impl ArgumentSyntax {
                 words
             }
             data!(ArgumentSyntax::NaKu { na, ku }) => {
-                let mut words = vec![na];
+                let mut words = vec![*na];
                 words.extend(ku.words());
                 words
             }
@@ -2960,7 +2964,7 @@ impl ArgumentSyntax {
                 inner_argument,
                 luhu,
             }) => {
-                let mut words = vec![nahe];
+                let mut words = vec![*nahe];
                 words.extend(bo.words());
                 words.extend(inner_argument.words());
                 if let Some(luhu) = luhu {
@@ -3556,8 +3560,8 @@ impl RelationSyntax {
                 words
             }
             data!(RelationSyntax::Abstraction(abstraction)) => abstraction.words(),
-            data!(RelationSyntax::Compound(units)) => units
-                .into_smallvec()
+            data!(RelationSyntax::Compound(units)) => (*units)
+                .into_vec()
                 .into_iter()
                 .flat_map(RelationUnitSyntax::words)
                 .collect(),
@@ -3876,11 +3880,11 @@ impl TenseModalSyntax {
                 (vec![word.value], word.free_modifiers)
             }
             data!(TenseModalSyntax::PuDistance { pu, distance }) => {
-                (vec![pu, distance.value], distance.free_modifiers)
+                (vec![*pu, distance.value], distance.free_modifiers)
             }
             data!(TenseModalSyntax::TimeInterval(word)) => (vec![word.value], word.free_modifiers),
             data!(TenseModalSyntax::PuCaha { pu, caha }) => {
-                (vec![pu, caha.value], caha.free_modifiers)
+                (vec![*pu, caha.value], caha.free_modifiers)
             }
             data!(TenseModalSyntax::SpaceDistance(word)) => (vec![word.value], word.free_modifiers),
             data!(TenseModalSyntax::SpaceDirection(word)) => {
@@ -3891,7 +3895,7 @@ impl TenseModalSyntax {
                 direction,
                 distance,
             }) => {
-                let mut words = vec![mohi, direction.value];
+                let mut words = vec![*mohi, direction.value];
                 let mut free_modifiers = direction.free_modifiers;
                 if let Some(distance) = distance {
                     words.push(distance.value);
@@ -4301,9 +4305,9 @@ impl FreeModifierSyntax {
                 new_words,
                 lehai,
             }) => lohai
-                .as_ref()
+                .as_deref()
                 .or_else(|| old_words.first())
-                .or(sahai.as_ref())
+                .or(sahai.as_deref())
                 .or_else(|| new_words.first())
                 .or_else(|| lehai.first_word()),
         }

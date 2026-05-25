@@ -394,14 +394,7 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(true)]
 fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
-    let handle = std::thread::Builder::new()
-        .stack_size(FIXTURE_WORKER_STACK_SIZE)
-        .spawn(move || fixture_rewrite_inner(args))
-        .context("spawning fixture-rewrite worker")?;
-    match handle.join() {
-        Ok(result) => result,
-        Err(_) => bail!("fixture-rewrite worker panicked"),
-    }
+    fixture_rewrite_inner(args)
 }
 
 #[requires(true)]
@@ -1280,7 +1273,6 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     for chunk in paths.chunks(FIXTURE_TEST_CHUNK_SIZE) {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(jobs)
-            .stack_size(FIXTURE_WORKER_STACK_SIZE)
             .build()
             .context("creating fixture-test thread pool")?;
         let chunk_summary = pool
@@ -1524,7 +1516,6 @@ fn fixture_vector_stats(args: FixtureVectorStatsArgs) -> Result<()> {
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(args.jobs.unwrap_or_else(default_fixture_jobs))
-        .stack_size(FIXTURE_WORKER_STACK_SIZE)
         .build()
         .context("creating fixture-vector-stats thread pool")?;
     let stats = pool
@@ -1779,9 +1770,6 @@ fn default_fixture_jobs() -> usize {
     DEFAULT_TEST_JOBS
 }
 
-// TOML fixtures can contain deeply nested exported syntax trees, and syntax
-// parsing/rendering plus serde decoding need more stack than worker defaults.
-const FIXTURE_WORKER_STACK_SIZE: usize = 128 * 1024 * 1024;
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
