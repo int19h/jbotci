@@ -330,20 +330,18 @@ fn push_auto_break(rendered: &mut String, line_width: &mut usize, line_text: &mu
 #[requires(!text.is_empty())]
 #[ensures(!ret.is_empty())]
 fn render_styled_segment(role: DiagnosticTextRole, text: &str, color: bool) -> String {
+    let visible_text = visible_segment_text(role, text, color);
     if !color {
-        return match role {
-            DiagnosticTextRole::SpecificWord => format!("{{{text}}}"),
-            _ => text.to_owned(),
-        };
+        return visible_text;
     }
     match role {
-        DiagnosticTextRole::Construct => text.bright_white().to_string(),
-        DiagnosticTextRole::SpecificWord => text.magenta().underline().to_string(),
-        DiagnosticTextRole::Selmaho => text.magenta().to_string(),
-        DiagnosticTextRole::WordCategory => text.bright_blue().to_string(),
-        DiagnosticTextRole::Keyword => text.truecolor(170, 170, 170).to_string(),
-        DiagnosticTextRole::Punctuation => text.bright_black().to_string(),
-        DiagnosticTextRole::Plain => text.to_owned(),
+        DiagnosticTextRole::Construct => visible_text.bright_white().to_string(),
+        DiagnosticTextRole::SpecificWord => visible_text.bright_cyan().italic().to_string(),
+        DiagnosticTextRole::Selmaho => visible_text.bright_cyan().to_string(),
+        DiagnosticTextRole::WordCategory => visible_text.bright_green().to_string(),
+        DiagnosticTextRole::Keyword => visible_text.truecolor(170, 170, 170).to_string(),
+        DiagnosticTextRole::Punctuation => visible_text.bright_black().to_string(),
+        DiagnosticTextRole::Plain => visible_text,
     }
 }
 
@@ -356,10 +354,10 @@ fn rendered_segment_width(role: DiagnosticTextRole, text: &str, color: bool) -> 
 #[requires(!text.is_empty())]
 #[ensures(!ret.is_empty())]
 fn visible_segment_text(role: DiagnosticTextRole, text: &str, color: bool) -> String {
-    if !color && role == DiagnosticTextRole::SpecificWord {
-        format!("{{{text}}}")
-    } else {
-        text.to_owned()
+    match (color, role) {
+        (false, DiagnosticTextRole::SpecificWord) => format!("{{{text}}}"),
+        (true, DiagnosticTextRole::WordCategory) => text.to_lowercase(),
+        _ => text.to_owned(),
     }
 }
 
@@ -574,6 +572,53 @@ mod tests {
         assert!(rendered.contains("\x1b["));
         assert!(rendered.contains("lo"));
         assert!(!rendered.contains("{lo}"));
+        assert!(rendered.contains("\x1b[3m"));
+        assert!(!rendered.contains("\x1b[4m"));
+        assert!(rendered.contains("\x1b[96m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_segment_visible_text_matches_color_policy() {
+        assert_eq!(
+            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA ARGUMENT", false),
+            "KOhA ARGUMENT"
+        );
+        assert_eq!(
+            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA ARGUMENT", true),
+            "koha argument"
+        );
+        assert_eq!(
+            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", false),
+            "{lo}"
+        );
+        assert_eq!(
+            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", true),
+            "lo"
+        );
+        assert_eq!(
+            visible_segment_text(DiagnosticTextRole::Selmaho, "GAhO", true),
+            "GAhO"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_segment_ansi_roles_match_color_policy() {
+        let word = render_styled_segment(DiagnosticTextRole::SpecificWord, "lo", true);
+        assert!(word.contains("\x1b[3m"));
+        assert!(word.contains("\x1b[96m"));
+        assert!(!word.contains("\x1b[4m"));
+
+        let selmaho = render_styled_segment(DiagnosticTextRole::Selmaho, "GAhO", true);
+        assert!(selmaho.contains("\x1b[96m"));
+
+        let category = render_styled_segment(DiagnosticTextRole::WordCategory, "BRIVLA", true);
+        assert!(category.contains("\x1b[92m"));
+        assert!(category.contains("brivla"));
+        assert!(!category.contains("BRIVLA"));
     }
 
     #[test]

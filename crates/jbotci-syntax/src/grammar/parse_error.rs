@@ -449,6 +449,30 @@ fn merged_context_names(paths: &[Vec<SyntaxConstructContext>]) -> Vec<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
 fn select_current_context(paths: &[Vec<SyntaxConstructContext>]) -> Option<SyntaxConstructContext> {
+    select_shared_innermost_context(paths).or_else(|| select_outer_common_context(paths))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn select_shared_innermost_context(
+    paths: &[Vec<SyntaxConstructContext>],
+) -> Option<SyntaxConstructContext> {
+    let selected = paths.first()?.first()?;
+    if syntax_construct_is_root(&selected.construct) {
+        return None;
+    }
+    if paths.iter().all(|path| path.first() == Some(selected)) {
+        Some(selected.clone())
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn select_outer_common_context(
+    paths: &[Vec<SyntaxConstructContext>],
+) -> Option<SyntaxConstructContext> {
     let shortest_path_len = paths.iter().map(Vec::len).min()?;
     let mut selected = None;
     for outer_index in 0..shortest_path_len {
@@ -588,6 +612,33 @@ mod tests {
 
         assert_eq!(context.construct, "relation");
         assert_eq!([context.byte_start, context.byte_end], [0, 8]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_context_prefers_shared_innermost_context_across_divergent_routes() {
+        let mut via_relation =
+            SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut via_relation, "argument", 4..8);
+        in_context_span(&mut via_relation, "term", 4..8);
+        in_context_span(&mut via_relation, "relation", 0..8);
+        in_context_span(&mut via_relation, "statement", 0..8);
+        in_context_span(&mut via_relation, "text", 0..8);
+        let mut via_free = SyntaxParseError::expected(Span::from(8..10), vec![named_token("le")]);
+        in_context_span(&mut via_free, "argument", 4..8);
+        in_context_span(&mut via_free, "term", 4..8);
+        in_context_span(&mut via_free, "free modifier", 2..8);
+        in_context_span(&mut via_free, "statement", 0..8);
+        in_context_span(&mut via_free, "text", 0..8);
+
+        let context = via_relation
+            .merge_for_report(via_free)
+            .current_context()
+            .expect("selected context");
+
+        assert_eq!(context.construct, "argument");
+        assert_eq!([context.byte_start, context.byte_end], [4, 8]);
     }
 
     #[test]
