@@ -1867,6 +1867,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn rejects_forbidden_consonant_pairs_inside_fuhivla_shapes() {
+        let cases = [
+            ("basza", MorphologyErrorKind::VoicingMismatch, 2, 4),
+            ("lapda", MorphologyErrorKind::VoicingMismatch, 2, 4),
+            ("namzi", MorphologyErrorKind::ForbiddenConsonantPair, 2, 4),
+            ("basca", MorphologyErrorKind::ForbiddenConsonantPair, 2, 4),
+        ];
+
+        for (source, expected_kind, expected_start, expected_end) in cases {
+            let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect_err("forbidden consonant pairs must reject the word");
+            assert_invalid_error(
+                &error,
+                expected_kind,
+                expected_start,
+                expected_end,
+                Some(MorphologyContextKind::Fuhivla),
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn trailing_comma_is_pause_not_word_text() {
         let words = segment_words_with_modifiers("klama,", &MorphologyOptions::default(), None)
             .expect("valid morphology");

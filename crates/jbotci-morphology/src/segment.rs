@@ -638,9 +638,20 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptio
 #[ensures(true)]
 fn blocks_word_shape(chars: &[char], options: &MorphologyOptions) -> bool {
     has_invalid_apostrophe(chars)
+        || has_digit_followed_by_nucleus(chars)
         || has_geminated_consonant(chars)
         || has_y_hiatus(chars)
         || (options.enforce_cgv_ban && contains_cgv(chars))
+        || has_vowel_hiatus(chars)
+        || has_voicing_mismatch(chars)
+        || has_forbidden_consonant_triple(chars)
+        || has_forbidden_consonant_pair(chars)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_voicing_mismatch(chars: &[char]) -> bool {
+    voicing_mismatch_range(chars).is_some()
 }
 
 #[requires(true)]
