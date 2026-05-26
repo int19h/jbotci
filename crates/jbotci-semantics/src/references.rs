@@ -13,8 +13,8 @@ use jbotci_syntax::ast::{
     PredicateTail1Syntax, PredicateTail2Syntax, PredicateTail3Syntax, PredicateTail3SyntaxData,
     PredicateTailSyntax, RelationSyntax, RelationSyntaxData, RelationUnitSyntax,
     RelationUnitSyntaxData, StatementSyntax, StatementSyntaxData, SubsentenceSyntax,
-    SubsentenceSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, TreeNode, WithFreeModifiers,
-    WithIndicators,
+    SubsentenceSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, TreeNode,
+    WithFreeModifiers,
 };
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
@@ -1247,7 +1247,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 let inner = self.analyze_relation_unit(base);
                 self.assign_link_arguments(
                     inner,
-                    fa.as_deref(),
+                    fa.as_ref(),
                     first_argument.as_deref(),
                     bei_links,
                 );
@@ -1565,7 +1565,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     fn assign_link_arguments(
         &mut self,
         frame: SelbriPlaceFrameId,
-        fa: Option<&'tree WithFreeModifiers<WithIndicators<WordLike>>>,
+        fa: Option<&'tree WithFreeModifiers<Token>>,
         first_argument: Option<&'tree ArgumentSyntax>,
         bei_links: &'tree [BeiLinkSyntax],
     ) {
@@ -1576,7 +1576,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         }
         for link in bei_links {
             if let Some(argument) = link.argument.as_deref() {
-                let slot = link.fa.as_deref().and_then(fa_place_slot);
+                let slot = link.fa.as_ref().and_then(fa_place_slot);
                 self.assign_link_argument(&mut cursor, argument, slot);
             }
         }
@@ -2110,7 +2110,7 @@ impl<'tree> TreeVisitor<'tree> for SyntaxIndexBuilder<'tree> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
+            SyntaxAtomRef::Token(word) => {
                 for span in word.source_spans() {
                     self.record_source_span(span);
                 }
@@ -3264,7 +3264,7 @@ fn tense_modal_node_ref<'tree>(
 
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| (2..=5).contains(&place)))]
-fn se_conversion_place(se: &WithFreeModifiers<WithIndicators<WordLike>>) -> Option<u8> {
+fn se_conversion_place(se: &WithFreeModifiers<Token>) -> Option<u8> {
     match se.value.cmavo() {
         Some(Cmavo::Se) => Some(2),
         Some(Cmavo::Te) => Some(3),
@@ -3276,7 +3276,7 @@ fn se_conversion_place(se: &WithFreeModifiers<WithIndicators<WordLike>>) -> Opti
 
 #[requires(true)]
 #[ensures(true)]
-fn fa_place_slot(fa: &WithFreeModifiers<WithIndicators<WordLike>>) -> Option<PlaceSlot> {
+fn fa_place_slot(fa: &WithFreeModifiers<Token>) -> Option<PlaceSlot> {
     match fa.cmavo() {
         Some(Cmavo::Fa) => PlaceSlot::numbered(1),
         Some(Cmavo::Fe) => PlaceSlot::numbered(2),
@@ -3432,13 +3432,8 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_reference_test(test: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
-            .spawn(test)
-            .expect("test thread starts")
-            .join()
-            .expect("test thread completes");
+    fn run_reference_test(test: impl FnOnce()) {
+        test();
     }
 
     #[requires(true)]

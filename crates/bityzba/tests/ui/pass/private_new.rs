@@ -14,9 +14,15 @@ mod model {
             (self.start, self.end)
         }
     }
+
+    #[invariant(!self.is_empty())]
+    pub struct Name(String);
 }
 
 fn main() {
     let span = new!(model::Span { start: 0, end: 4 });
     assert_eq!(span.bounds(), (0, 4));
+
+    let name = new!(model::Name(String::from("cmavo")));
+    assert_eq!(name.len(), 5);
 }

@@ -27,6 +27,11 @@ enum TupleChoice {
     Pair(String, usize),
 }
 
+#[invariant(self.len() >= 2, "labels must have at least two bytes")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+struct Label(String);
+
 #[invariant(::Leaf => !label.is_empty())]
 #[invariant(::Branch => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -114,6 +119,9 @@ fn invariant_wrapper_debug_matches_original_shape() {
 
     let unset = new!(TupleChoice::Unset);
     assert_eq!(format!("{unset:?}"), "Unset");
+
+    let label = new!(Label(String::from("cmavo")));
+    assert_eq!(format!("{label:?}"), r#"Label("cmavo")"#);
 }
 
 #[test]
@@ -126,6 +134,45 @@ fn rejects_invalid_struct_data() {
     .expect_err("invalid bounds");
 
     assert!(error.to_string().contains("span bounds must be ordered"));
+}
+
+#[test]
+fn constructs_valid_tuple_newtype_from_inner_value() {
+    let label = new!(Label(String::from("cmavo")));
+
+    assert_eq!(label.as_str(), "cmavo");
+    assert_eq!(label.len(), 5);
+
+    let data!(Label(inner)) = label.as_data();
+    assert_eq!(inner, "cmavo");
+}
+
+#[test]
+fn rejects_invalid_tuple_newtype_inner_value() {
+    let error = try_new!(Label(String::from("x"))).expect_err("invalid label");
+
+    assert!(
+        error
+            .to_string()
+            .contains("labels must have at least two bytes")
+    );
+}
+
+#[test]
+fn tuple_newtype_serde_uses_inner_value_shape() {
+    let label = new!(Label(String::from("cmavo")));
+    let json = serde_json::to_string(&label).expect("serialize label");
+    assert_eq!(json, r#""cmavo""#);
+
+    let parsed: Label = serde_json::from_str(r#""selma'o""#).expect("deserialize label");
+    assert_eq!(parsed.as_str(), "selma'o");
+
+    let error = serde_json::from_str::<Label>(r#""x""#).expect_err("reject invalid label");
+    assert!(
+        error
+            .to_string()
+            .contains("labels must have at least two bytes")
+    );
 }
 
 #[test]

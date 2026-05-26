@@ -1,13 +1,13 @@
 //! Lojban syntax model and parser facade.
 
 pub mod tree;
-pub use tree::WithIndicators;
+pub use tree::{Token, WithIndicators};
 
 mod grammar;
 
 extern crate self as jbotci_syntax;
 
-use std::{cmp::Ordering, fmt};
+use std::cmp::Ordering;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
@@ -19,14 +19,12 @@ pub use jbotci_diagnostics::{TraceFilter, TraceLevel, TraceOptions, TracePhase, 
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::SourceId;
-use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod ast {
     pub use crate::grammar::ast::*;
 }
-use ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TreeNode as SyntaxAstTreeNode};
 pub use ast::{Indicator, IndicatorData, TextSyntax};
 
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
@@ -45,8 +43,11 @@ impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&jbotci_source::SourceSpan)) {
-        let mut visitor = SourceSpanVisitor { visitor };
-        self.visit_in_order(&mut visitor);
+        self.visit_words(&mut |word| {
+            for span in word.source_spans() {
+                visitor(span);
+            }
+        });
     }
 }
 
@@ -70,39 +71,6 @@ pub(crate) fn text_syntax_leaf_spans_match_words(
 #[ensures(true)]
 pub(crate) fn syntax_parse_leaf_spans_match_words(words: &[WordLike], parse: &SyntaxParse) -> bool {
     text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
-}
-
-#[invariant(true)]
-struct SourceSpanVisitor<'callback> {
-    visitor: &'callback mut dyn FnMut(&jbotci_source::SourceSpan),
-}
-
-impl fmt::Debug for SourceSpanVisitor<'_> {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("SourceSpanVisitor")
-            .finish_non_exhaustive()
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for SourceSpanVisitor<'_> {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
-                for span in word.source_spans() {
-                    (self.visitor)(span);
-                }
-            }
-            SyntaxAtomRef::Word(word) => (self.visitor)(word.span()),
-        }
-    }
 }
 
 #[requires(true)]
@@ -1160,7 +1128,7 @@ impl ExperimentalConstruct {
 pub struct SyntaxWarning {
     pub kind: ExperimentalConstruct,
     pub anchor_index: usize,
-    pub anchor: WithIndicators<WordLike>,
+    pub anchor: Token,
 }
 
 impl SyntaxWarning {
@@ -1169,7 +1137,7 @@ impl SyntaxWarning {
     pub fn experimental_construct(
         construct: ExperimentalConstruct,
         anchor_index: usize,
-        anchor: WithIndicators<WordLike>,
+        anchor: Token,
     ) -> Self {
         new!(SyntaxWarning {
             kind: construct,
@@ -1238,7 +1206,7 @@ pub struct SyntaxWarningDisplay {
 pub fn syntax_warning_displays(
     source_label: &str,
     source: &str,
-    words: &[WithIndicators<WordLike>],
+    words: &[Token],
     warnings: &[SyntaxWarning],
 ) -> Vec<SyntaxWarningDisplay> {
     warnings
@@ -1252,7 +1220,7 @@ pub fn syntax_warning_displays(
 pub fn syntax_warning_display(
     source_label: &str,
     source: &str,
-    words: &[WithIndicators<WordLike>],
+    words: &[Token],
     warning: &SyntaxWarning,
 ) -> SyntaxWarningDisplay {
     let (selection_start, selection_length) = warning_selection(warning);
@@ -1331,7 +1299,7 @@ fn warning_message(warning: &SyntaxWarning) -> String {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn warning_context(words: &[WithIndicators<WordLike>], index: usize) -> String {
+fn warning_context(words: &[Token], index: usize) -> String {
     let before_all = words.get(..index).unwrap_or(words);
     let before_count = before_all.len().min(3);
     let before = &before_all[before_all.len().saturating_sub(before_count)..];
@@ -1359,7 +1327,7 @@ fn warning_context(words: &[WithIndicators<WordLike>], index: usize) -> String {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn warning_word_text(word: &WithIndicators<WordLike>) -> String {
+fn warning_word_text(word: &Token) -> String {
     format!("{word}")
 }
 

@@ -4,7 +4,6 @@ pub use crate::tree::*;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_morphology::WordLike;
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
 
@@ -38,10 +37,10 @@ impl<T: Serialize> Serialize for WithFreeModifiers<T> {
     }
 }
 
-impl WithFreeModifiers<WithIndicators<WordLike>> {
+impl WithFreeModifiers<Token> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_words_into(self, out: &mut Vec<Token>) {
         out.push(self.value);
         for free_modifier in self.free_modifiers {
             free_modifier.extend_words_into(out);
@@ -50,7 +49,7 @@ impl WithFreeModifiers<WithIndicators<WordLike>> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         visitor(&self.value);
         for free_modifier in &self.free_modifiers {
             free_modifier.visit_words(visitor);
@@ -69,23 +68,23 @@ impl WithFreeModifiers<WithIndicators<WordLike>> {
 
     #[requires(true)]
     #[ensures(ret.is_some())]
-    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+    pub fn first_word(&self) -> Option<&Token> {
         Some(&self.value)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = Vec::new();
         self.extend_words_into(&mut words);
         words
     }
 }
 
-impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
+impl WithFreeModifiers<Vec<Token>> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_words_into(self, out: &mut Vec<Token>) {
         out.extend(self.value);
         for free_modifier in self.free_modifiers {
             free_modifier.extend_words_into(out);
@@ -94,7 +93,7 @@ impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         for word in &self.value {
             visitor(word);
         }
@@ -116,7 +115,7 @@ impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+    pub fn first_word(&self) -> Option<&Token> {
         self.value.first().or_else(|| {
             self.free_modifiers
                 .iter()
@@ -126,7 +125,7 @@ impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = Vec::new();
         self.extend_words_into(&mut words);
         words
@@ -136,7 +135,7 @@ impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
 impl WithFreeModifiers<WordRun> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_words_into(self, out: &mut Vec<Token>) {
         out.extend(self.value);
         for free_modifier in self.free_modifiers {
             free_modifier.extend_words_into(out);
@@ -145,7 +144,7 @@ impl WithFreeModifiers<WordRun> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         for word in &self.value {
             visitor(word);
         }
@@ -167,13 +166,13 @@ impl WithFreeModifiers<WordRun> {
 
     #[requires(true)]
     #[ensures(ret.is_some())]
-    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+    pub fn first_word(&self) -> Option<&Token> {
         Some(self.value.first())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = Vec::new();
         self.extend_words_into(&mut words);
         words
@@ -182,10 +181,7 @@ impl WithFreeModifiers<WordRun> {
 
 #[requires(true)]
 #[ensures(true)]
-fn visit_word_slice(
-    words: &[WithIndicators<WordLike>],
-    visitor: &mut impl FnMut(&WithIndicators<WordLike>),
-) {
+fn visit_word_slice(words: &[Token], visitor: &mut impl FnMut(&Token)) {
     for word in words {
         visitor(word);
     }
@@ -194,7 +190,7 @@ fn visit_word_slice(
 impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(StatementSyntax::Tuhe {
                 tense_modal,
@@ -279,7 +275,7 @@ impl StatementSyntax {
 impl PredicateStatementContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -304,7 +300,7 @@ impl PredicateStatementContinuationSyntax {
 impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(TextSyntax {
             leading_nai,
             leading_cmevla,
@@ -334,7 +330,7 @@ impl TextSyntax {
 impl ParagraphSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(ParagraphSyntax {
             i,
             niho,
@@ -356,7 +352,7 @@ impl ParagraphSyntax {
 impl ParagraphStatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(ParagraphStatementSyntax {
             i,
             connective,
@@ -380,7 +376,7 @@ impl ParagraphStatementSyntax {
 impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(FreeModifierSyntax::Sei {
                 sei,
@@ -457,9 +453,9 @@ impl FreeModifierSyntax {
                 new_words,
                 lehai,
             }) => {
-                let mut words = lohai.into_iter().map(|word| *word).collect::<Vec<_>>();
+                let mut words = lohai.into_iter().collect::<Vec<_>>();
                 words.extend(old_words);
-                words.extend(sahai.map(|word| *word));
+                words.extend(sahai);
                 words.extend(new_words);
                 words.extend(lehai.words());
                 words
@@ -471,7 +467,7 @@ impl FreeModifierSyntax {
 impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(PredicateSyntax {
             leading_terms,
             cu,
@@ -496,7 +492,7 @@ impl PredicateSyntax {
 impl PredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = self.first.words();
         if let Some(ke_continuation) = self.ke_continuation {
             words.extend(ke_continuation.words());
@@ -508,7 +504,7 @@ impl PredicateTailSyntax {
 impl KePredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(KePredicateTailSyntax {
             connective,
             tense_modal,
@@ -544,7 +540,7 @@ impl KePredicateTailSyntax {
 impl PredicateTail1Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = self.first.words();
         for continuation in self.continuations {
             words.extend(continuation.words());
@@ -556,7 +552,7 @@ impl PredicateTail1Syntax {
 impl PredicateTailContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(PredicateTailContinuationSyntax {
             connective,
             tense_modal,
@@ -590,7 +586,7 @@ impl PredicateTailContinuationSyntax {
 impl PredicateTail2Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = self.first.words();
         if let Some(bo_continuation) = self.bo_continuation {
             words.extend(bo_continuation.words());
@@ -602,7 +598,7 @@ impl PredicateTail2Syntax {
 impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(BoPredicateTailSyntax {
             connective,
             tense_modal,
@@ -638,7 +634,7 @@ impl BoPredicateTailSyntax {
 impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(PredicateTail3Syntax::Relation {
                 relation,
@@ -666,7 +662,7 @@ impl PredicateTail3Syntax {
 impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(GekSentenceSyntax::Pair {
                 gek,
@@ -725,7 +721,7 @@ impl GekSentenceSyntax {
 impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(SubsentenceSyntax::Plain(predicate)) => predicate.visit_words(visitor),
             data!(SubsentenceSyntax::Prenex {
@@ -746,7 +742,7 @@ impl SubsentenceSyntax {
 impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(FragmentSyntax::Ek(connective)) | data!(FragmentSyntax::Gihek(connective)) => {
                 connective.visit_words(visitor);
@@ -812,7 +808,7 @@ impl FragmentSyntax {
 impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(TermSyntax::NuhiTermset {
                 nuhi,
@@ -1016,7 +1012,7 @@ impl TermSyntax {
 impl ArgumentTagSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(ArgumentTagSyntax::TenseModal(tense_modal)) => tense_modal.visit_words(visitor),
             data!(ArgumentTagSyntax::Fa(fa)) => fa.visit_words(visitor),
@@ -1027,7 +1023,7 @@ impl ArgumentTagSyntax {
 impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(MathExpressionSyntax::Number(quantifier)) => quantifier.visit_words(visitor),
             data!(MathExpressionSyntax::Letter { letter, boi }) => {
@@ -1170,7 +1166,7 @@ impl MathExpressionSyntax {
 impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(ArgumentSyntax::Quote(quote)) => quote.visit_words(visitor),
             data!(ArgumentSyntax::MathExpression {
@@ -1400,7 +1396,7 @@ impl ArgumentSyntax {
 impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.goi.visit_words(visitor);
         self.argument.visit_words(visitor);
         if let Some(gehu) = &self.gehu {
@@ -1412,7 +1408,7 @@ impl GoiRelativeClauseSyntax {
 impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.nohoi.visit_words(visitor);
         self.relation.visit_words(visitor);
         if let Some(kuhoi) = &self.kuhoi {
@@ -1424,7 +1420,7 @@ impl SelbriRelativeClauseSyntax {
 impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(RelativeClauseSyntax::Goi(relative_clause)) => {
                 relative_clause.visit_words(visitor)
@@ -1460,7 +1456,7 @@ impl RelativeClauseSyntax {
 impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(QuoteSyntax::Lu { lu, text, lihu }) => {
                 lu.visit_words(visitor);
@@ -1479,7 +1475,7 @@ impl QuoteSyntax {
 impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         if let Some(quantifier) = &self.outer_quantifier {
             quantifier.visit_words(visitor);
         }
@@ -1504,7 +1500,7 @@ impl DescriptorSyntax {
 impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.descriptor.visit_words(visitor);
     }
 }
@@ -1512,7 +1508,7 @@ impl DescriptorHeadSyntax {
 impl ConnectedDescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.leading_descriptor_head.visit_words(visitor);
         self.connective.visit_words(visitor);
         self.trailing_descriptor_head.visit_words(visitor);
@@ -1535,11 +1531,11 @@ impl ConnectedDescriptorSyntax {
 #[derive(Debug)]
 pub struct ConnectiveSyntaxParts {
     pub kind: ConnectiveKind,
-    pub se: Option<WithIndicators<WordLike>>,
-    pub nahe: Option<WithIndicators<WordLike>>,
-    pub na: Option<WithIndicators<WordLike>>,
-    pub cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    pub se: Option<Token>,
+    pub nahe: Option<Token>,
+    pub na: Option<Token>,
+    pub cmavo: WithFreeModifiers<Vec<Token>>,
+    pub nai: Option<WithFreeModifiers<Token>>,
 }
 
 impl ConnectiveSyntax {
@@ -1547,16 +1543,12 @@ impl ConnectiveSyntax {
     #[ensures(true)]
     pub fn new(
         kind: ConnectiveKind,
-        se: Option<WithIndicators<WordLike>>,
-        nahe: Option<WithIndicators<WordLike>>,
-        na: Option<WithIndicators<WordLike>>,
-        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        se: Option<Token>,
+        nahe: Option<Token>,
+        na: Option<Token>,
+        cmavo: WithFreeModifiers<Vec<Token>>,
+        nai: Option<WithFreeModifiers<Token>>,
     ) -> Self {
-        let se = se.map(Box::new);
-        let nahe = nahe.map(Box::new);
-        let na = na.map(Box::new);
-        let nai = nai.map(Box::new);
         match kind {
             ConnectiveKind::Afterthought => new!(ConnectiveSyntax::Afterthought {
                 se,
@@ -1618,7 +1610,7 @@ impl ConnectiveSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn cmavo(&self) -> &WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
+    pub fn cmavo(&self) -> &WithFreeModifiers<Vec<Token>> {
         match self.as_data() {
             data!(ConnectiveSyntax::Afterthought { cmavo, .. })
             | data!(ConnectiveSyntax::Relation { cmavo, .. })
@@ -1641,11 +1633,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Afterthought,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
             data!(ConnectiveSyntax::Relation {
                 se,
@@ -1655,11 +1647,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Relation,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
             data!(ConnectiveSyntax::PredicateTail {
                 se,
@@ -1669,11 +1661,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::PredicateTail,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
             data!(ConnectiveSyntax::Forethought {
                 se,
@@ -1683,11 +1675,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Forethought,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
             data!(ConnectiveSyntax::NonLogical {
                 se,
@@ -1697,11 +1689,11 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::NonLogical,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
             data!(ConnectiveSyntax::Interval {
                 se,
@@ -1711,18 +1703,18 @@ impl ConnectiveSyntax {
                 nai,
             }) => ConnectiveSyntaxParts {
                 kind: ConnectiveKind::Interval,
-                se: se.map(|word| *word),
-                nahe: nahe.map(|word| *word),
-                na: na.map(|word| *word),
+                se,
+                nahe,
+                na,
                 cmavo,
-                nai: nai.map(|word| *word),
+                nai,
             },
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         let (se, nahe, na, cmavo, nai) = match self.as_data() {
             data!(ConnectiveSyntax::Afterthought {
                 se,
@@ -1786,7 +1778,7 @@ impl ConnectiveSyntax {
 impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.bei.visit_words(visitor);
         if let Some(fa) = &self.fa {
             fa.visit_words(visitor);
@@ -1800,7 +1792,7 @@ impl BeiLinkSyntax {
 impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(ArgumentTailElementSyntax::Argument(argument)) => argument.visit_words(visitor),
             data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => {
@@ -1818,7 +1810,7 @@ impl ArgumentTailElementSyntax {
 impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(QuantifierSyntax::Number { number, boi }) => {
                 number.visit_words(visitor);
@@ -1844,7 +1836,7 @@ impl QuantifierSyntax {
 impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(MathOperatorSyntax::Vuhu(vuhu)) => vuhu.visit_words(visitor),
             data!(MathOperatorSyntax::Maho {
@@ -1918,7 +1910,7 @@ impl MathOperatorSyntax {
 impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(RelationSyntax::Connected {
                 connective,
@@ -2019,7 +2011,7 @@ impl RelationSyntax {
 impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(RelationUnitSyntax::Word(word)) => word.visit_words(visitor),
             data!(RelationUnitSyntax::Goha { goha, raho }) => {
@@ -2196,7 +2188,7 @@ impl RelationUnitSyntax {
 impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.nu.visit_words(visitor);
         if let Some(nai) = &self.nai {
             nai.visit_words(visitor);
@@ -2214,7 +2206,7 @@ impl AbstractionSyntax {
 impl AdditionalNuSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.connective.visit_words(visitor);
         self.nu.visit_words(visitor);
         if let Some(nai) = &self.nai {
@@ -2226,7 +2218,7 @@ impl AdditionalNuSyntax {
 impl CompositeTenseModalPartSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_leaf_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_leaf_words_into(self, out: &mut Vec<Token>) {
         match self.into_data() {
             data!(CompositeTenseModalPartSyntax::Word(word)) => out.push(word),
             data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
@@ -2247,7 +2239,7 @@ impl CompositeTenseModalPartSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(CompositeTenseModalPartSyntax::Word(word)) => visitor(word),
             data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
@@ -2262,7 +2254,7 @@ impl CompositeTenseModalPartSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(CompositeTenseModalPartSyntax::Word(word)) => vec![word],
             data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => {
@@ -2286,7 +2278,7 @@ impl CompositeTenseModalPartSyntax {
 impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_words_into(self, out: &mut Vec<Token>) {
         let (leaves, free_modifiers) = self.leaf_words_and_free_modifiers();
         out.extend(leaves);
         for free_modifier in free_modifiers {
@@ -2296,7 +2288,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(TenseModalSyntax::Composite { parts }) => {
                 for part in &parts.value {
@@ -2392,7 +2384,7 @@ impl TenseModalSyntax {
 impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(SubsentenceSyntax::Plain(predicate)) => predicate.words(),
             data!(SubsentenceSyntax::Prenex {
@@ -2415,7 +2407,7 @@ impl SubsentenceSyntax {
 impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(FragmentSyntax::Ek(connective)) | data!(FragmentSyntax::Gihek(connective)) => {
                 connective.words()
@@ -2481,7 +2473,7 @@ impl FragmentSyntax {
 impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(TermSyntax::NuhiTermset {
                 nuhi,
@@ -2572,7 +2564,7 @@ impl TermSyntax {
                 words
             }
             data!(TermSyntax::NaKu { na, na_ku }) => {
-                let mut words = vec![*na];
+                let mut words = vec![na];
                 words.extend(na_ku.words());
                 words
             }
@@ -2705,7 +2697,7 @@ impl TermSyntax {
 impl ArgumentTagSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(ArgumentTagSyntax::TenseModal(tense_modal)) => tense_modal.words(),
             data!(ArgumentTagSyntax::Fa(fa)) => fa.words(),
@@ -2716,7 +2708,7 @@ impl ArgumentTagSyntax {
 impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(MathExpressionSyntax::Number(quantifier)) => quantifier.words(),
             data!(MathExpressionSyntax::Letter { letter, boi }) => {
@@ -2872,7 +2864,7 @@ impl MathExpressionSyntax {
 impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(ArgumentSyntax::Quote(quote)) => quote.words(),
             data!(ArgumentSyntax::MathExpression {
@@ -2946,7 +2938,7 @@ impl ArgumentSyntax {
                 words
             }
             data!(ArgumentSyntax::NaKu { na, ku }) => {
-                let mut words = vec![*na];
+                let mut words = vec![na];
                 words.extend(ku.words());
                 words
             }
@@ -2964,7 +2956,7 @@ impl ArgumentSyntax {
                 inner_argument,
                 luhu,
             }) => {
-                let mut words = vec![*nahe];
+                let mut words = vec![nahe];
                 words.extend(bo.words());
                 words.extend(inner_argument.words());
                 if let Some(luhu) = luhu {
@@ -3125,7 +3117,7 @@ impl ArgumentSyntax {
 impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(GoiRelativeClauseSyntax {
             goi,
             argument,
@@ -3143,7 +3135,7 @@ impl GoiRelativeClauseSyntax {
 impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(SelbriRelativeClauseSyntax {
             nohoi,
             relation,
@@ -3161,7 +3153,7 @@ impl SelbriRelativeClauseSyntax {
 impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(RelativeClauseSyntax::Goi(relative_clause)) => relative_clause.words(),
             data!(RelativeClauseSyntax::Noi {
@@ -3205,7 +3197,7 @@ impl RelativeClauseSyntax {
 impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(QuoteSyntax::Lu { lu, text, lihu }) => {
                 let mut words = lu.words();
@@ -3225,7 +3217,7 @@ impl QuoteSyntax {
 impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(DescriptorSyntax {
             outer_quantifier,
             descriptor,
@@ -3260,7 +3252,7 @@ impl DescriptorSyntax {
 impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(DescriptorHeadSyntax { descriptor }) = self.into_data();
         descriptor.words()
     }
@@ -3269,7 +3261,7 @@ impl DescriptorHeadSyntax {
 impl ConnectedDescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(ConnectedDescriptorSyntax {
             leading_descriptor_head,
             connective,
@@ -3301,7 +3293,7 @@ impl ConnectedDescriptorSyntax {
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let ConnectiveSyntaxParts {
             kind: _,
             se,
@@ -3331,7 +3323,7 @@ impl ConnectiveSyntax {
 impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(BeiLinkSyntax { bei, fa, argument }) = self.into_data();
         let mut words = bei.words();
         if let Some(fa) = fa {
@@ -3347,7 +3339,7 @@ impl BeiLinkSyntax {
 impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(ArgumentTailElementSyntax::Argument(argument)) => argument.words(),
             data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => relative_clauses
@@ -3362,7 +3354,7 @@ impl ArgumentTailElementSyntax {
 impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(QuantifierSyntax::Number { number, boi }) => {
                 let mut words = number.words();
@@ -3390,7 +3382,7 @@ impl QuantifierSyntax {
 impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(MathOperatorSyntax::Vuhu(vuhu)) => vuhu.words(),
             data!(MathOperatorSyntax::Maho {
@@ -3471,7 +3463,7 @@ impl MathOperatorSyntax {
 impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(RelationSyntax::Connected {
                 connective,
@@ -3572,7 +3564,7 @@ impl RelationSyntax {
 impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         match self.into_data() {
             data!(RelationUnitSyntax::Word(word)) => word.words(),
             data!(RelationUnitSyntax::Goha { goha, raho }) => {
@@ -3762,7 +3754,7 @@ impl RelationUnitSyntax {
 impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(AbstractionSyntax {
             nu,
             nai,
@@ -3788,7 +3780,7 @@ impl AbstractionSyntax {
 impl AdditionalNuSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let data!(AdditionalNuSyntax {
             connective,
             nu,
@@ -3865,9 +3857,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(ret.1.len() == old(self.free_modifier_count()))]
-    pub fn leaf_words_and_free_modifiers(
-        self,
-    ) -> (Vec<WithIndicators<WordLike>>, Vec<FreeModifierSyntax>) {
+    pub fn leaf_words_and_free_modifiers(self) -> (Vec<Token>, Vec<FreeModifierSyntax>) {
         match self.into_data() {
             data!(TenseModalSyntax::Composite { parts }) => {
                 let mut words = Vec::new();
@@ -3880,11 +3870,11 @@ impl TenseModalSyntax {
                 (vec![word.value], word.free_modifiers)
             }
             data!(TenseModalSyntax::PuDistance { pu, distance }) => {
-                (vec![*pu, distance.value], distance.free_modifiers)
+                (vec![pu, distance.value], distance.free_modifiers)
             }
             data!(TenseModalSyntax::TimeInterval(word)) => (vec![word.value], word.free_modifiers),
             data!(TenseModalSyntax::PuCaha { pu, caha }) => {
-                (vec![*pu, caha.value], caha.free_modifiers)
+                (vec![pu, caha.value], caha.free_modifiers)
             }
             data!(TenseModalSyntax::SpaceDistance(word)) => (vec![word.value], word.free_modifiers),
             data!(TenseModalSyntax::SpaceDirection(word)) => {
@@ -3895,7 +3885,7 @@ impl TenseModalSyntax {
                 direction,
                 distance,
             }) => {
-                let mut words = vec![*mohi, direction.value];
+                let mut words = vec![mohi, direction.value];
                 let mut free_modifiers = direction.free_modifiers;
                 if let Some(distance) = distance {
                     words.push(distance.value);
@@ -3991,13 +3981,13 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn leaf_words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn leaf_words(self) -> Vec<Token> {
         self.leaf_words_and_free_modifiers().0
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn words(self) -> Vec<Token> {
         let mut words = Vec::new();
         self.extend_words_into(&mut words);
         words
@@ -4013,7 +4003,7 @@ impl TenseModalSyntax {
 impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         visit_word_slice(&self.leading_nai, visitor);
         visit_word_slice(&self.leading_cmevla, visitor);
         for indicator in &self.leading_indicators {
@@ -4042,7 +4032,7 @@ impl TextSyntax {
 impl ParagraphSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         if let Some(i) = &self.i {
             visitor(i);
         }
@@ -4059,7 +4049,7 @@ impl ParagraphSyntax {
 impl ParagraphStatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         if let Some(i) = &self.i {
             visitor(i);
         }
@@ -4078,7 +4068,7 @@ impl ParagraphStatementSyntax {
 impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(StatementSyntax::Tuhe {
                 tense_modal,
@@ -4163,7 +4153,7 @@ impl StatementSyntax {
 impl PredicateStatementContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.connective.visit_words(visitor);
         if let Some(tense_modal) = &self.tense_modal {
             tense_modal.visit_words(visitor);
@@ -4187,13 +4177,13 @@ impl PredicateStatementContinuationSyntax {
 impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+    pub fn extend_words_into(self, out: &mut Vec<Token>) {
         out.extend(self.words());
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(FreeModifierSyntax::Sei {
                 sei,
@@ -4287,7 +4277,7 @@ impl FreeModifierSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+    pub fn first_word(&self) -> Option<&Token> {
         match self.as_data() {
             data!(FreeModifierSyntax::Sei { sei, .. }) => sei.first_word(),
             data!(FreeModifierSyntax::To { to, .. }) => to.first_word(),
@@ -4305,9 +4295,9 @@ impl FreeModifierSyntax {
                 new_words,
                 lehai,
             }) => lohai
-                .as_deref()
+                .as_ref()
                 .or_else(|| old_words.first())
-                .or(sahai.as_deref())
+                .or(sahai.as_ref())
                 .or_else(|| new_words.first())
                 .or_else(|| lehai.first_word()),
         }
@@ -4317,7 +4307,7 @@ impl FreeModifierSyntax {
 impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         for term in &self.leading_terms {
             term.visit_words(visitor);
         }
@@ -4334,7 +4324,7 @@ impl PredicateSyntax {
 impl PredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.first.visit_words(visitor);
         if let Some(ke_continuation) = &self.ke_continuation {
             ke_continuation.visit_words(visitor);
@@ -4345,7 +4335,7 @@ impl PredicateTailSyntax {
 impl KePredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.connective.visit_words(visitor);
         if let Some(tense_modal) = &self.tense_modal {
             tense_modal.visit_words(visitor);
@@ -4370,7 +4360,7 @@ impl KePredicateTailSyntax {
 impl PredicateTail1Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.first.visit_words(visitor);
         for continuation in &self.continuations {
             continuation.visit_words(visitor);
@@ -4381,7 +4371,7 @@ impl PredicateTail1Syntax {
 impl PredicateTailContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.connective.visit_words(visitor);
         if let Some(tense_modal) = &self.tense_modal {
             tense_modal.visit_words(visitor);
@@ -4405,7 +4395,7 @@ impl PredicateTailContinuationSyntax {
 impl PredicateTail2Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.first.visit_words(visitor);
         if let Some(bo_continuation) = &self.bo_continuation {
             bo_continuation.visit_words(visitor);
@@ -4416,7 +4406,7 @@ impl PredicateTail2Syntax {
 impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         self.connective.visit_words(visitor);
         if let Some(tense_modal) = &self.tense_modal {
             tense_modal.visit_words(visitor);
@@ -4441,7 +4431,7 @@ impl BoPredicateTailSyntax {
 impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(PredicateTail3Syntax::Relation {
                 relation,
@@ -4470,7 +4460,7 @@ impl PredicateTail3Syntax {
 impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&Token)) {
         match self.as_data() {
             data!(GekSentenceSyntax::Pair {
                 gek,

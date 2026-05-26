@@ -334,8 +334,8 @@ impl<'tree> TreeVisitor<'tree> for SyntaxJsonBuilder {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
-                with_indicators_value(word, self.phonemes)
+            SyntaxAtomRef::Token(word) => {
+                with_indicators_value(word.as_indicators(), self.phonemes)
             }
             SyntaxAtomRef::Word(word) => morphology_word_value(word, self.phonemes),
         });
@@ -603,12 +603,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack(f: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
-            .spawn(f)
-            .expect("test thread")
-            .join()
-            .expect("test passed");
+    fn run_on_normal_stack(f: impl FnOnce()) {
+        f();
     }
 }

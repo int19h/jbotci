@@ -3083,12 +3083,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack(test: impl FnOnce() + Send + 'static) {
-        std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
-            .spawn(test)
-            .expect("test thread")
-            .join()
-            .expect("test passed");
+    fn run_on_normal_stack(test: impl FnOnce()) {
+        test();
     }
 }

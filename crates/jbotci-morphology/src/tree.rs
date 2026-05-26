@@ -1,5 +1,7 @@
 //! Morphology parse tree model.
 
+use std::sync::Arc;
+
 use bityzba::invariant;
 use jbotci_source::SourceSpan;
 use jbotci_tree::tree_model;
@@ -18,24 +20,24 @@ tree_model! {
     pub enum Word {
         Cmavo {
             phonemes: Phonemes,
-            span: SourceSpan,
+            span: Arc<SourceSpan>,
         },
         Gismu {
             phonemes: Phonemes,
-            span: SourceSpan,
+            span: Arc<SourceSpan>,
         },
         Lujvo {
             #[tree_child(primary)]
             parts: Vec1<Jvopau>,
-            span: SourceSpan,
+            span: Arc<SourceSpan>,
         },
         Fuhivla {
             phonemes: Phonemes,
-            span: SourceSpan,
+            span: Arc<SourceSpan>,
         },
         Cmevla {
             phonemes: Phonemes,
-            span: SourceSpan,
+            span: Arc<SourceSpan>,
         },
     }
 
@@ -50,7 +52,7 @@ tree_model! {
     #[invariant(span.char_len() == text.chars().count(), "verbatim text must match span length")]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Verbatim {
-        pub span: SourceSpan,
+        pub span: Arc<SourceSpan>,
         pub text: String,
     }
 
@@ -67,37 +69,37 @@ tree_model! {
     pub enum WordLike {
         Bare(#[tree_child(primary)] Word),
         ZoQuote {
-            zo: Word,
+            zo: Box<Word>,
             #[tree_child(primary)]
-            word: Word,
+            word: Box<Word>,
         },
         ZoiQuote {
-            zoi: Word,
-            opening_delimiter: Word,
-            quoted_text: Verbatim,
-            closing_delimiter: Word,
+            zoi: Box<Word>,
+            opening_delimiter: Box<Word>,
+            quoted_text: Box<Verbatim>,
+            closing_delimiter: Box<Word>,
         },
         LohuQuote {
-            lohu: Word,
+            lohu: Box<Word>,
             #[tree_child(primary)]
             quoted_words: Vec<Word>,
-            lehu: Word,
+            lehu: Box<Word>,
         },
         SingleWordQuote {
-            marker: Word,
+            marker: Box<Word>,
             #[tree_child(primary)]
-            quoted_text: Verbatim,
+            quoted_text: Box<Verbatim>,
         },
         Letter {
             #[tree_child(primary)]
             base: Box<WordLike>,
-            bu: Word,
+            bu: Box<Word>,
         },
         ZeiLujvo {
             left: Box<WordLike>,
-            zei: Word,
+            zei: Box<Word>,
             #[tree_child(primary)]
-            right: Word,
+            right: Box<Word>,
         },
     }
 }

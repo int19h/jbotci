@@ -468,10 +468,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parse options are independent caller-selected controls",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:SourceSpanVisitor",
-        "visitor wraps a callback without adding semantic state",
-    ),
-    (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParsedStatementAttempt",
         "syntax attempt combines parser result with optional trace report without extra cross-field constraints",
     ),

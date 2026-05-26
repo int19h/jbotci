@@ -4,7 +4,7 @@ use bityzba::ensures;
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Word, WordLike, WordLikeData};
 use jbotci_syntax::ast::*;
-use jbotci_syntax::{Indicator, WithIndicators};
+use jbotci_syntax::{Indicator, Token, WithIndicators};
 use jbotci_tree::TreeVisitor;
 
 use crate::{BracketRenderOptions, OutputError, sexpr, surface};
@@ -1681,10 +1681,10 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
         }) => be_link_node(
             relation_unit(base, source),
             be,
-            fa.as_deref(),
+            fa.as_ref(),
             first_argument.as_deref(),
             bei_links,
-            beho.as_deref(),
+            beho.as_ref(),
             source,
             false,
         ),
@@ -1698,10 +1698,10 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
         }) => be_link_node(
             relation_unit(base, source),
             be,
-            fa.as_deref(),
+            fa.as_ref(),
             first_argument.as_deref(),
             bei_links,
-            beho.as_deref(),
+            beho.as_ref(),
             source,
             true,
         ),
@@ -1787,11 +1787,11 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
 #[ensures(true)]
 fn be_link_node(
     base: sexpr::SExpr,
-    be: &WithFreeModifiers<WithIndicators<WordLike>>,
-    fa: Option<&WithFreeModifiers<WithIndicators<WordLike>>>,
+    be: &WithFreeModifiers<Token>,
+    fa: Option<&WithFreeModifiers<Token>>,
     first_argument: Option<&ArgumentSyntax>,
     bei_links: &[BeiLinkSyntax],
-    beho: Option<&WithFreeModifiers<WithIndicators<WordLike>>>,
+    beho: Option<&WithFreeModifiers<Token>>,
     source: &BracketContext<'_>,
     preposed: bool,
 ) -> sexpr::SExpr {
@@ -2031,11 +2031,11 @@ fn connective_prefix(value: &ConnectiveSyntax, source: &BracketContext<'_>) -> s
 }
 
 type ConnectivePartsRef<'a> = (
-    Option<&'a WithIndicators<WordLike>>,
-    Option<&'a WithIndicators<WordLike>>,
-    Option<&'a WithIndicators<WordLike>>,
-    &'a WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    Option<&'a WithFreeModifiers<WithIndicators<WordLike>>>,
+    Option<&'a Token>,
+    Option<&'a Token>,
+    Option<&'a Token>,
+    &'a WithFreeModifiers<Vec<Token>>,
+    Option<&'a WithFreeModifiers<Token>>,
 );
 
 #[requires(true)]
@@ -2083,13 +2083,7 @@ fn connective_parts(value: &ConnectiveSyntax) -> ConnectivePartsRef<'_> {
             na,
             cmavo,
             nai,
-        }) => (
-            se.as_deref(),
-            nahe.as_deref(),
-            na.as_deref(),
-            cmavo,
-            nai.as_deref(),
-        ),
+        }) => (se.as_ref(), nahe.as_ref(), na.as_ref(), cmavo, nai.as_ref()),
     }
 }
 
@@ -2199,7 +2193,7 @@ fn indicator(value: &Indicator, source: &BracketContext<'_>) -> sexpr::SExpr {
         rendered.push('-');
         rendered.push_str(&normalize_attached_surface(
             surface::format_with_indicators_with_options(
-                &WithIndicators::bare(WordLike::bare(nai.clone())),
+                &Token::bare(WordLike::bare(nai.clone())),
                 source.source,
                 source.options.phonemes,
             ),
@@ -2269,10 +2263,7 @@ fn indicator_separator(
 
 #[requires(true)]
 #[ensures(true)]
-fn with_free_word(
-    value: &WithFreeModifiers<WithIndicators<WordLike>>,
-    source: &BracketContext<'_>,
-) -> sexpr::SExpr {
+fn with_free_word(value: &WithFreeModifiers<Token>, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = vec![word(&value.value, source)];
     children.extend(
         value
@@ -2286,7 +2277,7 @@ fn with_free_word(
 #[requires(true)]
 #[ensures(true)]
 fn with_free_words(
-    value: &WithFreeModifiers<impl AsRef<[WithIndicators<WordLike>]>>,
+    value: &WithFreeModifiers<impl AsRef<[Token]>>,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = words(value.value.as_ref(), source);
@@ -2302,7 +2293,7 @@ fn with_free_words(
 #[requires(true)]
 #[ensures(true)]
 fn with_free_word_no_leading_pause(
-    value: &WithFreeModifiers<WithIndicators<WordLike>>,
+    value: &WithFreeModifiers<Token>,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = vec![word_no_leading_pause(&value.value, source)];
@@ -2318,7 +2309,7 @@ fn with_free_word_no_leading_pause(
 #[requires(true)]
 #[ensures(true)]
 fn with_free_words_no_leading_pause(
-    value: &WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+    value: &WithFreeModifiers<Vec<Token>>,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     let mut children = value
@@ -2337,22 +2328,19 @@ fn with_free_words_no_leading_pause(
 
 #[requires(true)]
 #[ensures(true)]
-fn words(words: &[WithIndicators<WordLike>], source: &BracketContext<'_>) -> Vec<sexpr::SExpr> {
+fn words(words: &[Token], source: &BracketContext<'_>) -> Vec<sexpr::SExpr> {
     words.iter().map(|item| word(item, source)).collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word(word: &WithIndicators<WordLike>, source: &BracketContext<'_>) -> sexpr::SExpr {
-    with_indicators_brackets(word, source)
+fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
+    with_indicators_brackets(word.as_indicators(), source)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn word_no_leading_pause(
-    word: &WithIndicators<WordLike>,
-    source: &BracketContext<'_>,
-) -> sexpr::SExpr {
+fn word_no_leading_pause(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
     sexpr::leaf(normalize_attached_surface(
         surface::format_with_indicators_with_options(word, source.source, source.options.phonemes),
     ))
@@ -2450,7 +2438,7 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
         );
     }
     sexpr::leaf(surface::format_with_indicators_with_options(
-        &WithIndicators::bare(WordLike::bare(word.clone())),
+        &Token::bare(WordLike::bare(word.clone())),
         source.source,
         source.options.phonemes,
     ))
@@ -2509,9 +2497,7 @@ impl<'tree> TreeVisitor<'tree> for SourceWordBracketVisitor<'_> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            AtomRef::WithIndicatorsWordLike(word) => {
-                self.children.push(self::word(word, self.source))
-            }
+            AtomRef::Token(word) => self.children.push(self::word(word, self.source)),
             AtomRef::Word(word) => self.children.push(word_leaf(word, self.source)),
         }
     }

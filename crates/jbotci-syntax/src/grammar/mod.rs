@@ -15,7 +15,7 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
-    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, WithIndicators,
+    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
 };
 
 pub(crate) mod ast;
@@ -27,7 +27,6 @@ pub(crate) mod tokens;
 use parse_error::SyntaxParseError;
 
 type Span = SimpleSpan;
-type Token = WithIndicators<WordLike>;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
 type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState, ()>;
@@ -73,7 +72,7 @@ pub(super) struct ParserState {
 impl ParserState {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
-    pub(super) fn new(words: &[WithIndicators<WordLike>], options: &ParseOptions) -> Self {
+    pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             warnings: Vec::new(),
@@ -83,13 +82,9 @@ impl ParserState {
 
     #[requires(true)]
     #[ensures(self.warnings.len() == old(self.warnings.len()) + 1)]
-    pub(super) fn warn(
-        &mut self,
-        construct: ExperimentalConstruct,
-        anchor: &WithIndicators<WordLike>,
-    ) {
+    pub(super) fn warn(&mut self, construct: ExperimentalConstruct, anchor: &Token) {
         let anchor_index = self.anchor_index(anchor);
-        let anchor = WithIndicators::bare(anchor.core_word().clone());
+        let anchor = Token::bare(anchor.core_word().clone());
         self.warnings.push(SyntaxWarning::experimental_construct(
             construct,
             anchor_index,
@@ -102,14 +97,14 @@ impl ParserState {
     pub(super) fn warn_word(
         &mut self,
         construct: ExperimentalConstruct,
-        context: &WithIndicators<WordLike>,
+        context: &Token,
         anchor: &Word,
     ) {
         let anchor_index = self.anchor_index(context);
         self.warnings.push(SyntaxWarning::experimental_construct(
             construct,
             anchor_index,
-            WithIndicators::bare(WordLike::bare(anchor.clone())),
+            Token::bare(WordLike::bare(anchor.clone())),
         ));
     }
 
@@ -191,7 +186,7 @@ impl ParserState {
 
     #[requires(true)]
     #[ensures(ret < self.anchor_byte_starts.len() || self.anchor_byte_starts.is_empty())]
-    fn anchor_index(&self, anchor: &WithIndicators<WordLike>) -> usize {
+    fn anchor_index(&self, anchor: &Token) -> usize {
         if let Some(anchor_start) = word_anchor_byte_start(anchor)
             && let Some(index) = self
                 .anchor_byte_starts
@@ -278,7 +273,7 @@ fn trace_word_label(token: &Token) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn word_anchor_byte_start(word: &WithIndicators<WordLike>) -> Option<usize> {
+fn word_anchor_byte_start(word: &Token) -> Option<usize> {
     word.core_word()
         .source_spans()
         .into_iter()
@@ -364,15 +359,15 @@ pub(crate) fn syntax_grammar_svg(options: &ParseOptions) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tokens(words: &[WordLike]) -> Vec<WithIndicators<WordLike>> {
+fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
     attach_indicators(attach_bahe(
-        words.iter().cloned().map(WithIndicators::bare).collect(),
+        words.iter().cloned().map(Token::bare).collect(),
     ))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordLike>> {
+fn attach_bahe(words: Vec<Token>) -> Vec<Token> {
     let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
     let mut out = Vec::new();
     while let Some(word) = reversed.pop_front() {
@@ -380,7 +375,7 @@ fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordL
             && let Some(bahe_token) = reversed.pop_front()
             && let Some(bahe) = modifier_word(&bahe_token)
         {
-            reversed.push_front(WithIndicators::emphasized(bahe, word.core_word().clone()));
+            reversed.push_front(Token::emphasized(bahe, word.core_word().clone()));
         } else {
             out.push(word);
         }
@@ -391,13 +386,13 @@ fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordL
 
 #[requires(true)]
 #[ensures(true)]
-fn is_bahe_word(word: &WithIndicators<WordLike>) -> bool {
+fn is_bahe_word(word: &Token) -> bool {
     modifier_word(word).is_some_and(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe]))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordLike>> {
+fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
     let mut out = Vec::new();
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
@@ -423,15 +418,15 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
                     out.push(prev);
                     out.push(word);
                     if let Some(nai) = nai {
-                        out.push(WithIndicators::bare(WordLike::bare(nai)));
+                        out.push(Token::bare(WordLike::bare(nai)));
                     }
                 } else {
-                    out.push(WithIndicators::with_indicator(prev, indicator, nai));
+                    out.push(Token::with_indicator(prev, indicator, nai));
                 }
             } else {
                 out.push(word);
                 if let Some(nai) = nai {
-                    out.push(WithIndicators::bare(WordLike::bare(nai)));
+                    out.push(Token::bare(WordLike::bare(nai)));
                 }
             }
         } else {
@@ -443,7 +438,7 @@ fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators
 
 #[requires(true)]
 #[ensures(true)]
-fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
+fn modifier_word(word: &Token) -> Option<Word> {
     word.core_word().bare_word().cloned()
 }
 
@@ -457,7 +452,7 @@ fn is_indicator_word(word: &Word) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn should_attach_indicator(prev: &WithIndicators<WordLike>, indicator: &Word) -> bool {
+fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
     !(indicator.is_selmaho(Selmaho::Roi)
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
@@ -646,8 +641,8 @@ mod tests {
             let mut words = segment_words_with_modifiers("zo coi").expect("valid morphology");
             let quote = words.remove(0);
             let wrapped = WithFreeModifiers::new(
-                WithIndicators::with_indicator(
-                    WithIndicators::emphasized(single_bare_word("ba'e"), quote.clone()),
+                Token::with_indicator(
+                    Token::emphasized(single_bare_word("ba'e"), quote.clone()),
                     single_bare_word("ui"),
                     None,
                 ),
@@ -1067,7 +1062,7 @@ mod tests {
                 try_new!(ArgumentSyntax::BridiDescription {
                     lohoi: free_word("lo'oi"),
                     subsentence: Box::new(subsentence),
-                    kuhau: Some(Box::new(free_word("ku'o"))),
+                    kuhau: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
@@ -1099,7 +1094,7 @@ mod tests {
                 try_new!(SelbriRelativeClauseSyntax {
                     nohoi: free_word("no'oi"),
                     relation: Box::new(relation.clone()),
-                    kuhoi: Some(Box::new(free_word("ku'o"))),
+                    kuhoi: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
@@ -1112,18 +1107,18 @@ mod tests {
             assert!(
                 try_new!(DescriptorSyntax {
                     outer_quantifier: None,
-                    descriptor: Some(Box::new(free_word("lo"))),
+                    descriptor: Some(free_word("lo")),
                     tail_elements: Vec::new(),
                     relation: None,
                     relative_clauses: Vec::new(),
-                    ku: Some(Box::new(free_word("ku'o"))),
+                    ku: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
             assert!(
                 try_new!(BeiLinkSyntax {
                     bei: free_word("be"),
-                    fa: Some(Box::new(free_word("fa"))),
+                    fa: Some(free_word("fa")),
                     argument: None,
                 })
                 .is_err()
@@ -1131,7 +1126,7 @@ mod tests {
             assert!(
                 try_new!(PredicateSyntax {
                     leading_terms: Vec::new(),
-                    cu: Some(Box::new(free_word("ku"))),
+                    cu: Some(free_word("ku")),
                     predicate_tail: Box::new(predicate_tail.clone()),
                     free_modifiers: Vec::new(),
                 })
@@ -1143,7 +1138,7 @@ mod tests {
                     tense_modal: None,
                     ke: free_word("ke"),
                     predicate_tail: Box::new(predicate_tail.clone()),
-                    kehe: Some(Box::new(free_word("ku"))),
+                    kehe: Some(free_word("ku")),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -1198,7 +1193,7 @@ mod tests {
                     nai: None,
                     additional_nu: Vec::new(),
                     subsentence: Box::new(subsentence),
-                    kei: Some(Box::new(free_word("ku"))),
+                    kei: Some(free_word("ku")),
                 })
                 .is_err()
             );
@@ -1260,16 +1255,16 @@ mod tests {
 
     #[requires(!text.is_empty())]
     #[ensures(true)]
-    fn free_word(text: &str) -> WithFreeModifiers<WithIndicators<WordLike>> {
+    fn free_word(text: &str) -> WithFreeModifiers<Token> {
         WithFreeModifiers::new(indicated_word(text), Vec::new())
     }
 
     #[requires(!text.is_empty())]
     #[ensures(true)]
-    fn indicated_word(text: &str) -> WithIndicators<WordLike> {
+    fn indicated_word(text: &str) -> Token {
         let mut words = segment_words_with_modifiers(text).expect("valid morphology");
         assert_eq!(words.len(), 1, "test helper expects one word");
-        WithIndicators::bare(words.remove(0))
+        Token::bare(words.remove(0))
     }
 
     #[requires(!text.is_empty())]

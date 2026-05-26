@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{ExperimentalConstruct, Indicator, WithIndicators};
+use crate::{ExperimentalConstruct, Indicator, Token, WithIndicators};
 use bityzba::{data, new, requires};
 use chumsky::error::RichReason;
 use chumsky::input::MapExtra;
@@ -20,7 +20,7 @@ use crate::{
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, Token> {
     token_matching(
         "cmavo",
         cmavo.canonical_text(),
@@ -31,7 +31,7 @@ pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, WithIndicator
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, Token> {
     token_matching(
         selmaho.name(),
         selmaho.name(),
@@ -46,7 +46,7 @@ pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, WithInd
 pub(super) fn cmavo_one_of<'tokens>(
     label: &'static str,
     cmavo: &'static [Cmavo],
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+) -> BoxedParser<'tokens, Token> {
     token_matching(
         label,
         label,
@@ -61,19 +61,19 @@ pub(super) fn cmavo_one_of<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Le)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::La)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Lahe)
 }
 
@@ -96,19 +96,19 @@ pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Pa)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Na)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
         "KOhA argument",
         "KOhA argument",
@@ -121,7 +121,7 @@ pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<Wo
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
         "relation word",
         "RELATION WORD",
@@ -134,9 +134,7 @@ pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Wo
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn brivla_relation_word<'tokens>(
-    cbm_enabled: bool,
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn brivla_relation_word<'tokens>(cbm_enabled: bool) -> BoxedParser<'tokens, Token> {
     let brivla = token_matching(
         "BRIVLA",
         "BRIVLA",
@@ -170,7 +168,7 @@ pub(super) fn brivla_relation_word<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
         "CMEVLA",
         "CMEVLA",
@@ -183,7 +181,7 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Word
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
         "letter word",
         "LETTER WORD",
@@ -201,13 +199,13 @@ pub(super) fn token_matching<'tokens>(
     label: &'static str,
     debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
-    predicate: impl Fn(&WithIndicators<WordLike>) -> bool + Clone + 'tokens,
-) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    predicate: impl Fn(&Token) -> bool + Clone + 'tokens,
+) -> BoxedParser<'tokens, Token> {
     assert!(
         !expected.is_empty(),
         "token parsers must declare expected tokens"
     );
-    custom::<_, ParserInput<'tokens>, WithIndicators<WordLike>, ParseExtra<'tokens>>(move |input| {
+    custom::<_, ParserInput<'tokens>, Token, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {
@@ -262,7 +260,7 @@ fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
 
 #[requires(!label.is_empty())]
 #[ensures(true)]
-fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WithIndicators<WordLike>) {
+fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &Token) {
     if let Some(cmavo) = parser_word_cmavo(word)
         && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
     {
@@ -319,7 +317,17 @@ fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<Experim
 
 #[requires(true)]
 #[ensures(true)]
-fn warn_experimental_indicators(state: &mut ParserState, word: &WithIndicators<WordLike>) {
+fn warn_experimental_indicators(state: &mut ParserState, word: &Token) {
+    warn_experimental_indicators_inner(state, word.as_indicators(), word);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn warn_experimental_indicators_inner(
+    state: &mut ParserState,
+    word: &WithIndicators<WordLike>,
+    context: &Token,
+) {
     let WithIndicators::WithIndicator {
         base,
         indicator,
@@ -329,19 +337,19 @@ fn warn_experimental_indicators(state: &mut ParserState, word: &WithIndicators<W
         return;
     };
 
-    warn_experimental_indicators(state, base);
+    warn_experimental_indicators_inner(state, base, context);
 
     if let Some(label) = indicator_cmavo_context(indicator)
         && let Some(cmavo) = indicator.cmavo()
         && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
     {
-        state.warn_word(construct, word, indicator);
+        state.warn_word(construct, context, indicator);
     }
 
     if let Some(nai) = nai
         && let Some(construct) = experimental_construct_for_cmavo("NAI", Cmavo::Nai)
     {
-        state.warn_word(construct, word, nai);
+        state.warn_word(construct, context, nai);
     }
 }
 
@@ -362,25 +370,25 @@ fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
 
 #[requires(true)]
 #[ensures(ret == word.core_word().cmavo())]
-fn parser_word_cmavo(word: &WithIndicators<WordLike>) -> Option<Cmavo> {
+fn parser_word_cmavo(word: &Token) -> Option<Cmavo> {
     word.core_word().cmavo()
 }
 
 #[requires(true)]
 #[ensures(ret == (parser_word_cmavo(word) == Some(cmavo)))]
-fn parser_word_is_cmavo(word: &WithIndicators<WordLike>, cmavo: Cmavo) -> bool {
+fn parser_word_is_cmavo(word: &Token, cmavo: Cmavo) -> bool {
     parser_word_cmavo(word) == Some(cmavo)
 }
 
 #[requires(!cmavo.is_empty())]
 #[ensures(ret == parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual)))]
-fn parser_word_is_one_of_cmavo(word: &WithIndicators<WordLike>, cmavo: &[Cmavo]) -> bool {
+fn parser_word_is_one_of_cmavo(word: &Token, cmavo: &[Cmavo]) -> bool {
     parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual))
 }
 
 #[requires(true)]
 #[ensures(ret == parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo)))]
-fn parser_word_is_selmaho(word: &WithIndicators<WordLike>, selmaho: Selmaho) -> bool {
+fn parser_word_is_selmaho(word: &Token, selmaho: Selmaho) -> bool {
     parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo))
 }
 
@@ -844,18 +852,24 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_koha_argument(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_koha_argument(word: &Token) -> bool {
     parser_word_is_selmaho(word, Selmaho::Koha)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_relation_word(word: &Token) -> bool {
+    is_relation_indicators(word.as_indicators())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
     if let WithIndicators::WithIndicator { base, .. } = word {
-        return is_relation_word(base);
+        return is_relation_indicators(base);
     }
 
-    if parser_word_is_selmaho(word, Selmaho::Goha) {
+    if word.is_selmaho(Selmaho::Goha) {
         return true;
     }
 
@@ -869,7 +883,7 @@ pub(crate) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
 
 #[requires(true)]
 #[ensures(ret == (is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)))]
-pub(crate) fn is_brivla_relation_word(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_brivla_relation_word(word: &Token) -> bool {
     is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)
 }
 
@@ -890,18 +904,30 @@ pub(crate) fn word_like_is_relation_word(word_like: &WordLike) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_cmevla_word(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_cmevla_word(word: &Token) -> bool {
+    is_cmevla_indicators(word.as_indicators())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_cmevla_indicators(word: &WithIndicators<WordLike>) -> bool {
     match word {
         WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
-        WithIndicators::WithIndicator { base, .. } => is_cmevla_word(base),
+        WithIndicators::WithIndicator { base, .. } => is_cmevla_indicators(base),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_letter_word(word: &WithIndicators<WordLike>) -> bool {
+pub(crate) fn is_letter_word(word: &Token) -> bool {
+    is_letter_indicators(word.as_indicators())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
     match word {
         WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             match word_like.as_data() {
@@ -922,7 +948,7 @@ pub(crate) fn is_letter_word(word: &WithIndicators<WordLike>) -> bool {
                 _ => false,
             }
         }
-        WithIndicators::WithIndicator { base, .. } => is_letter_word(base),
+        WithIndicators::WithIndicator { base, .. } => is_letter_indicators(base),
     }
 }
 
@@ -937,10 +963,8 @@ pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn bare_word_kind_and_phonemes(
-    word: &WithIndicators<WordLike>,
-) -> Option<(WordKind, String)> {
-    let WithIndicators::Bare(word_like) = word else {
+pub(super) fn bare_word_kind_and_phonemes(word: &Token) -> Option<(WordKind, String)> {
+    let WithIndicators::Bare(word_like) = word.as_indicators() else {
         return None;
     };
     let data!(WordLike::Bare(word)) = word_like.as_data() else {
@@ -951,8 +975,8 @@ pub(super) fn bare_word_kind_and_phonemes(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn base_word_from_record(word: Word) -> WithIndicators<WordLike> {
-    WithIndicators::bare(WordLike::bare(word))
+pub(super) fn base_word_from_record(word: Word) -> Token {
+    Token::bare(WordLike::bare(word))
 }
 
 #[requires(span.byte_start <= span.byte_end)]
@@ -966,7 +990,7 @@ pub(super) fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
 
 #[requires(true)]
 #[ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
-pub(super) fn spanned_tokens(words: &[WithIndicators<WordLike>]) -> Vec<SpannedToken> {
+pub(super) fn spanned_tokens(words: &[Token]) -> Vec<SpannedToken> {
     words
         .iter()
         .cloned()
@@ -982,7 +1006,13 @@ pub(super) fn spanned_tokens(words: &[WithIndicators<WordLike>]) -> Vec<SpannedT
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
-pub(super) fn word_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
+pub(super) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
+    word_indicators_byte_range(word.as_indicators())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
     match word {
         WithIndicators::Bare(word_like) => word_like_byte_range(word_like),
         WithIndicators::Emphasized { bahe, word_like } => {
@@ -994,7 +1024,7 @@ pub(super) fn word_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<u
             base,
             indicator,
             nai,
-        } => word_byte_range(base).map(|range| {
+        } => word_indicators_byte_range(base).map(|range| {
             range.start
                 ..nai
                     .as_ref()

@@ -1,6 +1,6 @@
-use crate::WithIndicators;
+use crate::Token;
 use bityzba::{data, invariant, new, requires};
-use jbotci_morphology::{Cmavo, Selmaho, WordLike};
+use jbotci_morphology::{Cmavo, Selmaho};
 
 use super::ast::{
     CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, FihoModalSyntax,
@@ -27,7 +27,7 @@ fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
 
 #[requires(true)]
 #[ensures(ret.len() == old(leaves.len()))]
-fn parts_from_leaves(leaves: Vec<WithIndicators<WordLike>>) -> Vec<CompositeTenseModalPartSyntax> {
+fn parts_from_leaves(leaves: Vec<Token>) -> Vec<CompositeTenseModalPartSyntax> {
     leaves
         .into_iter()
         .map(|leaf| new!(CompositeTenseModalPartSyntax::Word(leaf)))
@@ -38,7 +38,7 @@ fn parts_from_leaves(leaves: Vec<WithIndicators<WordLike>>) -> Vec<CompositeTens
 #[ensures(matches!(ret.as_data(), data!(TenseModalSyntax::Composite { .. })))]
 #[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
 pub(super) fn tense_modal_from_leaves(
-    leaves: Vec<WithIndicators<WordLike>>,
+    leaves: Vec<Token>,
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> TenseModalSyntax {
     new!(TenseModalSyntax::Composite {
@@ -79,9 +79,7 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
 #[requires(true)]
 #[ensures(matches!(ret.as_data(), data!(TenseModalSyntax::Composite { .. })))]
 #[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
-pub(super) fn connective_tense_modal_from_leaves(
-    leaves: Vec<WithIndicators<WordLike>>,
-) -> TenseModalSyntax {
+pub(super) fn connective_tense_modal_from_leaves(leaves: Vec<Token>) -> TenseModalSyntax {
     new!(TenseModalSyntax::Composite {
         parts: WithFreeModifiers::new(parts_from_leaves(leaves), Vec::new()),
     })
@@ -97,9 +95,9 @@ impl TenseModalSyntax {
             || classification.time_interval.is_some())
         .then_some(new!(TimeTenseSyntax {
             direction: classification.time_direction,
-            distance: classification.time_distance.map(Box::new),
-            interval: classification.time_interval.map(Box::new),
-            nai: classification.time_nai.map(Box::new),
+            distance: classification.time_distance,
+            interval: classification.time_interval,
+            nai: classification.time_nai,
         }))
     }
 
@@ -118,8 +116,8 @@ impl TenseModalSyntax {
             distance: classification.space_distance,
             interval: classification.space_interval,
             dimensions: classification.space_dimensions,
-            mohi: classification.space_mohi.map(Box::new),
-            fehe: classification.space_fehe.map(Box::new),
+            mohi: classification.space_mohi,
+            fehe: classification.space_fehe,
         }))
     }
 
@@ -137,25 +135,25 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_zaho(&self) -> Vec<WithIndicators<WordLike>> {
+    pub fn composite_zaho(&self) -> Vec<Token> {
         classify_composite(self).map_or_else(Vec::new, |classification| classification.zaho)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_caha(&self) -> Option<WithIndicators<WordLike>> {
+    pub fn composite_caha(&self) -> Option<Token> {
         classify_composite(self)?.caha
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_ki(&self) -> Option<WithIndicators<WordLike>> {
+    pub fn composite_ki(&self) -> Option<Token> {
         classify_composite(self)?.ki
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_cuhe(&self) -> Option<WithIndicators<WordLike>> {
+    pub fn composite_cuhe(&self) -> Option<Token> {
         classify_composite(self)?.cuhe
     }
 
@@ -177,7 +175,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_connectives(&self) -> Vec<WithIndicators<WordLike>> {
+    pub fn composite_connectives(&self) -> Vec<Token> {
         classify_composite(self).map_or_else(Vec::new, |classification| classification.connectives)
     }
 }
@@ -185,23 +183,23 @@ impl TenseModalSyntax {
 #[derive(Default)]
 #[invariant(true)]
 struct CompositeTenseModalClassification {
-    time_direction: Vec<WithIndicators<WordLike>>,
-    time_distance: Option<WithIndicators<WordLike>>,
-    time_interval: Option<WithIndicators<WordLike>>,
-    time_nai: Option<WithIndicators<WordLike>>,
-    space_direction: Vec<WithIndicators<WordLike>>,
-    space_distance: Vec<WithIndicators<WordLike>>,
-    space_interval: Vec<WithIndicators<WordLike>>,
-    space_dimensions: Vec<WithIndicators<WordLike>>,
-    space_mohi: Option<WithIndicators<WordLike>>,
-    space_fehe: Option<WithIndicators<WordLike>>,
+    time_direction: Vec<Token>,
+    time_distance: Option<Token>,
+    time_interval: Option<Token>,
+    time_nai: Option<Token>,
+    space_direction: Vec<Token>,
+    space_distance: Vec<Token>,
+    space_interval: Vec<Token>,
+    space_dimensions: Vec<Token>,
+    space_mohi: Option<Token>,
+    space_fehe: Option<Token>,
     simple: Option<SimpleTenseModalSyntax>,
     interval: Option<IntervalTenseSyntax>,
-    zaho: Vec<WithIndicators<WordLike>>,
-    caha: Option<WithIndicators<WordLike>>,
-    ki: Option<WithIndicators<WordLike>>,
-    cuhe: Option<WithIndicators<WordLike>>,
-    connectives: Vec<WithIndicators<WordLike>>,
+    zaho: Vec<Token>,
+    caha: Option<Token>,
+    ki: Option<Token>,
+    cuhe: Option<Token>,
+    connectives: Vec<Token>,
 }
 
 #[requires(true)]
@@ -222,10 +220,7 @@ fn classify_composite(tense_modal: &TenseModalSyntax) -> Option<CompositeTenseMo
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_composite_leaf(
-    leaf: &WithIndicators<WordLike>,
-    classification: &mut CompositeTenseModalClassification,
-) {
+fn classify_composite_leaf(leaf: &Token, classification: &mut CompositeTenseModalClassification) {
     if leaf.is_cmavo(Cmavo::Ki) {
         classification.ki = Some(leaf.clone());
     } else if leaf.is_selmaho(Selmaho::Cuhe) {
@@ -261,7 +256,7 @@ fn classify_composite_leaf(
     } else if leaf.is_cmavo(Cmavo::Nai) {
         if let Some(existing_simple) = classification.simple.take() {
             let mut simple_data = existing_simple.into_data();
-            simple_data.nai = Some(Box::new(leaf.clone()));
+            simple_data.nai = Some(leaf.clone());
             classification.simple = Some(SimpleTenseModalSyntax::from_data(simple_data));
         } else if classification.interval.is_some() {
             let existing_interval = classification
@@ -269,7 +264,7 @@ fn classify_composite_leaf(
                 .take()
                 .expect("interval was checked as present");
             let mut interval_data = existing_interval.into_data();
-            interval_data.nai = Some(Box::new(leaf.clone()));
+            interval_data.nai = Some(leaf.clone());
             classification.interval = Some(IntervalTenseSyntax::from_data(interval_data));
         } else {
             classification.time_nai = Some(leaf.clone());
@@ -292,20 +287,17 @@ fn classify_composite_leaf(
 
 #[requires(true)]
 #[ensures(ret.bai.is_some())]
-fn set_simple_bai(
-    simple: Option<SimpleTenseModalSyntax>,
-    bai: WithIndicators<WordLike>,
-) -> SimpleTenseModalSyntax {
+fn set_simple_bai(simple: Option<SimpleTenseModalSyntax>, bai: Token) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => {
             let mut data = existing.into_data();
-            data.bai = Some(Box::new(bai));
+            data.bai = Some(bai);
             SimpleTenseModalSyntax::from_data(data)
         }
         None => new!(SimpleTenseModalSyntax {
             nahe: None,
             se: None,
-            bai: Some(Box::new(bai)),
+            bai: Some(bai),
             nai: None,
         }),
     }
@@ -313,18 +305,15 @@ fn set_simple_bai(
 
 #[requires(true)]
 #[ensures(ret.nahe.is_some())]
-fn set_simple_nahe(
-    simple: Option<SimpleTenseModalSyntax>,
-    nahe: WithIndicators<WordLike>,
-) -> SimpleTenseModalSyntax {
+fn set_simple_nahe(simple: Option<SimpleTenseModalSyntax>, nahe: Token) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => {
             let mut data = existing.into_data();
-            data.nahe = Some(Box::new(nahe));
+            data.nahe = Some(nahe);
             SimpleTenseModalSyntax::from_data(data)
         }
         None => new!(SimpleTenseModalSyntax {
-            nahe: Some(Box::new(nahe)),
+            nahe: Some(nahe),
             se: None,
             bai: None,
             nai: None,
@@ -334,19 +323,16 @@ fn set_simple_nahe(
 
 #[requires(true)]
 #[ensures(ret.se.is_some())]
-fn set_simple_se(
-    simple: Option<SimpleTenseModalSyntax>,
-    se: WithIndicators<WordLike>,
-) -> SimpleTenseModalSyntax {
+fn set_simple_se(simple: Option<SimpleTenseModalSyntax>, se: Token) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => {
             let mut data = existing.into_data();
-            data.se = Some(Box::new(se));
+            data.se = Some(se);
             SimpleTenseModalSyntax::from_data(data)
         }
         None => new!(SimpleTenseModalSyntax {
             nahe: None,
-            se: Some(Box::new(se)),
+            se: Some(se),
             bai: None,
             nai: None,
         }),

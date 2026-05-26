@@ -183,13 +183,7 @@ fn construct_tuple_variant(expression: ExprCall, mode: ConstructionMode) -> Toke
     };
     let wrapper_path = match wrapper_path_for_variant(&callee.path) {
         Some(path) => path,
-        None => {
-            return syn::Error::new_spanned(
-                callee.path,
-                "new! and try_new! tuple variant construction requires Type::Variant(...) syntax",
-            )
-            .to_compile_error();
-        }
+        None => return construct_tuple_struct(callee.path, args, mode),
     };
     let mut data_path = callee.path;
     rewrite_path_to_data_type(&mut data_path);
@@ -199,6 +193,32 @@ fn construct_tuple_variant(expression: ExprCall, mode: ConstructionMode) -> Toke
         },
         ConstructionMode::Fallible => quote! {
             #wrapper_path::try_from_data(#data_path(#args))
+        },
+    }
+}
+
+fn construct_tuple_struct(
+    type_path: Path,
+    mut args: Punctuated<Expr, Token![,]>,
+    mode: ConstructionMode,
+) -> TokenStream {
+    if args.len() != 1 {
+        return syn::Error::new_spanned(
+            type_path,
+            "new! and try_new! tuple struct construction is only supported for single-field newtypes",
+        )
+        .to_compile_error();
+    }
+    let arg = args
+        .pop()
+        .expect("single tuple field argument")
+        .into_value();
+    match mode {
+        ConstructionMode::Panicking => quote! {
+            #type_path::__bityzba_from_tuple_field(#arg)
+        },
+        ConstructionMode::Fallible => quote! {
+            #type_path::__bityzba_try_from_tuple_field(#arg)
         },
     }
 }

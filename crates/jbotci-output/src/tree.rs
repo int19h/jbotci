@@ -394,8 +394,8 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'_> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.push_value(match atom {
-            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
-                with_indicators_tree_value(word, self.source, self.options)
+            SyntaxAtomRef::Token(word) => {
+                with_indicators_tree_value(word.as_indicators(), self.source, self.options)
             }
             SyntaxAtomRef::Word(word) => word_tree_value(word, self.source, self.options),
         });
@@ -1194,12 +1194,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
-        std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
-            .spawn(f)
-            .expect("test thread")
-            .join()
-            .expect("test passed")
+    fn run_on_normal_stack<R>(f: impl FnOnce() -> R) -> R {
+        f()
     }
 }

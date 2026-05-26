@@ -7,8 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, FieldsNamed, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Lit, Type, TypePath, Variant, Visibility, parse::Parser, visit, visit::Visit,
+    Attribute, Expr, ExprLit, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident,
+    ItemEnum, ItemStruct, Lit, Type, TypePath, Variant, Visibility, parse::Parser, visit,
+    visit::Visit,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType, parse};
@@ -31,9 +32,12 @@ pub(crate) fn invariant_struct(
         Fields::Named(fields) => {
             generate_struct(contracts, option_errors, item.clone(), fields.clone())
         }
+        Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+            generate_tuple_newtype_struct(contracts, option_errors, item.clone(), fields.clone())
+        }
         _ => syn::Error::new_spanned(
             item.ident,
-            "type-level #[invariant] currently requires a struct with named fields",
+            "type-level #[invariant] currently supports structs with named fields or a single unnamed newtype field",
         )
         .to_compile_error(),
     }
@@ -378,6 +382,142 @@ fn generate_struct(
 
             fn deref(&self) -> &Self::Target {
                 self.as_data()
+            }
+        }
+
+        #debug_impl
+        #serialize_impl
+        #deserialize_impl
+        #default_impl
+    }
+}
+
+fn generate_tuple_newtype_struct(
+    contracts: Vec<Contract>,
+    option_errors: Vec<TokenStream>,
+    item: ItemStruct,
+    fields: FieldsUnnamed,
+) -> TokenStream {
+    let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
+    let generics = &item.generics;
+    let data_attrs = item.attrs.clone();
+    let data_ident = shape.data_ident.clone();
+    let wrapper_ident = shape.wrapper_ident.clone();
+    let error_ident = shape.error_ident.clone();
+    let data_vis = shape.data_vis.clone();
+    let wrapper_vis = shape.wrapper_vis.clone();
+    let data_field = fields
+        .unnamed
+        .first()
+        .expect("caller checked single tuple field")
+        .clone();
+    let field_type = data_field.ty.clone();
+    let wrapper_attrs = shape.wrapper_attrs();
+    let debug_impl = shape.tuple_struct_debug_impl(&field_type);
+    let serialize_impl = shape.serialize_impl();
+    let deserialize_impl = shape.deserialize_impl();
+    let default_impl = shape.default_impl();
+    let invariant_expr = invariant_expression(&contracts, quote! { true });
+    let invariant_docs = invariant_docs(&contracts);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let turbofish = ty_generics.as_turbofish();
+
+    quote! {
+        #(#option_errors)*
+
+        #(#data_attrs)*
+        #data_vis struct #data_ident #generics (#data_field) #where_clause;
+
+        #(#wrapper_attrs)*
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #wrapper_vis struct #error_ident {
+            message: ::std::string::String,
+        }
+
+        impl #impl_generics #error_ident #ty_generics #where_clause {
+            fn invariant_violation() -> Self {
+                Self {
+                    message: ::std::format!("type invariant violated for `{}`: {}", ::std::stringify!(#wrapper_ident), #invariant_docs),
+                }
+            }
+        }
+
+        impl #impl_generics ::std::fmt::Display for #error_ident #ty_generics #where_clause {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                f.write_str(&self.message)
+            }
+        }
+
+        impl #impl_generics ::std::error::Error for #error_ident #ty_generics #where_clause {}
+
+        impl #impl_generics #wrapper_ident #ty_generics #where_clause {
+            #[doc(hidden)]
+            pub fn __bityzba_from_tuple_field(value: #field_type) -> Self {
+                Self::from_data(#data_ident(value))
+            }
+
+            #[doc(hidden)]
+            pub fn __bityzba_try_from_tuple_field(value: #field_type) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+                Self::try_from_data(#data_ident(value))
+            }
+
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+                let value = Self(data);
+                if value.__bityzba_invariant() {
+                    ::std::result::Result::Ok(value)
+                } else {
+                    ::std::result::Result::Err(#error_ident #turbofish::invariant_violation())
+                }
+            }
+
+            pub fn from_data(data: #data_ident #ty_generics) -> Self {
+                Self::try_from_data(data)
+                    .expect("data value must satisfy type invariant")
+            }
+
+            pub fn with_data<F>(self, data: F) -> Self
+            where
+                F: ::std::ops::FnOnce(#data_ident #ty_generics) -> #data_ident #ty_generics,
+            {
+                Self::from_data(data(self.0))
+            }
+
+            pub fn as_data(&self) -> &#data_ident #ty_generics {
+                &self.0
+            }
+
+            pub fn into_data(self) -> #data_ident #ty_generics {
+                self.0
+            }
+
+            fn __bityzba_invariant(&self) -> bool {
+                #invariant_expr
+            }
+        }
+
+        impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
+            type Error = #error_ident #ty_generics;
+
+            fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
+                Self::try_from_data(data)
+            }
+        }
+
+        impl #impl_generics ::std::ops::Deref for #wrapper_ident #ty_generics #where_clause {
+            type Target = #data_ident #ty_generics;
+
+            fn deref(&self) -> &Self::Target {
+                self.as_data()
+            }
+        }
+
+        impl #impl_generics ::std::ops::Deref for #data_ident #ty_generics #where_clause {
+            type Target = #field_type;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
             }
         }
 
@@ -1062,6 +1202,32 @@ impl TypeShape {
                         debug.field(::std::stringify!(#field_idents), &data.#field_idents);
                     )*
                     debug.finish()
+                }
+            }
+        }
+    }
+
+    fn tuple_struct_debug_impl(&self, field_type: &Type) -> TokenStream {
+        if !self.derives_debug {
+            return TokenStream::new();
+        }
+        let wrapper_ident = &self.wrapper_ident;
+        let mut generics = self.generics.clone();
+        let (_, ty_generics, _) = self.generics.split_for_impl();
+        let where_clause = generics.make_where_clause();
+        for field_type in self.generic_debug_bounds(std::iter::once(field_type)) {
+            where_clause
+                .predicates
+                .push(syn::parse_quote!(#field_type: ::std::fmt::Debug));
+        }
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        quote! {
+            impl #impl_generics ::std::fmt::Debug for #wrapper_ident #ty_generics #where_clause {
+                fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    formatter
+                        .debug_tuple(::std::stringify!(#wrapper_ident))
+                        .field(&self.as_data().0)
+                        .finish()
                 }
             }
         }

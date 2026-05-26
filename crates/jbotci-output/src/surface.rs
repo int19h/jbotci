@@ -2,7 +2,7 @@ use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
     PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
 };
-use jbotci_syntax::WithIndicators;
+use jbotci_syntax::{Token, WithIndicators};
 
 use crate::OutputError;
 
@@ -29,11 +29,15 @@ enum IpaSurfaceChunk<'word> {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn format_with_indicators_with_options(
-    word: &WithIndicators<WordLike>,
+    word: &Token,
     source: &str,
     options: PhonemeRenderOptions,
 ) -> String {
-    render_surface_chunks(flatten_with_indicators_surface(word, source, options))
+    render_surface_chunks(flatten_with_indicators_surface(
+        word.as_indicators(),
+        source,
+        options,
+    ))
 }
 
 #[requires(true)]
@@ -58,8 +62,8 @@ pub(crate) fn format_words_ipa(words: &[WordLike], source: &str) -> Result<Strin
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_compound_with_indicators(word: &WithIndicators<WordLike>) -> bool {
-    match word {
+pub(crate) fn is_compound_with_indicators(word: &Token) -> bool {
+    match word.as_indicators() {
         WithIndicators::Emphasized { .. } | WithIndicators::WithIndicator { .. } => true,
         WithIndicators::Bare(word_like) => match word_like.as_data() {
             data!(WordLike::Bare(..)) => false,

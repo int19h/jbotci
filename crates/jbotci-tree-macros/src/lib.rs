@@ -247,6 +247,7 @@ fn unwrap_tree_type_with_seen<'a>(
 
 const WRAPPER_TYPES: &[&str] = &[
     "Box",
+    "Arc",
     "Option",
     "Vec",
     "Vec1",
@@ -531,6 +532,30 @@ fn atom_variant_ident(ty: &Type) -> Ident {
 fn wrapper_trait_impls() -> proc_macro2::TokenStream {
     quote! {
         impl<T: TreeNode + ?Sized> TreeNode for Box<T> {
+            fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+            where
+                V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
+            {
+                (**self).visit_in_order(visitor);
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                (**self).path_to_node_from(target, path)
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                (**self).node_at_path_steps(steps)
+            }
+        }
+
+        impl<T: TreeNode + ?Sized> TreeNode for ::std::sync::Arc<T> {
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,

@@ -6,7 +6,7 @@ mod segment;
 mod syntax_eq;
 pub mod tree;
 
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use bityzba::{data, ensures, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
@@ -276,23 +276,23 @@ impl Word {
         match kind {
             WordKind::Cmavo => new!(Word::Cmavo {
                 phonemes: phonemes,
-                span: span,
+                span: Arc::new(span),
             }),
             WordKind::Gismu => new!(Word::Gismu {
                 phonemes: phonemes,
-                span: span,
+                span: Arc::new(span),
             }),
             WordKind::Lujvo => new!(Word::Lujvo {
                 parts: Vec1::new(Jvopau::rafsi(phonemes)),
-                span: span,
+                span: Arc::new(span),
             }),
             WordKind::Fuhivla => new!(Word::Fuhivla {
                 phonemes: phonemes,
-                span: span,
+                span: Arc::new(span),
             }),
             WordKind::Cmevla => new!(Word::Cmevla {
                 phonemes: phonemes,
-                span: span,
+                span: Arc::new(span),
             }),
         }
     }
@@ -302,7 +302,7 @@ impl Word {
     pub fn lujvo(parts: Vec1<Jvopau>, span: SourceSpan) -> Self {
         new!(Word::Lujvo {
             parts: parts,
-            span: span,
+            span: Arc::new(span),
         })
     }
 
@@ -366,7 +366,7 @@ impl Word {
             | data!(Word::Gismu { span, .. })
             | data!(Word::Lujvo { span, .. })
             | data!(Word::Fuhivla { span, .. })
-            | data!(Word::Cmevla { span, .. }) => span,
+            | data!(Word::Cmevla { span, .. }) => span.as_ref(),
         }
     }
 
@@ -476,7 +476,7 @@ impl Verbatim {
     #[ensures(true)]
     pub fn new(span: SourceSpan, text: String) -> Self {
         new!(Verbatim {
-            span: span,
+            span: Arc::new(span),
             text: text,
         })
     }
@@ -492,7 +492,10 @@ impl WordLike {
     #[requires(zo.is_cmavo(Cmavo::Zo))]
     #[ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
-        new!(WordLike::ZoQuote { zo: zo, word: word })
+        new!(WordLike::ZoQuote {
+            zo: Box::new(zo),
+            word: Box::new(word),
+        })
     }
 
     #[requires(zoi.is_selmaho(Selmaho::Zoi))]
@@ -506,10 +509,10 @@ impl WordLike {
         closing_delimiter: Word,
     ) -> Self {
         new!(WordLike::ZoiQuote {
-            zoi: zoi,
-            opening_delimiter: opening_delimiter,
-            quoted_text: quoted_text,
-            closing_delimiter: closing_delimiter,
+            zoi: Box::new(zoi),
+            opening_delimiter: Box::new(opening_delimiter),
+            quoted_text: Box::new(quoted_text),
+            closing_delimiter: Box::new(closing_delimiter),
         })
     }
 
@@ -518,9 +521,9 @@ impl WordLike {
     #[ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
         new!(WordLike::LohuQuote {
-            lohu: lohu,
+            lohu: Box::new(lohu),
             quoted_words: quoted_words,
-            lehu: lehu,
+            lehu: Box::new(lehu),
         })
     }
 
@@ -528,8 +531,8 @@ impl WordLike {
     #[ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: Verbatim) -> Self {
         new!(WordLike::SingleWordQuote {
-            marker: marker,
-            quoted_text: quoted_text,
+            marker: Box::new(marker),
+            quoted_text: Box::new(quoted_text),
         })
     }
 
@@ -538,7 +541,7 @@ impl WordLike {
     pub fn letter(base: WordLike, bu: Word) -> Self {
         new!(WordLike::Letter {
             base: Box::new(base),
-            bu: bu,
+            bu: Box::new(bu),
         })
     }
 
@@ -547,8 +550,8 @@ impl WordLike {
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
         new!(WordLike::ZeiLujvo {
             left: Box::new(left),
-            zei: zei,
-            right: right,
+            zei: Box::new(zei),
+            right: Box::new(right),
         })
     }
 
@@ -653,7 +656,7 @@ impl WordLike {
             }) => {
                 out.push(zoi.span());
                 out.push(opening_delimiter.span());
-                out.push(&quoted_text.span);
+                out.push(quoted_text.span.as_ref());
                 out.push(closing_delimiter.span());
             }
             data!(WordLike::LohuQuote {
@@ -672,7 +675,7 @@ impl WordLike {
                 quoted_text,
             }) => {
                 out.push(marker.span());
-                out.push(&quoted_text.span);
+                out.push(quoted_text.span.as_ref());
             }
             data!(WordLike::Letter { base, bu }) => {
                 base.source_spans_into(out);
@@ -751,8 +754,8 @@ where
     Ok(match word_like.into_data() {
         data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans(word, map_span)?),
         data!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
-            map_word_spans(zo, map_span)?,
-            map_word_spans(word, map_span)?,
+            map_word_spans(*zo, map_span)?,
+            map_word_spans(*word, map_span)?,
         ),
         data!(WordLike::ZoiQuote {
             zoi,
@@ -760,38 +763,38 @@ where
             quoted_text,
             closing_delimiter,
         }) => WordLike::zoi_quote(
-            map_word_spans(zoi, map_span)?,
-            map_word_spans(opening_delimiter, map_span)?,
-            map_verbatim_span(quoted_text, map_span)?,
-            map_word_spans(closing_delimiter, map_span)?,
+            map_word_spans(*zoi, map_span)?,
+            map_word_spans(*opening_delimiter, map_span)?,
+            map_verbatim_span(*quoted_text, map_span)?,
+            map_word_spans(*closing_delimiter, map_span)?,
         ),
         data!(WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
         }) => WordLike::lohu_quote(
-            map_word_spans(lohu, map_span)?,
+            map_word_spans(*lohu, map_span)?,
             quoted_words
                 .into_iter()
                 .map(|word| map_word_spans(word, map_span))
                 .collect::<Result<Vec<_>, _>>()?,
-            map_word_spans(lehu, map_span)?,
+            map_word_spans(*lehu, map_span)?,
         ),
         data!(WordLike::SingleWordQuote {
             marker,
             quoted_text,
         }) => WordLike::single_word_quote(
-            map_word_spans(marker, map_span)?,
-            map_verbatim_span(quoted_text, map_span)?,
+            map_word_spans(*marker, map_span)?,
+            map_verbatim_span(*quoted_text, map_span)?,
         ),
         data!(WordLike::Letter { base, bu }) => WordLike::letter(
             map_word_like_spans(*base, map_span)?,
-            map_word_spans(bu, map_span)?,
+            map_word_spans(*bu, map_span)?,
         ),
         data!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
             map_word_like_spans(*left, map_span)?,
-            map_word_spans(zei, map_span)?,
-            map_word_spans(right, map_span)?,
+            map_word_spans(*zei, map_span)?,
+            map_word_spans(*right, map_span)?,
         ),
     })
 }
@@ -805,23 +808,23 @@ where
     Ok(match word.into_data() {
         data!(Word::Cmavo { phonemes, span }) => new!(Word::Cmavo {
             phonemes: phonemes,
-            span: map_span(span)?,
+            span: Arc::new(map_span((*span).clone())?),
         }),
         data!(Word::Gismu { phonemes, span }) => new!(Word::Gismu {
             phonemes: phonemes,
-            span: map_span(span)?,
+            span: Arc::new(map_span((*span).clone())?),
         }),
         data!(Word::Lujvo { parts, span }) => new!(Word::Lujvo {
             parts: parts,
-            span: map_span(span)?,
+            span: Arc::new(map_span((*span).clone())?),
         }),
         data!(Word::Fuhivla { phonemes, span }) => new!(Word::Fuhivla {
             phonemes: phonemes,
-            span: map_span(span)?,
+            span: Arc::new(map_span((*span).clone())?),
         }),
         data!(Word::Cmevla { phonemes, span }) => new!(Word::Cmevla {
             phonemes: phonemes,
-            span: map_span(span)?,
+            span: Arc::new(map_span((*span).clone())?),
         }),
     })
 }
@@ -833,7 +836,7 @@ where
     F: Fn(SourceSpan) -> Result<SourceSpan, String>,
 {
     let data = verbatim.into_data();
-    Ok(Verbatim::new(map_span(data.span)?, data.text))
+    Ok(Verbatim::new(map_span((*data.span).clone())?, data.text))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
