@@ -3,6 +3,7 @@
 mod brackets;
 mod diagnostics;
 mod json;
+mod references;
 mod sexpr;
 mod surface;
 mod trace;
@@ -75,6 +76,7 @@ impl Default for OutputFormat {
 #[invariant(::Diagnostic(..) => true)]
 #[invariant(::Json(..) => true)]
 #[invariant(::Ipa(..) => true)]
+#[invariant(::References(..) => true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,
@@ -84,6 +86,8 @@ pub enum OutputError {
     Json(String),
     #[error("failed to render IPA: {0}")]
     Ipa(String),
+    #[error("failed to analyze semantic references: {0}")]
+    References(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -120,6 +124,7 @@ pub struct TreeRenderOptions {
     pub indent: usize,
     pub phonemes: PhonemeRenderOptions,
     pub show_spans: bool,
+    pub show_refs: bool,
     pub decompose_lujvo: bool,
 }
 
@@ -129,6 +134,7 @@ impl Default for TreeRenderOptions {
     #[ensures(ret.indent == 2)]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
     #[ensures(!ret.show_spans)]
+    #[ensures(!ret.show_refs)]
     #[ensures(!ret.decompose_lujvo)]
     fn default() -> Self {
         Self {
@@ -136,6 +142,7 @@ impl Default for TreeRenderOptions {
             indent: 2,
             phonemes: PhonemeRenderOptions::default(),
             show_spans: false,
+            show_refs: false,
             decompose_lujvo: false,
         }
     }

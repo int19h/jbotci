@@ -56,6 +56,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries pronunciation renderer diagnostics",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:OutputError::References",
+        "error wrapper carries reference analysis diagnostics",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Forward",
         "fixture frame propagation is a serialization projection of validated frame ids",
     ),
@@ -148,6 +152,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "empty render collections are valid intermediate output",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Syntax",
+        "syntax provenance wrapper delegates rendered value validity to its payload",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:TreeValue::Word",
         "word render fields are produced from validated morphology atoms",
     ),
@@ -162,6 +170,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:TreeValue::Span",
         "span field ordering is preserved from SourceSpan before rendering",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Numbered",
+        "reference display slot is projected from validated semantic PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Modal",
+        "reference display slot words are renderer projections of validated syntax",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Fai",
+        "unit slot marker carries no payload beyond the selected variant",
     ),
     (
         "crates/jbotci-output/src/tree.rs:SyntaxFrame::Node",

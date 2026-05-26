@@ -372,6 +372,8 @@ struct GentufaInput {
     mark_glides: Option<CliGlideMark>,
     #[arg(long = "show-spans")]
     show_spans: bool,
+    #[arg(long = "show-refs")]
+    show_refs: bool,
     #[arg(long = "decompose-lujvo")]
     decompose_lujvo: bool,
     #[arg()]
@@ -649,6 +651,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
                             show_spans: input.show_spans,
+                            show_refs: false,
                             decompose_lujvo: input.decompose_lujvo,
                         },
                     )?;
@@ -976,6 +979,7 @@ fn render_gentufa(
                     indent: input.indent.unwrap_or(2),
                     phonemes: phoneme_options,
                     show_spans: input.show_spans,
+                    show_refs: input.show_refs,
                     decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
@@ -1399,6 +1403,10 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
             "`--show-spans` is only supported with `--turtai tree`",
         )?;
         validate_not_present(
+            input.show_refs,
+            "`--show-refs` is only supported with `--turtai tree`",
+        )?;
+        validate_not_present(
             input.decompose_lujvo,
             "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
         )?;
@@ -1408,6 +1416,10 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
                 validate_not_present(
                     input.show_spans,
                     "`--show-spans` is only supported with `--turtai tree`",
+                )?;
+                validate_not_present(
+                    input.show_refs,
+                    "`--show-refs` is only supported with `--turtai tree`",
                 )?;
                 validate_not_present(
                     input.decompose_lujvo,
@@ -1423,6 +1435,10 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
                 validate_not_present(
                     input.show_spans,
                     "`--show-spans` is only supported with `--turtai tree`",
+                )?;
+                validate_not_present(
+                    input.show_refs,
+                    "`--show-refs` is only supported with `--turtai tree`",
                 )?;
             }
             GentufaFormat::Raw => {}
@@ -2308,6 +2324,25 @@ mod tests {
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("raw projection flags rejected");
         assert!(error.to_string().contains("not supported with raw output"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn show_refs_is_tree_only() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "gentufa",
+            "--format",
+            "brackets",
+            "--show-refs",
+            "mi",
+            "klama",
+        ])
+        .expect("gentufa show refs flag parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("show refs rejected for non-tree output");
+        assert!(error.to_string().contains("`--show-refs`"));
     }
 
     #[test]

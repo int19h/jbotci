@@ -3,6 +3,7 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::{Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
+use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxIndex};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{
@@ -10,42 +11,48 @@ use jbotci_syntax::ast::{
 };
 use jbotci_tree::{FieldRef, TreeVisitor};
 
+use crate::references::ReferenceDisplayModel;
 use crate::{OutputError, TreeRenderOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Primary(..) => true)]
 #[invariant(::Labelled(..) => true)]
-enum RenderEntry {
+pub(crate) enum RenderEntry {
     Primary(TreeValue),
     Labelled(&'static str, TreeValue),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct TreeEntry {
-    label: Option<&'static str>,
-    value: TreeValue,
+pub(crate) struct TreeEntry {
+    pub(crate) label: Option<&'static str>,
+    pub(crate) value: TreeValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct TreeNode {
-    constructor: &'static str,
-    entries: Vec<TreeEntry>,
+pub(crate) struct TreeNode {
+    pub(crate) constructor: &'static str,
+    pub(crate) entries: Vec<TreeEntry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Node(..) => true)]
 #[invariant(::Collection(..) => true)]
+#[invariant(::Syntax { .. } => true)]
 #[invariant(::Word => true)]
 #[invariant(::Verbatim => true)]
 #[invariant(::Text(..) => true)]
 #[invariant(::Span => true)]
-enum TreeValue {
+pub(crate) enum TreeValue {
     Node(TreeNode),
     Collection(Vec<TreeValue>),
+    Syntax {
+        syntax_ids: Vec<RawSyntaxNodeId>,
+        value: Box<TreeValue>,
+    },
     Word {
         constructor: &'static str,
         phonemes: String,
@@ -71,11 +78,26 @@ pub(crate) fn pretty_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    let value = collapse_value(syntax_tree_value(tree, source, options));
+    let reference_analysis = if options.show_refs {
+        Some(
+            ReferenceAnalysis::analyze(tree)
+                .map_err(|error| OutputError::References(error.to_string()))?,
+        )
+    } else {
+        None
+    };
+    let syntax_index = reference_analysis
+        .as_ref()
+        .map(|analysis| &analysis.syntax_index);
+    let value = collapse_value(syntax_tree_value(tree, source, options, syntax_index));
+    let references = reference_analysis
+        .as_ref()
+        .map(|analysis| ReferenceDisplayModel::new(analysis, &value, source, options));
     let mut renderer = TreeRenderer {
         color: options.color,
         indent_step: options.indent,
         show_spans: options.show_spans,
+        references: references.as_ref(),
         output: String::new(),
     };
     renderer.render_value(&value, 0);
@@ -99,6 +121,7 @@ pub(crate) fn pretty_morphology_tree_with_options(
         color: options.color,
         indent_step: options.indent,
         show_spans: options.show_spans,
+        references: None,
         output: String::new(),
     };
     renderer.render_value(&value, 0);
@@ -164,7 +187,7 @@ fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> Tre
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_tree_value(
+pub(crate) fn morphology_tree_value(
     word_like: &WordLike,
     source: &str,
     options: TreeRenderOptions,
@@ -176,8 +199,13 @@ fn morphology_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tree_value(tree: &TextSyntax, source: &str, options: TreeRenderOptions) -> TreeValue {
-    let mut visitor = SyntaxTreeBuilder::new(source, options);
+fn syntax_tree_value(
+    tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&SyntaxIndex<'_>>,
+) -> TreeValue {
+    let mut visitor = SyntaxTreeBuilder::new(source, options, syntax_index);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
 }
@@ -190,6 +218,7 @@ fn syntax_tree_value(tree: &TextSyntax, source: &str, options: TreeRenderOptions
 enum SyntaxFrame {
     Node {
         constructor: &'static str,
+        syntax_id: Option<RawSyntaxNodeId>,
         entries: Vec<TreeEntry>,
     },
     Field {
@@ -205,20 +234,26 @@ enum SyntaxFrame {
 
 #[derive(Debug, Default)]
 #[invariant(true)]
-struct SyntaxTreeBuilder<'source> {
+struct SyntaxTreeBuilder<'source, 'index, 'tree> {
     source: &'source str,
     options: TreeRenderOptions,
+    syntax_index: Option<&'index SyntaxIndex<'tree>>,
     stack: Vec<SyntaxFrame>,
     root: Option<TreeValue>,
 }
 
-impl<'source> SyntaxTreeBuilder<'source> {
+impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.source == source)]
-    fn new(source: &'source str, options: TreeRenderOptions) -> Self {
+    fn new(
+        source: &'source str,
+        options: TreeRenderOptions,
+        syntax_index: Option<&'index SyntaxIndex<'tree>>,
+    ) -> Self {
         Self {
             source,
             options,
+            syntax_index,
             stack: Vec::new(),
             root: None,
         }
@@ -278,6 +313,14 @@ impl<'source> SyntaxTreeBuilder<'source> {
                         self.push_value(value);
                     }
                 }
+                TreeValue::Syntax { syntax_ids, value } => match *value {
+                    TreeValue::Collection(items) => {
+                        for value in items {
+                            self.push_value(syntax_value(syntax_ids.clone(), value));
+                        }
+                    }
+                    value => self.push_value(syntax_value(syntax_ids, value)),
+                },
                 value => self.push_value(value),
             }
         }
@@ -309,7 +352,7 @@ impl<'source> SyntaxTreeBuilder<'source> {
     }
 }
 
-impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'_> {
+impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, 'index, 'tree> {
     type Node = SyntaxNodeRef<'tree>;
     type Atom = SyntaxAtomRef<'tree>;
 
@@ -318,6 +361,7 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'_> {
     fn enter_node(&mut self, node: Self::Node) {
         self.stack.push(SyntaxFrame::Node {
             constructor: syntax_constructor_name(node.constructor_name()),
+            syntax_id: self.syntax_index.and_then(|index| index.id_of(node)),
             entries: Vec::new(),
         });
     }
@@ -327,15 +371,20 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'_> {
     fn exit_node(&mut self, _node: Self::Node) {
         let Some(SyntaxFrame::Node {
             constructor,
+            syntax_id,
             entries,
         }) = self.stack.pop()
         else {
             panic!("syntax tree walker exited a node without entering it");
         };
-        self.push_value(TreeValue::Node(TreeNode {
+        let value = TreeValue::Node(TreeNode {
             constructor,
             entries,
-        }));
+        });
+        self.push_value(match syntax_id {
+            Some(id) => syntax_value(vec![id], value),
+            None => value,
+        });
     }
 
     #[requires(true)]
@@ -410,12 +459,37 @@ fn syntax_constructor_name(constructor: &'static str) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
+fn syntax_value(syntax_ids: Vec<RawSyntaxNodeId>, value: TreeValue) -> TreeValue {
+    if syntax_ids.is_empty() {
+        return value;
+    }
+    match value {
+        TreeValue::Syntax {
+            syntax_ids: mut inner_ids,
+            value,
+        } => {
+            inner_ids.extend(syntax_ids);
+            TreeValue::Syntax {
+                syntax_ids: inner_ids,
+                value,
+            }
+        }
+        value => TreeValue::Syntax {
+            syntax_ids,
+            value: Box::new(value),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn collapse_value(value: TreeValue) -> TreeValue {
     match value {
         TreeValue::Node(node) => collapse_node(node),
         TreeValue::Collection(items) => {
             TreeValue::Collection(items.into_iter().map(collapse_value).collect())
         }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(syntax_ids, collapse_value(*value)),
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
         | TreeValue::Text(..)
@@ -449,20 +523,24 @@ fn collapse_node(node: TreeNode) -> TreeValue {
 
 #[derive(Debug)]
 #[invariant(true)]
-struct TreeRenderer {
+struct TreeRenderer<'references> {
     color: bool,
     indent_step: usize,
     show_spans: bool,
+    references: Option<&'references ReferenceDisplayModel>,
     output: String,
 }
 
-impl TreeRenderer {
+impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn render_value(&mut self, value: &TreeValue, indent: usize) {
         match value {
             TreeValue::Node(node) => self.render_node(node, indent),
             TreeValue::Collection(items) => self.render_collection(items, indent),
+            TreeValue::Syntax { syntax_ids, value } => {
+                self.render_syntax_value(syntax_ids, value, indent)
+            }
             TreeValue::Word {
                 constructor,
                 phonemes,
@@ -478,6 +556,34 @@ impl TreeRenderer {
             } => self
                 .output
                 .push_str(&self.span_literal(*char_start, *char_end)),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_syntax_value(
+        &mut self,
+        syntax_ids: &[RawSyntaxNodeId],
+        value: &TreeValue,
+        indent: usize,
+    ) {
+        let annotations = self
+            .references
+            .map(|references| references.annotations_for_syntax_ids(syntax_ids));
+        if let Some(annotations) = annotations.as_ref() {
+            for name in &annotations.incoming {
+                self.output.push_str(&self.reference_name(name));
+                self.output.push_str(&self.punctuation_token("→"));
+                self.output.push(' ');
+            }
+        }
+        self.render_value(value, indent);
+        if let Some(annotations) = annotations.as_ref() {
+            for name in &annotations.outgoing {
+                self.output.push(' ');
+                self.output.push_str(&self.punctuation_token("→"));
+                self.output.push_str(&self.reference_name(name));
+            }
         }
     }
 
@@ -643,6 +749,22 @@ impl TreeRenderer {
         output
     }
 
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn reference_name(&self, name: &crate::references::ReferenceName) -> String {
+        let mut output = String::new();
+        output.push_str(&self.punctuation_token(&name.stem));
+        if let Some(index) = name.occurrence {
+            output.push_str(&self.punctuation_token(&subscript_number(index)));
+        }
+        if let Some(slot) = &name.slot {
+            output.push_str(&self.punctuation_token("⟨"));
+            output.push_str(&self.punctuation_token(&slot.text()));
+            output.push_str(&self.punctuation_token("⟩"));
+        }
+        output
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(!ret.is_empty())]
     fn constructor_token(&self, text: &str) -> String {
@@ -708,6 +830,7 @@ fn value_span(value: &TreeValue) -> Option<(usize, usize)> {
     match value {
         TreeValue::Node(node) => tree_node_span(node),
         TreeValue::Collection(items) => span_from_values(items.iter().filter_map(value_span)),
+        TreeValue::Syntax { value, .. } => value_span(value),
         TreeValue::Word { span, .. } | TreeValue::Verbatim { span, .. } => *span,
         TreeValue::Text(_) => None,
         TreeValue::Span {
@@ -731,6 +854,30 @@ where
         end = end.max(item_end);
     }
     Some((start, end))
+}
+
+#[requires(value > 0)]
+#[ensures(!ret.is_empty())]
+fn subscript_number(value: usize) -> String {
+    value.to_string().chars().map(subscript_digit).collect()
+}
+
+#[requires(character.is_ascii_digit())]
+#[ensures(true)]
+fn subscript_digit(character: char) -> char {
+    match character {
+        '0' => '₀',
+        '1' => '₁',
+        '2' => '₂',
+        '3' => '₃',
+        '4' => '₄',
+        '5' => '₅',
+        '6' => '₆',
+        '7' => '₇',
+        '8' => '₈',
+        '9' => '₉',
+        _ => unreachable!("requires ASCII digit"),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1172,6 +1319,89 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_resolved_references_in_tree_output() {
+        let output = render_refs("mi klama le zarci i do klama ri", true);
+        assert_eq!(
+            output,
+            "Paragraph @[0‥31) {\n  Predicate @[0‥17) {\n    leading_terms: [\n      k₁⟨1⟩→ Cmavo @[0‥2) \"mi\",\n    ],\n    Relation @[3‥17) {\n      Gismu @[3‥8) \"kláma\" →k₁,\n      terms: [\n        k₁⟨2⟩→ ri₁→ Descriptor @[9‥17) {\n          descriptor: Cmavo @[9‥11) \"le\",\n          relation: Gismu @[12‥17) \"zárci\",\n        },\n      ],\n    },\n  },\n  ParagraphStatement @[18‥31) {\n    i: Cmavo @[18‥19) \"i\",\n    Predicate @[20‥31) {\n      leading_terms: [\n        k₂⟨1⟩→ Cmavo @[20‥22) \"do\",\n      ],\n      Relation @[23‥31) {\n        Gismu @[23‥28) \"kláma\" →k₂,\n        terms: [\n          k₂⟨2⟩→ Cmavo @[29‥31) \"ri\" →ri₁,\n        ],\n      },\n    },\n  },\n}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_only_base_frame_for_converted_selbri() {
+        let output = render_refs("mi se klama do", false);
+        assert!(output.contains("k⟨2⟩→ Cmavo \"mi\""));
+        assert!(output.contains("k⟨1⟩→ Cmavo \"do\""));
+        assert!(output.contains("Gismu \"kláma\" →k"));
+        assert!(!output.contains("s⟨"));
+        assert!(!output.contains("Cmavo \"se\" →"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_duplicate_place_fillers_with_same_label() {
+        let output = render_refs("fa mi fa do klama", false);
+        assert_eq!(output.matches("k⟨1⟩→ Cmavo").count(), 2);
+        assert!(output.contains("Gismu \"kláma\" →k"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_modal_place_labels() {
+        let output = render_refs("mi ta'i do klama", false);
+        assert!(output.contains("k⟨ta'i⟩→ Cmavo \"do\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_duplicate_prefixes_across_repeated_words() {
+        let output = render_refs("mi klama le karce be do i do klama le karce be mi", false);
+        assert!(output.contains("Gismu \"kláma\" →kl₁"));
+        assert!(output.contains("Gismu \"kláma\" →kl₂"));
+        assert!(output.contains("Gismu \"kárce\" →ká₁"));
+        assert!(output.contains("Gismu \"kárce\" →ká₂"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_resolved_discourse_reference_kinds() {
+        let gohi = render_refs("mi klama .i go'i", false);
+        assert!(gohi.contains("go'i₁→ Predicate"));
+        assert!(gohi.contains("Cmavo \"go'i\" →go'i₁"));
+
+        let goi = render_refs("le nanmu goi ko'a cu klama .i ko'a cadzu", false);
+        assert!(goi.contains("Cmavo \"ko'a\" →ko'a₁"));
+        assert!(goi.contains("Cmavo \"ko'a\" →ko'a₂"));
+        assert!(goi.contains("ko'a₁→ ko'a₂→ Descriptor"));
+
+        let cei = render_refs("mi broda cei klama do", false);
+        assert!(cei.contains("k→ Predicate"));
+        assert!(cei.contains("k→ Gismu \"bróda\" →b"));
+        assert!(cei.contains("Gismu \"kláma\" →k"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn omits_unresolved_and_vague_discourse_references() {
+        let output = render_refs("ri klama .i ra klama .i ru klama", false);
+        assert!(!output.contains("→ri"));
+        assert!(!output.contains("→ra"));
+        assert!(!output.contains("→ru"));
+        assert!(!output.contains("ri₁→"));
+        assert!(!output.contains("ra₁→"));
+        assert!(!output.contains("ru₁→"));
+    }
+
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render(text: &str, color: bool) -> String {
@@ -1185,6 +1415,28 @@ mod tests {
                 TreeRenderOptions {
                     color,
                     indent: 2,
+                    ..TreeRenderOptions::default()
+                },
+            )
+            .expect("tree render")
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_refs(text: &str, show_spans: bool) -> String {
+        let text = text.to_owned();
+        run_on_normal_stack(move || {
+            let words = segment_words_with_modifiers(&text).expect("morphology");
+            let parsed = parse_syntax_tree(&words).expect("syntax");
+            pretty_tree_with_options(
+                &parsed.parse_tree,
+                &text,
+                TreeRenderOptions {
+                    color: false,
+                    indent: 2,
+                    show_spans,
+                    show_refs: true,
                     ..TreeRenderOptions::default()
                 },
             )

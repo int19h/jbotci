@@ -236,6 +236,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
+        "crates/jbotci-output/src/references.rs:ReferenceAnnotations",
+        "annotation vectors are sorted/deduplicated projections from ReferenceDisplayModel",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceDisplayModel",
+        "display model maps syntax ids to renderer annotations derived from semantic reference analysis",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceName",
+        "reference name components are assembled by renderer naming logic and validated by focused tests",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSource",
+        "source metadata is an intermediate projection from syntax ids and rendered words",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:SyntaxWordCollector",
+        "collector is transient traversal state for modal slot labels",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:TreeWordLabel",
+        "word labels are copied from already rendered tree word values",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:MorphologyTreeBuilder",
         "builder validity is governed by traversal enter/exit sequencing",
     ),
