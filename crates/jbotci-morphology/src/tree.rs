@@ -59,6 +59,10 @@ tree_model! {
     #[invariant(::Bare(_) => true)]
     #[invariant(::ZoQuote => zo.is_cmavo(Cmavo::Zo))]
     #[invariant(::ZoiQuote => zoi.is_selmaho(Selmaho::Zoi)
+        && crate::canonical_text_eq(
+            opening_delimiter.phonemes().as_str(),
+            closing_delimiter.phonemes().as_str(),
+        )
         && opening_delimiter.span().byte_end <= quoted_text.span.byte_start
         && quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
     #[invariant(::LohuQuote => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]

@@ -499,6 +499,10 @@ impl WordLike {
     }
 
     #[requires(zoi.is_selmaho(Selmaho::Zoi))]
+    #[requires(canonical_text_eq(
+        opening_delimiter.phonemes().as_str(),
+        closing_delimiter.phonemes().as_str(),
+    ))]
     #[requires(opening_delimiter.span().byte_end <= quoted_text.span.byte_start)]
     #[requires(quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
     #[ensures(true)]
@@ -2416,6 +2420,24 @@ mod tests {
                     "xx".to_owned(),
                 ),
                 test_word(WordKind::Cmavo, "gy", 8),
+            );
+        });
+        assert!(panic.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_like_constructor_rejects_mismatched_zoi_quote_delimiters() {
+        let panic = std::panic::catch_unwind(|| {
+            let _ = WordLike::zoi_quote(
+                test_word(WordKind::Cmavo, "zoi", 0),
+                test_word(WordKind::Cmavo, "gy", 4),
+                Verbatim::new(
+                    SourceSpan::new(None, 7, 11, 7, 11).expect("valid test span"),
+                    "test".to_owned(),
+                ),
+                test_word(WordKind::Cmavo, "ly", 12),
             );
         });
         assert!(panic.is_err());
