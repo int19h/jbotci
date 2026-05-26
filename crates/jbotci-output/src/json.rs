@@ -603,7 +603,12 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack(f: impl FnOnce()) {
-        f();
+    fn run_on_normal_stack(f: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(f)
+            .expect("test thread")
+            .join()
+            .expect("test passed");
     }
 }

@@ -128,6 +128,58 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Numbered",
+        "NonZeroU8 owns the non-zero numbered place invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Modal",
+        "modal slot payload is an optional syntax node anchor and any option state is meaningful",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Forward",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Conversion",
+        "NonZeroU8 owns converted-place non-zero validity and frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Jai",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Connected",
+        "connected propagation may be temporarily empty for partially analyzed or unresolved selbri structures",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Compound",
+        "frame ids are validated through PlaceAnalysis lookup APIs and empty modifier lists are valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Co",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedNode",
+        "node ids are validated through SyntaxIndex lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedFrame",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::AmbiguousNodes",
+        "an empty ambiguity set is valid while callers preserve an explicit unresolved state separately",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Unresolved",
+        "unresolved diagnostic text is produced by constructors in this module and has no enum-level structural invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Vague",
+        "vagueness kind owns the payload validity",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
         "builder stack frame validity is governed by enter/exit sequencing",
     ),

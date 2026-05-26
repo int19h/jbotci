@@ -260,6 +260,154 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "search score semantics are index-specific",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:AbstractionNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ArgumentNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignment",
+        "assignment referential validity is cross-checked through PlaceAnalysis frame and argument indexes",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignmentId",
+        "assignment ids are opaque PlaceAnalysis keys whose bounds are checked by assignment lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:DiscourseReferenceBuilder",
+        "discourse reference builder validity is governed by traversal order and consumed into DiscourseReferences",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:DiscourseReferences",
+        "reference edge index consistency is produced by the builder and checked through edge lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FreeModifierNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:IndexedSyntaxNode",
+        "indexed syntax node entries are produced from generated AST traversal and keyed by SyntaxIndex",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:MathExpressionNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:MathOperatorNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:NoopReferenceVisitor",
+        "zero-sized reference visitor carries no state",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ParagraphNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceAnalysis",
+        "place-analysis map consistency is produced by PlaceAnalysisBuilder and exposed through typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceAnalysisBuilder",
+        "place-analysis builder validity is traversal-local and consumed into PlaceAnalysis",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceCursor",
+        "place cursor is private traversal state initialized by constructors that choose the first numbered slot",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PredicateNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PredicateTailAnalysis",
+        "predicate-tail analysis is private traversal state produced alongside frame propagation",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PredicateTailNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:RawSyntaxNodeId",
+        "raw syntax node ids are opaque SyntaxIndex keys whose bounds are checked by node lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceAnalysis",
+        "reference analysis aggregates separately built syntax, place, and discourse indexes",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
+        "reference edge source and target validity is checked by DiscourseReferences and SyntaxIndex lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
+        "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:RelationNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:RelationUnitNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrame",
+        "place frame referential validity is checked through PlaceAnalysis and SyntaxIndex lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrameId",
+        "place frame ids are opaque PlaceAnalysis keys whose bounds are checked by frame lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:StatementNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SyntaxIndex",
+        "syntax index consistency is produced by generated AST traversal and enforced through typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SyntaxIndexBuilder",
+        "syntax index builder validity is governed by generated traversal enter and exit sequencing",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SyntaxNodeMetadata",
+        "syntax node metadata is derived from generated traversal order and morphology leaf spans",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:SyntaxSpanKey",
+        "span keys are compatibility/debug projections derived from SourceSpan metadata",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:TermNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:TextNodeId",
+        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0ArgumentAssignment",
+        "v0 compatibility assignment is a lossy projection whose source facts remain in PlaceAnalysis",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0CompatibilityProjection",
+        "v0 compatibility projection is a derived serialization aggregate",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0ReferenceEdge",
+        "v0 compatibility reference edge is a lossy projection whose source facts remain in DiscourseReferences",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0RelationPlace",
+        "v0 compatibility relation-place entry is derived from typed place assignments",
+    ),
+    (
         "crates/jbotci-semantics/src/lib.rs:ScopedModifier",
         "semantic model is a placeholder port scaffold with no derived grammar contract yet",
     ),

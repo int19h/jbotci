@@ -1194,7 +1194,12 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack<R>(f: impl FnOnce() -> R) -> R {
-        f()
+    fn run_on_normal_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(f)
+            .expect("test thread")
+            .join()
+            .expect("test passed")
     }
 }

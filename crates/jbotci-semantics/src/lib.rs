@@ -1,5 +1,7 @@
 //! Lojban semantic model and builder facade.
 
+pub mod references;
+
 use bityzba::{invariant, requires};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::TextSyntax;

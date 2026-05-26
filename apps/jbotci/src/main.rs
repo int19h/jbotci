@@ -2490,22 +2490,24 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_warnings_go_to_stderr() {
-        let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--format", "djeisone", "mi", "klama", "fi'oi", "broda",
-        ])
-        .expect("gentufa warning parse");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
+        run_on_normal_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "djeisone", "mi", "klama", "fi'oi", "broda",
+            ])
+            .expect("gentufa warning parse");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
 
-        let stdout = String::from_utf8(output).expect("stdout utf8");
-        let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stdout.starts_with('{'));
-        assert!(!stdout.contains("warning:"));
-        assert!(stderr.contains("experimental syntax"), "{stderr}");
-        assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
-        assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
-        assert!(stderr.contains("fi'oi"));
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            let stderr = String::from_utf8(error).expect("stderr utf8");
+            assert!(stdout.starts_with('{'));
+            assert!(!stdout.contains("warning:"));
+            assert!(stderr.contains("experimental syntax"), "{stderr}");
+            assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
+            assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
+            assert!(stderr.contains("fi'oi"));
+        });
     }
 
     #[test]
@@ -3016,34 +3018,38 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_runs_reported_color_case_on_normal_cli_stack() {
-        let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--color", "gleki", "je", "klama", "zei", "klama",
-        ])
-        .expect("gentufa color");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
-        assert!(error.is_empty());
-        let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("\x1b["));
-        assert!(output.contains("gléki"));
+        run_on_normal_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--color", "gleki", "je", "klama", "zei", "klama",
+            ])
+            .expect("gentufa color");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(output.contains("\x1b["));
+            assert!(output.contains("gléki"));
+        });
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn color_never_disables_ansi_output() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=never", "mi", "klama"])
-            .expect("gentufa color never");
-        assert_eq!(cli.color, concolor_clap::ColorChoice::Never);
+        run_on_normal_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color=never", "mi", "klama"])
+                .expect("gentufa color never");
+            assert_eq!(cli.color, concolor_clap::ColorChoice::Never);
 
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, true).expect("gentufa color never run");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, true).expect("gentufa color never run");
 
-        let output = String::from_utf8(output).expect("utf8");
-        assert!(!output.contains("\x1b["));
-        assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(!output.contains("\x1b["));
+            assert!(error.is_empty());
+        });
     }
 
     #[test]
@@ -3077,7 +3083,12 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack(test: impl FnOnce()) {
-        test();
+    fn run_on_normal_stack(test: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(test)
+            .expect("test thread")
+            .join()
+            .expect("test passed");
     }
 }
