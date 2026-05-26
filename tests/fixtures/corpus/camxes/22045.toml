@@ -10,3 +10,25 @@ entry-id = "22045"
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "talĭesin" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "grú" }), Rafsi(Phonemes { text: "sko" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 19, char_start: 13, char_end: 19, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 24, char_start: 20, char_end: 24, start: None, end: None } }, nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [6, 9], source-text = "lie", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":13,"length":11},"kind":"base-relation","relation":{"offset":13,"length":11},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":13,"length":11},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":13,"length":11},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[1]}},{"index":3,"node":{"offset":13,"length":11},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[2]}},{"index":4,"node":{"offset":13,"length":11},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[3]}},{"index":5,"node":{"offset":13,"length":11},"kind":"predicate","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[4]}}],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥24) {
+  leading_free_modifiers: [
+    Vocative @[0‥12) {
+      vocative_markers: [
+        Cmavo @[0‥3) "doĭ",
+      ],
+      argument: Cmevla @[4‥12) "talĭesin",
+    },
+  ],
+  WithIndicator @[13‥24) {
+    Lujvo @[13‥19) "grúsko",
+    indicator: Cmavo @[20‥24) "ki'a",
+  },
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"talĭesin","span":[4,12]}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"grú"},{"Rafsi":"sko"}],"span":[13,19]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[20,24]}}}}}}}}}}}}]}]}"""

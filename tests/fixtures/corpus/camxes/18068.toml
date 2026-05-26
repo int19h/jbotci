@@ -10,3 +10,28 @@ entry-id = "18068"
 status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }, Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "va" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })))], free_modifiers: [] } }), argument: Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "revolutĭon" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 18, char_start: 8, char_end: 18, start: None, end: None } }))], free_modifiers: [] } } }], vau: None })) }] }] }'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [14, 17], source-text = "tio", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Term @[0‥18) {
+  terms: [
+    Tagged @[0‥2) {
+      tense_modal: Cmavo @[0‥2) "vi",
+      Zohe {},
+    },
+    Tagged @[2‥18) {
+      tense_modal: Cmavo @[2‥4) "va",
+      Name @[5‥18) {
+        la: Cmavo @[5‥7) "la",
+        names: [
+          Cmevla @[8‥18) "revolutĭon",
+        ],
+      },
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"vi","span":[0,2]}}}}}]}},"argument":{"Zohe":{}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"va","span":[2,4]}}}}}]}},"argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"revolutĭon","span":[8,18]}}}}]}}}}]}}}}]}]}'

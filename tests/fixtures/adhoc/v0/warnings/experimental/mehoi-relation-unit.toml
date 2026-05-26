@@ -7,6 +7,10 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] })), Argument(Quote(ZohOi(WithFreeModifiers { value: Bare(SingleWordQuote { marker: Cmavo { phonemes: Phonemes { text: "me'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }, text: "broda" } }), free_modifiers: [] })))], vau: None })) }] }] }"""
 diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zoh-oi-quote", byte-span = [3, 14], source-text = "me'oi broda", message = "experimental syntax: ZOhOI single-word foreign quote", word-index = 1 }]
 
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
 [expectations.output.gentufa]
 tree = """
 Term @[0‥14) {

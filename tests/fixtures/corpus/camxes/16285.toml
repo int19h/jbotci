@@ -10,3 +10,54 @@ entry-id = "16285"
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ki'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }))), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ki'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "nitcĭon" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 20, char_start: 13, char_end: 20, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None } })), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "távla" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 30, char_start: 25, char_end: 30, start: None, end: None } }))), terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None } })), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 35, byte_end: 36, char_start: 35, char_end: 36, start: None, end: None } }))), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 41, char_start: 37, char_end: 41, start: None, end: None } }))], free_modifiers: [] }, argument: None, dohu: None }], statement: None }] }] }"""
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [16, 19], source-text = "cio", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":25,"length":5},"kind":"base-relation","relation":{"offset":25,"length":5},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":25,"length":8},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":25,"length":8},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[1]}},{"index":3,"node":{"offset":25,"length":8},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[2]}},{"index":4,"node":{"offset":25,"length":8},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[3]}},{"index":5,"node":{"offset":22,"length":11},"kind":"predicate","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[4]}}],"assignments":[{"frame":0,"frame-node":{"offset":25,"length":5},"relation":{"offset":25,"length":5},"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"propagated"},{"frame":0,"frame-node":{"offset":25,"length":5},"relation":{"offset":25,"length":5},"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"propagated"},{"frame":1,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"propagated"},{"frame":1,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"propagated"},{"frame":2,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"propagated"},{"frame":2,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"propagated"},{"frame":3,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"propagated"},{"frame":3,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"propagated"},{"frame":4,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"propagated"},{"frame":4,"frame-node":{"offset":25,"length":8},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"propagated"},{"frame":5,"frame-node":{"offset":22,"length":11},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":22,"length":2},"term":{"offset":22,"length":2},"source":"sequential-term"},{"frame":5,"frame-node":{"offset":22,"length":11},"relation":null,"relation-unit":null,"slot":{"kind":"numbered","place":2},"argument":{"offset":31,"length":2},"term":{"offset":31,"length":2},"source":"sequential-term"}],"relation-places":[{"frame":0,"relation":{"offset":25,"length":5},"place":1,"argument":{"offset":22,"length":2}},{"frame":0,"relation":{"offset":25,"length":5},"place":2,"argument":{"offset":31,"length":2}},{"frame":1,"relation":{"offset":25,"length":8},"place":1,"argument":{"offset":22,"length":2}},{"frame":1,"relation":{"offset":25,"length":8},"place":2,"argument":{"offset":31,"length":2}},{"frame":2,"relation":{"offset":25,"length":8},"place":1,"argument":{"offset":22,"length":2}},{"frame":2,"relation":{"offset":25,"length":8},"place":2,"argument":{"offset":31,"length":2}},{"frame":3,"relation":{"offset":25,"length":8},"place":1,"argument":{"offset":22,"length":2}},{"frame":3,"relation":{"offset":25,"length":8},"place":2,"argument":{"offset":31,"length":2}},{"frame":4,"relation":{"offset":25,"length":8},"place":1,"argument":{"offset":22,"length":2}},{"frame":4,"relation":{"offset":25,"length":8},"place":2,"argument":{"offset":31,"length":2}},{"frame":5,"relation":{"offset":22,"length":11},"place":1,"argument":{"offset":22,"length":2}},{"frame":5,"relation":{"offset":22,"length":11},"place":2,"argument":{"offset":31,"length":2}}],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥41) {
+  leading_free_modifiers: [
+    Vocative @[0‥4) {
+      vocative_markers: [
+        Cmavo @[0‥4) "ki'e",
+      ],
+    },
+  ],
+  Paragraph @[6‥41) {
+    ParagraphStatement @[6‥33) {
+      i: Cmavo @[6‥7) "i",
+      free_modifiers: [
+        Vocative @[8‥20) {
+          vocative_markers: [
+            Cmavo @[8‥12) "ki'e",
+          ],
+          argument: Cmevla @[13‥20) "nitcĭon",
+        },
+      ],
+      Predicate @[22‥33) {
+        leading_terms: [
+          Cmavo @[22‥24) "do",
+        ],
+        Relation @[25‥33) {
+          Gismu @[25‥30) "távla",
+          terms: [
+            Cmavo @[31‥33) "mi",
+          ],
+        },
+      },
+    },
+    ParagraphStatement @[35‥41) {
+      i: Cmavo @[35‥36) "i",
+      free_modifiers: [
+        Vocative @[37‥41) {
+          vocative_markers: [
+            Cmavo @[37‥41) "co'o",
+          ],
+        },
+      ],
+    },
+  },
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}}]}}],"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ki'e","span":[8,12]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"nitcĭon","span":[13,20]}}}}]}}}],"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[22,24]}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"távla","span":[25,30]}}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}]}}}}}}}},{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[35,36]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[37,41]}}}}]}}]}]}]}"""

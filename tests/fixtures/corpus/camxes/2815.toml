@@ -10,3 +10,21 @@ entry-id = "2815"
 status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "edŭard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [5, 8], source-text = "dua", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥10) {
+  leading_free_modifiers: [
+    Vocative @[0‥10) {
+      vocative_markers: [
+        Cmavo @[0‥3) "coĭ",
+      ],
+      argument: Cmevla @[4‥10) "edŭard",
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"edŭard","span":[4,10]}}}}]}}}]}'

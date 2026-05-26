@@ -14,6 +14,10 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "va'o" }, span: SourceSpan { s
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "va'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), argument: Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "fágri" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })))), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
 
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":15,"length":5},"kind":"base-relation","relation":{"offset":15,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+
 [expectations.output.vlasei]
 brackets = "(va'o le fágri)"
 tree = """

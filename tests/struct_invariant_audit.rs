@@ -268,12 +268,36 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:ArgumentMention",
+        "argument mention validity is maintained by discourse traversal and resolved through SyntaxIndex ids",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignment",
         "assignment referential validity is cross-checked through PlaceAnalysis frame and argument indexes",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignmentId",
         "assignment ids are opaque PlaceAnalysis keys whose bounds are checked by assignment lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureArgumentAssignment",
+        "fixture assignment records are stable projections of typed reference analysis facts",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFrame",
+        "fixture frame records are stable projections of typed place frame facts",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceEdge",
+        "fixture reference records are stable projections of typed discourse reference facts",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureRelationPlace",
+        "fixture relation-place records are stable projections of typed place assignments",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureSpanKey",
+        "fixture span keys are derived from syntax source spans for expectation output only",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:DiscourseReferenceBuilder",
@@ -300,8 +324,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:NoopReferenceVisitor",
-        "zero-sized reference visitor carries no state",
+        "crates/jbotci-semantics/src/references.rs:NodeMention",
+        "node mention validity is maintained by discourse traversal and resolved through SyntaxIndex ids",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ParagraphNodeId",
@@ -346,6 +370,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
         "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceFixtureProjection",
+        "fixture projection is a sorted serialization aggregate derived from ReferenceAnalysis",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:RelationNodeId",
@@ -588,6 +616,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture expectation aggregate permits absent output formats",
     ),
     (
+        "tests/support/fixtures/mod.rs:ReferenceExpectation",
+        "semantic refs expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:SemanticsExpectations",
+        "fixture expectation aggregate permits absent semantic facets",
+    ),
+    (
         "tests/support/fixtures/mod.rs:SyntaxExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
@@ -648,6 +684,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask command args delegate validation to clap and command code",
     ),
     (
+        "xtask/src/main.rs:RefsV0ParityArgs",
+        "xtask command args delegate validation to clap and command code",
+    ),
+    (
         "xtask/src/main.rs:FixtureVectorStatsArgs",
         "xtask command args delegate validation to clap and command code",
     ),
@@ -660,6 +700,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "placeholder backend carries no state",
     ),
     (
+        "xtask/src/main.rs:ParityFailures",
+        "parity failure counter owns bounded sample collection for reporting",
+    ),
+    (
         "xtask/src/main.rs:RewriteSummary",
         "rewrite summary is derived reporting data",
     ),
@@ -670,6 +714,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:VendorDictionaryArgs",
         "xtask command args delegate validation to clap and command code",
+    ),
+    (
+        "xtask/src/main.rs:V0ArgumentAssignmentFact",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+    ),
+    (
+        "xtask/src/main.rs:V0LabelledSpan",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+    ),
+    (
+        "xtask/src/main.rs:V0RefsCase",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+    ),
+    (
+        "xtask/src/main.rs:V0RefsExport",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+    ),
+    (
+        "xtask/src/main.rs:V0RelationPlaceFact",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+    ),
+    (
+        "xtask/src/main.rs:V0SyntaxRefs",
+        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
     ),
 ];
 

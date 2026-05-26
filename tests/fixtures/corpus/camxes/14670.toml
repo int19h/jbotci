@@ -10,3 +10,26 @@ entry-id = "14670"
 status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "xu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), nai: None }], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "xavĭer" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [9, 12], source-text = "vie", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥13) {
+  leading_indicators: [
+    Indicator @[0‥2) {
+      indicator: Cmavo @[0‥2) "xu",
+    },
+  ],
+  leading_free_modifiers: [
+    Vocative @[3‥13) {
+      vocative_markers: [
+        Cmavo @[3‥6) "coĭ",
+      ],
+      argument: Cmevla @[7‥13) "xavĭer",
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"xavĭer","span":[7,13]}}}}]}}}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}'

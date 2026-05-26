@@ -10,3 +10,30 @@ entry-id = "19155"
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "u'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "saĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }, nai: None }, nai: None }], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "krĭeg" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [17, 20], source-text = "rie", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[1‥21) {
+  leading_indicators: [
+    Indicator @[1‥7) {
+      indicator: WithIndicator @[1‥7) {
+        Cmavo @[1‥4) "u'i",
+        indicator: Cmavo @[4‥7) "saĭ",
+      },
+    },
+  ],
+  leading_free_modifiers: [
+    Vocative @[8‥21) {
+      vocative_markers: [
+        Cmavo @[8‥12) "mi'e",
+        Cmavo @[12‥15) "naĭ",
+      ],
+      argument: Cmevla @[16‥21) "krĭeg",
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi'e","span":[8,12]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[12,15]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"krĭeg","span":[16,21]}}}}]}}}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"u'i","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[4,7]}}}}}]}"""

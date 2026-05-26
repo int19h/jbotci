@@ -14,6 +14,10 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { s
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróca" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":9,"length":5},"kind":"base-relation","relation":{"offset":9,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":9,"length":5},"relation":{"offset":9,"length":5},"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":9,"length":5},"term":null,"source":"sequential-term"}],"relation-places":[{"frame":0,"relation":{"offset":9,"length":5},"place":1,"argument":{"offset":9,"length":5}}],"references":[]}'
+
 [expectations.output.vlasei]
 brackets = "(co'o doĭ bróca)"
 tree = """

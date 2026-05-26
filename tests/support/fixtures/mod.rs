@@ -83,6 +83,14 @@ impl TestCase {
         if self.expectations.syntax.is_some() {
             facets.insert(Facet::Syntax);
         }
+        if self
+            .expectations
+            .semantics
+            .as_ref()
+            .is_some_and(|semantics| semantics.refs.is_some())
+        {
+            facets.insert(Facet::SemanticsRefs);
+        }
         if let Some(output) = &self.expectations.output {
             if output
                 .vlasei
@@ -158,6 +166,12 @@ impl TestCase {
                 .as_ref()
                 .map(|value| value.status),
             Facet::Syntax => self.expectations.syntax.as_ref().map(|value| value.status),
+            Facet::SemanticsRefs => self
+                .expectations
+                .semantics
+                .as_ref()
+                .and_then(|semantics| semantics.refs.as_ref())
+                .map(|value| value.status),
             Facet::VlaseiBrackets => self
                 .expectations
                 .output
@@ -312,6 +326,8 @@ pub struct Expectations {
     pub morphology: Option<MorphologyExpectation>,
     #[serde(default)]
     pub syntax: Option<SyntaxExpectation>,
+    #[serde(default)]
+    pub semantics: Option<SemanticsExpectations>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -336,6 +352,14 @@ pub struct CommandOutputExpectation {
     pub json: Option<TextExpectation>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct SemanticsExpectations {
+    #[serde(default)]
+    pub refs: Option<ReferenceExpectation>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
@@ -358,6 +382,15 @@ pub struct SyntaxExpectation {
     pub diagnostics: Vec<DiagnosticExpectation>,
     #[serde(default)]
     pub xfail: Option<XfailExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct ReferenceExpectation {
+    pub status: ExpectationStatus,
+    #[serde(default)]
+    pub raw: Option<TextExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -463,6 +496,7 @@ pub enum ExpectationStatus {
 pub enum Facet {
     Morphology,
     Syntax,
+    SemanticsRefs,
     VlaseiBrackets,
     VlaseiTree,
     VlaseiJson,
@@ -478,6 +512,7 @@ impl Facet {
         &[
             Self::Morphology,
             Self::Syntax,
+            Self::SemanticsRefs,
             Self::VlaseiBrackets,
             Self::VlaseiTree,
             Self::VlaseiJson,
@@ -495,6 +530,7 @@ impl fmt::Display for Facet {
         let text = match self {
             Self::Morphology => "morphology",
             Self::Syntax => "syntax",
+            Self::SemanticsRefs => "semantics-refs",
             Self::VlaseiBrackets => "vlasei-brackets",
             Self::VlaseiTree => "vlasei-tree",
             Self::VlaseiJson => "vlasei-json",
@@ -515,6 +551,7 @@ impl std::str::FromStr for Facet {
         match text {
             "morphology" => Ok(Self::Morphology),
             "syntax" => Ok(Self::Syntax),
+            "semantics-refs" => Ok(Self::SemanticsRefs),
             "vlasei-brackets" => Ok(Self::VlaseiBrackets),
             "vlasei-tree" => Ok(Self::VlaseiTree),
             "vlasei-json" => Ok(Self::VlaseiJson),

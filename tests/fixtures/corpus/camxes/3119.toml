@@ -10,3 +10,16 @@ entry-id = "3119"
 status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "edŭard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [4, 7], source-text = "dua", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[3‥9) {
+  leading_cmevla: [
+    Cmevla @[3‥9) "edŭard",
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"edŭard","span":[3,9]}}}}]}'

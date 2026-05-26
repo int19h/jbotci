@@ -14,6 +14,10 @@ raw = """[Bare(Cmavo { phonemes: Phonemes { text: "vo'a" }, span: SourceSpan { s
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "vo'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [Xi { xi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "xi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }))], free_modifiers: [] }, boi: None }) }] }))], vau: None })) }] }] }"""
 
+[expectations.semantics.refs]
+status = "success"
+raw = """{"frames":[],"assignments":[],"relation-places":[],"references":[{"kind":"voha-series","source":{"offset":0,"length":10},"target":{"kind":"unresolved","reason":"vo'a-series place is not filled in the current predicate"}}]}"""
+
 [expectations.output.vlasei]
 brackets = "(vo'a xi ro)"
 tree = """

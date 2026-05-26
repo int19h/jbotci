@@ -4,4 +4,14 @@ tags = ["morphology", "warnings"]
 
 [expectations.morphology]
 status = "success"
+raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "djeĭmz" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None } })]'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-mz", byte-span = [7, 9], source-text = "mz", message = "experimental morphology: MZ consonant pair" }]
+
+[expectations.output.vlasei]
+brackets = "(la .djeĭmz.)"
+tree = """
+[
+  Cmavo @[0‥2) "la",
+  Cmevla @[3‥9) "djeĭmz",
+]"""
+json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"djeĭmz","span":[3,9]}}}]'

@@ -4,4 +4,13 @@ tags = ["morphology", "warnings"]
 
 [expectations.morphology]
 status = "success"
+raw = '[Bare(Gismu { phonemes: Phonemes { text: "námzi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })]'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-mz", byte-span = [2, 4], source-text = "mz", message = "experimental morphology: MZ consonant pair" }]
+
+[expectations.output.vlasei]
+brackets = "námzi"
+tree = """
+[
+  Gismu @[0‥5) "námzi",
+]"""
+json = '[{"Bare":{"Gismu":{"phonemes":"námzi","span":[0,5]}}}]'

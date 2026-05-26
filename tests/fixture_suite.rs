@@ -10,9 +10,10 @@ use jbotci_source::SourceId;
 use support::fixtures::{
     CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations, Facet, FacetResult,
     FixtureBackend, FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation,
-    MuplisForm, OutputExpectations, Provenance, SyntaxExpectation, TestCase, TextExpectation,
-    XfailExpectation, filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree,
-    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    MuplisForm, OutputExpectations, Provenance, ReferenceExpectation, SemanticsExpectations,
+    SyntaxExpectation, TestCase, TextExpectation, XfailExpectation, filter_fixtures,
+    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
+    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -379,6 +380,14 @@ fn writer_keeps_tree_and_output_values() {
                     accepted_status: ExpectationStatus::Failure,
                 }),
             }),
+            semantics: Some(SemanticsExpectations {
+                refs: Some(ReferenceExpectation {
+                    status: ExpectationStatus::Success,
+                    raw: Some(TextExpectation {
+                        text: "{\"frames\":[],\"assignments\":[],\"relation-places\":[],\"references\":[]}".into(),
+                    }),
+                }),
+            }),
         },
     };
     write_fixture_file(&fixture_path, &test_case).expect("write fixture");
@@ -395,6 +404,7 @@ fn writer_keeps_tree_and_output_values() {
     assert!(!text.contains("words = ["));
     assert!(!text.contains("options = "));
     assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nraw = "));
+    assert!(text.contains("[expectations.semantics.refs]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("parse-tree"));
     assert!(
         text.contains(
@@ -441,6 +451,36 @@ fn available_facets_include_tree_expectations() {
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
         Facet::GentufaTree
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn available_facets_include_semantics_refs_expectations() {
+    let case = TestCase {
+        id: "adhoc.refs".into(),
+        lojban: "mi klama do".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            semantics: Some(SemanticsExpectations {
+                refs: Some(ReferenceExpectation {
+                    status: ExpectationStatus::Success,
+                    raw: Some(TextExpectation { text: "{}".into() }),
+                }),
+            }),
+            ..Expectations::default()
+        },
+    };
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::SemanticsRefs));
+    assert_eq!(
+        "semantics-refs".parse::<Facet>().expect("refs facet"),
+        Facet::SemanticsRefs
     );
 }
 

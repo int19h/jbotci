@@ -10,3 +10,26 @@ entry-id = "16491"
 status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "xavĭer" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 14, char_start: 8, char_end: 14, start: None, end: None } }))], free_modifiers: [] } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [10, 13], source-text = "vie", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥14) {
+  leading_free_modifiers: [
+    Vocative @[0‥14) {
+      vocative_markers: [
+        Cmavo @[0‥4) "co'o",
+      ],
+      argument: Name @[5‥14) {
+        la: Cmavo @[5‥7) "la",
+        names: [
+          Cmevla @[8‥14) "xavĭer",
+        ],
+      },
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}],"argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"xavĭer","span":[8,14]}}}}]}}}}]}"""

@@ -10,3 +10,31 @@ entry-id = "8607"
 status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "signifĭed" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 9, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }))], free_modifiers: [] }, boi: None }), Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "gaŭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [5, 8], source-text = "fie", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥16) {
+  leading_cmevla: [
+    Cmevla @[0‥9) "signifĭed",
+  ],
+  Term @[10‥16) {
+    terms: [
+      Letter @[10‥12) {
+        letter: [
+          Cmavo @[10‥12) "by",
+        ],
+      },
+      Tagged @[13‥16) {
+        tense_modal: Simple @[13‥16) {
+          bai: Cmavo @[13‥16) "gaŭ",
+        },
+        Zohe {},
+      },
+    ],
+  },
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"signifĭed","span":[0,9]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"by","span":[10,12]}}}}]}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"gaŭ","span":[13,16]}}}}}},"argument":{"Zohe":{}}}}]}}}}]}]}'

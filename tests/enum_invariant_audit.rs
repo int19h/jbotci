@@ -56,6 +56,58 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries pronunciation renderer diagnostics",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Forward",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Conversion",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Jai",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Connected",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Compound",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Numbered",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Modal",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedNode",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedFrame",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::AmbiguousNodes",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Unresolved",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Vague",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
         "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::CharOffsetOutOfBounds",
         "diagnostic enum records rejected source offsets",
     ),
@@ -549,6 +601,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "xtask/src/main.rs:Command::FixtureRewrite",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::RefsV0Parity",
         "xtask command enum delegates validation to clap and option structs",
     ),
     (

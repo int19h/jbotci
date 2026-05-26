@@ -105,6 +105,13 @@ fn push_expectations_toml(
         }
         push_optional_field(output, "xfail", &syntax.xfail)?;
     }
+    if let Some(semantics) = &expectations.semantics
+        && let Some(refs) = &semantics.refs
+    {
+        output.push_str("\n[expectations.semantics.refs]\n");
+        push_field(output, "status", &refs.status)?;
+        push_optional_field(output, "raw", &refs.raw)?;
+    }
     if let Some(output_expectation) = &expectations.output {
         if let Some(vlasei) = &output_expectation.vlasei
             && (vlasei.brackets.is_some() || vlasei.tree.is_some() || vlasei.json.is_some())
