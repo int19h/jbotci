@@ -16,8 +16,8 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
-    DiagnosticRenderOptions, GlideMark, JsonRenderOptions, PhonemeRenderOptions, StressMark,
-    TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
+    DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, PhonemeRenderOptions,
+    StressMark, TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
     compact_syntax_json_string_with_options, pretty_brackets_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
     pretty_tree_with_options, render_diagnostics, render_trace_report,
@@ -46,6 +46,8 @@ struct Cli {
         require_equals = true,
     )]
     color: concolor_clap::ColorChoice,
+    #[arg(long = "ascii", global = true)]
+    ascii: bool,
     #[arg(long = "detailed-errors", global = true)]
     detailed_errors: bool,
     #[arg(long = "trace-phase", global = true, value_enum)]
@@ -523,6 +525,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
+    let glyphs = cli_glyph_style(cli.ascii);
     let diagnostic_detail = if cli.detailed_errors {
         DiagnosticDetailMode::Detailed
     } else {
@@ -537,7 +540,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     match cli.command {
         Command::Vlasei(mut input) => {
             normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
-            validate_vlasei_options(&input)?;
+            validate_vlasei_options(&input, glyphs)?;
             validate_trace_controls(
                 &input.trace,
                 new!(CliTraceValidation {
@@ -598,6 +601,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                         &diagnostics,
                         color_policy.stderr,
                         diagnostic_detail,
+                        glyphs,
                         diagnostic_terminal_width,
                     )?;
                     return Ok(CliStatus::Failure);
@@ -616,9 +620,11 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 &diagnostics,
                 color_policy.stderr,
                 diagnostic_detail,
+                glyphs,
                 diagnostic_terminal_width,
             )?;
-            let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
+            let phoneme_options =
+                phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
             match input.format {
                 VlaseiFormat::Json => {
                     let rendered = compact_morphology_json_string_with_options(
@@ -637,6 +643,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                         BracketRenderOptions {
                             color: color_policy.stdout,
                             phonemes: phoneme_options,
+                            glyphs,
                             decompose_lujvo: input.decompose_lujvo,
                         },
                     )?;
@@ -650,6 +657,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                             color: color_policy.stdout,
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
+                            glyphs,
                             show_spans: input.show_spans,
                             show_refs: false,
                             decompose_lujvo: input.decompose_lujvo,
@@ -689,6 +697,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 stderr,
                 color_policy,
                 diagnostic_detail,
+                glyphs,
                 diagnostic_terminal_width,
                 CliTraceConfig {
                     phase: requested_trace_phase.unwrap_or(TracePhase::Syntax),
@@ -788,6 +797,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
 ) -> Result<CliStatus> {
@@ -795,6 +805,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
         input,
         color_policy,
         diagnostic_detail,
+        glyphs,
         diagnostic_terminal_width,
         trace,
     )?;
@@ -853,11 +864,12 @@ fn render_gentufa(
     mut input: GentufaInput,
     color_policy: CliColorPolicy,
     diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
 ) -> Result<GentufaRendered> {
     normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
-    validate_gentufa_options(&input)?;
+    validate_gentufa_options(&input, glyphs)?;
     let morphology_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let syntax_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
@@ -894,6 +906,7 @@ fn render_gentufa(
                 &diagnostics,
                 color_policy.stderr,
                 diagnostic_detail,
+                glyphs,
                 diagnostic_terminal_width,
             )?);
             return Ok(new!(GentufaRendered {
@@ -925,6 +938,7 @@ fn render_gentufa(
                 &diagnostics,
                 color_policy.stderr,
                 diagnostic_detail,
+                glyphs,
                 diagnostic_terminal_width,
             )?);
             return Ok(new!(GentufaRendered {
@@ -949,9 +963,10 @@ fn render_gentufa(
         &diagnostics,
         color_policy.stderr,
         diagnostic_detail,
+        glyphs,
         diagnostic_terminal_width,
     )?);
-    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides);
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let mut stdout = String::new();
     match input.format {
         GentufaFormat::Brackets => {
@@ -961,6 +976,7 @@ fn render_gentufa(
                 BracketRenderOptions {
                     color: color_policy.stdout,
                     phonemes: phoneme_options,
+                    glyphs,
                     decompose_lujvo: input.decompose_lujvo,
                 },
             )?;
@@ -978,6 +994,7 @@ fn render_gentufa(
                     color: color_policy.stdout,
                     indent: input.indent.unwrap_or(2),
                     phonemes: phoneme_options,
+                    glyphs,
                     show_spans: input.show_spans,
                     show_refs: input.show_refs,
                     decompose_lujvo: input.decompose_lujvo,
@@ -1025,6 +1042,7 @@ fn write_source_diagnostics<W: Write>(
     diagnostics: &[Diagnostic],
     color_enabled: bool,
     diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
 ) -> Result<()> {
     let rendered = render_source_diagnostics(
@@ -1033,6 +1051,7 @@ fn write_source_diagnostics<W: Write>(
         diagnostics,
         color_enabled,
         diagnostic_detail,
+        glyphs,
         diagnostic_terminal_width,
     )?;
     stderr.write_all(rendered.as_bytes())?;
@@ -1049,6 +1068,7 @@ fn render_source_diagnostics(
     diagnostics: &[Diagnostic],
     color_enabled: bool,
     diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
 ) -> Result<String> {
     render_diagnostics(
@@ -1058,6 +1078,7 @@ fn render_source_diagnostics(
         DiagnosticRenderOptions {
             color: color_enabled,
             detail: diagnostic_detail,
+            glyphs,
             terminal_width: diagnostic_terminal_width,
         },
     )
@@ -1326,11 +1347,28 @@ fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition> {
 
 #[requires(true)]
 #[ensures(true)]
+fn cli_glyph_style(ascii: bool) -> GlyphStyle {
+    if ascii {
+        GlyphStyle::Ascii
+    } else {
+        GlyphStyle::Unicode
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn phoneme_render_options(
     mark_stress: Option<CliStressMark>,
     mark_glides: Option<CliGlideMark>,
+    glyphs: GlyphStyle,
 ) -> PhonemeRenderOptions {
-    let default = PhonemeRenderOptions::default();
+    let default = match glyphs {
+        GlyphStyle::Unicode => PhonemeRenderOptions::default(),
+        GlyphStyle::Ascii => PhonemeRenderOptions {
+            mark_stress: StressMark::None,
+            mark_glides: GlideMark::None,
+        },
+    };
     PhonemeRenderOptions {
         mark_stress: mark_stress
             .map(StressMark::from)
@@ -1343,11 +1381,14 @@ fn phoneme_render_options(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_vlasei_options(input: &VlaseiInput) -> Result<()> {
+fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()> {
+    validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
     match input.format {
         VlaseiFormat::Raw => {
             validate_raw_indent(input.indent)?;
-            validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+            if glyphs == GlyphStyle::Unicode {
+                validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+            }
             validate_not_present(
                 input.show_spans,
                 "`--show-spans` is only supported with `--turtai tree`",
@@ -1384,7 +1425,8 @@ fn validate_vlasei_options(input: &VlaseiInput) -> Result<()> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
+fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<()> {
+    validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
     if input.definitions {
         return match input.format {
             GentufaFormat::Brackets => Err(anyhow!(
@@ -1397,7 +1439,9 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
     }
     if input.format == GentufaFormat::Raw {
         validate_raw_indent(input.indent)?;
-        validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+        if glyphs == GlyphStyle::Unicode {
+            validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+        }
         validate_not_present(
             input.show_spans,
             "`--show-spans` is only supported with `--turtai tree`",
@@ -1443,6 +1487,32 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
             }
             GentufaFormat::Raw => {}
         }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_ascii_phoneme_projection(
+    mark_stress: Option<CliStressMark>,
+    mark_glides: Option<CliGlideMark>,
+    glyphs: GlyphStyle,
+) -> Result<()> {
+    if glyphs == GlyphStyle::Unicode {
+        return Ok(());
+    }
+    if matches!(
+        mark_stress,
+        Some(CliStressMark::Acute | CliStressMark::Caps)
+    ) {
+        return Err(anyhow!(
+            "`--ascii` is not compatible with `--mark-stress acute` or `--mark-stress caps`"
+        ));
+    }
+    if matches!(mark_glides, Some(CliGlideMark::Breve)) {
+        return Err(anyhow!(
+            "`--ascii` is not compatible with `--mark-glides breve`"
+        ));
     }
     Ok(())
 }
@@ -1902,6 +1972,7 @@ mod tests {
     fn parses_color_policy_values() {
         let default_cli = Cli::try_parse_from(["jbotci", "gentufa", "coi"]).expect("default color");
         assert_eq!(default_cli.color, concolor_clap::ColorChoice::Auto);
+        assert!(!default_cli.ascii);
         assert!(!default_cli.detailed_errors);
 
         let bare_cli =
@@ -1919,6 +1990,10 @@ mod tests {
         let detailed_cli = Cli::try_parse_from(["jbotci", "--detailed-errors", "gentufa", "coi"])
             .expect("detailed errors");
         assert!(detailed_cli.detailed_errors);
+
+        let ascii_cli =
+            Cli::try_parse_from(["jbotci", "--ascii", "gentufa", "coi"]).expect("ascii flag");
+        assert!(ascii_cli.ascii);
     }
 
     #[test]
@@ -2324,6 +2399,135 @@ mod tests {
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("raw projection flags rejected");
         assert!(error.to_string().contains("not supported with raw output"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ascii_rejects_incompatible_diacritic_flags() {
+        let stress_cli = Cli::try_parse_from([
+            "jbotci",
+            "--ascii",
+            "gentufa",
+            "--format",
+            "tree",
+            "--mark-stress",
+            "acute",
+            "mi",
+            "klama",
+        ])
+        .expect("ASCII stress conflict parses");
+        let error = run_cli(stress_cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("ASCII stress conflict rejected");
+        assert!(error.to_string().contains("`--ascii`"));
+        assert!(error.to_string().contains("`--mark-stress acute`"));
+
+        let glide_cli = Cli::try_parse_from([
+            "jbotci",
+            "--ascii",
+            "vlasei",
+            "--format",
+            "tree",
+            "--mark-glides",
+            "breve",
+            "coi",
+        ])
+        .expect("ASCII glide conflict parses");
+        let error = run_cli(glide_cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("ASCII glide conflict rejected");
+        assert!(error.to_string().contains("`--mark-glides breve`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ascii_accepts_compatible_diacritic_flags() {
+        let output = run_success_stdout(&[
+            "jbotci",
+            "--ascii",
+            "gentufa",
+            "--format",
+            "tree",
+            "--mark-stress",
+            "none",
+            "--mark-glides",
+            "none",
+            "mi",
+            "klama",
+        ]);
+
+        assert!(output.contains("Gismu \"klama\""));
+        assert!(!output.contains("kláma"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ascii_affects_human_and_json_outputs() {
+        let gentufa_tree = run_success_stdout(&[
+            "jbotci",
+            "--ascii",
+            "gentufa",
+            "--format",
+            "tree",
+            "--show-spans",
+            "--show-refs",
+            "mi",
+            "klama",
+            "do",
+        ]);
+        assert!(gentufa_tree.contains("k<1>-> Cmavo @[0..2) \"mi\""));
+        assert!(gentufa_tree.contains("Gismu @[3..8) \"klama\" ->k"));
+        assert!(!gentufa_tree.contains('→'));
+        assert!(!gentufa_tree.contains('‥'));
+        assert!(!gentufa_tree.contains('á'));
+
+        let gentufa_brackets = run_success_stdout(&[
+            "jbotci",
+            "--ascii",
+            "gentufa",
+            "--format",
+            "brackets",
+            "--decompose-lujvo",
+            "mivyselbai",
+        ]);
+        assert!(gentufa_brackets.contains("miv~y~sel~bai"));
+
+        let gentufa_json = run_success_stdout(&[
+            "jbotci", "--ascii", "gentufa", "--format", "json", "coi", "klama",
+        ]);
+        assert!(gentufa_json.contains("\"phonemes\": \"coi\""));
+        assert!(gentufa_json.contains("\"phonemes\": \"klama\""));
+
+        let vlasei_tree = run_success_stdout(&[
+            "jbotci",
+            "--ascii",
+            "vlasei",
+            "--format",
+            "tree",
+            "--show-spans",
+            "coi",
+            "klama",
+        ]);
+        assert!(vlasei_tree.contains("Cmavo @[0..3) \"coi\""));
+        assert!(vlasei_tree.contains("Gismu @[4..9) \"klama\""));
+
+        let vlasei_brackets = run_success_stdout(&[
+            "jbotci",
+            "--ascii",
+            "vlasei",
+            "--format",
+            "brackets",
+            "--decompose-lujvo",
+            "mivyselbai",
+        ]);
+        assert!(vlasei_brackets.contains("miv~y~sel~bai"));
+
+        let vlasei_json = run_success_stdout(&[
+            "jbotci", "--ascii", "vlasei", "--format", "json", "coi", "klama",
+        ]);
+        assert!(vlasei_json.contains("\"phonemes\": \"coi\""));
+        assert!(vlasei_json.contains("\"phonemes\": \"klama\""));
     }
 
     #[test]
@@ -3114,6 +3318,19 @@ mod tests {
             text: vec!["coi".into(), "rodo".into()],
         };
         assert_eq!(input.read_text().expect("text"), "coi rodo");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_success_stdout(args: &[&str]) -> String {
+        let cli = Cli::try_parse_from(args).expect("CLI args parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("CLI run succeeds");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty(), "{}", String::from_utf8_lossy(&error));
+        String::from_utf8(output).expect("stdout utf8")
     }
 
     #[requires(true)]

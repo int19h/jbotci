@@ -12,7 +12,7 @@ use jbotci_syntax::ast::{
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::references::ReferenceDisplayModel;
-use crate::{OutputError, TreeRenderOptions};
+use crate::{GlyphStyle, OutputError, TreeRenderOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -95,6 +95,7 @@ pub(crate) fn pretty_tree_with_options(
         .map(|analysis| ReferenceDisplayModel::new(analysis, &value, source, options));
     let mut renderer = TreeRenderer {
         color: options.color,
+        glyphs: options.glyphs,
         indent_step: options.indent,
         show_spans: options.show_spans,
         references: references.as_ref(),
@@ -119,6 +120,7 @@ pub(crate) fn pretty_morphology_tree_with_options(
     ));
     let mut renderer = TreeRenderer {
         color: options.color,
+        glyphs: options.glyphs,
         indent_step: options.indent,
         show_spans: options.show_spans,
         references: None,
@@ -525,6 +527,7 @@ fn collapse_node(node: TreeNode) -> TreeValue {
 #[invariant(true)]
 struct TreeRenderer<'references> {
     color: bool,
+    glyphs: GlyphStyle,
     indent_step: usize,
     show_spans: bool,
     references: Option<&'references ReferenceDisplayModel>,
@@ -572,8 +575,10 @@ impl TreeRenderer<'_> {
             .map(|references| references.annotations_for_syntax_ids(syntax_ids));
         if let Some(annotations) = annotations.as_ref() {
             for name in &annotations.incoming {
-                self.output.push_str(&self.reference_name(name));
-                self.output.push_str(&self.punctuation_token("→"));
+                self.output
+                    .push_str(&self.reference_name(name, ReferenceRenderRole::Referent));
+                self.output
+                    .push_str(&self.punctuation_token(self.glyphs.arrow()));
                 self.output.push(' ');
             }
         }
@@ -581,8 +586,10 @@ impl TreeRenderer<'_> {
         if let Some(annotations) = annotations.as_ref() {
             for name in &annotations.outgoing {
                 self.output.push(' ');
-                self.output.push_str(&self.punctuation_token("→"));
-                self.output.push_str(&self.reference_name(name));
+                self.output
+                    .push_str(&self.punctuation_token(self.glyphs.arrow()));
+                self.output
+                    .push_str(&self.reference_name(name, ReferenceRenderRole::Reference));
             }
         }
     }
@@ -743,7 +750,7 @@ impl TreeRenderer<'_> {
         output.push_str(&self.punctuation_token("@"));
         output.push_str(&self.punctuation_token("["));
         output.push_str(&self.span_number_token(char_start));
-        output.push_str(&self.punctuation_token("‥"));
+        output.push_str(&self.punctuation_token(self.glyphs.span_leader()));
         output.push_str(&self.span_number_token(char_end));
         output.push_str(&self.punctuation_token(")"));
         output
@@ -751,16 +758,22 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    fn reference_name(&self, name: &crate::references::ReferenceName) -> String {
+    fn reference_name(
+        &self,
+        name: &crate::references::ReferenceName,
+        role: ReferenceRenderRole,
+    ) -> String {
         let mut output = String::new();
-        output.push_str(&self.punctuation_token(&name.stem));
+        output.push_str(&self.color_token(&name.stem, role.stem_color()));
         if let Some(index) = name.occurrence {
-            output.push_str(&self.punctuation_token(&subscript_number(index)));
+            output.push_str(
+                &self.color_token(&self.glyphs.numeric_suffix(index), role.suffix_color()),
+            );
         }
         if let Some(slot) = &name.slot {
-            output.push_str(&self.punctuation_token("⟨"));
-            output.push_str(&self.punctuation_token(&slot.text()));
-            output.push_str(&self.punctuation_token("⟩"));
+            output.push_str(&self.punctuation_token(self.glyphs.slot_open()));
+            output.push_str(&self.color_token(&slot.text(), ColorRole::ReferenceSlot));
+            output.push_str(&self.punctuation_token(self.glyphs.slot_close()));
         }
         output
     }
@@ -802,6 +815,33 @@ impl TreeRenderer<'_> {
             return text.to_owned();
         }
         format!("{}{}{}", role.open(), text, "\x1b[39m")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum ReferenceRenderRole {
+    Reference,
+    Referent,
+}
+
+impl ReferenceRenderRole {
+    #[requires(true)]
+    #[ensures(matches!(ret, ColorRole::ReferenceStem | ColorRole::ReferentStem))]
+    fn stem_color(self) -> ColorRole {
+        match self {
+            Self::Reference => ColorRole::ReferenceStem,
+            Self::Referent => ColorRole::ReferentStem,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, ColorRole::ReferenceSuffix | ColorRole::ReferentSuffix))]
+    fn suffix_color(self) -> ColorRole {
+        match self {
+            Self::Reference => ColorRole::ReferenceSuffix,
+            Self::Referent => ColorRole::ReferentSuffix,
+        }
     }
 }
 
@@ -854,30 +894,6 @@ where
         end = end.max(item_end);
     }
     Some((start, end))
-}
-
-#[requires(value > 0)]
-#[ensures(!ret.is_empty())]
-fn subscript_number(value: usize) -> String {
-    value.to_string().chars().map(subscript_digit).collect()
-}
-
-#[requires(character.is_ascii_digit())]
-#[ensures(true)]
-fn subscript_digit(character: char) -> char {
-    match character {
-        '0' => '₀',
-        '1' => '₁',
-        '2' => '₂',
-        '3' => '₃',
-        '4' => '₄',
-        '5' => '₅',
-        '6' => '₆',
-        '7' => '₇',
-        '8' => '₈',
-        '9' => '₉',
-        _ => unreachable!("requires ASCII digit"),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1053,9 +1069,9 @@ fn word_node_value(
 ) -> Option<TreeValue> {
     let kind = word_kind_from_constructor(constructor)?;
     let phonemes = if kind == WordKind::Lujvo && options.decompose_lujvo {
-        lujvo_phoneme_text_from_entries(entries, true)?
+        lujvo_phoneme_text_from_entries(entries, true, options.glyphs)?
     } else if kind == WordKind::Lujvo {
-        lujvo_phoneme_text_from_entries(entries, false)?
+        lujvo_phoneme_text_from_entries(entries, false, options.glyphs)?
     } else {
         phonemes_from_labelled_entries(entries)?.render(options.phonemes)
     };
@@ -1111,7 +1127,11 @@ fn phonemes_from_labelled_entries(entries: &[TreeEntry]) -> Option<Phonemes> {
 
 #[requires(true)]
 #[ensures(true)]
-fn lujvo_phoneme_text_from_entries(entries: &[TreeEntry], decompose: bool) -> Option<String> {
+fn lujvo_phoneme_text_from_entries(
+    entries: &[TreeEntry],
+    decompose: bool,
+    glyphs: GlyphStyle,
+) -> Option<String> {
     let mut parts = Vec::new();
     for entry in entries {
         match &entry.value {
@@ -1128,7 +1148,7 @@ fn lujvo_phoneme_text_from_entries(entries: &[TreeEntry], decompose: bool) -> Op
     }
     (!parts.is_empty()).then(|| {
         if decompose {
-            parts.join("·")
+            parts.join(glyphs.lujvo_separator())
         } else {
             parts.join("")
         }
@@ -1184,6 +1204,11 @@ enum ColorRole {
     Punctuation,
     Number,
     SpanNumber,
+    ReferenceStem,
+    ReferenceSuffix,
+    ReferentStem,
+    ReferentSuffix,
+    ReferenceSlot,
     String,
 }
 
@@ -1197,6 +1222,11 @@ impl ColorRole {
             Self::Punctuation => "\x1b[90m",
             Self::Number => "\x1b[35m",
             Self::SpanNumber => "\x1b[37m",
+            Self::ReferenceStem => "\x1b[36m",
+            Self::ReferenceSuffix => "\x1b[96m",
+            Self::ReferentStem => "\x1b[35m",
+            Self::ReferentSuffix => "\x1b[95m",
+            Self::ReferenceSlot => "\x1b[97m",
             Self::String => "\x1b[33m",
         }
     }
@@ -1207,7 +1237,9 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
-    use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_morphology::{
+        GlideMark, PhonemeRenderOptions, StressMark, segment_words_with_modifiers,
+    };
     use jbotci_syntax::parse_syntax_tree;
 
     #[test]
@@ -1258,6 +1290,25 @@ mod tests {
         assert!(output.contains(
             "\x1b[90m@\x1b[39m\x1b[90m[\x1b[39m\x1b[37m0\x1b[39m\x1b[90m‥\x1b[39m\x1b[37m8\x1b[39m\x1b[90m)\x1b[39m"
         ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colorizes_reference_names_by_direction() {
+        let output = render_refs_with_options(
+            "mi klama do i do klama mi",
+            TreeRenderOptions {
+                color: true,
+                show_refs: true,
+                ..TreeRenderOptions::default()
+            },
+        );
+
+        assert!(output.contains("\x1b[35mk\x1b[39m\x1b[95m₁\x1b[39m"));
+        assert!(output.contains("\x1b[36mk\x1b[39m\x1b[96m₁\x1b[39m"));
+        assert!(output.contains("\x1b[90m⟨\x1b[39m\x1b[97m1\x1b[39m\x1b[90m⟩\x1b[39m"));
+        assert!(output.contains("\x1b[90m→\x1b[39m"));
     }
 
     #[test]
@@ -1328,6 +1379,35 @@ mod tests {
             output,
             "Paragraph @[0‥31) {\n  Predicate @[0‥17) {\n    leading_terms: [\n      k₁⟨1⟩→ Cmavo @[0‥2) \"mi\",\n    ],\n    Relation @[3‥17) {\n      Gismu @[3‥8) \"kláma\" →k₁,\n      terms: [\n        k₁⟨2⟩→ ri₁→ Descriptor @[9‥17) {\n          descriptor: Cmavo @[9‥11) \"le\",\n          relation: Gismu @[12‥17) \"zárci\",\n        },\n      ],\n    },\n  },\n  ParagraphStatement @[18‥31) {\n    i: Cmavo @[18‥19) \"i\",\n    Predicate @[20‥31) {\n      leading_terms: [\n        k₂⟨1⟩→ Cmavo @[20‥22) \"do\",\n      ],\n      Relation @[23‥31) {\n        Gismu @[23‥28) \"kláma\" →k₂,\n        terms: [\n          k₂⟨2⟩→ Cmavo @[29‥31) \"ri\" →ri₁,\n        ],\n      },\n    },\n  },\n}"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_ascii_references_spans_and_phonemes() {
+        let output = render_refs_with_options(
+            "mi klama le zarci i do klama ri",
+            TreeRenderOptions {
+                glyphs: GlyphStyle::Ascii,
+                show_spans: true,
+                show_refs: true,
+                phonemes: PhonemeRenderOptions {
+                    mark_stress: StressMark::None,
+                    mark_glides: GlideMark::None,
+                },
+                ..TreeRenderOptions::default()
+            },
+        );
+
+        assert!(output.contains("k1<1>-> Cmavo @[0..2) \"mi\""));
+        assert!(output.contains("Gismu @[3..8) \"klama\" ->k1"));
+        assert!(output.contains("k1<2>-> ri1-> Descriptor"));
+        assert!(output.contains("Cmavo @[29..31) \"ri\" ->ri1"));
+        assert!(!output.contains('→'));
+        assert!(!output.contains('⟨'));
+        assert!(!output.contains('⟩'));
+        assert!(!output.contains('‥'));
+        assert!(!output.contains('á'));
     }
 
     #[test]
@@ -1425,22 +1505,26 @@ mod tests {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render_refs(text: &str, show_spans: bool) -> String {
+        render_refs_with_options(
+            text,
+            TreeRenderOptions {
+                color: false,
+                indent: 2,
+                show_spans,
+                show_refs: true,
+                ..TreeRenderOptions::default()
+            },
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_refs_with_options(text: &str, options: TreeRenderOptions) -> String {
         let text = text.to_owned();
         run_on_normal_stack(move || {
             let words = segment_words_with_modifiers(&text).expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
-            pretty_tree_with_options(
-                &parsed.parse_tree,
-                &text,
-                TreeRenderOptions {
-                    color: false,
-                    indent: 2,
-                    show_spans,
-                    show_refs: true,
-                    ..TreeRenderOptions::default()
-                },
-            )
-            .expect("tree render")
+            pretty_tree_with_options(&parsed.parse_tree, &text, options).expect("tree render")
         })
     }
 

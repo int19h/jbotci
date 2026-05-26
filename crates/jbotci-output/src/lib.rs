@@ -91,10 +91,100 @@ pub enum OutputError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum GlyphStyle {
+    #[default]
+    Unicode,
+    Ascii,
+}
+
+impl GlyphStyle {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn arrow(self) -> &'static str {
+        match self {
+            Self::Unicode => "→",
+            Self::Ascii => "->",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn slot_open(self) -> &'static str {
+        match self {
+            Self::Unicode => "⟨",
+            Self::Ascii => "<",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn slot_close(self) -> &'static str {
+        match self {
+            Self::Unicode => "⟩",
+            Self::Ascii => ">",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn span_leader(self) -> &'static str {
+        match self {
+            Self::Unicode => "‥",
+            Self::Ascii => "..",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn lujvo_separator(self) -> &'static str {
+        match self {
+            Self::Unicode => "·",
+            Self::Ascii => "~",
+        }
+    }
+
+    #[requires(value > 0)]
+    #[ensures(!ret.is_empty())]
+    pub fn numeric_suffix(self, value: usize) -> String {
+        match self {
+            Self::Unicode => subscript_number(value),
+            Self::Ascii => value.to_string(),
+        }
+    }
+}
+
+#[requires(value > 0)]
+#[ensures(!ret.is_empty())]
+fn subscript_number(value: usize) -> String {
+    value.to_string().chars().map(subscript_digit).collect()
+}
+
+#[requires(character.is_ascii_digit())]
+#[ensures(true)]
+fn subscript_digit(character: char) -> char {
+    match character {
+        '0' => '₀',
+        '1' => '₁',
+        '2' => '₂',
+        '3' => '₃',
+        '4' => '₄',
+        '5' => '₅',
+        '6' => '₆',
+        '7' => '₇',
+        '8' => '₈',
+        '9' => '₉',
+        _ => unreachable!("requires ASCII digit"),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[invariant(true)]
 pub struct BracketRenderOptions {
     pub color: bool,
     pub phonemes: PhonemeRenderOptions,
+    pub glyphs: GlyphStyle,
     pub decompose_lujvo: bool,
 }
 
@@ -123,6 +213,7 @@ pub struct TreeRenderOptions {
     pub color: bool,
     pub indent: usize,
     pub phonemes: PhonemeRenderOptions,
+    pub glyphs: GlyphStyle,
     pub show_spans: bool,
     pub show_refs: bool,
     pub decompose_lujvo: bool,
@@ -133,6 +224,7 @@ impl Default for TreeRenderOptions {
     #[ensures(!ret.color)]
     #[ensures(ret.indent == 2)]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
+    #[ensures(ret.glyphs == GlyphStyle::default())]
     #[ensures(!ret.show_spans)]
     #[ensures(!ret.show_refs)]
     #[ensures(!ret.decompose_lujvo)]
@@ -141,6 +233,7 @@ impl Default for TreeRenderOptions {
             color: false,
             indent: 2,
             phonemes: PhonemeRenderOptions::default(),
+            glyphs: GlyphStyle::default(),
             show_spans: false,
             show_refs: false,
             decompose_lujvo: false,
@@ -707,6 +800,25 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
 
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn glyph_style_maps_unicode_and_ascii_tokens() {
+        assert_eq!(GlyphStyle::Unicode.arrow(), "→");
+        assert_eq!(GlyphStyle::Unicode.slot_open(), "⟨");
+        assert_eq!(GlyphStyle::Unicode.slot_close(), "⟩");
+        assert_eq!(GlyphStyle::Unicode.span_leader(), "‥");
+        assert_eq!(GlyphStyle::Unicode.numeric_suffix(12), "₁₂");
+        assert_eq!(GlyphStyle::Unicode.lujvo_separator(), "·");
+
+        assert_eq!(GlyphStyle::Ascii.arrow(), "->");
+        assert_eq!(GlyphStyle::Ascii.slot_open(), "<");
+        assert_eq!(GlyphStyle::Ascii.slot_close(), ">");
+        assert_eq!(GlyphStyle::Ascii.span_leader(), "..");
+        assert_eq!(GlyphStyle::Ascii.numeric_suffix(12), "12");
+        assert_eq!(GlyphStyle::Ascii.lujvo_separator(), "~");
+    }
 
     #[test]
     #[requires(true)]

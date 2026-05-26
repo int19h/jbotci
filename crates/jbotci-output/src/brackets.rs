@@ -2434,7 +2434,7 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
                 .iter()
                 .map(|part| part.phonemes().render(source.options.phonemes))
                 .collect::<Vec<_>>()
-                .join("·"),
+                .join(source.options.glyphs.lujvo_separator()),
         );
     }
     sexpr::leaf(surface::format_with_indicators_with_options(

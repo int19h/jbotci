@@ -12,7 +12,7 @@ use jbotci_diagnostics::{
 use owo_colors::OwoColorize;
 use unicode_width::UnicodeWidthStr;
 
-use crate::OutputError;
+use crate::{GlyphStyle, OutputError};
 
 pub const DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH: usize = 80;
 
@@ -23,17 +23,20 @@ const DIAGNOSTIC_NOTE_PREFIX_WIDTH: usize = 12;
 pub struct DiagnosticRenderOptions {
     pub color: bool,
     pub detail: DiagnosticDetailMode,
+    pub glyphs: GlyphStyle,
     pub terminal_width: usize,
 }
 
 impl Default for DiagnosticRenderOptions {
     #[requires(true)]
     #[ensures(!ret.color)]
+    #[ensures(ret.glyphs == GlyphStyle::default())]
     #[ensures(ret.terminal_width == DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH)]
     fn default() -> Self {
         Self {
             color: false,
             detail: DiagnosticDetailMode::Summary,
+            glyphs: GlyphStyle::default(),
             terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
         }
     }
@@ -107,8 +110,12 @@ fn diagnostic_renderer(options: DiagnosticRenderOptions) -> Renderer {
     } else {
         Renderer::plain()
     };
+    let decor_style = match options.glyphs {
+        GlyphStyle::Unicode => DecorStyle::Unicode,
+        GlyphStyle::Ascii => DecorStyle::Ascii,
+    };
     renderer
-        .decor_style(DecorStyle::Unicode)
+        .decor_style(decor_style)
         .term_width(options.terminal_width)
 }
 
@@ -437,6 +444,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
@@ -463,12 +471,37 @@ mod tests {
             DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
         .expect("render diagnostic");
 
         assert!(rendered.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ascii_decor_style_preserves_source_snippet() {
+        let source = "mi kláma fi'oi broda";
+        let rendered = render_diagnostics(
+            "<input>",
+            source,
+            &[warning_diagnostic(source)],
+            DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            },
+        )
+        .expect("render ASCII diagnostic");
+
+        assert!(rendered.contains("--> <input>:"));
+        assert!(!rendered.contains('╭'));
+        assert!(rendered.contains("mi kláma fi'oi broda"));
+        assert!(rendered.contains("^^^^^"));
     }
 
     #[test]
@@ -482,6 +515,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
@@ -522,6 +556,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
@@ -536,6 +571,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Detailed,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
@@ -565,6 +601,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
@@ -647,6 +684,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: 44,
             },
         )
@@ -682,6 +720,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: 36,
             },
         );
@@ -721,6 +760,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Detailed,
+                glyphs: GlyphStyle::default(),
                 terminal_width: 38,
             },
         );
@@ -760,6 +800,7 @@ mod tests {
             DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
             },
         )
