@@ -654,10 +654,6 @@ fn render_blocks(
                         }
                     }
                 }
-                div { class: "definition-panel",
-                    div { class: "def-connector" }
-                    div { class: "def-content" }
-                }
             }
         }
     }
@@ -969,9 +965,7 @@ fn render_reference_label(label: &ReferenceLabel) -> Element {
                         mi { "{stem}" }
                     }
                     if let Some(text) = slot_text.as_deref() {
-                        mo { "⟨" }
-                        mtext { "{text}" }
-                        mo { "⟩" }
+                        mtext { "⟨{text}⟩" }
                     }
                 }
             }
