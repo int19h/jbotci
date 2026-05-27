@@ -729,6 +729,10 @@ fn render_block(
                                 span { class: "ref-arrow", "→" }
                             }
                             span { class: "block-overlap-primary", "{block.label}" }
+                            span { class: "block-overlap-ref block-overlap-ref-mirror ref-math",
+                                { render_reference_label(&marker.label) }
+                                span { class: "ref-arrow", "→" }
+                            }
                         }
                     }
                 }
@@ -959,7 +963,7 @@ fn render_reference_label(label: &ReferenceLabel) -> Element {
                     if let Some(occurrence) = label.occurrence {
                         msub {
                             mi { "{stem}" }
-                            mn { "{occurrence}" }
+                            mtext { "{occurrence}" }
                         }
                     } else {
                         mi { "{stem}" }
