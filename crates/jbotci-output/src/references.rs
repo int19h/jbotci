@@ -19,10 +19,10 @@ use crate::tree::{TreeValue, morphology_tree_value};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[invariant(true)]
-pub(crate) struct ReferenceName {
-    pub(crate) stem: String,
-    pub(crate) occurrence: Option<usize>,
-    pub(crate) slot: Option<ReferenceSlotName>,
+pub struct ReferenceName {
+    pub stem: String,
+    pub occurrence: Option<usize>,
+    pub slot: Option<ReferenceSlotName>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -30,7 +30,7 @@ pub(crate) struct ReferenceName {
 #[invariant(::Numbered(_) => true)]
 #[invariant(::Modal(..) => true)]
 #[invariant(::Fai => true)]
-pub(crate) enum ReferenceSlotName {
+pub enum ReferenceSlotName {
     Numbered(u8),
     Modal(Vec<String>),
     Fai,
@@ -39,7 +39,7 @@ pub(crate) enum ReferenceSlotName {
 impl ReferenceSlotName {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    pub(crate) fn text(&self) -> String {
+    pub fn text(&self) -> String {
         match self {
             Self::Numbered(place) => place.to_string(),
             Self::Modal(words) if words.is_empty() => "modal".to_owned(),
@@ -51,14 +51,14 @@ impl ReferenceSlotName {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[invariant(true)]
-pub(crate) struct ReferenceAnnotations {
-    pub(crate) incoming: Vec<ReferenceName>,
-    pub(crate) outgoing: Vec<ReferenceName>,
+pub struct ReferenceAnnotations {
+    pub incoming: Vec<ReferenceName>,
+    pub outgoing: Vec<ReferenceName>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(crate) struct ReferenceDisplayModel {
+pub struct ReferenceDisplayModel {
     incoming_by_node: BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>>,
     outgoing_by_node: BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>>,
 }
@@ -102,7 +102,7 @@ impl ReferenceDisplayModel {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(crate) fn annotations_for_syntax_ids(
+    pub fn annotations_for_syntax_ids(
         &self,
         syntax_ids: &[RawSyntaxNodeId],
     ) -> ReferenceAnnotations {

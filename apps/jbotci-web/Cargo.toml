@@ -21,7 +21,18 @@ dioxus = { workspace = true, features = ["web"] }
 jbotci-diagnostics.workspace = true
 jbotci-output.workspace = true
 jbotci-web-core.workspace = true
-web-sys = { workspace = true, features = ["Location", "Storage", "Window"] }
+wasm-bindgen.workspace = true
+web-sys = { workspace = true, features = [
+    "Document",
+    "DomRect",
+    "Element",
+    "HtmlElement",
+    "Location",
+    "Node",
+    "NodeList",
+    "Storage",
+    "Window",
+] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

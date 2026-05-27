@@ -660,6 +660,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries parser diagnostic text without additional semantic state",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Numbered",
+        "web reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Modal",
+        "web reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Fai",
+        "web reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Node",
         "internal borrowed layout cursor delegates validity to the referenced block tree node",
     ),

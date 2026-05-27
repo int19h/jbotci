@@ -97,9 +97,14 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderO
                 [single] => single.clone(),
                 _ => {
                     let (open, close) = bracket_pair(depth);
+                    let hair_space = if options.insert_hair_space {
+                        "\u{200a}"
+                    } else {
+                        ""
+                    };
                     colorize_at_depth(
                         depth,
-                        format!("{open}{}{close}", rendered.join(" ")),
+                        format!("{open}{hair_space}{}{hair_space}{close}", rendered.join(" ")),
                         options,
                     )
                 }

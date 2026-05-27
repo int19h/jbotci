@@ -645,6 +645,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                             phonemes: phoneme_options,
                             glyphs,
                             decompose_lujvo: input.decompose_lujvo,
+                            insert_hair_space: false,
                         },
                     )?;
                     writeln!(stdout, "{rendered}")?;
@@ -979,6 +980,7 @@ fn render_gentufa(
                     phonemes: phoneme_options,
                     glyphs,
                     decompose_lujvo: input.decompose_lujvo,
+                    insert_hair_space: false,
                 },
             )?;
             stdout.push_str(&rendered);

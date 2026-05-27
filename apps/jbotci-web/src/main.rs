@@ -2,22 +2,59 @@ use dioxus::prelude::*;
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     GentufaBlock, GentufaCell, GentufaError, GentufaScript, GentufaSuccess, GentufaTreeRow,
-    GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebViewMode, MathVariable,
-    ReferenceMarker, ReferenceMarkerRole, WebFeatureAvailability, parse_gentufa_for_web,
+    GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebViewMode, ReferenceLabel,
+    ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel, WebFeatureAvailability,
+    parse_gentufa_for_web,
 };
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const LOGO: Asset = asset!("/assets/icons/jbotci.svg");
+const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const DEFAULT_GENTUFA_TEXT: &str = "mi klama le zarci";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 enum ThemeMode {
+    Auto,
     Day,
     Night,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+#[invariant(true)]
+struct ReferenceHoverState {
+    hovered: Option<HoveredReference>,
+    overlay: Option<ArrowOverlay>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct HoveredReference {
+    role: ReferenceMarkerRole,
+    label: ReferenceLabel,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct ArrowOverlay {
+    width: f64,
+    height: f64,
+    paths: Vec<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[invariant(true)]
+struct ReferenceRect {
+    left: f64,
+    top: f64,
+    right: f64,
+    bottom: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,10 +79,10 @@ struct UserSettings {
 
 impl Default for UserSettings {
     #[requires(true)]
-    #[ensures(ret.theme == ThemeMode::Day)]
+    #[ensures(ret.theme == ThemeMode::Auto)]
     fn default() -> Self {
         Self {
-            theme: ThemeMode::Day,
+            theme: ThemeMode::Auto,
             script: GentufaScript::Latin,
             show_elided: false,
             show_glosses: true,
@@ -73,6 +110,7 @@ fn App() -> Element {
     let mut parsed_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
     let dialect = use_signal(String::new);
     let mut parsed_dialect = use_signal(String::new);
+    let reference_hover = use_signal(ReferenceHoverState::default);
 
     let settings_value = *settings.read();
     let view_mode_value = *view_mode.read();
@@ -101,7 +139,10 @@ fn App() -> Element {
                     {
                         match route {
                             AppRoute::Gentufa => rsx! {
-                                section { class: "spa-page parse-page spa-gentufa-page",
+                                section {
+                                    class: "spa-page parse-page spa-gentufa-page",
+                                    onmousemove: move |_| refresh_reference_hover(reference_hover),
+                                    onwheel: move |_| refresh_reference_hover(reference_hover),
                                     h1 { class: "sr-only", "jbotci gentufa" }
                                     div { class: "page-container",
                                         div { class: "input-form",
@@ -131,7 +172,7 @@ fn App() -> Element {
                                             }
                                         }
                                         div { class: "gentufa-result-stack",
-                                            { render_result(&result, view_mode, view_mode_value, settings, settings_value) }
+                                            { render_result(&result, view_mode, view_mode_value, settings, settings_value, reference_hover) }
                                         }
                                     }
                                 }
@@ -216,16 +257,19 @@ fn render_theme_switch(mut settings: Signal<UserSettings>, current: ThemeMode) -
     rsx! {
         div { class: "theme-switch", aria_label: "Theme mode", role: "group",
             button {
+                class: theme_button_class(current == ThemeMode::Auto),
+                r#type: "button",
+                aria_label: "Use system theme",
+                aria_pressed: pressed_attr(current == ThemeMode::Auto),
+                onclick: move |_| set_theme(&mut settings, ThemeMode::Auto),
+                "◐"
+            }
+            button {
                 class: theme_button_class(current == ThemeMode::Day),
                 r#type: "button",
                 aria_label: "Use light theme",
                 aria_pressed: pressed_attr(current == ThemeMode::Day),
-                onclick: move |_| {
-                    let mut next = *settings.read();
-                    next.theme = ThemeMode::Day;
-                    settings.set(next);
-                    save_settings(&next);
-                },
+                onclick: move |_| set_theme(&mut settings, ThemeMode::Day),
                 "☀"
             }
             button {
@@ -233,12 +277,7 @@ fn render_theme_switch(mut settings: Signal<UserSettings>, current: ThemeMode) -
                 r#type: "button",
                 aria_label: "Use dark theme",
                 aria_pressed: pressed_attr(current == ThemeMode::Night),
-                onclick: move |_| {
-                    let mut next = *settings.read();
-                    next.theme = ThemeMode::Night;
-                    settings.set(next);
-                    save_settings(&next);
-                },
+                onclick: move |_| set_theme(&mut settings, ThemeMode::Night),
                 "☾"
             }
         }
@@ -253,7 +292,7 @@ fn render_script_switch(mut settings: Signal<UserSettings>, current: GentufaScri
             class: "theme-switch orthography-switch",
             aria_label: "Orthography",
             role: "group",
-            title: "Orthography icons: j = latin, ж = cyrillic, z = zbalermorna",
+            title: "Orthography icons: j = latin, ж = cyrillic,  = zbalermorna",
             button {
                 class: orthography_button_class(current == GentufaScript::Latin, false),
                 r#type: "button",
@@ -276,7 +315,7 @@ fn render_script_switch(mut settings: Signal<UserSettings>, current: GentufaScri
                 aria_label: "Zbalermorna orthography",
                 aria_pressed: pressed_attr(current == GentufaScript::Zbalermorna),
                 onclick: move |_| set_script(&mut settings, GentufaScript::Zbalermorna),
-                span { class: "orthography-btn-icon", "z" }
+                span { class: "orthography-btn-icon", "" }
             }
         }
     }
@@ -322,6 +361,7 @@ fn render_result(
     view_mode_value: GentufaWebViewMode,
     settings: Signal<UserSettings>,
     settings_value: UserSettings,
+    reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
     match result {
         GentufaWebResult::Blank => rsx! {},
@@ -332,6 +372,7 @@ fn render_result(
             view_mode_value,
             settings,
             settings_value,
+            reference_hover,
         ),
     }
 }
@@ -366,17 +407,20 @@ fn render_success(
     view_mode_value: GentufaWebViewMode,
     settings: Signal<UserSettings>,
     settings_value: UserSettings,
+    reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
+    let reference_hover_value = reference_hover.read().clone();
     rsx! {
         section { class: "result-section",
+            { render_reference_overlay(&reference_hover_value) }
             { render_surface_output(success) }
             { render_diagnostics(success) }
             { render_view_tabs(view_mode, view_mode_value) }
             { render_output_controls(view_mode_value, settings, settings_value) }
             if view_mode_value == GentufaWebViewMode::Blocks {
-                { render_blocks(success, settings_value.show_glosses) }
+                { render_blocks(success, settings_value.show_glosses, reference_hover) }
             } else {
-                { render_tree(success, settings_value.show_glosses, false) }
+                { render_tree(success, settings_value.show_glosses, false, reference_hover) }
             }
         }
     }
@@ -387,7 +431,7 @@ fn render_success(
 fn render_surface_output(success: &GentufaSuccess) -> Element {
     rsx! {
         div { class: "brackets-section",
-            div { class: "surface-output-stack",
+            div { class: "brackets-output-stack",
                 pre { class: "brackets-output ipa-output", "{success.ipa_text}" }
                 pre { class: "brackets-output compact-output",
                     span { class: "brackets-output-markup", "{success.brackets_text}" }
@@ -452,14 +496,12 @@ fn render_output_controls(
     match view_mode {
         GentufaWebViewMode::Blocks => rsx! {
             div { class: "controls blocks-controls",
-                { render_static_checkbox("English labels", true, true) }
                 { render_gloss_checkbox(settings, current.show_glosses) }
                 { render_elided_checkbox(settings, current.show_elided) }
             }
         },
         GentufaWebViewMode::Tree => rsx! {
             div { class: "controls table-controls",
-                { render_static_checkbox("English labels", true, true) }
                 { render_gloss_checkbox(settings, current.show_glosses) }
                 { render_static_checkbox("Show definitions", false, true) }
                 { render_static_checkbox("Decompose known lujvo", false, true) }
@@ -516,9 +558,13 @@ fn render_elided_checkbox(mut settings: Signal<UserSettings>, checked: bool) -> 
 
 #[requires(true)]
 #[ensures(true)]
-fn render_blocks(success: &GentufaSuccess, show_glosses: bool) -> Element {
+fn render_blocks(
+    success: &GentufaSuccess,
+    show_glosses: bool,
+    reference_hover: Signal<ReferenceHoverState>,
+) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
-    let column_template = repeated_auto_template(column_count);
+    let column_template = repeated_parse_tree_template(column_count);
     let row_count = success.blocks_layout.max_row + usize::from(show_glosses);
     let row_template = format!("repeat({}, auto)", row_count.max(1));
     let container_class = if show_glosses {
@@ -527,13 +573,15 @@ fn render_blocks(success: &GentufaSuccess, show_glosses: bool) -> Element {
         "blocks-container gloss-hidden"
     };
     let gloss_row = success.blocks_layout.max_row + 1;
+    let export_anchor_id = success
+        .blocks_layout
+        .blocks
+        .iter()
+        .min_by_key(|block| (block.row, std::cmp::Reverse(block.col + block.col_span)))
+        .map(|block| block.block_id.as_str());
     rsx! {
         section { class: "blocks-view",
             div { class: "blocks-scroll-shell",
-                div { class: "blocks-svg-link",
-                    span { class: "export-link is-disabled", "SVG" }
-                    span { class: "export-link is-disabled", "PNG" }
-                }
                 div {
                     class: "blocks-scroll-viewport",
                     "data-jbotci-blocks-scroll-viewport": "1",
@@ -545,7 +593,7 @@ fn render_blocks(success: &GentufaSuccess, show_glosses: bool) -> Element {
                             class: "blocks-grid",
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
                             for block in success.blocks_layout.blocks.iter() {
-                                { render_block(block) }
+                                { render_block(block, reference_hover, export_anchor_id) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -566,7 +614,11 @@ fn render_blocks(success: &GentufaSuccess, show_glosses: bool) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_block(block: &GentufaBlock) -> Element {
+fn render_block(
+    block: &GentufaBlock,
+    reference_hover: Signal<ReferenceHoverState>,
+    export_anchor_id: Option<&str>,
+) -> Element {
     let row = block.row + 1;
     let col = block.col + 1;
     let classes = block_class(block);
@@ -574,6 +626,16 @@ fn render_block(block: &GentufaBlock) -> Element {
         "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
     );
+    let hover_state = reference_hover.read().clone();
+    let incoming_markers = block
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent);
+    let outgoing_markers = block
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Reference);
+    let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
     rsx! {
         div {
             key: "{block.block_id}",
@@ -586,48 +648,33 @@ fn render_block(block: &GentufaBlock) -> Element {
             "data-token-kind": "{block.token_kind.clone().unwrap_or_default()}",
             "data-raw-text": "{block.raw_text}",
             "data-node-type": "{block.node_types.join(\" \")}",
-            if let Some(variable) = &block.place_label {
-                { render_block_target_ref(variable) }
+            if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
+                span { class: "block-ref-target",
+                    span { class: "ref-math",
+                        for marker in incoming_markers {
+                            { render_ref_marker(marker, reference_hover, &hover_state) }
+                            span { class: "ref-arrow", "→" }
+                        }
+                    }
+                }
             }
             span { class: "block-label", title: "{block.label}",
                 "{block.label}"
             }
-            if block.relation_var.is_some() || !block.ref_markers.is_empty() {
-                { render_block_source_refs(block) }
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_block_target_ref(variable: &MathVariable) -> Element {
-    rsx! {
-        span { class: "block-ref-target",
-            span { class: "ref-math",
-                span { class: "ref-var ref-target place-var",
-                    { render_math_variable(variable) }
-                }
-                span { class: "ref-assign", "≔" }
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_block_source_refs(block: &GentufaBlock) -> Element {
-    rsx! {
-        span { class: "block-ref-source",
-            span { class: "ref-math",
-                span { class: "ref-arrow", "→" }
-                if let Some(variable) = &block.relation_var {
-                    span { class: "ref-var ref-source",
-                        { render_math_variable(variable) }
+            if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Reference) {
+                span { class: "block-ref-source",
+                    span { class: "ref-math",
+                        for marker in outgoing_markers {
+                            span { class: "ref-arrow", "→" }
+                            { render_ref_marker(marker, reference_hover, &hover_state) }
+                        }
                     }
                 }
-                for marker in block.ref_markers.iter() {
-                    { render_ref_marker(marker) }
+            }
+            if is_export_anchor {
+                span { class: "blocks-svg-link",
+                    span { class: "export-link is-disabled", "SVG" }
+                    span { class: "export-link is-disabled", "PNG" }
                 }
             }
         }
@@ -636,14 +683,30 @@ fn render_block_source_refs(block: &GentufaBlock) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ref_marker(marker: &ReferenceMarker) -> Element {
-    let class = match marker.role {
-        ReferenceMarkerRole::Reference => "ref-var ref-source",
-        ReferenceMarkerRole::Referent | ReferenceMarkerRole::Place => "ref-var ref-target",
-    };
+fn render_ref_marker(
+    marker: &ReferenceMarker,
+    reference_hover: Signal<ReferenceHoverState>,
+    hover_state: &ReferenceHoverState,
+) -> Element {
+    let class = reference_marker_class(marker, hover_state);
+    let role = reference_role_attr(marker.role);
+    let base = marker.label.base_key();
+    let label = marker.label.full_key();
+    let enter_hover = reference_hover;
+    let leave_hover = reference_hover;
+    let enter_role = marker.role;
+    let enter_label = marker.label.clone();
     rsx! {
-        span { class: "{class}", title: "{marker.kind}",
-            { render_math_variable(&marker.label) }
+        span {
+            class: "{class}",
+            title: "{marker.kind}",
+            "data-ref-role": "{role}",
+            "data-ref-kind": "{marker.kind}",
+            "data-ref-label": "{label}",
+            "data-ref-base": "{base}",
+            onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
+            onmouseleave: move |_| clear_reference_hover(leave_hover),
+            { render_reference_label(&marker.label) }
         }
     }
 }
@@ -677,7 +740,12 @@ fn render_gloss_block(block: &GentufaBlock, gloss_row: usize) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree(success: &GentufaSuccess, show_glosses: bool, show_definitions: bool) -> Element {
+fn render_tree(
+    success: &GentufaSuccess,
+    show_glosses: bool,
+    show_definitions: bool,
+    reference_hover: Signal<ReferenceHoverState>,
+) -> Element {
     rsx! {
         div { class: "table-view",
             div { class: "table-wrap",
@@ -692,7 +760,7 @@ fn render_tree(success: &GentufaSuccess, show_glosses: bool, show_definitions: b
                     }
                     tbody {
                         for row in success.tree_rows.iter() {
-                            { render_tree_row(row, show_glosses, show_definitions) }
+                            { render_tree_row(row, show_glosses, show_definitions, reference_hover) }
                         }
                     }
                 }
@@ -703,13 +771,27 @@ fn render_tree(success: &GentufaSuccess, show_glosses: bool, show_definitions: b
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree_row(row: &GentufaTreeRow, show_glosses: bool, show_definitions: bool) -> Element {
+fn render_tree_row(
+    row: &GentufaTreeRow,
+    show_glosses: bool,
+    show_definitions: bool,
+    reference_hover: Signal<ReferenceHoverState>,
+) -> Element {
     let row_class = if tree_row_is_elided(row) {
         "elided-row"
     } else {
         ""
     };
     let style = format!("--row-color: {}; --indent-count: {};", row.color, row.depth);
+    let hover_state = reference_hover.read().clone();
+    let incoming_markers = row
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent);
+    let outgoing_markers = row
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Reference);
     rsx! {
         tr { class: "{row_class}", style: "{style}",
             td { class: "col-node",
@@ -722,9 +804,14 @@ fn render_tree_row(row: &GentufaTreeRow, show_glosses: bool, show_definitions: b
                     span { class: "node-content",
                         span { class: "node-toggle-spacer", aria_hidden: "true" }
                         span { class: "node-label",
+                            for marker in incoming_markers {
+                                { render_ref_marker(marker, reference_hover, &hover_state) }
+                                span { class: "ref-arrow", "→" }
+                            }
                             "{row.label}"
-                            if let Some(variable) = &row.relation_var {
-                                { render_math_variable(variable) }
+                            for marker in outgoing_markers {
+                                span { class: "ref-arrow", "→" }
+                                { render_ref_marker(marker, reference_hover, &hover_state) }
                             }
                         }
                     }
@@ -787,25 +874,275 @@ fn render_tree_glosses(row: &GentufaTreeRow) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_math_variable(variable: &MathVariable) -> Element {
-    match variable.subscript {
-        Some(subscript) => rsx! {
-            span { class: "spa-cll-math",
-                math { class: "math-var", display: "inline",
-                    msub {
-                        mi { "{variable.base}" }
-                        mtext { "{subscript}" }
+fn render_reference_label(label: &ReferenceLabel) -> Element {
+    let slot_text = label.slot.as_ref().map(ReferenceSlotLabel::text);
+    rsx! {
+        span { class: "spa-cll-math",
+            math { class: "math-var", display: "inline",
+                mrow {
+                    if let Some(occurrence) = label.occurrence {
+                        msub {
+                            mi { "{label.stem}" }
+                            mtext { "{occurrence}" }
+                        }
+                    } else {
+                        mi { "{label.stem}" }
+                    }
+                    if let Some(text) = slot_text.as_deref() {
+                        mo { "⟨" }
+                        mtext { "{text}" }
+                        mo { "⟩" }
                     }
                 }
             }
-        },
-        None => rsx! {
-            span { class: "spa-cll-math",
-                math { class: "math-var", display: "inline",
-                    mi { "{variable.base}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_reference_overlay(state: &ReferenceHoverState) -> Element {
+    let Some(overlay) = state.overlay.as_ref() else {
+        return rsx! {};
+    };
+    let view_box = format!("0 0 {:.2} {:.2}", overlay.width.max(1.0), overlay.height.max(1.0));
+    rsx! {
+        svg {
+            class: "arrow-overlay",
+            "viewBox": "{view_box}",
+            "aria-hidden": "true",
+            defs {
+                marker {
+                    id: "jbotci-ref-arrowhead",
+                    "markerWidth": "7",
+                    "markerHeight": "7",
+                    "refX": "6",
+                    "refY": "3.5",
+                    orient: "auto",
+                    "markerUnits": "strokeWidth",
+                    path { class: "arrow-head", d: "M 0 0 L 7 3.5 L 0 7 z" }
                 }
             }
+            for path_data in overlay.paths.iter() {
+                path {
+                    class: "arrow-path",
+                    d: "{path_data}",
+                    "marker-end": "url(#jbotci-ref-arrowhead)"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_reference_hover(
+    mut reference_hover: Signal<ReferenceHoverState>,
+    role: ReferenceMarkerRole,
+    label: ReferenceLabel,
+) {
+    let hovered = HoveredReference { role, label };
+    let overlay = measure_reference_overlay(&hovered);
+    reference_hover.set(ReferenceHoverState {
+        hovered: Some(hovered),
+        overlay,
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn clear_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
+    reference_hover.set(ReferenceHoverState::default());
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
+    let Some(hovered) = reference_hover.read().hovered.clone() else {
+        return;
+    };
+    let overlay = measure_reference_overlay(&hovered);
+    reference_hover.set(ReferenceHoverState {
+        hovered: Some(hovered),
+        overlay,
+    });
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn reference_marker_class(marker: &ReferenceMarker, state: &ReferenceHoverState) -> String {
+    let mut class = match marker.role {
+        ReferenceMarkerRole::Reference => "ref-var ref-source".to_owned(),
+        ReferenceMarkerRole::Referent => "ref-var ref-target".to_owned(),
+    };
+    if marker.label.slot.is_some() {
+        class.push_str(" place-var");
+    }
+    if reference_matches_hover(marker, state) {
+        class.push_str(" ref-highlight");
+        if marker.label.slot.is_some() {
+            class.push_str(" place-highlight");
+        }
+    }
+    class
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn reference_role_attr(role: ReferenceMarkerRole) -> &'static str {
+    match role {
+        ReferenceMarkerRole::Reference => "reference",
+        ReferenceMarkerRole::Referent => "referent",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_matches_hover(marker: &ReferenceMarker, state: &ReferenceHoverState) -> bool {
+    let Some(hovered) = state.hovered.as_ref() else {
+        return false;
+    };
+    if marker.label.base_key() != hovered.label.base_key() {
+        return false;
+    }
+    match hovered.role {
+        ReferenceMarkerRole::Reference => true,
+        ReferenceMarkerRole::Referent => match marker.role {
+            ReferenceMarkerRole::Reference => true,
+            ReferenceMarkerRole::Referent => marker.label.full_key() == hovered.label.full_key(),
         },
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn measure_reference_overlay(hovered: &HoveredReference) -> Option<ArrowOverlay> {
+    let base_key = hovered.label.base_key();
+    let full_key = hovered.label.full_key();
+    let window = web_sys::window()?;
+    let document = window.document()?;
+    let page = document.query_selector(".parse-page").ok().flatten()?;
+    let page_rect = page.get_bounding_client_rect();
+    let nodes = document
+        .query_selector_all(".parse-page .ref-var[data-ref-role]")
+        .ok()?;
+    let mut sources = Vec::new();
+    let mut targets = Vec::new();
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        if element.get_attribute("data-ref-base").as_deref() != Some(base_key.as_str()) {
+            continue;
+        }
+        let role = element.get_attribute("data-ref-role");
+        let label = element.get_attribute("data-ref-label");
+        if role.as_deref() == Some("reference") {
+            sources.push(reference_rect_from_element(&element, &page_rect));
+        } else if role.as_deref() == Some("referent")
+            && (hovered.role == ReferenceMarkerRole::Reference
+                || label.as_deref() == Some(full_key.as_str()))
+        {
+            targets.push(reference_rect_from_element(&element, &page_rect));
+        }
+    }
+    let mut paths = reference_arrow_paths(&sources, &targets);
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        return None;
+    }
+    Some(ArrowOverlay {
+        width: page
+            .dyn_ref::<web_sys::HtmlElement>()
+            .map(|element| f64::from(element.scroll_width()))
+            .unwrap_or(0.0)
+            .max(page_rect.width()),
+        height: page
+            .dyn_ref::<web_sys::HtmlElement>()
+            .map(|element| f64::from(element.scroll_height()))
+            .unwrap_or(0.0)
+            .max(page_rect.height()),
+        paths,
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+fn measure_reference_overlay(_hovered: &HoveredReference) -> Option<ArrowOverlay> {
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reference_rect_from_element(
+    element: &web_sys::Element,
+    page_rect: &web_sys::DomRect,
+) -> ReferenceRect {
+    let rect = element.get_bounding_client_rect();
+    ReferenceRect {
+        left: rect.left() - page_rect.left(),
+        top: rect.top() - page_rect.top(),
+        right: rect.right() - page_rect.left(),
+        bottom: rect.bottom() - page_rect.top(),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reference_arrow_paths(sources: &[ReferenceRect], targets: &[ReferenceRect]) -> Vec<String> {
+    let mut paths = Vec::new();
+    for source in sources {
+        for target in targets {
+            paths.push(reference_arrow_path(*source, *target));
+        }
+    }
+    paths
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn reference_arrow_path(source: ReferenceRect, target: ReferenceRect) -> String {
+    let (sx, sy) = rect_anchor_toward(source, target);
+    let (tx, ty) = rect_anchor_toward(target, source);
+    let dx = tx - sx;
+    let dy = ty - sy;
+    let distance = (dx * dx + dy * dy).sqrt();
+    if distance <= f64::EPSILON {
+        return format!("M {sx:.2} {sy:.2} L {tx:.2} {ty:.2}");
+    }
+    let curvature = (distance * 0.3).min(80.0);
+    let normal_x = -dy / distance;
+    let normal_y = dx / distance;
+    let cx = (sx + tx) / 2.0 + normal_x * curvature;
+    let cy = (sy + ty) / 2.0 + normal_y * curvature;
+    format!("M {sx:.2} {sy:.2} Q {cx:.2} {cy:.2} {tx:.2} {ty:.2}")
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn rect_anchor_toward(from: ReferenceRect, to: ReferenceRect) -> (f64, f64) {
+    let from_center_x = (from.left + from.right) / 2.0;
+    let from_center_y = (from.top + from.bottom) / 2.0;
+    let to_center_x = (to.left + to.right) / 2.0;
+    let to_center_y = (to.top + to.bottom) / 2.0;
+    let dx = to_center_x - from_center_x;
+    let dy = to_center_y - from_center_y;
+    if dx.abs() >= dy.abs() {
+        let x = if dx >= 0.0 { from.right } else { from.left };
+        (x, from_center_y)
+    } else {
+        let y = if dy >= 0.0 { from.bottom } else { from.top };
+        (from_center_x, y)
     }
 }
 
@@ -849,10 +1186,8 @@ fn render_disabled(name: &str) -> Element {
 
 #[requires(count > 0)]
 #[ensures(!ret.is_empty())]
-fn repeated_auto_template(count: usize) -> String {
-    std::iter::repeat_n("auto", count)
-        .collect::<Vec<_>>()
-        .join(" ")
+fn repeated_parse_tree_template(count: usize) -> String {
+    format!("repeat({count}, minmax(max-content, 1fr))")
 }
 
 #[requires(true)]
@@ -898,6 +1233,15 @@ fn web_options(
             mark_glides: settings.glides,
         },
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_theme(settings: &mut Signal<UserSettings>, theme: ThemeMode) {
+    let mut next = *settings.read();
+    next.theme = theme;
+    settings.set(next);
+    save_settings(&next);
 }
 
 #[requires(true)]
@@ -1004,6 +1348,7 @@ fn nav_href(base_path: &str, route: AppRoute) -> String {
 #[ensures(!ret.is_empty())]
 fn theme_class(theme: ThemeMode) -> &'static str {
     match theme {
+        ThemeMode::Auto => "auto",
         ThemeMode::Day => "day",
         ThemeMode::Night => "night",
     }
@@ -1121,8 +1466,8 @@ fn current_query() -> String {
 #[ensures(true)]
 fn load_settings() -> UserSettings {
     let mut settings = UserSettings::default();
-    if storage_get("jbotci.theme").as_deref() == Some("night") {
-        settings.theme = ThemeMode::Night;
+    if let Some(theme) = storage_get("jbotci.theme").and_then(|value| parse_theme(&value)) {
+        settings.theme = theme;
     }
     if let Some(script) = storage_get("jbotci.script").and_then(|value| parse_script(&value)) {
         settings.script = script;
@@ -1130,6 +1475,17 @@ fn load_settings() -> UserSettings {
     settings.show_elided = storage_get("jbotci.show_elided").as_deref() == Some("true");
     settings.show_glosses = storage_get("jbotci.show_glosses").as_deref() != Some("false");
     settings
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_theme(value: &str) -> Option<ThemeMode> {
+    match value {
+        "auto" | "system" => Some(ThemeMode::Auto),
+        "day" | "light" => Some(ThemeMode::Day),
+        "night" | "dark" => Some(ThemeMode::Night),
+        _ => None,
+    }
 }
 
 #[requires(true)]

@@ -107,6 +107,23 @@ pub(crate) fn pretty_tree_with_options(
 
 #[requires(true)]
 #[ensures(true)]
+pub fn reference_display_model_for_syntax_tree(
+    analysis: &ReferenceAnalysis<'_>,
+    tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> ReferenceDisplayModel {
+    let value = collapse_value(syntax_tree_value(
+        tree,
+        source,
+        options,
+        Some(&analysis.syntax_index),
+    ));
+    ReferenceDisplayModel::new(analysis, &value, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn pretty_morphology_tree_with_options(
     words: &[WordLike],
     source: &str,

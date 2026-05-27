@@ -13,11 +13,11 @@ use jbotci_morphology::{
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
-    BracketRenderOptions, GlyphStyle, ipa_morphology_text, pretty_brackets_with_options,
+    BracketRenderOptions, GlyphStyle, ReferenceDisplayModel, ReferenceName as OutputReferenceName,
+    ReferenceSlotName as OutputReferenceSlotName, TreeRenderOptions, ipa_morphology_text,
+    pretty_brackets_with_options, reference_display_model_for_syntax_tree,
 };
-use jbotci_semantics::references::{
-    PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceKind, SyntaxNodeMetadata,
-};
+use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxTreeNode,
@@ -161,21 +161,69 @@ pub struct WebSourceRange {
     pub char_end: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct MathVariable {
-    pub base: String,
-    pub subscript: Option<usize>,
+pub struct ReferenceLabel {
+    pub stem: String,
+    pub occurrence: Option<usize>,
+    pub slot: Option<ReferenceSlotLabel>,
 }
 
-impl MathVariable {
-    #[requires(!base.is_empty())]
-    #[ensures(ret.base == base)]
-    pub fn new(base: &str, subscript: Option<usize>) -> Self {
+impl ReferenceLabel {
+    #[requires(!stem.is_empty())]
+    #[ensures(ret.stem == stem)]
+    pub fn new(stem: &str, occurrence: Option<usize>, slot: Option<ReferenceSlotLabel>) -> Self {
         Self {
-            base: base.to_owned(),
-            subscript,
+            stem: stem.to_owned(),
+            occurrence,
+            slot,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn base_key(&self) -> String {
+        let mut key = self.stem.clone();
+        if let Some(occurrence) = self.occurrence {
+            key.push_str(&occurrence.to_string());
+        }
+        key
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with(&self.base_key()))]
+    pub fn full_key(&self) -> String {
+        let mut key = self.base_key();
+        if let Some(slot) = &self.slot {
+            key.push('<');
+            key.push_str(&slot.text());
+            key.push('>');
+        }
+        key
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(::Numbered(_) => true)]
+#[invariant(::Modal(..) => true)]
+#[invariant(::Fai => true)]
+pub enum ReferenceSlotLabel {
+    Numbered(u8),
+    Modal(Vec<String>),
+    Fai,
+}
+
+impl ReferenceSlotLabel {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn text(&self) -> String {
+        match self {
+            Self::Numbered(place) => place.to_string(),
+            Self::Modal(words) if words.is_empty() => "modal".to_owned(),
+            Self::Modal(words) => words.join(" "),
+            Self::Fai => "fai".to_owned(),
         }
     }
 }
@@ -198,8 +246,6 @@ pub struct GentufaBlock {
     pub is_leaf: bool,
     pub is_elided: bool,
     pub token_kind: Option<String>,
-    pub place_label: Option<MathVariable>,
-    pub relation_var: Option<MathVariable>,
     pub ref_markers: Vec<ReferenceMarker>,
     pub span: Option<WebSourceRange>,
     pub node_types: Vec<String>,
@@ -228,7 +274,6 @@ pub struct GentufaTreeRow {
     pub cells: Vec<GentufaCell>,
     pub computed_gloss: Option<String>,
     pub ref_markers: Vec<ReferenceMarker>,
-    pub relation_var: Option<MathVariable>,
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub rafsi_breakdown: Vec<String>,
@@ -263,7 +308,6 @@ pub struct TransformInfo {
 pub enum ReferenceMarkerRole {
     Reference,
     Referent,
-    Place,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -272,7 +316,7 @@ pub enum ReferenceMarkerRole {
 pub struct ReferenceMarker {
     pub role: ReferenceMarkerRole,
     pub kind: String,
-    pub label: MathVariable,
+    pub label: ReferenceLabel,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -359,8 +403,26 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         }
     };
     let leaves = rendered_leaves(&parsed.parse_tree, source, &request.options);
-    let blocks_layout = blocks_layout(&analysis, source, &leaves, &request.options);
-    let tree_rows = tree_rows(&analysis, source, &leaves, &request.options);
+    let reference_model = reference_display_model_for_syntax_tree(
+        &analysis,
+        &parsed.parse_tree,
+        source,
+        tree_render_options(request.options.phonemes),
+    );
+    let blocks_layout = blocks_layout(
+        &analysis,
+        &reference_model,
+        source,
+        &leaves,
+        &request.options,
+    );
+    let tree_rows = tree_rows(
+        &analysis,
+        &reference_model,
+        source,
+        &leaves,
+        &request.options,
+    );
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
     let brackets_text = pretty_brackets_with_options(
         &parsed.parse_tree,
@@ -370,6 +432,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             phonemes: request.options.phonemes,
             glyphs: GlyphStyle::Unicode,
             decompose_lujvo: false,
+            insert_hair_space: true,
         },
     )
     .unwrap_or_else(|error| error.to_string());
@@ -396,6 +459,20 @@ fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, Gentufa
         Some(source) => parse_dialect_definition(source)
             .map_err(|error| GentufaWebError::Dialect(error.to_string())),
         None => Ok(DialectDefinition::default()),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.show_refs)]
+fn tree_render_options(phonemes: PhonemeRenderOptions) -> TreeRenderOptions {
+    TreeRenderOptions {
+        color: false,
+        indent: 2,
+        phonemes,
+        glyphs: GlyphStyle::Unicode,
+        show_spans: false,
+        show_refs: true,
+        decompose_lujvo: false,
     }
 }
 
@@ -505,14 +582,22 @@ fn rendered_leaves(
 #[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
 fn blocks_layout(
     analysis: &ReferenceAnalysis<'_>,
+    reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
     options: &GentufaWebOptions,
 ) -> GentufaBlocksLayout {
     let child_map = syntax_child_map(analysis);
     let root_id = analysis.syntax_index.root().0;
-    let Some(root) = build_block_tree_node(analysis, &child_map, root_id, source, leaves, options)
-    else {
+    let Some(root) = build_block_tree_node(
+        analysis,
+        reference_model,
+        &child_map,
+        root_id,
+        source,
+        leaves,
+        options,
+    ) else {
         return GentufaBlocksLayout {
             blocks: Vec::new(),
             max_col: 0,
@@ -540,8 +625,6 @@ struct BlockTreeNode {
     label: String,
     is_elided: bool,
     token_kind: Option<String>,
-    place_label: Option<MathVariable>,
-    relation_var: Option<MathVariable>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
     source_spans: Vec<SourceSpan>,
@@ -604,6 +687,7 @@ fn syntax_child_map(analysis: &ReferenceAnalysis<'_>) -> Vec<Vec<RawSyntaxNodeId
 #[ensures(true)]
 fn build_block_tree_node(
     analysis: &ReferenceAnalysis<'_>,
+    reference_model: &ReferenceDisplayModel,
     child_map: &[Vec<RawSyntaxNodeId>],
     id: RawSyntaxNodeId,
     source: &str,
@@ -616,7 +700,15 @@ fn build_block_tree_node(
         .into_iter()
         .flatten()
         .filter_map(|child| {
-            build_block_tree_node(analysis, child_map, *child, source, leaves, options)
+            build_block_tree_node(
+                analysis,
+                reference_model,
+                child_map,
+                *child,
+                source,
+                leaves,
+                options,
+            )
         })
         .collect::<Vec<_>>();
     let span = range_from_spans(metadata.source_spans.iter());
@@ -651,9 +743,7 @@ fn build_block_tree_node(
         label: label.clone(),
         is_elided: span.is_none(),
         token_kind: leaf_word.as_deref().and_then(token_kind_for_text),
-        place_label: place_label_for_node(analysis, id),
-        relation_var: relation_variable_for_node(analysis, id),
-        ref_markers: reference_markers_for_node(analysis, id),
+        ref_markers: reference_markers_for_node(reference_model, id),
         span,
         source_spans: metadata.source_spans.clone(),
         leaf_parts,
@@ -758,8 +848,6 @@ fn merge_parent_into_child(parent: BlockTreeNode, mut child: BlockTreeNode) -> B
     extend_unique_ref_markers(&mut ref_markers, child.ref_markers);
     child.node_types = node_types;
     child.ref_markers = ref_markers;
-    child.place_label = child.place_label.or(parent.place_label);
-    child.relation_var = child.relation_var.or(parent.relation_var);
     child.span = child.span.or(parent.span);
     child.source_spans = if child.source_spans.is_empty() {
         parent.source_spans
@@ -827,7 +915,6 @@ fn should_collapse_safe_multi_child_parent(node: &BlockTreeNode) -> bool {
                 "PredicateTail" | "PredicateTail1" | "PredicateTail2" | "Relation"
             )
         })
-        && node.place_label.is_none()
         && node.ref_markers.is_empty()
         && node.computed_gloss.is_none()
 }
@@ -1046,8 +1133,6 @@ fn synthetic_leaf_block(
         is_leaf: true,
         is_elided: false,
         token_kind: token_kind_for_text(&part.display_text),
-        place_label: None,
-        relation_var: None,
         ref_markers: Vec::new(),
         span: Some(part.range),
         node_types: node.node_types.clone(),
@@ -1134,8 +1219,6 @@ fn block_from_tree_node(
         is_leaf,
         is_elided: node.is_elided,
         token_kind: node.token_kind.clone(),
-        place_label: node.place_label.clone(),
-        relation_var: node.relation_var.clone(),
         ref_markers: node.ref_markers.clone(),
         span: node.span,
         node_types: node.node_types.clone(),
@@ -1285,6 +1368,7 @@ fn color_component_to_u8(value: f64) -> u8 {
 #[ensures(true)]
 fn tree_rows(
     analysis: &ReferenceAnalysis<'_>,
+    reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
     options: &GentufaWebOptions,
@@ -1320,8 +1404,7 @@ fn tree_rows(
                 transform: None,
             }],
             computed_gloss: None,
-            ref_markers: reference_markers_for_node(analysis, id),
-            relation_var: relation_variable_for_node(analysis, id),
+            ref_markers: reference_markers_for_node(reference_model, id),
             glosses: Vec::new(),
             definition: None,
             rafsi_breakdown: Vec::new(),
@@ -1338,87 +1421,58 @@ fn tree_row_should_render(label: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_variable_for_node(
-    analysis: &ReferenceAnalysis<'_>,
-    id: RawSyntaxNodeId,
-) -> Option<MathVariable> {
-    analysis
-        .place_analysis
-        .frames_for_node(id)
-        .first()
-        .map(|frame_id| MathVariable::new("r", Some(frame_id.0 + 1)))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn place_label_for_node(
-    analysis: &ReferenceAnalysis<'_>,
-    id: RawSyntaxNodeId,
-) -> Option<MathVariable> {
-    analysis
-        .place_analysis
-        .assignments()
-        .iter()
-        .find(|assignment| assignment.argument.0 == id)
-        .map(|assignment| variable_for_slot(assignment.slot))
-}
-
-#[requires(true)]
-#[ensures(!ret.base.is_empty())]
-fn variable_for_slot(slot: PlaceSlot) -> MathVariable {
-    match slot {
-        PlaceSlot::Numbered(place) => MathVariable::new("x", Some(place.get() as usize)),
-        PlaceSlot::Modal(_) => MathVariable::new("modal", None),
-        PlaceSlot::Fai => MathVariable::new("fai", None),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn reference_markers_for_node(
-    analysis: &ReferenceAnalysis<'_>,
+    reference_model: &ReferenceDisplayModel,
     id: RawSyntaxNodeId,
 ) -> Vec<ReferenceMarker> {
     let mut markers = Vec::new();
-    for edge_id in analysis.discourse_references.references_to_node(id) {
-        if let Some(edge) = analysis.discourse_references.edge(*edge_id) {
-            markers.push(ReferenceMarker {
-                role: ReferenceMarkerRole::Referent,
-                kind: reference_kind_text(&edge.kind).to_owned(),
-                label: MathVariable::new("q", Some(edge.id.0 + 1)),
-            });
-        }
+    let annotations = reference_model.annotations_for_syntax_ids(&[id]);
+    for label in annotations.incoming {
+        let label = reference_label_from_output(&label);
+        markers.push(ReferenceMarker {
+            role: ReferenceMarkerRole::Referent,
+            kind: reference_kind_for_label(&label),
+            label,
+        });
     }
-    for edge_id in analysis.discourse_references.references_from_node(id) {
-        if let Some(edge) = analysis.discourse_references.edge(*edge_id) {
-            markers.push(ReferenceMarker {
-                role: ReferenceMarkerRole::Reference,
-                kind: reference_kind_text(&edge.kind).to_owned(),
-                label: MathVariable::new("q", Some(edge.id.0 + 1)),
-            });
-        }
+    for label in annotations.outgoing {
+        let label = reference_label_from_output(&label);
+        markers.push(ReferenceMarker {
+            role: ReferenceMarkerRole::Reference,
+            kind: reference_kind_for_label(&label),
+            label,
+        });
     }
     markers
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn reference_kind_text(kind: &ReferenceKind) -> &'static str {
-    match kind {
-        ReferenceKind::GoiAssignment => "goi",
-        ReferenceKind::CeiAssignment => "cei",
-        ReferenceKind::Koha => "koha",
-        ReferenceKind::Ri => "ri",
-        ReferenceKind::Cehu => "cehu",
-        ReferenceKind::Letter => "letter",
-        ReferenceKind::Ra => "ra",
-        ReferenceKind::Ru => "ru",
-        ReferenceKind::Keha => "keha",
-        ReferenceKind::VohaSeries => "voha",
-        ReferenceKind::DaSeries => "da",
-        ReferenceKind::BrodaSeries => "broda",
-        ReferenceKind::GohaSeries => "goha",
-        ReferenceKind::Utterance => "utterance",
+fn reference_kind_for_label(label: &ReferenceLabel) -> String {
+    if label.slot.is_some() {
+        "argument".to_owned()
+    } else {
+        "reference".to_owned()
+    }
+}
+
+#[requires(!label.stem.is_empty())]
+#[ensures(ret.stem == label.stem)]
+fn reference_label_from_output(label: &OutputReferenceName) -> ReferenceLabel {
+    ReferenceLabel {
+        stem: label.stem.clone(),
+        occurrence: label.occurrence,
+        slot: label.slot.as_ref().map(reference_slot_label_from_output),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_slot_label_from_output(slot: &OutputReferenceSlotName) -> ReferenceSlotLabel {
+    match slot {
+        OutputReferenceSlotName::Numbered(place) => ReferenceSlotLabel::Numbered(*place),
+        OutputReferenceSlotName::Modal(words) => ReferenceSlotLabel::Modal(words.clone()),
+        OutputReferenceSlotName::Fai => ReferenceSlotLabel::Fai,
     }
 }
 
@@ -1816,6 +1870,44 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
     use jbotci_morphology::{GlideMark, StressMark};
+    use std::collections::BTreeSet;
+
+    #[requires(!text.trim().is_empty())]
+    #[ensures(true)]
+    fn parse_success(text: &str) -> GentufaSuccess {
+        let request = GentufaWebRequest {
+            text: text.to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+        let result = parse_gentufa_for_web(&request);
+        let GentufaWebResult::Success(success) = result else {
+            panic!("expected successful parse");
+        };
+        success
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn tree_reference_keys(success: &GentufaSuccess, role: ReferenceMarkerRole) -> BTreeSet<String> {
+        success
+            .tree_rows
+            .iter()
+            .flat_map(|row| row.ref_markers.iter())
+            .filter(|marker| marker.role == role)
+            .map(|marker| marker.label.full_key())
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn all_reference_stems(success: &GentufaSuccess) -> BTreeSet<String> {
+        success
+            .tree_rows
+            .iter()
+            .flat_map(|row| row.ref_markers.iter())
+            .map(|marker| marker.label.stem.clone())
+            .collect()
+    }
 
     #[test]
     #[requires(true)]
@@ -1894,14 +1986,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn tree_rows_keep_depth_order_color_and_math_label_data() {
-        let request = GentufaWebRequest {
-            text: "mi klama le zarci".to_owned(),
-            options: GentufaWebOptions::default(),
-        };
-        let result = parse_gentufa_for_web(&request);
-        let GentufaWebResult::Success(success) = result else {
-            panic!("expected successful parse");
-        };
+        let success = parse_success("mi klama le zarci");
         assert_eq!(success.tree_rows.first().map(|row| row.depth), Some(0));
         assert!(
             success
@@ -1916,11 +2001,117 @@ mod tests {
                 .all(|row| !row.label.starts_with("PredicateTail"))
         );
         assert!(success.blocks_layout.blocks.iter().any(|block| {
-            block
-                .place_label
-                .as_ref()
-                .is_some_and(|label| label.base == "x" && label.subscript.is_some())
+            block.ref_markers.iter().any(|marker| {
+                marker.role == ReferenceMarkerRole::Referent
+                    && marker.label.stem == "k"
+                    && marker.label.slot == Some(ReferenceSlotLabel::Numbered(1))
+            })
         }));
+        assert!(success.blocks_layout.blocks.iter().any(|block| {
+            block.ref_markers.iter().any(|marker| {
+                marker.role == ReferenceMarkerRole::Reference
+                    && marker.label.stem == "k"
+                    && marker.label.slot.is_none()
+            })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_output_inserts_hair_spaces() {
+        let success = parse_success("mi klama le zarci");
+        assert!(success.brackets_text.contains('\u{200a}'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_anaphora() {
+        let success = parse_success("mi klama le zarci i do klama ri");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k1<1>"));
+        assert!(referents.contains("k1<2>"));
+        assert!(referents.contains("k2<1>"));
+        assert!(referents.contains("k2<2>"));
+        assert!(references.contains("k1"));
+        assert!(references.contains("k2"));
+        assert!(references.contains("ri1"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_modal_places() {
+        let success = parse_success("mi ta'i do klama");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k<1>"));
+        assert!(referents.contains("k<ta'i>"));
+        assert!(references.contains("k"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_se_conversion() {
+        let success = parse_success("mi se klama do");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k<1>"));
+        assert!(referents.contains("k<2>"));
+        assert!(references.contains("k"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_goi_and_goi_reference() {
+        let success = parse_success("mi goi ko'a klama ko'a");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k<1>"));
+        assert!(referents.contains("k<2>"));
+        assert!(references.contains("k"));
+        assert!(references.contains("ko'a1"));
+        assert!(references.contains("ko'a2"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_go_i() {
+        let success = parse_success("mi klama i do go'i");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k<1>"));
+        assert!(referents.contains("go'i1<1>"));
+        assert!(references.contains("k"));
+        assert!(references.contains("go'i1"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_match_cli_tree_model_for_cei() {
+        let success = parse_success("ti klama cei broda");
+        let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
+        let references = tree_reference_keys(&success, ReferenceMarkerRole::Reference);
+        assert!(referents.contains("k<1>"));
+        assert!(references.contains("k"));
+        assert!(references.contains("b"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_labels_do_not_use_web_only_invented_names() {
+        let success = parse_success("mi klama le zarci i do klama ri");
+        let stems = all_reference_stems(&success);
+        assert!(!stems.contains("q"));
+        assert!(!stems.contains("r"));
+        assert!(!stems.contains("x"));
     }
 
     #[test]

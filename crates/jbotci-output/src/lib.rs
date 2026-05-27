@@ -16,11 +16,13 @@ pub use diagnostics::{
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
+pub use references::{ReferenceAnnotations, ReferenceDisplayModel, ReferenceName, ReferenceSlotName};
 use jbotci_syntax::ast::TextSyntax;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
+pub use tree::reference_display_model_for_syntax_tree;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -186,6 +188,7 @@ pub struct BracketRenderOptions {
     pub phonemes: PhonemeRenderOptions,
     pub glyphs: GlyphStyle,
     pub decompose_lujvo: bool,
+    pub insert_hair_space: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
