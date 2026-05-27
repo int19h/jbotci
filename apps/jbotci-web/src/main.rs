@@ -15,7 +15,7 @@ use wasm_bindgen::JsCast;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
-const DEFAULT_GENTUFA_TEXT: &str = "mi klama le zarci";
+const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
@@ -876,17 +876,18 @@ fn render_tree_glosses(row: &GentufaTreeRow) -> Element {
 #[ensures(true)]
 fn render_reference_label(label: &ReferenceLabel) -> Element {
     let slot_text = label.slot.as_ref().map(ReferenceSlotLabel::text);
+    let stem = math_alphanumeric_stem(&label.stem);
     rsx! {
         span { class: "spa-cll-math",
             math { class: "math-var", display: "inline",
                 mrow {
                     if let Some(occurrence) = label.occurrence {
                         msub {
-                            mi { "{label.stem}" }
+                            mi { "{stem}" }
                             mtext { "{occurrence}" }
                         }
                     } else {
-                        mi { "{label.stem}" }
+                        mi { "{stem}" }
                     }
                     if let Some(text) = slot_text.as_deref() {
                         mo { "⟨" }
@@ -896,6 +897,79 @@ fn render_reference_label(label: &ReferenceLabel) -> Element {
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.chars().count() >= stem.chars().count())]
+fn math_alphanumeric_stem(stem: &str) -> String {
+    let mut output = String::new();
+    for ch in stem.chars() {
+        push_math_alphanumeric_char(&mut output, ch);
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_math_alphanumeric_char(output: &mut String, ch: char) {
+    if is_reference_stem_combining_mark(ch) {
+        return;
+    }
+    if let Some(base) = normalized_reference_stem_char(ch) {
+        output.push(math_alphanumeric_ascii_char(base).unwrap_or(base));
+    } else {
+        output.push(math_alphanumeric_ascii_char(ch).unwrap_or(ch));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalized_reference_stem_char(ch: char) -> Option<char> {
+    match ch {
+        'á' => Some('a'),
+        'é' => Some('e'),
+        'í' => Some('i'),
+        'ó' => Some('o'),
+        'ú' => Some('u'),
+        'ý' => Some('y'),
+        'Á' => Some('A'),
+        'É' => Some('E'),
+        'Í' => Some('I'),
+        'Ó' => Some('O'),
+        'Ú' => Some('U'),
+        'Ý' => Some('Y'),
+        'ĭ' => Some('i'),
+        'ŭ' => Some('u'),
+        'Ĭ' => Some('I'),
+        'Ŭ' => Some('U'),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_reference_stem_combining_mark(ch: char) -> bool {
+    matches!(ch, '\u{0301}' | '\u{0306}')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_alphanumeric_ascii_char(ch: char) -> Option<char> {
+    const LOWER: [char; 26] = [
+        '𝑎', '𝑏', '𝑐', '𝑑', '𝑒', '𝑓', '𝑔', 'ℎ', '𝑖', '𝑗', '𝑘', '𝑙', '𝑚', '𝑛', '𝑜', '𝑝', '𝑞',
+        '𝑟', '𝑠', '𝑡', '𝑢', '𝑣', '𝑤', '𝑥', '𝑦', '𝑧',
+    ];
+    const UPPER: [char; 26] = [
+        '𝐴', '𝐵', '𝐶', '𝐷', '𝐸', '𝐹', '𝐺', '𝐻', '𝐼', '𝐽', '𝐾', '𝐿', '𝑀', '𝑁', '𝑂', '𝑃', '𝑄',
+        '𝑅', '𝑆', '𝑇', '𝑈', '𝑉', '𝑊', '𝑋', '𝑌', '𝑍',
+    ];
+    if ch.is_ascii_lowercase() {
+        Some(LOWER[(ch as u8 - b'a') as usize])
+    } else if ch.is_ascii_uppercase() {
+        Some(UPPER[(ch as u8 - b'A') as usize])
+    } else {
+        None
     }
 }
 
@@ -1022,8 +1096,6 @@ fn measure_reference_overlay(hovered: &HoveredReference) -> Option<ArrowOverlay>
     let full_key = hovered.label.full_key();
     let window = web_sys::window()?;
     let document = window.document()?;
-    let page = document.query_selector(".parse-page").ok().flatten()?;
-    let page_rect = page.get_bounding_client_rect();
     let nodes = document
         .query_selector_all(".parse-page .ref-var[data-ref-role]")
         .ok()?;
@@ -1042,12 +1114,12 @@ fn measure_reference_overlay(hovered: &HoveredReference) -> Option<ArrowOverlay>
         let role = element.get_attribute("data-ref-role");
         let label = element.get_attribute("data-ref-label");
         if role.as_deref() == Some("reference") {
-            sources.push(reference_rect_from_element(&element, &page_rect));
+            sources.push(reference_rect_from_element(&element));
         } else if role.as_deref() == Some("referent")
             && (hovered.role == ReferenceMarkerRole::Reference
                 || label.as_deref() == Some(full_key.as_str()))
         {
-            targets.push(reference_rect_from_element(&element, &page_rect));
+            targets.push(reference_rect_from_element(&element));
         }
     }
     let mut paths = reference_arrow_paths(&sources, &targets);
@@ -1057,16 +1129,16 @@ fn measure_reference_overlay(hovered: &HoveredReference) -> Option<ArrowOverlay>
         return None;
     }
     Some(ArrowOverlay {
-        width: page
-            .dyn_ref::<web_sys::HtmlElement>()
-            .map(|element| f64::from(element.scroll_width()))
-            .unwrap_or(0.0)
-            .max(page_rect.width()),
-        height: page
-            .dyn_ref::<web_sys::HtmlElement>()
-            .map(|element| f64::from(element.scroll_height()))
-            .unwrap_or(0.0)
-            .max(page_rect.height()),
+        width: window
+            .inner_width()
+            .ok()
+            .and_then(|width| width.as_f64())
+            .unwrap_or(1.0),
+        height: window
+            .inner_height()
+            .ok()
+            .and_then(|height| height.as_f64())
+            .unwrap_or(1.0),
         paths,
     })
 }
@@ -1081,16 +1153,13 @@ fn measure_reference_overlay(_hovered: &HoveredReference) -> Option<ArrowOverlay
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn reference_rect_from_element(
-    element: &web_sys::Element,
-    page_rect: &web_sys::DomRect,
-) -> ReferenceRect {
+fn reference_rect_from_element(element: &web_sys::Element) -> ReferenceRect {
     let rect = element.get_bounding_client_rect();
     ReferenceRect {
-        left: rect.left() - page_rect.left(),
-        top: rect.top() - page_rect.top(),
-        right: rect.right() - page_rect.left(),
-        bottom: rect.bottom() - page_rect.top(),
+        left: rect.left(),
+        top: rect.top(),
+        right: rect.right(),
+        bottom: rect.bottom(),
     }
 }
 
@@ -1187,7 +1256,7 @@ fn render_disabled(name: &str) -> Element {
 #[requires(count > 0)]
 #[ensures(!ret.is_empty())]
 fn repeated_parse_tree_template(count: usize) -> String {
-    format!("repeat({count}, minmax(max-content, 1fr))")
+    format!("repeat({count}, max-content)")
 }
 
 #[requires(true)]

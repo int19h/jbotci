@@ -283,7 +283,7 @@ All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` fro
 
 # Build
 
-Always build the `jbotci` release binary before you wrap up your work.
+Always build the `jbotci` and `jbotci-server` release binaries before you wrap up your work.
 
 
 # Test suite
