@@ -60,6 +60,118 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries reference analysis diagnostics",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NotImplemented",
+        "temporary command error has no payload until jvozba composition is implemented",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
+        "internal fallback lujvo parser validates segment text before converting to Phonemes",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Hyphen",
+        "internal fallback lujvo parser only emits known hyphen segments before Phonemes validation",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:PhoneticError::Message",
+        "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Syllabic",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Place",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Manner",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Voice",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Nasal",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Retroflex",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Lateral",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Aspirated",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::High",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Back",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Round",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Long",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Valsi",
+        "CLI and search validation reject empty valsi requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Rafsi",
+        "CLI and search validation reject empty rafsi requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Lujvo",
+        "CLI and search validation reject empty lujvo requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Glob",
+        "glob compilation validates request text and reports invalid patterns as lookup diagnostics",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
+        "sound query parsing validates request text before ALINE matching",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
+        "composition kind is a closed display tag; surface/source fields carry data validity",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Hyphen",
+        "composition kind is a closed display tag; surface/source fields carry data validity",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Literal",
+        "glob compiler normalizes literal tokens before constructing this internal matcher enum",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Consonant",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Vowel",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyOne",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyMany",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Forward",
         "fixture frame propagation is a serialization projection of validated frame ids",
     ),

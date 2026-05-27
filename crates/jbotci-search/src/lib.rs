@@ -1,5 +1,8 @@
 //! Semantic search abstractions.
 
+mod phonetic;
+pub mod vlacku;
+
 use bityzba::{contract_trait, invariant, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

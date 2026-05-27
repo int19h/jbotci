@@ -5,13 +5,16 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{
+    Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, FromArgMatches, Parser, Subcommand,
+    ValueEnum, value_parser,
+};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{
-    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -21,6 +24,11 @@ use jbotci_output::{
     compact_syntax_json_string_with_options, ipa_morphology_text, pretty_brackets_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
     pretty_tree_with_options, render_diagnostics, render_trace_report,
+};
+use jbotci_search::vlacku::{
+    DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
+    VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput, format_votes,
+    normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -81,7 +89,7 @@ enum Command {
     #[command(name = "tersmu")]
     Tersmu(TextInput),
     #[command(name = "vlacku", visible_alias = "dict")]
-    Vlacku(SearchInput),
+    Vlacku(VlackuInput),
     #[command(name = "jvozba")]
     Jvozba(JvozbaInput),
     #[command(name = "cukta", visible_alias = "book")]
@@ -98,6 +106,8 @@ enum Command {
 enum CliStatus {
     Success,
     Failure,
+    ValidMissing,
+    InvalidInput,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -446,6 +456,194 @@ struct SearchInput {
     query: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct VlackuInput {
+    count: Option<usize>,
+    index: bool,
+    word_types: Vec<String>,
+    min_votes: Option<i32>,
+    min_similarity: Option<f32>,
+    decompose_lujvo: bool,
+    requests: Vec<VlackuRequest>,
+    query: Vec<String>,
+}
+
+impl Args for VlackuInput {
+    #[requires(true)]
+    #[ensures(true)]
+    fn augment_args(command: ClapCommand) -> ClapCommand {
+        augment_vlacku_args(command)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn augment_args_for_update(command: ClapCommand) -> ClapCommand {
+        augment_vlacku_args(command)
+    }
+}
+
+impl FromArgMatches for VlackuInput {
+    #[requires(true)]
+    #[ensures(ret.is_ok())]
+    fn from_arg_matches(matches: &ArgMatches) -> std::result::Result<Self, clap::Error> {
+        Ok(parse_vlacku_matches(matches))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok())]
+    fn update_from_arg_matches(
+        &mut self,
+        matches: &ArgMatches,
+    ) -> std::result::Result<(), clap::Error> {
+        *self = parse_vlacku_matches(matches);
+        Ok(())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
+    command
+        .arg(
+            Arg::new("count")
+                .short('n')
+                .long("count")
+                .value_name("N")
+                .value_parser(value_parser!(usize)),
+        )
+        .arg(Arg::new("index").long("index").action(ArgAction::SetTrue))
+        .arg(
+            Arg::new("word_type")
+                .long("word-type")
+                .value_name("T,...")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("min_votes")
+                .long("min-votes")
+                .value_name("N")
+                .value_parser(value_parser!(i32)),
+        )
+        .arg(
+            Arg::new("min_similarity")
+                .long("min-similarity")
+                .value_name("PCT")
+                .value_parser(value_parser!(f32)),
+        )
+        .arg(
+            Arg::new("valsi")
+                .long("valsi")
+                .value_name("WORD")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("rafsi")
+                .long("rafsi")
+                .value_name("RAFSI")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("lujvo")
+                .long("lujvo")
+                .value_name("WORD")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("glob")
+                .long("glob")
+                .value_name("PATTERN")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("sound")
+                .long("sound")
+                .value_name("TEXT|[IPA]")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("decompose_lujvo")
+                .long("decompose-lujvo")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(Arg::new("query").action(ArgAction::Append).num_args(0..))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
+    let mut ordered_requests = Vec::new();
+    collect_ordered_vlacku_requests(
+        matches,
+        "valsi",
+        VlackuRequest::Valsi,
+        &mut ordered_requests,
+    );
+    collect_ordered_vlacku_requests(
+        matches,
+        "rafsi",
+        VlackuRequest::Rafsi,
+        &mut ordered_requests,
+    );
+    collect_ordered_vlacku_requests(
+        matches,
+        "lujvo",
+        VlackuRequest::Lujvo,
+        &mut ordered_requests,
+    );
+    collect_ordered_vlacku_requests(matches, "glob", VlackuRequest::Glob, &mut ordered_requests);
+    collect_ordered_vlacku_requests(
+        matches,
+        "sound",
+        VlackuRequest::Sound,
+        &mut ordered_requests,
+    );
+    ordered_requests.sort_by_key(|(index, _)| *index);
+
+    VlackuInput {
+        count: matches.get_one::<usize>("count").copied(),
+        index: matches.get_flag("index"),
+        word_types: matches
+            .get_many::<String>("word_type")
+            .map(|values| values.cloned().collect())
+            .unwrap_or_default(),
+        min_votes: matches.get_one::<i32>("min_votes").copied(),
+        min_similarity: matches.get_one::<f32>("min_similarity").copied(),
+        decompose_lujvo: matches.get_flag("decompose_lujvo"),
+        requests: ordered_requests
+            .into_iter()
+            .map(|(_, request)| request)
+            .collect(),
+        query: matches
+            .get_many::<String>("query")
+            .map(|values| values.cloned().collect())
+            .unwrap_or_default(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_ordered_vlacku_requests<F>(
+    matches: &ArgMatches,
+    id: &'static str,
+    make_request: F,
+    output: &mut Vec<(usize, VlackuRequest)>,
+) where
+    F: Fn(String) -> VlackuRequest,
+{
+    let values = matches
+        .get_many::<String>(id)
+        .map(|values| values.cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let indices = matches
+        .indices_of(id)
+        .map(|indices| indices.collect::<Vec<_>>())
+        .unwrap_or_default();
+    for (index, value) in indices.into_iter().zip(values) {
+        output.push((index, make_request(value)));
+    }
+}
+
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct JvozbaInput {
@@ -461,6 +659,8 @@ fn main() -> ExitCode {
     match run() {
         Ok(CliStatus::Success) => ExitCode::SUCCESS,
         Ok(CliStatus::Failure) => ExitCode::FAILURE,
+        Ok(CliStatus::ValidMissing) => ExitCode::from(10),
+        Ok(CliStatus::InvalidInput) => ExitCode::from(11),
         Err(error) => {
             eprintln!("jbotci: {error}");
             ExitCode::FAILURE
@@ -735,7 +935,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
             command_not_implemented("tersmu")?;
             Ok(CliStatus::Success)
         }
-        Command::Vlacku(_input) => {
+        Command::Vlacku(input) => {
             validate_trace_controls_for_unsupported_command(
                 "vlacku",
                 &None,
@@ -743,8 +943,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 trace_limit_present,
                 cli.trace_list,
             )?;
-            command_not_implemented("vlacku")?;
-            Ok(CliStatus::Success)
+            run_vlacku(input, stdout, stderr, color_policy.stdout, glyphs)
         }
         Command::Jvozba(_input) => {
             validate_trace_controls_for_unsupported_command(
@@ -791,6 +990,430 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
             )?;
             run_gerna(input, stdout)
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_vlacku<WOut: Write, WErr: Write>(
+    input: VlackuInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color: bool,
+    glyphs: GlyphStyle,
+) -> Result<CliStatus> {
+    validate_vlacku_input(&input)?;
+    let options = vlacku_search_options(&input)?;
+    let output = run_vlacku_requests(jbotci_dictionary_data::english(), &input.requests, &options);
+    for diagnostic in &output.diagnostics {
+        writeln!(stderr, "vlacku: {diagnostic}")?;
+    }
+    if !output.cards.is_empty() || output.outcome != VlackuOutcome::Invalid {
+        write!(stdout, "{}", render_vlacku_output(&output, color, glyphs))?;
+    }
+    Ok(cli_status_from_vlacku_outcome(output.outcome))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
+    if input.index {
+        bail!("`vlacku --index` is reserved for future semantic embeddings");
+    }
+    if input.count == Some(0) {
+        bail!("`--count` must be greater than 0");
+    }
+    if let Some(min_similarity) = input.min_similarity {
+        if !(0.0..=100.0).contains(&min_similarity) {
+            bail!("`--min-similarity` must be between 0 and 100");
+        }
+    }
+    if input.requests.is_empty() {
+        if input.query.is_empty() {
+            bail!(
+                "No query provided for vlacku. Use --valsi, --rafsi, --lujvo, --glob, or --sound."
+            );
+        }
+        bail!(
+            "Semantic vlacku search is reserved for future embeddings; use --valsi, --rafsi, --lujvo, --glob, or --sound."
+        );
+    }
+    if !input.query.is_empty() {
+        bail!(
+            "Do not pass positional query text when using --valsi, --rafsi, --lujvo, --glob, or --sound."
+        );
+    }
+    let sound_count = input
+        .requests
+        .iter()
+        .filter(|request| matches!(request, VlackuRequest::Sound(_)))
+        .count();
+    if sound_count > 1 {
+        bail!("`--sound` may be specified only once");
+    }
+    if sound_count == 1 && input.requests.len() > 1 {
+        bail!("`--sound` cannot be combined with --valsi, --rafsi, --lujvo, or --glob");
+    }
+    if input.min_similarity.is_some() && sound_count != 1 {
+        bail!("`--min-similarity` is only valid with `--sound`");
+    }
+    for request in &input.requests {
+        validate_vlacku_request_value(request)?;
+    }
+    let _ = parse_vlacku_word_types(&input.word_types)?;
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
+    let (flag, value) = match request {
+        VlackuRequest::Valsi(value) => ("--valsi", value),
+        VlackuRequest::Rafsi(value) => ("--rafsi", value),
+        VlackuRequest::Lujvo(value) => ("--lujvo", value),
+        VlackuRequest::Glob(value) => ("--glob", value),
+        VlackuRequest::Sound(value) => ("--sound", value),
+    };
+    if value.trim().is_empty() {
+        bail!("{flag} requires a non-empty value");
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
+    Ok(VlackuSearchOptions {
+        count: input.count.unwrap_or(DEFAULT_VLACKU_RESULT_COUNT),
+        word_types: parse_vlacku_word_types(&input.word_types)?,
+        min_votes: input.min_votes,
+        min_similarity: input.min_similarity,
+        decompose_lujvo: input.decompose_lujvo,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn parse_vlacku_word_types(raw_values: &[String]) -> Result<Vec<String>> {
+    let mut values = Vec::new();
+    for raw_value in raw_values {
+        for piece in raw_value.split(',') {
+            let normalized = normalize_word_type_filter(piece);
+            if normalized.is_empty() {
+                continue;
+            }
+            if !is_valid_vlacku_word_type_filter(&normalized) {
+                bail!(
+                    "Unknown `--word-type` value: {normalized}. Use gismu, lujvo, cmavo, cmevla, fu'ivla, or brivla."
+                );
+            }
+            if !values.contains(&normalized) {
+                values.push(normalized);
+            }
+        }
+    }
+    if !raw_values.is_empty() && values.is_empty() {
+        bail!("`--word-type` requires at least one non-empty type");
+    }
+    Ok(values)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_valid_vlacku_word_type_filter(value: &str) -> bool {
+    matches!(
+        value,
+        "gismu" | "lujvo" | "cmavo" | "cmevla" | "fu'ivla" | "brivla"
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cli_status_from_vlacku_outcome(outcome: VlackuOutcome) -> CliStatus {
+    match outcome {
+        VlackuOutcome::Found => CliStatus::Success,
+        VlackuOutcome::ValidMissing => CliStatus::ValidMissing,
+        VlackuOutcome::Invalid => CliStatus::InvalidInput,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_vlacku_output(output: &VlackuSearchOutput, color: bool, glyphs: GlyphStyle) -> String {
+    if output.cards.is_empty() {
+        return "No matches found.\n".to_owned();
+    }
+    let mut rendered = String::new();
+    for (index, card) in output.cards.iter().enumerate() {
+        rendered.push_str(&render_vlacku_card(index + 1, card, color, glyphs));
+        rendered.push('\n');
+    }
+    rendered
+}
+
+#[requires(index > 0)]
+#[ensures(!ret.is_empty())]
+fn render_vlacku_card(index: usize, card: &VlackuCard, color: bool, glyphs: GlyphStyle) -> String {
+    let mut lines = Vec::new();
+    let mut header = String::new();
+    header.push_str(&dark(&format!("{index}."), color));
+    header.push(' ');
+    header.push_str(&yellow(&card.word, color));
+    header.push_str(&dark(" | ", color));
+    header.push_str(&blue(&vlacku_header_type(card), color));
+    if let Some(similarity) = card.similarity {
+        header.push_str(&dark(" | ", color));
+        header.push_str(&dark("similarity: ", color));
+        header.push_str(&magenta(&format_similarity_percent(similarity), color));
+    }
+    if let Some(votes) = card.votes {
+        header.push_str(&dark(" | ", color));
+        header.push_str(&dark("votes: ", color));
+        header.push_str(&green(&format_votes(votes), color));
+    }
+    lines.push(header);
+
+    if !card.rafsi.is_empty() {
+        lines.push(format!(
+            "  {}{}",
+            dark("rafsi: ", color),
+            card.rafsi
+                .iter()
+                .map(|rafsi| red(rafsi, color))
+                .collect::<Vec<_>>()
+                .join(" ")
+        ));
+    }
+    if !card.decomposition.is_empty() {
+        lines.push(format!(
+            "  {}{}",
+            dark("decomposition: ", color),
+            render_vlacku_decomposition(&card.decomposition, color, glyphs)
+        ));
+    }
+    if !card.glosses.is_empty() {
+        lines.push(format!("  {}", dark("glosses:", color)));
+        lines.push(format!(
+            "    {}",
+            render_vlacku_rich_text(&card.glosses.join("; "), color)
+        ));
+    }
+    if !card.definition.trim().is_empty() {
+        lines.push(format!("  {}", dark("definitions:", color)));
+        for line in card.definition.lines() {
+            lines.push(format!("    {}", render_vlacku_rich_text(line, color)));
+        }
+    }
+    if !card.notes.trim().is_empty() {
+        lines.push(format!("  {}", dark("notes:", color)));
+        for line in card.notes.lines() {
+            lines.push(format!("    {}", render_vlacku_rich_text(line, color)));
+        }
+    }
+    lines.join("\n") + "\n"
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlacku_header_type(card: &VlackuCard) -> String {
+    let normalized = normalize_word_type_filter(&card.word_type);
+    if normalized.starts_with("cmavo") {
+        if let Some(selmaho) = &card.selmaho {
+            if !selmaho.trim().is_empty() {
+                return format!("cmavo: {selmaho}");
+            }
+        }
+    }
+    card.word_type.clone()
+}
+
+#[requires(true)]
+#[ensures(ret.ends_with('%'))]
+fn format_similarity_percent(value: f32) -> String {
+    format!("{}%", (value * 100.0).round() as i32)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_decomposition(
+    pieces: &[VlackuCompositionPiece],
+    color: bool,
+    glyphs: GlyphStyle,
+) -> String {
+    let separator = dark(lujvo_separator(glyphs), color);
+    pieces
+        .iter()
+        .map(|piece| render_vlacku_decomposition_piece(piece, color, glyphs))
+        .collect::<Vec<_>>()
+        .join(&separator)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_decomposition_piece(
+    piece: &VlackuCompositionPiece,
+    color: bool,
+    glyphs: GlyphStyle,
+) -> String {
+    let phoneme_options = phoneme_render_options(None, None, glyphs);
+    let surface = Phonemes::from_canonical(piece.surface.clone())
+        .map(|phonemes| phonemes.render(phoneme_options))
+        .unwrap_or_else(|_| piece.surface.clone());
+    match piece.kind {
+        VlackuCompositionKind::Rafsi => red(&surface, color),
+        VlackuCompositionKind::Hyphen => dark(&surface, color),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn lujvo_separator(glyphs: GlyphStyle) -> &'static str {
+    match glyphs {
+        GlyphStyle::Unicode => "·",
+        GlyphStyle::Ascii => "~",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_rich_text(input: &str, color: bool) -> String {
+    let mut output = String::new();
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let Some(open_index) = remaining.find('$') else {
+            output.push_str(&render_vlacku_word_links(remaining, color));
+            break;
+        };
+        let before = &remaining[..open_index];
+        let after_open = &remaining[open_index + 1..];
+        let Some(close_index) = after_open.find('$') else {
+            output.push_str(&render_vlacku_word_links(remaining, color));
+            break;
+        };
+        output.push_str(&render_vlacku_word_links(before, color));
+        let math_body = &after_open[..close_index];
+        output.push_str(&dark("$", color));
+        output.push_str(&cyan(math_body, color));
+        output.push_str(&dark("$", color));
+        remaining = &after_open[close_index + 1..];
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_word_links(input: &str, color: bool) -> String {
+    let mut output = String::new();
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let Some(open_index) = remaining.find('{') else {
+            output.push_str(&light(remaining, color));
+            break;
+        };
+        let before = &remaining[..open_index];
+        let after_open = &remaining[open_index + 1..];
+        let Some(close_index) = after_open.find('}') else {
+            output.push_str(&light(remaining, color));
+            break;
+        };
+        output.push_str(&light(before, color));
+        let inside = &after_open[..close_index];
+        let link_value = inside.trim();
+        if is_vlacku_word_link(link_value) {
+            output.push_str(&dark("{", color));
+            output.push_str(&yellow(link_value, color));
+            output.push_str(&dark("}", color));
+        } else {
+            output.push_str(&light(&format!("{{{inside}}}"), color));
+        }
+        remaining = &after_open[close_index + 1..];
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_vlacku_word_link(value: &str) -> bool {
+    !value.is_empty() && !value.chars().any(char::is_whitespace)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dark(text: &str, color: bool) -> String {
+    if color {
+        text.bright_black().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn yellow(text: &str, color: bool) -> String {
+    if color {
+        text.yellow().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn blue(text: &str, color: bool) -> String {
+    if color {
+        text.bright_blue().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn magenta(text: &str, color: bool) -> String {
+    if color {
+        text.magenta().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn green(text: &str, color: bool) -> String {
+    if color {
+        text.green().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn red(text: &str, color: bool) -> String {
+    if color {
+        text.red().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cyan(text: &str, color: bool) -> String {
+    if color {
+        text.cyan().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn light(text: &str, color: bool) -> String {
+    if color {
+        text.white().to_string()
+    } else {
+        text.to_owned()
     }
 }
 
@@ -1782,6 +2405,131 @@ mod tests {
         ));
         assert!(Cli::try_parse_from(["jbotci", "server"]).is_err());
         assert!(Cli::try_parse_from(["jbotci", "selfu"]).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_vlacku_primary_name_and_dict_alias() {
+        let Command::Vlacku(primary_input) =
+            Cli::try_parse_from(["jbotci", "vlacku", "--valsi", "klama"])
+                .expect("primary vlacku command")
+                .command
+        else {
+            panic!("expected vlacku command");
+        };
+        assert_eq!(
+            primary_input.requests,
+            vec![VlackuRequest::Valsi("klama".to_owned())]
+        );
+
+        let Command::Vlacku(alias_input) =
+            Cli::try_parse_from(["jbotci", "dict", "--rafsi", "kla"])
+                .expect("dict alias command")
+                .command
+        else {
+            panic!("expected vlacku command");
+        };
+        assert_eq!(
+            alias_input.requests,
+            vec![VlackuRequest::Rafsi("kla".to_owned())]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_vlacku_mixed_repeated_request_order() {
+        let Command::Vlacku(input) = Cli::try_parse_from([
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "a",
+            "--rafsi",
+            "bau",
+            "--valsi",
+            "klama",
+            "--glob",
+            "CVCCV",
+            "--lujvo",
+            "mivyselbai",
+        ])
+        .expect("mixed vlacku requests")
+        .command
+        else {
+            panic!("expected vlacku command");
+        };
+
+        assert_eq!(
+            input.requests,
+            vec![
+                VlackuRequest::Valsi("a".to_owned()),
+                VlackuRequest::Rafsi("bau".to_owned()),
+                VlackuRequest::Valsi("klama".to_owned()),
+                VlackuRequest::Glob("CVCCV".to_owned()),
+                VlackuRequest::Lujvo("mivyselbai".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_removed_vlacku_min_match_switch() {
+        let error =
+            Cli::try_parse_from(["jbotci", "vlacku", "--min-match", "80", "--valsi", "klama"])
+                .expect_err("min-match is no longer accepted");
+        assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_reserved_vlacku_embedding_inputs() {
+        let index_cli = Cli::try_parse_from(["jbotci", "vlacku", "--index", "--valsi", "klama"])
+            .expect("index flag parses");
+        let index_error = run_cli(index_cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("index is not implemented");
+        assert!(
+            index_error
+                .to_string()
+                .contains("future semantic embeddings")
+        );
+
+        let positional_cli = Cli::try_parse_from(["jbotci", "vlacku", "going somewhere"])
+            .expect("semantic positional query parses");
+        let positional_error = run_cli(positional_cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("semantic query is not implemented");
+        assert!(positional_error.to_string().contains("future embeddings"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_vlacku_sound_exclusive_combinations() {
+        let cli = Cli::try_parse_from(["jbotci", "vlacku", "--sound", "klama", "--valsi", "klama"])
+            .expect("sound combination parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("sound cannot combine with exact modes");
+        assert!(error.to_string().contains("cannot be combined"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_vlacku_min_similarity_outside_sound_mode() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "vlacku",
+            "--min-similarity",
+            "80",
+            "--valsi",
+            "klama",
+        ])
+        .expect("min-similarity with valsi parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("min-similarity is sound-only");
+        assert!(error.to_string().contains("only valid with `--sound`"));
     }
 
     #[cfg(not(feature = "grammar-debug"))]
@@ -3407,6 +4155,206 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_exact_found_outputs_dictionary_card() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "klama"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(
+            run.stdout
+                .contains("1. klama | gismu | similarity: 100% | votes: +")
+        );
+        assert!(run.stdout.contains("  rafsi: "));
+        assert!(run.stdout.contains("  glosses:"));
+        assert!(run.stdout.contains("  definitions:"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_valid_missing_outputs_classification_card() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "brodax"], false);
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. brodax | cmevla"));
+        assert!(!run.stdout.contains("  rafsi:"));
+        assert!(!run.stdout.contains("  glosses:"));
+        assert!(!run.stdout.contains("  definitions:"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_invalid_word_reports_invalid_input_status() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "aa"], false);
+
+        assert_eq!(run.status, CliStatus::InvalidInput);
+        assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(run.stderr.contains("Invalid Lojban word: aa"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rafsi_lookup_returns_source_entry() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--rafsi", "kla"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(
+            run.stdout
+                .contains("1. klama | gismu | similarity: 100% | votes: +")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_lujvo_outputs_headword_decomposition_then_sources() {
+        let run = run_cli_capture(
+            &["jbotci", "--ascii", "vlacku", "--lujvo", "mivyselbai"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. mivyselbai | lujvo"));
+        assert!(run.stdout.contains("  decomposition: miv~y~sel~bai"));
+        assert_in_order(
+            &run.stdout,
+            &[
+                "1. mivyselbai | lujvo",
+                "2. jmive | gismu",
+                "3. se | cmavo: SE",
+                "4. bapli | gismu",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_decompose_lujvo_adds_decomposition_to_exact_lujvo_cards() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "--ascii",
+                "vlacku",
+                "--decompose-lujvo",
+                "--valsi",
+                "mivyselbai",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. mivyselbai | lujvo"));
+        assert!(run.stdout.contains("  decomposition: miv~y~sel~bai"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_glob_matches_and_rejects_reserved_uppercase() {
+        let found = run_cli_capture(
+            &["jbotci", "vlacku", "--glob", "klamV", "--count", "1"],
+            false,
+        );
+        assert_eq!(found.status, CliStatus::Success);
+        assert!(found.stdout.contains("1. klama | gismu"));
+
+        let invalid = run_cli_capture(&["jbotci", "vlacku", "--glob", "K"], false);
+        assert_eq!(invalid.status, CliStatus::InvalidInput);
+        assert!(invalid.stderr.contains("uppercase `K` is reserved"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_filters_can_turn_hits_into_no_hit_status() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                "klama",
+                "--word-type",
+                "cmavo",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert_eq!(run.stdout, "No matches found.\n");
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_sound_search_accepts_bracketed_ipa_and_orders_by_similarity() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--sound",
+                "[ˈkla.ma]",
+                "--count",
+                "3",
+                "--min-similarity",
+                "90",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. klama | gismu | similarity: 100%"));
+        assert!(run.stdout.contains("2. klani | gismu | similarity: 92%"));
+        assert!(run.stdout.contains("3. klina | gismu | similarity: 92%"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_colors_card_labels_dividers_and_rich_text() {
+        let output = render_vlacku_output(
+            &VlackuSearchOutput {
+                cards: vec![VlackuCard {
+                    word: "klama".to_owned(),
+                    word_type: "gismu".to_owned(),
+                    selmaho: None,
+                    similarity: Some(1.0),
+                    votes: Some(7),
+                    rafsi: vec!["kla".to_owned()],
+                    glosses: vec!["come".to_owned()],
+                    definition: "references {cadzu} at $x_1$; malformed {bad link}.".to_owned(),
+                    notes: "unmatched $x_2 remains plain".to_owned(),
+                    decomposition: Vec::new(),
+                }],
+                outcome: VlackuOutcome::Found,
+                diagnostics: Vec::new(),
+            },
+            true,
+            GlyphStyle::Unicode,
+        );
+
+        assert!(output.contains("\x1b[90m1.\x1b[39m"));
+        assert!(output.contains("\x1b[90m | \x1b[39m"));
+        assert!(output.contains("\x1b[90msimilarity: \x1b[39m\x1b[35m100%\x1b[39m"));
+        assert!(output.contains("\x1b[90mvotes: \x1b[39m\x1b[32m+7\x1b[39m"));
+        assert!(output.contains("\x1b[90mrafsi: \x1b[39m\x1b[31mkla\x1b[39m"));
+        assert!(output.contains("\x1b[90m{\x1b[39m\x1b[33mcadzu\x1b[39m\x1b[90m}\x1b[39m"));
+        assert!(output.contains("\x1b[90m$\x1b[39m\x1b[36mx_1\x1b[39m\x1b[90m$\x1b[39m"));
+        assert!(output.contains("\x1b[37m{bad link}\x1b[39m"));
+        assert!(output.contains("\x1b[37munmatched $x_2 remains plain\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn joins_positional_text() {
         let input = TextInput {
             file: None,
@@ -3418,6 +4366,42 @@ mod tests {
             text: vec!["coi".into(), "rodo".into()],
         };
         assert_eq!(input.read_text().expect("text"), "coi rodo");
+    }
+
+    #[derive(Debug)]
+    #[invariant(true)]
+    struct CapturedCliRun {
+        status: CliStatus,
+        stdout: String,
+        stderr: String,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_cli_capture(args: &[&str], color_enabled: bool) -> CapturedCliRun {
+        let cli = Cli::try_parse_from(args).expect("CLI args parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status =
+            run_cli(cli, &mut output, &mut error, color_enabled).expect("CLI run succeeds");
+
+        CapturedCliRun {
+            status,
+            stdout: String::from_utf8(output).expect("stdout utf8"),
+            stderr: String::from_utf8(error).expect("stderr utf8"),
+        }
+    }
+
+    #[requires(!needles.is_empty())]
+    #[ensures(true)]
+    fn assert_in_order(haystack: &str, needles: &[&str]) {
+        let mut start_index = 0;
+        for needle in needles {
+            let Some(relative_index) = haystack[start_index..].find(needle) else {
+                panic!("missing `{needle}` after byte {start_index} in:\n{haystack}");
+            };
+            start_index += relative_index + needle.len();
+        }
     }
 
     #[requires(true)]

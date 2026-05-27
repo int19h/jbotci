@@ -76,8 +76,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
+        "apps/jbotci/src/main.rs:VlackuInput",
+        "custom clap parser preserves ordered request flags and command validation checks mode combinations",
+    ),
+    (
         "apps/jbotci/src/main.rs:VlaseiInput",
         "CLI input selector permits stdin, file, and literal text shapes",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CapturedCliRun",
+        "test helper records CLI process output after run_cli returns a status",
     ),
     (
         "apps/jbotci/src/main.rs:CliColorPolicy",
@@ -102,6 +110,50 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/bityzba/tests/type_invariant.rs:PlainMarker",
         "bityzba fixture covers explicit no-op type markers",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:LujvoDecomposition",
+        "decompose_lujvo_like constructs this only after rafsi count and source resolution checks",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:LujvoSegmentInfo",
+        "segment source resolution is local to decompose_lujvo_like and hyphen segments intentionally have no source",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:AlineFeatures",
+        "ALINE feature vectors are derived from a fixed IPA segment table",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:IpaSegmentVector",
+        "IPA segment vectors are constructed from tokenizer table entries and derived feature vectors",
+    ),
+    (
+        "crates/jbotci-search/src/phonetic.rs:IpaTokenSequence",
+        "token sequences are constructed by tokenizer helpers that reject empty segment lists",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuSearchOptions",
+        "CLI validation constrains count and mode-specific similarity use before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuSearchOutput",
+        "lookup execution owns card, diagnostic, and worst-outcome aggregation semantics",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCard",
+        "dictionary cards are transport values assembled from dictionary entries or validated word classification",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionPiece",
+        "composition pieces are projected from validated morphology decomposition segments",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:WordClassification",
+        "word classifications are produced from morphology segmentation of a single word-like token",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobPattern",
+        "glob patterns are constructed only by compile_glob_pattern after token validation",
     ),
     (
         "crates/jbotci-dialect/src/lib.rs:BadMapper",
