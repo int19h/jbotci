@@ -18,7 +18,7 @@ use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
     DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, PhonemeRenderOptions,
     StressMark, TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
-    compact_syntax_json_string_with_options, pretty_brackets_with_options,
+    compact_syntax_json_string_with_options, ipa_morphology_text, pretty_brackets_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
     pretty_tree_with_options, render_diagnostics, render_trace_report,
 };
@@ -153,6 +153,7 @@ enum GentufaFormat {
 enum VlaseiFormat {
     Brackets,
     Tree,
+    Ipa,
     Raw,
     #[value(alias = "djeisone")]
     Json,
@@ -664,6 +665,10 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                             decompose_lujvo: input.decompose_lujvo,
                         },
                     )?;
+                    writeln!(stdout, "{rendered}")?;
+                }
+                VlaseiFormat::Ipa => {
+                    let rendered = ipa_morphology_text(&words, &text)?;
                     writeln!(stdout, "{rendered}")?;
                 }
                 VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
@@ -1386,12 +1391,15 @@ fn phoneme_render_options(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()> {
+    if input.format == VlaseiFormat::Ipa && glyphs == GlyphStyle::Ascii {
+        return Err(anyhow!("`--ascii` is not compatible with `--turtai ipa`"));
+    }
     validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
     match input.format {
         VlaseiFormat::Raw => {
             validate_raw_indent(input.indent)?;
             if glyphs == GlyphStyle::Unicode {
-                validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+                validate_no_phoneme_projection(input.mark_stress, input.mark_glides, "raw")?;
             }
             validate_not_present(
                 input.show_spans,
@@ -1413,6 +1421,21 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
         }
         VlaseiFormat::Tree => {}
+        VlaseiFormat::Ipa => {
+            validate_no_indent(
+                input.indent,
+                "`--indent` is only supported with raw, JSON, and tree output",
+            )?;
+            validate_no_phoneme_projection(input.mark_stress, input.mark_glides, "IPA")?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+        }
         VlaseiFormat::Brackets => {
             validate_no_indent(
                 input.indent,
@@ -1444,7 +1467,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
     if input.format == GentufaFormat::Raw {
         validate_raw_indent(input.indent)?;
         if glyphs == GlyphStyle::Unicode {
-            validate_no_phoneme_projection(input.mark_stress, input.mark_glides)?;
+            validate_no_phoneme_projection(input.mark_stress, input.mark_glides, "raw")?;
         }
         validate_not_present(
             input.show_spans,
@@ -1539,15 +1562,16 @@ fn validate_not_present(value: bool, message: &str) -> Result<()> {
     Ok(())
 }
 
-#[requires(true)]
+#[requires(!output_format.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_no_phoneme_projection(
     mark_stress: Option<CliStressMark>,
     mark_glides: Option<CliGlideMark>,
+    output_format: &str,
 ) -> Result<()> {
     if mark_stress.is_some() || mark_glides.is_some() {
         return Err(anyhow!(
-            "`--mark-stress` and `--mark-glides` are not supported with raw output"
+            "`--mark-stress` and `--mark-glides` are not supported with {output_format} output"
         ));
     }
     Ok(())
@@ -1956,6 +1980,15 @@ mod tests {
         };
         assert_eq!(tree_input.format, VlaseiFormat::Tree);
 
+        let Command::Vlasei(ipa_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--format", "ipa", "coi"])
+                .expect("vlasei IPA")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(ipa_input.format, VlaseiFormat::Ipa);
+
         assert_eq!(
             Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "xml", "coi"])
                 .expect_err("unknown vlasei format")
@@ -2144,6 +2177,12 @@ mod tests {
             ErrorKind::InvalidValue
         );
         assert_eq!(
+            Cli::try_parse_from(["jbotci", "gentufa", "--format", "ipa", "coi"])
+                .expect_err("IPA is only a vlasei format")
+                .kind(),
+            ErrorKind::InvalidValue
+        );
+        assert_eq!(
             Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "coi"])
                 .expect_err("old gentufa format option")
                 .kind(),
@@ -2192,6 +2231,7 @@ mod tests {
         assert!(help.contains("brackets"));
         assert!(help.contains("tree"));
         assert!(help.contains("raw"));
+        assert!(help.contains("ipa"));
         assert!(help.contains("json"));
         assert!(!help.contains("--turtau"));
         assert!(!help.contains("--termoha"));
@@ -2247,6 +2287,25 @@ mod tests {
             String::from_utf8(output)
                 .expect("utf8")
                 .contains("\"Bare\"")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_ipa_outputs_pronunciation_surface() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "vlasei", "--format", "ipa", "mi", "klama", "le", "zarci",
+        ])
+        .expect("vlasei IPA");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei IPA run");
+
+        assert!(error.is_empty());
+        assert_eq!(
+            String::from_utf8(output).expect("stdout utf8"),
+            "mi ˈkla.ma le ˈzar.ʃi\n"
         );
     }
 
@@ -2440,6 +2499,43 @@ mod tests {
         let error = run_cli(glide_cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("ASCII glide conflict rejected");
         assert!(error.to_string().contains("`--mark-glides breve`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_ipa_rejects_ascii_output() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "--ascii", "vlasei", "--format", "ipa", "mi", "klama",
+        ])
+        .expect("vlasei IPA ASCII parses");
+        let error =
+            run_cli(cli, &mut Vec::new(), &mut Vec::new(), false).expect_err("ASCII IPA rejected");
+
+        assert!(error.to_string().contains("`--ascii`"));
+        assert!(error.to_string().contains("`--turtai ipa`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_ipa_rejects_phoneme_projection_flags() {
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "vlasei",
+            "--format",
+            "ipa",
+            "--mark-stress",
+            "none",
+            "mi",
+            "klama",
+        ])
+        .expect("vlasei IPA projection flag parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("IPA projection flags rejected");
+
+        assert!(error.to_string().contains("`--mark-stress`"));
+        assert!(error.to_string().contains("IPA output"));
     }
 
     #[test]
