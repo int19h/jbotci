@@ -84,6 +84,8 @@ pub struct EmbeddedAsset {
 
 include!(concat!(env!("OUT_DIR"), "/embedded_assets.rs"));
 
+const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
+
 #[requires(true)]
 #[ensures(ret.base_path.starts_with('/'))]
 pub fn config_from_cli() -> ServerConfig {
@@ -166,10 +168,19 @@ async fn static_or_spa(
 ) -> Response<Body> {
     let request_path = uri.path();
     if request_path == "/favicon.ico" {
-        return Response::builder()
-            .status(StatusCode::NO_CONTENT)
-            .body(Body::empty())
-            .expect("favicon response builder is valid");
+        if let Some(static_dir) = &state.static_dir
+            && let Some(response) =
+                static_dir_response(static_dir, FAVICON_ASSET_PATH, accepts_brotli(&headers)).await
+        {
+            return response;
+        }
+        return embedded_asset_response(FAVICON_ASSET_PATH, accepts_brotli(&headers))
+            .unwrap_or_else(|| {
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(Body::empty())
+                    .expect("favicon response builder is valid")
+            });
     }
     if request_path.starts_with("/api/") {
         return plain_response(StatusCode::NOT_FOUND, "not found");
@@ -523,5 +534,39 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("/jbotci/gentufa"),
         );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn root_favicon_serves_v0_png_icon() {
+        let static_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../jbotci-web");
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(static_dir),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.ico")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("image/png"),
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
     }
 }

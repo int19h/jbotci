@@ -15,6 +15,7 @@ use wasm_bindgen::JsCast;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
+const FAVICON: Asset = asset!("/assets/icons/jbotci-icon-192.png");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
 const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.ttf");
 const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
@@ -182,7 +183,8 @@ fn App() -> Element {
     rsx! {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
-        document::Link { rel: "icon", r#type: "image/svg+xml", href: LOGO }
+        document::Link { rel: "icon", r#type: "image/png", href: FAVICON }
+        document::Link { rel: "shortcut icon", r#type: "image/png", href: FAVICON }
         div { class: "{app_class}",
             { render_topbar(route, &base_path, settings, settings_value) }
             main { class: "spa-main",

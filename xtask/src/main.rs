@@ -356,6 +356,15 @@ fn copy_required_web_assets(web_dist: &Path) -> Result<()> {
         fs::copy(source_fonts.join(font_name), target_fonts.join(font_name))
             .with_context(|| format!("copying web font `{font_name}`"))?;
     }
+    let source_icons = Path::new("apps/jbotci-web/assets/icons");
+    let target_icons = web_dist.join("assets").join("icons");
+    fs::create_dir_all(&target_icons)
+        .with_context(|| format!("creating `{}`", target_icons.display()))?;
+    fs::copy(
+        source_icons.join("jbotci-icon-192.png"),
+        target_icons.join("jbotci-icon-192.png"),
+    )
+    .context("copying web favicon icon `jbotci-icon-192.png`")?;
     Ok(())
 }
 
