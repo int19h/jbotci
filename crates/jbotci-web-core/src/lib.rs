@@ -1888,7 +1888,10 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn tree_reference_keys(success: &GentufaSuccess, role: ReferenceMarkerRole) -> BTreeSet<String> {
+    fn tree_reference_keys(
+        success: &GentufaSuccess,
+        role: ReferenceMarkerRole,
+    ) -> BTreeSet<String> {
         success
             .tree_rows
             .iter()

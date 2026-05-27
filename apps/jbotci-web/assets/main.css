@@ -1,35 +1,3 @@
-@font-face {
-  font-family: "Noto Sans";
-  src: url("fonts/noto-sans-variable.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans";
-  src: url("fonts/noto-sans-italic-variable.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans Math";
-  src: url("fonts/noto-sans-math-regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Crisa";
-  src: url("fonts/crisa-regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   font-family: "Noto Sans", "Noto Sans Math", Verdana, sans-serif;
   color-scheme: light;
@@ -139,6 +107,7 @@ input:disabled {
   --blocks-ref-pad-y: 0.35rem;
   --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 82%, transparent);
   --blocks-ref-symbol: var(--blocks-label-color);
+  --blocks-grid-line: var(--page-bg);
   --blocks-definition-reserve: 9rem;
   --blocks-definition-connector: 1.35rem;
   --indent-size: 1.25rem;
@@ -696,25 +665,43 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .view-tabs {
+  position: relative;
   display: flex;
   justify-content: center;
   gap: 0;
-  margin: 0.75rem 0 0.35rem;
-  border-bottom: 1px solid var(--border-color);
+  width: 100vw;
+  margin: 0.75rem calc(50% - 50vw) 0.35rem;
+  border-bottom: 0;
+}
+
+.parse-page .view-tabs::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 1px;
+  background: var(--border-color);
+  pointer-events: none;
 }
 
 .parse-page .view-tab {
   position: relative;
-  bottom: -1px;
+  z-index: 1;
   padding: 0.38rem 1.25rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-color);
   border-bottom: 0;
   border-radius: 6px 6px 0 0;
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  background: var(--page-bg);
   color: var(--app-muted);
   font-size: 0.95rem;
   font-weight: 500;
   transition: color 120ms ease;
+}
+
+.parse-page .view-tab + .view-tab {
+  margin-left: -1px;
 }
 
 .parse-page .view-tab:hover {
@@ -724,7 +711,6 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .view-tab.active {
   color: var(--app-link);
   background: var(--page-bg);
-  border-color: var(--border-color);
 }
 
 .parse-page .controls {
@@ -760,7 +746,6 @@ body::-webkit-scrollbar-thumb:hover,
   min-width: 0;
   width: 100vw;
   margin-inline: calc(50% - 50vw);
-  padding-inline: var(--page-padding-inline);
 }
 
 .parse-page .blocks-scroll-shell {
@@ -775,23 +760,38 @@ body::-webkit-scrollbar-thumb:hover,
   right: 0;
   z-index: 8;
   display: flex;
-  gap: var(--blocks-gap);
-  transform: translate(50%, -50%);
-  font-size: 0.8rem;
+  gap: 0;
+  transform: none;
+  font-size: 0.64rem;
   font-style: normal;
   font-weight: 400;
+  line-height: 1;
 }
 
 .parse-page .export-link {
-  color: var(--app-link);
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 1.1rem;
+  padding: 0 0.28rem;
+  border: 1px solid var(--blocks-grid-line);
+  background: #000;
+  color: #fff;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  text-transform: lowercase;
 }
 
 .parse-page .export-link.is-disabled {
-  color: var(--app-muted);
+  color: #fff;
   text-decoration: none;
-  opacity: 0.65;
+  opacity: 1;
+}
+
+.parse-page .export-link + .export-link {
+  margin-left: -1px;
 }
 
 .parse-page .blocks-scroll-viewport {
@@ -806,6 +806,7 @@ body::-webkit-scrollbar-thumb:hover,
   display: block;
   width: max-content;
   min-width: 0;
+  margin-inline: auto;
   padding: var(--blocks-gap) 0;
   font-family: var(--blocks-font);
 }
@@ -892,7 +893,7 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: var(--blocks-place-size);
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.16rem;
   white-space: nowrap;
   height: 0;
   line-height: 0;
@@ -902,9 +903,20 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .block-ref-target {
   grid-row: 1;
+  display: grid;
+  align-items: start;
+  justify-items: start;
+  gap: 0.08rem;
   justify-self: flex-start;
   align-self: flex-start;
-  transform: translate(var(--blocks-ref-pad-x), var(--blocks-ref-pad-y));
+  line-height: 1.05;
+  transform: translate(0.12rem, 0.08rem);
+}
+
+.parse-page .block-ref-target .ref-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.16rem;
 }
 
 .parse-page .block-ref-source {
@@ -933,7 +945,7 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .ref-math {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.18rem;
+  gap: 0.16rem;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -941,6 +953,25 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .spa-cll-math,
 .math-var {
   font-family: "Noto Sans", "Noto Sans Math", sans-serif;
+}
+
+.parse-page .ref-var .spa-cll-math,
+.parse-page .place-var .spa-cll-math,
+.parse-page .ref-var .math-var,
+.parse-page .place-var .math-var {
+  font-family: "Noto Sans", "Noto Sans Math", sans-serif;
+}
+
+.parse-page .ref-var .math-var mi,
+.parse-page .place-var .math-var mi {
+  font-family: "Noto Sans Math", "Noto Sans", serif;
+}
+
+.parse-page .ref-var .spa-cll-math *,
+.parse-page .place-var .spa-cll-math * {
+  margin: 0;
+  cursor: inherit;
+  pointer-events: none;
 }
 
 .parse-page .ref-var {

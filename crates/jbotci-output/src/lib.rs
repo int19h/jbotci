@@ -16,8 +16,10 @@ pub use diagnostics::{
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
-pub use references::{ReferenceAnnotations, ReferenceDisplayModel, ReferenceName, ReferenceSlotName};
 use jbotci_syntax::ast::TextSyntax;
+pub use references::{
+    ReferenceAnnotations, ReferenceDisplayModel, ReferenceName, ReferenceSlotName,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;

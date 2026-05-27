@@ -104,7 +104,10 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderO
                     };
                     colorize_at_depth(
                         depth,
-                        format!("{open}{hair_space}{}{hair_space}{close}", rendered.join(" ")),
+                        format!(
+                            "{open}{hair_space}{}{hair_space}{close}",
+                            rendered.join(" ")
+                        ),
                         options,
                     )
                 }

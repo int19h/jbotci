@@ -15,6 +15,10 @@ use wasm_bindgen::JsCast;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
+const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
+const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.ttf");
+const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
+const CRISA: Asset = asset!("/assets/fonts/crisa-regular.otf");
 const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,6 +102,50 @@ fn main() {
     dioxus::launch(App);
 }
 
+#[requires(true)]
+#[ensures(ret.contains("Noto Sans Math"))]
+fn font_face_css() -> String {
+    format!(
+        r#"
+@font-face {{
+  font-family: "Noto Sans";
+  src: url("{noto_sans}") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}}
+
+@font-face {{
+  font-family: "Noto Sans";
+  src: url("{noto_sans_italic}") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}}
+
+@font-face {{
+  font-family: "Noto Sans Math";
+  src: url("{noto_sans_math}") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}}
+
+@font-face {{
+  font-family: "Crisa";
+  src: url("{crisa}") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}}
+"#,
+        noto_sans = NOTO_SANS,
+        noto_sans_italic = NOTO_SANS_ITALIC,
+        noto_sans_math = NOTO_SANS_MATH,
+        crisa = CRISA,
+    )
+}
+
 #[allow(non_snake_case)]
 #[requires(true)]
 #[ensures(true)]
@@ -130,6 +178,7 @@ fn App() -> Element {
     );
 
     rsx! {
+        style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
         document::Link { rel: "icon", r#type: "image/svg+xml", href: LOGO }
         div { class: "{app_class}",
@@ -631,6 +680,16 @@ fn render_block(
         .ref_markers
         .iter()
         .filter(|marker| marker.role == ReferenceMarkerRole::Referent);
+    let incoming_count = block
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
+        .count();
+    let incoming_class = if incoming_count > 1 {
+        "block-ref-target has-multiple"
+    } else {
+        "block-ref-target"
+    };
     let outgoing_markers = block
         .ref_markers
         .iter()
@@ -649,9 +708,9 @@ fn render_block(
             "data-raw-text": "{block.raw_text}",
             "data-node-type": "{block.node_types.join(\" \")}",
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
-                span { class: "block-ref-target",
-                    span { class: "ref-math",
-                        for marker in incoming_markers {
+                span { class: "{incoming_class}",
+                    for marker in incoming_markers {
+                        span { class: "ref-math ref-line",
                             { render_ref_marker(marker, reference_hover, &hover_state) }
                             span { class: "ref-arrow", "→" }
                         }
@@ -884,7 +943,7 @@ fn render_reference_label(label: &ReferenceLabel) -> Element {
                     if let Some(occurrence) = label.occurrence {
                         msub {
                             mi { "{stem}" }
-                            mtext { "{occurrence}" }
+                            mn { "{occurrence}" }
                         }
                     } else {
                         mi { "{stem}" }
@@ -957,12 +1016,12 @@ fn is_reference_stem_combining_mark(ch: char) -> bool {
 #[ensures(true)]
 fn math_alphanumeric_ascii_char(ch: char) -> Option<char> {
     const LOWER: [char; 26] = [
-        '𝑎', '𝑏', '𝑐', '𝑑', '𝑒', '𝑓', '𝑔', 'ℎ', '𝑖', '𝑗', '𝑘', '𝑙', '𝑚', '𝑛', '𝑜', '𝑝', '𝑞',
-        '𝑟', '𝑠', '𝑡', '𝑢', '𝑣', '𝑤', '𝑥', '𝑦', '𝑧',
+        '𝑎', '𝑏', '𝑐', '𝑑', '𝑒', '𝑓', '𝑔', 'ℎ', '𝑖', '𝑗', '𝑘', '𝑙', '𝑚', '𝑛', '𝑜', '𝑝', '𝑞', '𝑟',
+        '𝑠', '𝑡', '𝑢', '𝑣', '𝑤', '𝑥', '𝑦', '𝑧',
     ];
     const UPPER: [char; 26] = [
-        '𝐴', '𝐵', '𝐶', '𝐷', '𝐸', '𝐹', '𝐺', '𝐻', '𝐼', '𝐽', '𝐾', '𝐿', '𝑀', '𝑁', '𝑂', '𝑃', '𝑄',
-        '𝑅', '𝑆', '𝑇', '𝑈', '𝑉', '𝑊', '𝑋', '𝑌', '𝑍',
+        '𝐴', '𝐵', '𝐶', '𝐷', '𝐸', '𝐹', '𝐺', '𝐻', '𝐼', '𝐽', '𝐾', '𝐿', '𝑀', '𝑁', '𝑂', '𝑃', '𝑄', '𝑅',
+        '𝑆', '𝑇', '𝑈', '𝑉', '𝑊', '𝑋', '𝑌', '𝑍',
     ];
     if ch.is_ascii_lowercase() {
         Some(LOWER[(ch as u8 - b'a') as usize])
@@ -979,7 +1038,11 @@ fn render_reference_overlay(state: &ReferenceHoverState) -> Element {
     let Some(overlay) = state.overlay.as_ref() else {
         return rsx! {};
     };
-    let view_box = format!("0 0 {:.2} {:.2}", overlay.width.max(1.0), overlay.height.max(1.0));
+    let view_box = format!(
+        "0 0 {:.2} {:.2}",
+        overlay.width.max(1.0),
+        overlay.height.max(1.0)
+    );
     rsx! {
         svg {
             class: "arrow-overlay",
