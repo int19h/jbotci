@@ -21,14 +21,15 @@ use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
     DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, PhonemeRenderOptions,
     StressMark, TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
-    compact_syntax_json_string_with_options, ipa_morphology_text, pretty_brackets_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_tree_with_options, render_diagnostics, render_trace_report,
+    compact_syntax_json_string_with_options, format_definition_or_notes_line_with_indexed_places,
+    ipa_morphology_text, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, pretty_tree_with_options, render_diagnostics,
+    render_trace_report,
 };
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
-    VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput, format_votes,
-    normalize_word_type_filter, run_vlacku_requests,
+    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCard, VlackuCompositionKind,
+    VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
+    format_votes, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -459,6 +460,25 @@ struct SearchInput {
     query: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CliSumtiPlaces {
+    Raw,
+    Index,
+}
+
+impl CliSumtiPlaces {
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "raw" => Some(Self::Raw),
+            "index" => Some(Self::Index),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 #[invariant(true)]
 struct VlackuInput {
@@ -467,6 +487,7 @@ struct VlackuInput {
     word_types: Vec<String>,
     min_votes: Option<i32>,
     min_similarity: Option<f32>,
+    sumti_places: CliSumtiPlaces,
     decompose_lujvo: bool,
     requests: Vec<VlackuRequest>,
     query: Vec<String>,
@@ -533,6 +554,12 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
                 .long("min-similarity")
                 .value_name("PCT")
                 .value_parser(value_parser!(f32)),
+        )
+        .arg(
+            Arg::new("sumti_places")
+                .long("sumti-places")
+                .value_name("STYLE")
+                .value_parser(["raw", "index"]),
         )
         .arg(
             Arg::new("valsi")
@@ -612,6 +639,10 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
             .unwrap_or_default(),
         min_votes: matches.get_one::<i32>("min_votes").copied(),
         min_similarity: matches.get_one::<f32>("min_similarity").copied(),
+        sumti_places: matches
+            .get_one::<String>("sumti_places")
+            .and_then(|value| CliSumtiPlaces::parse(value))
+            .unwrap_or(CliSumtiPlaces::Index),
         decompose_lujvo: matches.get_flag("decompose_lujvo"),
         requests: ordered_requests
             .into_iter()
@@ -1046,7 +1077,15 @@ fn run_vlacku<WOut: Write, WErr: Write>(
         write!(
             stdout,
             "{}",
-            render_vlacku_output_with_width(&output, color, glyphs, output_terminal_width)
+            render_vlacku_output_with_options(
+                &output,
+                new!(VlackuRenderOptions {
+                    color,
+                    glyphs,
+                    output_terminal_width,
+                    sumti_places: input.sumti_places,
+                }),
+            )
         )?;
     }
     Ok(cli_status_from_vlacku_outcome(output.outcome))
@@ -1175,10 +1214,27 @@ fn cli_status_from_vlacku_outcome(outcome: VlackuOutcome) -> CliStatus {
     }
 }
 
+#[invariant(self.output_terminal_width.is_none_or(|width| width > 0))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VlackuRenderOptions {
+    color: bool,
+    glyphs: GlyphStyle,
+    output_terminal_width: Option<usize>,
+    sumti_places: CliSumtiPlaces,
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn render_vlacku_output(output: &VlackuSearchOutput, color: bool, glyphs: GlyphStyle) -> String {
-    render_vlacku_output_with_width(output, color, glyphs, None)
+    render_vlacku_output_with_options(
+        output,
+        new!(VlackuRenderOptions {
+            color,
+            glyphs,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Index,
+        }),
+    )
 }
 
 #[requires(output_terminal_width.is_none_or(|width| width > 0))]
@@ -1189,59 +1245,70 @@ fn render_vlacku_output_with_width(
     glyphs: GlyphStyle,
     output_terminal_width: Option<usize>,
 ) -> String {
+    render_vlacku_output_with_options(
+        output,
+        new!(VlackuRenderOptions {
+            color,
+            glyphs,
+            output_terminal_width,
+            sumti_places: CliSumtiPlaces::Index,
+        }),
+    )
+}
+
+#[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(!ret.is_empty())]
+fn render_vlacku_output_with_options(
+    output: &VlackuSearchOutput,
+    options: VlackuRenderOptions,
+) -> String {
     if output.cards.is_empty() {
         return "No matches found.\n".to_owned();
     }
     let mut rendered = String::new();
     for (index, card) in output.cards.iter().enumerate() {
-        rendered.push_str(&render_vlacku_card(
-            index + 1,
-            card,
-            color,
-            glyphs,
-            output_terminal_width,
-        ));
+        rendered.push_str(&render_vlacku_card(index + 1, card, &options));
         rendered.push('\n');
     }
     rendered
 }
 
 #[requires(index > 0)]
-#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(!ret.is_empty())]
-fn render_vlacku_card(
-    index: usize,
-    card: &VlackuCard,
-    color: bool,
-    glyphs: GlyphStyle,
-    output_terminal_width: Option<usize>,
-) -> String {
+fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOptions) -> String {
     let mut lines = Vec::new();
     let mut header = String::new();
-    header.push_str(&dark(&format!("{index}."), color));
+    header.push_str(&dark(&format!("{index}."), options.color));
     header.push(' ');
-    header.push_str(&yellow(&card.word, color));
-    header.push_str(&dark(" | ", color));
-    header.push_str(&blue(&vlacku_header_type(card), color));
+    header.push_str(&yellow(&card.word, options.color));
+    header.push_str(&dark(" | ", options.color));
+    header.push_str(&blue(&vlacku_header_type(card), options.color));
     if let Some(similarity) = card.similarity {
-        header.push_str(&dark(" | ", color));
-        header.push_str(&dark("similarity: ", color));
-        header.push_str(&magenta(&format_similarity_percent(similarity), color));
+        header.push_str(&dark(" | ", options.color));
+        header.push_str(&dark("similarity: ", options.color));
+        header.push_str(&magenta(
+            &format_similarity_percent(similarity),
+            options.color,
+        ));
     }
     if let Some(votes) = card.votes {
-        header.push_str(&dark(" | ", color));
-        header.push_str(&dark("votes: ", color));
-        header.push_str(&green(&format_votes(votes), color));
+        header.push_str(&dark(" | ", options.color));
+        header.push_str(&dark("votes: ", options.color));
+        header.push_str(&green(
+            &format_vlacku_votes(votes, options.glyphs),
+            options.color,
+        ));
     }
     lines.push(header);
 
     if !card.rafsi.is_empty() {
         lines.push(format!(
             "  {}{}",
-            dark("rafsi: ", color),
+            dark("rafsi: ", options.color),
             card.rafsi
                 .iter()
-                .map(|rafsi| red(rafsi, color))
+                .map(|rafsi| red(rafsi, options.color))
                 .collect::<Vec<_>>()
                 .join(" ")
         ));
@@ -1249,47 +1316,49 @@ fn render_vlacku_card(
     if !card.decomposition.is_empty() {
         lines.push(format!(
             "  {}{}",
-            dark("decomposition: ", color),
-            render_vlacku_decomposition(&card.decomposition, color, glyphs)
+            dark("decomposition: ", options.color),
+            render_vlacku_decomposition(&card.decomposition, options.color, options.glyphs)
         ));
     }
     if !card.glosses.is_empty() {
-        lines.push(format!("  {}", dark("glosses:", color)));
-        push_vlacku_detail_lines(
-            &mut lines,
-            &card.glosses.join("; "),
-            color,
-            output_terminal_width,
-        );
+        lines.push(format!("  {}", dark("glosses:", options.color)));
+        push_vlacku_detail_lines(&mut lines, &card.glosses.join("; "), options);
     }
     if !card.definition.trim().is_empty() {
-        lines.push(format!("  {}", dark("definitions:", color)));
+        lines.push(format!("  {}", dark("definitions:", options.color)));
         for line in card.definition.lines() {
-            push_vlacku_detail_lines(&mut lines, line, color, output_terminal_width);
+            push_vlacku_detail_lines(&mut lines, line, options);
         }
     }
     if !card.notes.trim().is_empty() {
-        lines.push(format!("  {}", dark("notes:", color)));
+        lines.push(format!("  {}", dark("notes:", options.color)));
         for line in card.notes.lines() {
-            push_vlacku_detail_lines(&mut lines, line, color, output_terminal_width);
+            push_vlacku_detail_lines(&mut lines, line, options);
         }
     }
     lines.join("\n") + "\n"
 }
 
-#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(true)]
-fn push_vlacku_detail_lines(
-    lines: &mut Vec<String>,
-    text: &str,
-    color: bool,
-    output_terminal_width: Option<usize>,
-) {
-    for line in wrap_vlacku_detail_line(text, output_terminal_width) {
+fn push_vlacku_detail_lines(lines: &mut Vec<String>, text: &str, options: &VlackuRenderOptions) {
+    let rendered_text = vlacku_detail_text_for_sumti_places(text, options);
+    for line in wrap_vlacku_detail_line(&rendered_text, options.output_terminal_width) {
         lines.push(format!(
             "{VLACKU_DETAIL_INDENT}{}",
-            render_vlacku_rich_text(&line, color)
+            render_vlacku_rich_text(&line, options)
         ));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_detail_text_for_sumti_places(text: &str, options: &VlackuRenderOptions) -> String {
+    match options.sumti_places {
+        CliSumtiPlaces::Raw => text.to_owned(),
+        CliSumtiPlaces::Index => {
+            format_definition_or_notes_line_with_indexed_places(text, options.glyphs)
+        }
     }
 }
 
@@ -1383,6 +1452,16 @@ fn format_similarity_percent(value: f32) -> String {
 }
 
 #[requires(true)]
+#[ensures(glyphs == GlyphStyle::Ascii && value > OFFICIAL_WORD_VOTE_THRESHOLD -> ret == "official")]
+fn format_vlacku_votes(value: i32, glyphs: GlyphStyle) -> String {
+    if glyphs == GlyphStyle::Ascii && value > OFFICIAL_WORD_VOTE_THRESHOLD {
+        "official".to_owned()
+    } else {
+        format_votes(value)
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn render_vlacku_decomposition(
     pieces: &[VlackuCompositionPiece],
@@ -1425,25 +1504,23 @@ fn lujvo_separator(glyphs: GlyphStyle) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_rich_text(input: &str, color: bool) -> String {
+fn render_vlacku_rich_text(input: &str, options: &VlackuRenderOptions) -> String {
     let mut output = String::new();
     let mut remaining = input;
     while !remaining.is_empty() {
         let Some(open_index) = remaining.find('$') else {
-            output.push_str(&render_vlacku_word_links(remaining, color));
+            output.push_str(&render_vlacku_word_links(remaining, options));
             break;
         };
         let before = &remaining[..open_index];
         let after_open = &remaining[open_index + 1..];
         let Some(close_index) = after_open.find('$') else {
-            output.push_str(&render_vlacku_word_links(remaining, color));
+            output.push_str(&render_vlacku_word_links(remaining, options));
             break;
         };
-        output.push_str(&render_vlacku_word_links(before, color));
+        output.push_str(&render_vlacku_word_links(before, options));
         let math_body = &after_open[..close_index];
-        output.push_str(&dark("$", color));
-        output.push_str(&cyan(math_body, color));
-        output.push_str(&dark("$", color));
+        output.push_str(&render_vlacku_raw_place_span(math_body, options.color));
         remaining = &after_open[close_index + 1..];
     }
     output
@@ -1451,31 +1528,88 @@ fn render_vlacku_rich_text(input: &str, color: bool) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_word_links(input: &str, color: bool) -> String {
+fn render_vlacku_raw_place_span(input: &str, color: bool) -> String {
+    let mut output = String::new();
+    output.push_str(&dark("$", color));
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let Some(equals_index) = remaining.find('=') else {
+            output.push_str(&cyan(remaining, color));
+            break;
+        };
+        output.push_str(&cyan(&remaining[..equals_index], color));
+        output.push_str(&dark("=", color));
+        remaining = &remaining[equals_index + 1..];
+    }
+    output.push_str(&dark("$", color));
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_word_links(input: &str, options: &VlackuRenderOptions) -> String {
     let mut output = String::new();
     let mut remaining = input;
     while !remaining.is_empty() {
         let Some(open_index) = remaining.find('{') else {
-            output.push_str(&light(remaining, color));
+            output.push_str(&render_vlacku_plain_or_indexed_places(remaining, options));
             break;
         };
         let before = &remaining[..open_index];
         let after_open = &remaining[open_index + 1..];
         let Some(close_index) = after_open.find('}') else {
-            output.push_str(&light(remaining, color));
+            output.push_str(&render_vlacku_plain_or_indexed_places(remaining, options));
             break;
         };
-        output.push_str(&light(before, color));
+        output.push_str(&render_vlacku_plain_or_indexed_places(before, options));
         let inside = &after_open[..close_index];
         let link_value = inside.trim();
         if is_vlacku_word_link(link_value) {
-            output.push_str(&dark("{", color));
-            output.push_str(&yellow(link_value, color));
-            output.push_str(&dark("}", color));
+            output.push_str(&dark("{", options.color));
+            output.push_str(&yellow(link_value, options.color));
+            output.push_str(&dark("}", options.color));
         } else {
-            output.push_str(&light(&format!("{{{inside}}}"), color));
+            output.push_str(&light(&format!("{{{inside}}}"), options.color));
         }
         remaining = &after_open[close_index + 1..];
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_plain_or_indexed_places(input: &str, options: &VlackuRenderOptions) -> String {
+    if options.sumti_places == CliSumtiPlaces::Raw {
+        return light(input, options.color);
+    }
+
+    let mut output = String::new();
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let Some(open_index) = remaining.find(options.glyphs.slot_open()) else {
+            output.push_str(&light(remaining, options.color));
+            break;
+        };
+        output.push_str(&light(&remaining[..open_index], options.color));
+        let after_open = &remaining[open_index + options.glyphs.slot_open().len()..];
+        let Some(close_index) = after_open.find(options.glyphs.slot_close()) else {
+            output.push_str(&light(&remaining[open_index..], options.color));
+            break;
+        };
+        let place_index = &after_open[..close_index];
+        if !place_index.is_empty()
+            && place_index
+                .chars()
+                .all(|character| character.is_ascii_digit())
+        {
+            output.push_str(&dark(options.glyphs.slot_open(), options.color));
+            output.push_str(&cyan(place_index, options.color));
+            output.push_str(&dark(options.glyphs.slot_close(), options.color));
+            remaining = &after_open[close_index + options.glyphs.slot_close().len()..];
+        } else {
+            output.push_str(&light(options.glyphs.slot_open(), options.color));
+            remaining = after_open;
+        }
     }
     output
 }
@@ -2583,9 +2717,10 @@ mod tests {
             primary_input.requests,
             vec![VlackuRequest::Valsi("klama".to_owned())]
         );
+        assert_eq!(primary_input.sumti_places, CliSumtiPlaces::Index);
 
         let Command::Vlacku(alias_input) =
-            Cli::try_parse_from(["jbotci", "dict", "--rafsi", "kla"])
+            Cli::try_parse_from(["jbotci", "dict", "--sumti-places", "raw", "--rafsi", "kla"])
                 .expect("dict alias command")
                 .command
         else {
@@ -2595,6 +2730,7 @@ mod tests {
             alias_input.requests,
             vec![VlackuRequest::Rafsi("kla".to_owned())]
         );
+        assert_eq!(alias_input.sumti_places, CliSumtiPlaces::Raw);
     }
 
     #[test]
@@ -4481,7 +4617,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlacku_colors_card_labels_dividers_and_rich_text() {
-        let output = render_vlacku_output(
+        let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
                 cards: vec![VlackuCard {
                     word: "klama".to_owned(),
@@ -4492,14 +4628,18 @@ mod tests {
                     rafsi: vec!["kla".to_owned()],
                     glosses: vec!["come".to_owned()],
                     definition: "references {cadzu} at $x_1$; malformed {bad link}.".to_owned(),
-                    notes: "unmatched $x_2 remains plain".to_owned(),
+                    notes: "unmatched $ remains plain".to_owned(),
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
-            true,
-            GlyphStyle::Unicode,
+            new!(VlackuRenderOptions {
+                color: true,
+                glyphs: GlyphStyle::Unicode,
+                output_terminal_width: None,
+                sumti_places: CliSumtiPlaces::Index,
+            }),
         );
 
         assert!(output.contains("\x1b[90m1.\x1b[39m"));
@@ -4508,9 +4648,47 @@ mod tests {
         assert!(output.contains("\x1b[90mvotes: \x1b[39m\x1b[32m+7\x1b[39m"));
         assert!(output.contains("\x1b[90mrafsi: \x1b[39m\x1b[31mkla\x1b[39m"));
         assert!(output.contains("\x1b[90m{\x1b[39m\x1b[33mcadzu\x1b[39m\x1b[90m}\x1b[39m"));
-        assert!(output.contains("\x1b[90m$\x1b[39m\x1b[36mx_1\x1b[39m\x1b[90m$\x1b[39m"));
+        assert!(
+            output.contains("\x1b[90m⟨\x1b[39m\x1b[36m1\x1b[39m\x1b[90m⟩\x1b[39m"),
+            "{output}"
+        );
         assert!(output.contains("\x1b[37m{bad link}\x1b[39m"));
-        assert!(output.contains("\x1b[37munmatched $x_2 remains plain\x1b[39m"));
+        assert!(output.contains("\x1b[37munmatched $ remains plain\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
+        let output = render_vlacku_output_with_options(
+            &VlackuSearchOutput {
+                cards: vec![VlackuCard {
+                    word: "klama".to_owned(),
+                    word_type: "gismu".to_owned(),
+                    selmaho: None,
+                    similarity: Some(1.0),
+                    votes: Some(7),
+                    rafsi: Vec::new(),
+                    glosses: Vec::new(),
+                    definition: "$x_2=b_1$ moves to $x_3$.".to_owned(),
+                    notes: String::new(),
+                    decomposition: Vec::new(),
+                }],
+                outcome: VlackuOutcome::Found,
+                diagnostics: Vec::new(),
+            },
+            new!(VlackuRenderOptions {
+                color: true,
+                glyphs: GlyphStyle::Unicode,
+                output_terminal_width: None,
+                sumti_places: CliSumtiPlaces::Raw,
+            }),
+        );
+
+        assert!(output.contains(
+            "\x1b[90m$\x1b[39m\x1b[36mx_2\x1b[39m\x1b[90m=\x1b[39m\x1b[36mb_1\x1b[39m\x1b[90m$\x1b[39m"
+        ));
+        assert!(output.contains("\x1b[90m$\x1b[39m\x1b[36mx_3\x1b[39m\x1b[90m$\x1b[39m"));
     }
 
     #[test]
@@ -4541,7 +4719,7 @@ mod tests {
 
         assert!(
             output.contains(
-            "    $x_1$ is a morphologically defined name word\n    meaning $x_2$ in language $x_3$."
+                "    ⟨1⟩ is a morphologically defined name word\n    meaning ⟨2⟩ in language ⟨3⟩."
             ),
             "{output}"
         );
@@ -4580,6 +4758,41 @@ mod tests {
 
         assert!(output.contains("votes: ∞"));
         assert!(!output.contains("votes: +10001"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
+        let output = render_vlacku_output_with_options(
+            &VlackuSearchOutput {
+                cards: vec![VlackuCard {
+                    word: "fuhivla".to_owned(),
+                    word_type: "fu'ivla".to_owned(),
+                    selmaho: None,
+                    similarity: Some(1.0),
+                    votes: Some(10001),
+                    rafsi: Vec::new(),
+                    glosses: Vec::new(),
+                    definition: "$x_1$ is a loanword meaning $x_2$.".to_owned(),
+                    notes: String::new(),
+                    decomposition: Vec::new(),
+                }],
+                outcome: VlackuOutcome::Found,
+                diagnostics: Vec::new(),
+            },
+            new!(VlackuRenderOptions {
+                color: false,
+                glyphs: GlyphStyle::Ascii,
+                output_terminal_width: None,
+                sumti_places: CliSumtiPlaces::Index,
+            }),
+        );
+
+        assert!(output.contains("votes: official"));
+        assert!(output.contains("<1> is a loanword meaning <2>."));
+        assert!(!output.contains('∞'));
+        assert!(!output.contains('⟨'));
     }
 
     #[test]

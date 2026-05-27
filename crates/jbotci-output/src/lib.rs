@@ -3,6 +3,7 @@
 mod brackets;
 mod diagnostics;
 mod json;
+mod places;
 mod references;
 mod sexpr;
 mod surface;
@@ -17,6 +18,7 @@ pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_syntax::ast::TextSyntax;
+pub use places::format_definition_or_notes_line_with_indexed_places;
 pub use references::{
     ReferenceAnnotations, ReferenceDisplayModel, ReferenceName, ReferenceSlotName,
 };
