@@ -1,21 +1,31 @@
 //! Shared web/API view models and gentufa parser facade.
 
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_dictionary::DictionaryEntry;
+use jbotci_jvozba::{
+    JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind, build_best_jvozba_detailed,
+};
 use jbotci_morphology::{
     MorphologyOptions, PhonemeRenderOptions, Word, WordKind, WordLike, WordLikeData,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, GlyphStyle, ReferenceDisplayModel, ReferenceName as OutputReferenceName,
-    ReferenceSlotName as OutputReferenceSlotName, TreeRenderOptions, ipa_morphology_text,
+    ReferenceSlotName as OutputReferenceSlotName, TreeRenderOptions,
+    format_definition_or_notes_line_with_indexed_places, ipa_morphology_text,
     pretty_brackets_with_options, reference_display_model_for_syntax_tree,
+};
+use jbotci_search::vlacku::{
+    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCompositionKind,
+    VlackuRequest, VlackuSearchOptions, format_votes, is_brivla_like, is_cmavo_like,
+    normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::{SourceId, SourceSpan};
@@ -1864,6 +1874,781 @@ impl fmt::Display for GentufaScript {
     }
 }
 
+pub const VLACKU_WEB_DEFAULT_COUNT: usize = DEFAULT_VLACKU_RESULT_COUNT;
+pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
+
+#[invariant(true)]
+#[invariant(::Word => true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Sound => true)]
+#[invariant(::Meaning => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuWebMode {
+    Word,
+    Rafsi,
+    Sound,
+    Meaning,
+}
+
+impl Default for VlackuWebMode {
+    #[requires(true)]
+    #[ensures(ret == VlackuWebMode::Word)]
+    fn default() -> Self {
+        Self::Word
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuWebState {
+    pub mode: VlackuWebMode,
+    pub query: String,
+    pub count: usize,
+    pub word_types: Vec<String>,
+}
+
+impl Default for VlackuWebState {
+    #[requires(true)]
+    #[ensures(ret.mode == VlackuWebMode::Word)]
+    #[ensures(ret.count == VLACKU_WEB_DEFAULT_COUNT)]
+    fn default() -> Self {
+        Self {
+            mode: VlackuWebMode::Word,
+            query: String::new(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuWebResult {
+    pub state: VlackuWebState,
+    pub cards: Vec<VlackuWebCard>,
+    pub word_type_options: Vec<VlackuWordTypeOption>,
+    pub dictionary_info: Option<VlackuDictionaryInfo>,
+    pub has_more: bool,
+    pub message: Option<String>,
+    pub errors: Vec<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuWebCard {
+    pub rank: usize,
+    pub word: String,
+    pub word_type: String,
+    pub selmaho: Option<String>,
+    pub ipa: Option<String>,
+    pub similarity: Option<f32>,
+    pub votes: VlackuVoteDisplay,
+    pub rafsi: Vec<String>,
+    pub glosses: Vec<String>,
+    pub definition: Vec<VlackuInline>,
+    pub notes: Vec<VlackuInline>,
+    pub decomposition: Vec<VlackuCompositionPiece>,
+    pub can_add_to_jvozba: bool,
+}
+
+#[invariant(true)]
+#[invariant(::Hidden => true)]
+#[invariant(::Known(_) => true)]
+#[invariant(::Unknown => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuVoteDisplay {
+    Hidden,
+    Known(String),
+    Unknown,
+}
+
+#[invariant(true)]
+#[invariant(::Text(_) => true)]
+#[invariant(::WordRef { .. } => true)]
+#[invariant(::Place { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuInline {
+    Text(String),
+    WordRef { label: String, href: String },
+    Place { label: String },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuCompositionPiece {
+    pub kind: VlackuCompositionPieceKind,
+    pub surface: String,
+    pub source: Option<String>,
+    pub source_href: Option<String>,
+}
+
+#[invariant(true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Hyphen => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuCompositionPieceKind {
+    Rafsi,
+    Hyphen,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuWordTypeOption {
+    pub value: String,
+    pub label: String,
+    pub section: VlackuWordTypeSection,
+    pub count: usize,
+    pub selected: bool,
+}
+
+#[invariant(true)]
+#[invariant(::Cmavo => true)]
+#[invariant(::Cmevla => true)]
+#[invariant(::Brivla => true)]
+#[invariant(::Other => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuWordTypeSection {
+    Cmavo,
+    Cmevla,
+    Brivla,
+    Other,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuDictionaryInfo {
+    pub entry_count: usize,
+    pub rafsi_count: usize,
+    pub word_type_counts: Vec<VlackuDictionaryWordTypeCount>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuDictionaryWordTypeCount {
+    pub label: String,
+    pub count: usize,
+}
+
+#[invariant(true)]
+#[invariant(::Lujvo => true)]
+#[invariant(::Cmevla => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuJvozbaMode {
+    Lujvo,
+    Cmevla,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuJvozbaItem {
+    pub kind: VlackuJvozbaItemKind,
+    pub value: String,
+}
+
+#[invariant(true)]
+#[invariant(::Word => true)]
+#[invariant(::FixedRafsi => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuJvozbaItemKind {
+    Word,
+    FixedRafsi,
+}
+
+#[invariant(true)]
+#[invariant(::Empty => true)]
+#[invariant(::NeedsMore => true)]
+#[invariant(::Success { .. } => true)]
+#[invariant(::Error { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "status")]
+pub enum VlackuJvozbaOutput {
+    Empty,
+    NeedsMore,
+    Success {
+        word: String,
+        segments: Vec<VlackuJvozbaSegment>,
+    },
+    Error {
+        message: String,
+    },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuJvozbaSegment {
+    pub kind: VlackuJvozbaSegmentKind,
+    pub text: String,
+}
+
+#[invariant(true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Hyphen => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuJvozbaSegmentKind {
+    Rafsi,
+    Hyphen,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
+    let normalized_state = normalize_vlacku_state(state);
+    let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
+    if normalized_state.query.trim().is_empty() {
+        return VlackuWebResult {
+            state: normalized_state,
+            cards: Vec::new(),
+            word_type_options,
+            dictionary_info: Some(build_vlacku_dictionary_info()),
+            has_more: false,
+            message: None,
+            errors: Vec::new(),
+        };
+    }
+    if normalized_state.mode == VlackuWebMode::Meaning {
+        return VlackuWebResult {
+            state: normalized_state,
+            cards: Vec::new(),
+            word_type_options,
+            dictionary_info: None,
+            has_more: false,
+            message: Some("Meaning search is not available yet.".to_owned()),
+            errors: Vec::new(),
+        };
+    }
+
+    let request = match normalized_state.mode {
+        VlackuWebMode::Word => VlackuRequest::Lujvo(normalized_state.query.clone()),
+        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(normalized_state.query.clone()),
+        VlackuWebMode::Sound => VlackuRequest::Sound(normalized_state.query.clone()),
+        VlackuWebMode::Meaning => unreachable!("meaning mode returned above"),
+    };
+    let fetch_count = normalized_state
+        .count
+        .saturating_add(1)
+        .min(VLACKU_WEB_MAX_COUNT);
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[request],
+        &VlackuSearchOptions {
+            count: fetch_count,
+            word_types: normalized_state.word_types.clone(),
+            min_votes: None,
+            min_similarity: None,
+            decompose_lujvo: true,
+        },
+    );
+    let has_more = output.cards.len() > normalized_state.count;
+    let cards = output
+        .cards
+        .into_iter()
+        .take(normalized_state.count)
+        .enumerate()
+        .map(|(index, card)| web_card_from_search_card(index + 1, card))
+        .collect::<Vec<_>>();
+    let message = if cards.is_empty() && output.diagnostics.is_empty() {
+        Some("No matches found.".to_owned())
+    } else {
+        None
+    };
+
+    VlackuWebResult {
+        state: normalized_state,
+        cards,
+        word_type_options,
+        dictionary_info: None,
+        has_more,
+        message,
+        errors: output.diagnostics,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.count >= 1)]
+pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
+    let mut word_types = Vec::new();
+    for raw in &state.word_types {
+        let normalized = normalize_word_type_filter(raw);
+        if normalized.is_empty() || word_types.contains(&normalized) {
+            continue;
+        }
+        word_types.push(normalized);
+    }
+    VlackuWebState {
+        mode: state.mode,
+        query: state.query.trim().to_owned(),
+        count: state.count.clamp(1, VLACKU_WEB_MAX_COUNT),
+        word_types,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
+    let mut state = VlackuWebState::default();
+    let path_without_slash = path.trim_start_matches('/');
+    if let Some(path_word) = path_without_slash.strip_prefix("vlacku/") {
+        state.mode = VlackuWebMode::Word;
+        state.query = percent_decode(path_word);
+    }
+    for (key, value) in parse_query_pairs(query) {
+        match key.as_str() {
+            "mode" => {
+                if let Some(mode) = parse_vlacku_mode(&value) {
+                    state.mode = mode;
+                }
+            }
+            "q" | "query" => state.query = value,
+            "count" => {
+                if let Ok(count) = value.parse::<usize>() {
+                    state.count = count;
+                }
+            }
+            "wordType" | "word-type" | "word_type" => state.word_types.push(value),
+            _ => {}
+        }
+    }
+    normalize_vlacku_state(&state)
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
+    let state = normalize_vlacku_state(state);
+    let prefix = base_path.trim_end_matches('/');
+    if state.mode == VlackuWebMode::Word
+        && !state.query.is_empty()
+        && state.count == VLACKU_WEB_DEFAULT_COUNT
+        && state.word_types.is_empty()
+    {
+        return format!("{prefix}/vlacku/{}", percent_encode(&state.query));
+    }
+    let mut pairs = Vec::new();
+    if state.mode != VlackuWebMode::Word {
+        pairs.push((
+            "mode".to_owned(),
+            vlacku_mode_query_value(state.mode).to_owned(),
+        ));
+    }
+    if !state.query.is_empty() {
+        pairs.push(("q".to_owned(), state.query.clone()));
+    }
+    if state.count != VLACKU_WEB_DEFAULT_COUNT {
+        pairs.push(("count".to_owned(), state.count.to_string()));
+    }
+    for word_type in state.word_types {
+        pairs.push(("wordType".to_owned(), word_type));
+    }
+    if pairs.is_empty() {
+        format!("{prefix}/vlacku")
+    } else {
+        format!(
+            "{prefix}/vlacku?{}",
+            pairs
+                .iter()
+                .map(|(key, value)| format!("{key}={}", percent_encode(value)))
+                .collect::<Vec<_>>()
+                .join("&")
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_vlacku_jvozba_output(
+    mode: VlackuJvozbaMode,
+    items: &[VlackuJvozbaItem],
+) -> VlackuJvozbaOutput {
+    if items.is_empty() {
+        return VlackuJvozbaOutput::Empty;
+    }
+    if items.len() < 2 {
+        return VlackuJvozbaOutput::NeedsMore;
+    }
+    let parsed_inputs = items
+        .iter()
+        .map(|item| match item.kind {
+            VlackuJvozbaItemKind::Word => JvozbaSourceInput::Word(item.value.clone()),
+            VlackuJvozbaItemKind::FixedRafsi => JvozbaSourceInput::FixedRafsi(item.value.clone()),
+        })
+        .collect::<Vec<_>>();
+    let result = build_best_jvozba_detailed(
+        match mode {
+            VlackuJvozbaMode::Lujvo => JvozbaMode::Lujvo,
+            VlackuJvozbaMode::Cmevla => JvozbaMode::Cmevla,
+        },
+        jbotci_dictionary_data::english(),
+        &parsed_inputs,
+    );
+    match result {
+        Ok(result) => VlackuJvozbaOutput::Success {
+            word: result.word.clone(),
+            segments: result
+                .segments
+                .iter()
+                .map(|segment| VlackuJvozbaSegment {
+                    kind: match segment.kind {
+                        JvozbaSegmentKind::Rafsi => VlackuJvozbaSegmentKind::Rafsi,
+                        JvozbaSegmentKind::Hyphen => VlackuJvozbaSegmentKind::Hyphen,
+                    },
+                    text: segment.text.clone(),
+                })
+                .collect(),
+        },
+        Err(error) => VlackuJvozbaOutput::Error {
+            message: error.to_string(),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn vlacku_mode_query_value(mode: VlackuWebMode) -> &'static str {
+    match mode {
+        VlackuWebMode::Word => "valsi",
+        VlackuWebMode::Rafsi => "rafsi",
+        VlackuWebMode::Sound => "sound",
+        VlackuWebMode::Meaning => "smuni",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_mode(value: &str) -> Option<VlackuWebMode> {
+    match value {
+        "word" | "valsi" => Some(VlackuWebMode::Word),
+        "rafsi" => Some(VlackuWebMode::Rafsi),
+        "sound" => Some(VlackuWebMode::Sound),
+        "meaning" | "smuni" => Some(VlackuWebMode::Meaning),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn web_card_from_search_card(
+    rank: usize,
+    card: jbotci_search::vlacku::VlackuCard,
+) -> VlackuWebCard {
+    VlackuWebCard {
+        rank,
+        ipa: dictionary_word_ipa(&card.word),
+        word: card.word.clone(),
+        word_type: card.word_type.clone(),
+        selmaho: card.selmaho,
+        similarity: card.similarity,
+        votes: card
+            .votes
+            .map(|votes| VlackuVoteDisplay::Known(format_votes(votes)))
+            .unwrap_or(VlackuVoteDisplay::Unknown),
+        rafsi: card.rafsi,
+        glosses: card.glosses,
+        definition: parse_vlacku_inline_text(&card.definition),
+        notes: parse_vlacku_inline_text(&card.notes),
+        decomposition: card
+            .decomposition
+            .into_iter()
+            .map(|piece| {
+                let source_href = piece.source.as_ref().map(|source| {
+                    vlacku_web_url(
+                        "",
+                        &VlackuWebState {
+                            mode: VlackuWebMode::Word,
+                            query: source.clone(),
+                            count: VLACKU_WEB_DEFAULT_COUNT,
+                            word_types: Vec::new(),
+                        },
+                    )
+                });
+                VlackuCompositionPiece {
+                    kind: match piece.kind {
+                        VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
+                        VlackuCompositionKind::Hyphen => VlackuCompositionPieceKind::Hyphen,
+                    },
+                    surface: piece.surface,
+                    source: piece.source,
+                    source_href,
+                }
+            })
+            .collect(),
+        can_add_to_jvozba: word_type_allows_jvozba(&card.word_type),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_word_ipa(word: &str) -> Option<String> {
+    let words = jbotci_morphology::segment_words_with_modifiers(word).ok()?;
+    ipa_morphology_text(&words, word).ok()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_type_allows_jvozba(word_type: &str) -> bool {
+    let normalized = normalize_word_type_filter(word_type);
+    !normalized.contains("fu'ivla") && !normalized.contains("fuivla")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_word_type_options(selected_values: &[String]) -> Vec<VlackuWordTypeOption> {
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for entry in jbotci_dictionary_data::english().entries() {
+        let key = dictionary_option_key(entry);
+        *counts.entry(key).or_default() += 1;
+    }
+    let brivla_count = counts
+        .iter()
+        .filter(|(word_type, _)| is_brivla_like(word_type))
+        .map(|(_, count)| *count)
+        .sum::<usize>();
+    if brivla_count > 0 {
+        counts.insert("brivla".to_owned(), brivla_count);
+    }
+    let mut options = counts
+        .into_iter()
+        .map(|(value, count)| VlackuWordTypeOption {
+            label: word_type_label(&value),
+            section: word_type_section(&value),
+            selected: selected_values.iter().any(|selected| selected == &value),
+            value,
+            count,
+        })
+        .collect::<Vec<_>>();
+    options.sort_by(|left, right| {
+        word_type_order_key(left.section, &left.value)
+            .cmp(&word_type_order_key(right.section, &right.value))
+    });
+    options
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn dictionary_option_key(entry: &DictionaryEntry<'_>) -> String {
+    let normalized = normalize_word_type_filter(entry.word_type.as_str());
+    if is_cmavo_like(&normalized) {
+        "cmavo".to_owned()
+    } else {
+        normalized
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_vlacku_dictionary_info() -> VlackuDictionaryInfo {
+    let dictionary = jbotci_dictionary_data::english();
+    let mut rafsi = BTreeMap::new();
+    for entry in dictionary.entries() {
+        for rafsi_value in entry.rafsi {
+            rafsi.insert(rafsi_value.0, ());
+        }
+    }
+    let word_type_counts = dictionary_word_type_options(&[])
+        .into_iter()
+        .filter(|option| option.value != "brivla")
+        .map(|option| VlackuDictionaryWordTypeCount {
+            label: option.label,
+            count: option.count,
+        })
+        .collect();
+    VlackuDictionaryInfo {
+        entry_count: dictionary.entries().len(),
+        rafsi_count: rafsi.len(),
+        word_type_counts,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_type_label(value: &str) -> String {
+    if value.is_empty() {
+        "other".to_owned()
+    } else {
+        value.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_type_section(value: &str) -> VlackuWordTypeSection {
+    if value == "cmavo" {
+        VlackuWordTypeSection::Cmavo
+    } else if value == "cmevla" || value == "obsolete-cmevla" {
+        VlackuWordTypeSection::Cmevla
+    } else if value == "brivla" || is_brivla_like(value) {
+        VlackuWordTypeSection::Brivla
+    } else {
+        VlackuWordTypeSection::Other
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_type_order_key(section: VlackuWordTypeSection, value: &str) -> (u8, String) {
+    let section_order = match section {
+        VlackuWordTypeSection::Cmavo => 0,
+        VlackuWordTypeSection::Cmevla => 1,
+        VlackuWordTypeSection::Brivla if value == "brivla" => 2,
+        VlackuWordTypeSection::Brivla => 3,
+        VlackuWordTypeSection::Other => 4,
+    };
+    (section_order, value.to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_inline_text(text: &str) -> Vec<VlackuInline> {
+    let indexed = format_definition_or_notes_line_with_indexed_places(text, GlyphStyle::Unicode);
+    parse_inline_from_chars(&indexed.chars().collect::<Vec<_>>(), 0, Vec::new())
+}
+
+#[requires(index <= chars.len())]
+#[ensures(true)]
+fn parse_inline_from_chars(
+    chars: &[char],
+    index: usize,
+    mut output: Vec<VlackuInline>,
+) -> Vec<VlackuInline> {
+    if index >= chars.len() {
+        return output;
+    }
+    if chars[index] == '{' {
+        if let Some(end) = find_char(chars, index + 1, '}') {
+            let body = chars[index + 1..end].iter().collect::<String>();
+            if !body.is_empty() && !body.chars().any(char::is_whitespace) {
+                output.push(VlackuInline::WordRef {
+                    href: vlacku_web_url(
+                        "",
+                        &VlackuWebState {
+                            mode: VlackuWebMode::Word,
+                            query: body.clone(),
+                            count: VLACKU_WEB_DEFAULT_COUNT,
+                            word_types: Vec::new(),
+                        },
+                    ),
+                    label: body,
+                });
+                return parse_inline_from_chars(chars, end + 1, output);
+            }
+        }
+    }
+    if chars[index] == '⟨' {
+        if let Some(end) = find_char(chars, index + 1, '⟩') {
+            let body = chars[index + 1..end].iter().collect::<String>();
+            if !body.is_empty() && body.chars().all(|value| value.is_ascii_digit()) {
+                output.push(VlackuInline::Place {
+                    label: format!("⟨{body}⟩"),
+                });
+                return parse_inline_from_chars(chars, end + 1, output);
+            }
+        }
+    }
+    let next_special = find_next_inline_special(chars, index + 1).unwrap_or(chars.len());
+    output.push(VlackuInline::Text(
+        chars[index..next_special].iter().collect(),
+    ));
+    parse_inline_from_chars(chars, next_special, output)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(true)]
+fn find_char(chars: &[char], start: usize, target: char) -> Option<usize> {
+    chars
+        .iter()
+        .enumerate()
+        .skip(start)
+        .find_map(|(index, value)| (*value == target).then_some(index))
+}
+
+#[requires(start <= chars.len())]
+#[ensures(true)]
+fn find_next_inline_special(chars: &[char], start: usize) -> Option<usize> {
+    chars
+        .iter()
+        .enumerate()
+        .skip(start)
+        .find_map(|(index, value)| matches!(*value, '{' | '⟨').then_some(index))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_query_pairs(query: &str) -> Vec<(String, String)> {
+    let trimmed = query.strip_prefix('?').unwrap_or(query);
+    trimmed
+        .split('&')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let (key, value) = part.split_once('=').unwrap_or((part, ""));
+            (percent_decode(key), percent_decode(value))
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn percent_decode(input: &str) -> String {
+    let mut output = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'+' {
+            output.push(b' ');
+            index += 1;
+        } else if bytes[index] == b'%' && index + 2 < bytes.len() {
+            if let Ok(value) = u8::from_str_radix(&input[index + 1..index + 3], 16) {
+                output.push(value);
+                index += 3;
+            } else {
+                output.push(bytes[index]);
+                index += 1;
+            }
+        } else {
+            output.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn percent_encode(input: &str) -> String {
+    input
+        .bytes()
+        .flat_map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                vec![byte as char]
+            }
+            b' ' => vec!['+'],
+            other => format!("%{other:02X}").chars().collect(),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn _official_vote_marker_for_linking(entry: &DictionaryEntry<'_>) -> Option<String> {
+    let votes = entry.score.get().round() as i32;
+    (votes > OFFICIAL_WORD_VOTE_THRESHOLD).then(|| format_votes(votes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2192,5 +2977,84 @@ mod tests {
             panic!("expected successful parse");
         };
         assert!(!success.surface_text.contains('ĭ'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_route_parses_v0_query_shape() {
+        let state = parse_vlacku_web_route("/vlacku", "?mode=rafsi&q=kla&count=40&wordType=brivla");
+
+        assert_eq!(state.mode, VlackuWebMode::Rafsi);
+        assert_eq!(state.query, "kla");
+        assert_eq!(state.count, 40);
+        assert_eq!(state.word_types, vec!["brivla".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_returns_cards() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(
+            result
+                .cards
+                .first()
+                .is_some_and(|card| matches!(card.votes, VlackuVoteDisplay::Known(_)))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_blank_query_returns_dictionary_info_and_disabled_meaning_message() {
+        let blank = build_vlacku_web_result(&VlackuWebState::default());
+        assert!(blank.dictionary_info.is_some());
+
+        let meaning = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+        assert_eq!(
+            meaning.message.as_deref(),
+            Some("Meaning search is not available yet.")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_builds_in_browser_model() {
+        let output = build_vlacku_jvozba_output(
+            VlackuJvozbaMode::Lujvo,
+            &[
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "lojbo".to_owned(),
+                },
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "bangu".to_owned(),
+                },
+            ],
+        );
+
+        assert!(matches!(
+            output,
+            VlackuJvozbaOutput::Success { ref word, .. } if word == "jbobau"
+        ));
     }
 }

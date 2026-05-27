@@ -1,9 +1,12 @@
 //! Lujvo composition and decomposition.
 
-use bityzba::{invariant, requires};
-use jbotci_dictionary::Dictionary;
+#[allow(unused_imports)]
+use bityzba::{ensures, invariant, new, requires};
+use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    Jvopau, Phonemes, WordLike, canonicalize_text, segment_words_with_modifiers,
+    Jvopau, LujvoBuildMode, Phonemes, WordLike, bond_rafsis, can_appear_as_final_lujvo_rafsi,
+    canonicalize_text, choose_best_lujvo_candidate, ends_with_consonant, ensure_cmevla_word,
+    is_bonding_hyphen, segment_words_with_modifiers, syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -27,31 +30,157 @@ pub struct LujvoSource {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LujvoDecomposition<'a> {
-    pub segments: Vec<LujvoSegmentInfo<'a>>,
-    pub source_words: Vec<&'a str>,
+#[invariant(::Lujvo => true)]
+#[invariant(::Cmevla => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JvozbaMode {
+    Lujvo,
+    Cmevla,
+}
+
+impl From<JvozbaMode> for LujvoBuildMode {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: JvozbaMode) -> Self {
+        match value {
+            JvozbaMode::Lujvo => Self::Lujvo,
+            JvozbaMode::Cmevla => Self::Cmevla,
+        }
+    }
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LujvoSegmentInfo<'a> {
-    pub segment: Jvopau,
-    pub source: Option<&'a str>,
+#[invariant(::Word(_) => true)]
+#[invariant(::FixedRafsi(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind", content = "value")]
+pub enum JvozbaInput {
+    Word(String),
+    FixedRafsi(String),
 }
 
+#[invariant(!word.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JvozbaBuildResult {
+    pub word: String,
+    pub segments: Vec<JvozbaSegment>,
+}
+
+#[invariant(!text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JvozbaSegment {
+    pub kind: JvozbaSegmentKind,
+    pub text: String,
+}
+
+#[invariant(true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Hyphen => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JvozbaSegmentKind {
+    Rafsi,
+    Hyphen,
+}
+
+#[invariant(true)]
+#[invariant(::RequiresAtLeastTwoInputs => true)]
+#[invariant(::FixedRafsiEmpty => true)]
+#[invariant(::NonFinalUniversalLongRafsi { .. } => true)]
+#[invariant(::FinalConsonant { .. } => true)]
+#[invariant(::NoRafsiAvailable { .. } => true)]
+#[invariant(::NoDictionaryEntry { .. } => true)]
+#[invariant(::CouldNotBuildLujvo => true)]
+#[invariant(::CouldNotBuildCompound => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::NotImplemented => true)]
 pub enum JvozbaError {
-    #[error("jvozba is not implemented yet")]
-    NotImplemented,
+    #[error("jvozba requires at least two rafsi-producing inputs.")]
+    RequiresAtLeastTwoInputs,
+    #[error("Fixed rafsi cannot be empty.")]
+    FixedRafsiEmpty,
+    #[error("Fixed rafsi `{offending}` can only appear at the end of a lujvo.")]
+    NonFinalUniversalLongRafsi { offending: String },
+    #[error("{message}", message = render_final_consonant_message(offending, *is_fixed_rafsi))]
+    FinalConsonant {
+        offending: String,
+        is_fixed_rafsi: bool,
+    },
+    #[error("No rafsi available for `{offending}`.")]
+    NoRafsiAvailable { offending: String },
+    #[error("No dictionary entry for `{offending}`.")]
+    NoDictionaryEntry { offending: String },
+    #[error("Could not build a valid lujvo from the supplied inputs.")]
+    CouldNotBuildLujvo,
+    #[error("Could not build a valid compound from the supplied inputs.")]
+    CouldNotBuildCompound,
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn compose_lujvo(_sources: &[LujvoSource]) -> Result<LujvoPlan, JvozbaError> {
-    Err(JvozbaError::NotImplemented)
+pub fn compose_lujvo(
+    dictionary: &Dictionary<'_>,
+    sources: &[LujvoSource],
+) -> Result<LujvoPlan, JvozbaError> {
+    let inputs = sources
+        .iter()
+        .map(|source| match &source.fixed_rafsi {
+            Some(fixed_rafsi) => JvozbaInput::FixedRafsi(canonicalize_text(fixed_rafsi)),
+            None => JvozbaInput::Word(canonicalize_text(&source.word)),
+        })
+        .collect::<Vec<_>>();
+    let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs)?;
+    Ok(new!(LujvoPlan {
+        sources: sources.to_vec(),
+        parts: jvopau_segments(&result.segments),
+        output: result.word.clone(),
+    }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|word| !word.is_empty()) || ret.is_err())]
+pub fn build_best_jvozba(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    raw_inputs: &[JvozbaInput],
+) -> Result<String, String> {
+    build_best_jvozba_detailed(mode, dictionary, raw_inputs)
+        .map(|result| result.word.clone())
+        .map_err(|error| render_jvozba_error(&error))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|result| !result.word.is_empty()) || ret.is_err())]
+pub fn build_best_jvozba_detailed(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    raw_inputs: &[JvozbaInput],
+) -> Result<JvozbaBuildResult, JvozbaError> {
+    let expanded_inputs = raw_inputs
+        .iter()
+        .flat_map(|input| expand_input(dictionary, input))
+        .collect::<Vec<_>>();
+    if expanded_inputs.len() < 2 {
+        return Err(JvozbaError::RequiresAtLeastTwoInputs);
+    }
+    let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs)?;
+    let Some(candidate) = choose_best_lujvo_candidate(mode.into(), &candidate_lists) else {
+        return Err(match mode {
+            JvozbaMode::Lujvo => JvozbaError::CouldNotBuildLujvo,
+            JvozbaMode::Cmevla => JvozbaError::CouldNotBuildCompound,
+        });
+    };
+    Ok(build_result_for_mode(
+        mode,
+        candidate.word.clone(),
+        candidate.parts.clone(),
+    ))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_jvozba_error(error: &JvozbaError) -> String {
+    error.to_string()
 }
 
 #[requires(true)]
@@ -91,6 +220,273 @@ pub fn decompose_lujvo_like<'a>(
     } else {
         None
     }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LujvoDecomposition<'a> {
+    pub segments: Vec<LujvoSegmentInfo<'a>>,
+    pub source_words: Vec<&'a str>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LujvoSegmentInfo<'a> {
+    pub segment: Jvopau,
+    pub source: Option<&'a str>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_input(dictionary: &Dictionary<'_>, input: &JvozbaInput) -> Vec<JvozbaInput> {
+    match input {
+        JvozbaInput::FixedRafsi(rafsi_text) => {
+            vec![JvozbaInput::FixedRafsi(canonicalize_text(rafsi_text))]
+        }
+        JvozbaInput::Word(word_text) => match decompose_lujvo_like(dictionary, word_text) {
+            Some(decomposition) => decomposition
+                .source_words
+                .into_iter()
+                .map(|source_word| JvozbaInput::Word(source_word.to_owned()))
+                .collect(),
+            None => vec![JvozbaInput::Word(canonicalize_text(word_text))],
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|lists| lists.len() == inputs.len()) || ret.is_err())]
+fn build_candidate_lists(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    inputs: &[JvozbaInput],
+) -> Result<Vec<Vec<String>>, JvozbaError> {
+    let total_count = inputs.len();
+    inputs
+        .iter()
+        .enumerate()
+        .map(|(index, input)| {
+            candidate_list_for_input(mode, dictionary, index + 1 == total_count, input)
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|candidates| !candidates.is_empty()) || ret.is_err())]
+fn candidate_list_for_input(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    is_last_input: bool,
+    input: &JvozbaInput,
+) -> Result<Vec<String>, JvozbaError> {
+    match input {
+        JvozbaInput::FixedRafsi(rafsi_text) => {
+            if rafsi_text.is_empty() {
+                return Err(JvozbaError::FixedRafsiEmpty);
+            }
+            if !is_last_input && is_fixed_universal_long_gismu_rafsi(dictionary, rafsi_text) {
+                return Err(JvozbaError::NonFinalUniversalLongRafsi {
+                    offending: rafsi_text.clone(),
+                });
+            }
+            if mode == JvozbaMode::Lujvo
+                && is_last_input
+                && !can_appear_as_final_lujvo_rafsi(rafsi_text)
+            {
+                return Err(JvozbaError::FinalConsonant {
+                    offending: rafsi_text.clone(),
+                    is_fixed_rafsi: true,
+                });
+            }
+            Ok(vec![rafsi_text.clone()])
+        }
+        JvozbaInput::Word(word_text) => {
+            candidate_list_for_word(mode, dictionary, is_last_input, word_text)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|candidates| !candidates.is_empty()) || ret.is_err())]
+fn candidate_list_for_word(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    is_last_input: bool,
+    word_text: &str,
+) -> Result<Vec<String>, JvozbaError> {
+    let canonical_word = canonicalize_text(word_text);
+    let Some(entry) = dictionary.lookup_word(&canonical_word) else {
+        return Err(JvozbaError::NoDictionaryEntry {
+            offending: canonical_word,
+        });
+    };
+    let listed_rafsi = entry
+        .rafsi
+        .iter()
+        .map(|rafsi| canonicalize_text(rafsi.0))
+        .collect::<Vec<_>>();
+    let gismu_extras = if entry.word_type.is_gismu_like() {
+        jbotci_dictionary::universal_gismu_rafsi_forms(&canonical_word)
+            .into_iter()
+            .map(|(rafsi, _)| rafsi)
+            .filter(|rafsi| is_last_input || rafsi != &canonical_word)
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let all_candidates = unique_texts(
+        listed_rafsi
+            .into_iter()
+            .chain(gismu_extras)
+            .filter(|candidate| !candidate.is_empty())
+            .collect(),
+    );
+    let candidates = match (mode, is_last_input) {
+        (JvozbaMode::Lujvo, true) => all_candidates
+            .into_iter()
+            .filter(|candidate| can_appear_as_final_lujvo_rafsi(candidate))
+            .collect::<Vec<_>>(),
+        (JvozbaMode::Cmevla, true) => {
+            let consonant_final_candidates = all_candidates
+                .iter()
+                .filter(|candidate| ends_with_consonant(candidate))
+                .cloned()
+                .collect::<Vec<_>>();
+            if consonant_final_candidates.is_empty() {
+                all_candidates
+            } else {
+                consonant_final_candidates
+            }
+        }
+        _ => all_candidates,
+    };
+    if candidates.is_empty() {
+        if mode == JvozbaMode::Lujvo && is_last_input {
+            Err(JvozbaError::FinalConsonant {
+                offending: canonical_word,
+                is_fixed_rafsi: false,
+            })
+        } else {
+            Err(JvozbaError::NoRafsiAvailable {
+                offending: canonical_word,
+            })
+        }
+    } else {
+        Ok(candidates)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unique_texts(values: Vec<String>) -> Vec<String> {
+    let mut unique = Vec::new();
+    for value in values {
+        if !unique.contains(&value) {
+            unique.push(value);
+        }
+    }
+    unique
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_result_for_mode(
+    mode: JvozbaMode,
+    base_word: String,
+    parts: Vec<String>,
+) -> JvozbaBuildResult {
+    let base_segments = jvozba_segments_from_parts(&parts);
+    match mode {
+        JvozbaMode::Lujvo => new!(JvozbaBuildResult {
+            word: base_word,
+            segments: base_segments,
+        }),
+        JvozbaMode::Cmevla => {
+            let cmevla_word = ensure_cmevla_word(&base_word);
+            let suffix = cmevla_word
+                .strip_prefix(&base_word)
+                .unwrap_or_default()
+                .to_owned();
+            let mut segments = base_segments;
+            if !suffix.is_empty() {
+                segments.push(new!(JvozbaSegment {
+                    kind: JvozbaSegmentKind::Hyphen,
+                    text: suffix,
+                }));
+            }
+            new!(JvozbaBuildResult {
+                word: cmevla_word,
+                segments,
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_segments_from_parts(parts: &[String]) -> Vec<JvozbaSegment> {
+    parts
+        .iter()
+        .map(|part| {
+            new!(JvozbaSegment {
+                kind: if is_bonding_hyphen(part) {
+                    JvozbaSegmentKind::Hyphen
+                } else {
+                    JvozbaSegmentKind::Rafsi
+                },
+                text: part.clone(),
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvopau_segments(segments: &[JvozbaSegment]) -> Vec<Jvopau> {
+    segments
+        .iter()
+        .filter_map(|segment| {
+            let phonemes = Phonemes::from_canonical(segment.text.clone()).ok()?;
+            Some(match segment.kind {
+                JvozbaSegmentKind::Rafsi => Jvopau::rafsi(phonemes),
+                JvozbaSegmentKind::Hyphen => Jvopau::hyphen(phonemes),
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_final_consonant_message(offending: &str, is_fixed_rafsi: bool) -> String {
+    if is_fixed_rafsi {
+        format!(
+            "Fixed rafsi `{offending}` cannot appear as the final rafsi of a lujvo. Use --cmevla to allow consonant-final output."
+        )
+    } else {
+        format!(
+            "No final rafsi for `{offending}` can end a lujvo. Use --cmevla to allow consonant-final output."
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_fixed_universal_long_gismu_rafsi(dictionary: &Dictionary<'_>, rafsi_text: &str) -> bool {
+    is_universal_gismu_long_rafsi(rafsi_text)
+        && dictionary.lookup_word(rafsi_text).is_some_and(|entry| {
+            matches!(
+                entry.word_type,
+                WordType::Gismu | WordType::ExperimentalGismu
+            )
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_universal_gismu_long_rafsi(rafsi_text: &str) -> bool {
+    jbotci_dictionary::universal_gismu_rafsi_forms(rafsi_text)
+        .iter()
+        .any(|(rafsi, source)| rafsi == rafsi_text && *source == RafsiSource::UniversalLong)
 }
 
 #[requires(true)]
@@ -167,10 +563,10 @@ fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<Jvopau>> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Rafsi(_) => true)]
 #[invariant(::Hyphen(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum RawLujvoSegment {
     Rafsi(String),
     Hyphen(String),
@@ -289,219 +685,9 @@ fn has_head_syllable(text: &str, pattern: &str) -> bool {
 #[ensures(true)]
 fn has_vowel_pair_after_initial(text: &str) -> bool {
     split_char_at(text, 3)
-        .map(|(prefix, _)| {
-            prefix
-                .chars()
-                .skip(1)
-                .collect::<String>()
-                .as_str()
-                .to_owned()
-        })
+        .map(|(prefix, _)| prefix.chars().skip(1).collect::<String>())
         .is_some_and(|pair| matches!(pair.as_str(), "ai" | "ei" | "oi" | "au"))
 }
-
-#[requires(true)]
-#[ensures(true)]
-fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
-    if rafsis.len() < 2 {
-        return None;
-    }
-    let first = rafsis.first()?.clone();
-    let second = rafsis.get(1)?;
-    let mut bonded = vec![first.clone()];
-    if should_insert_cvv_hyphen(&first, second, rafsis.len()) {
-        bonded.push(if second.starts_with('r') {
-            "n".to_owned()
-        } else {
-            "r".to_owned()
-        });
-    }
-    for pair in rafsis.windows(2) {
-        let previous = &pair[0];
-        let next = &pair[1];
-        if needs_y_hyphen(previous, next) {
-            bonded.push("y".to_owned());
-        }
-        bonded.push(next.clone());
-    }
-    if tosmabru(&bonded) {
-        bonded.insert(1, "y".to_owned());
-    }
-    Some(bonded)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn needs_y_hyphen(previous: &str, next: &str) -> bool {
-    let previous_pattern = syllables_pattern(previous);
-    let previous_tail = previous.chars().last();
-    let next_head = next.chars().next();
-    matches!(previous_pattern.as_deref(), Some("CVCC" | "CCVC"))
-        || matches!(
-            (previous_tail, next_head),
-            (Some(left), Some(right))
-                if is_consonant(left)
-                    && is_consonant(right)
-                    && permissible_consonant_pair(left, right) == Some(0)
-        )
-        || (previous_tail == Some('n')
-            && (next.starts_with("ts")
-                || next.starts_with("tc")
-                || next.starts_with("dz")
-                || next.starts_with("dj")))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn should_insert_cvv_hyphen(first_rafsi: &str, second: &str, rafsi_count: usize) -> bool {
-    matches!(
-        syllables_pattern(first_rafsi).as_deref(),
-        Some("CVV" | "CV'V")
-    ) && (rafsi_count > 2 || syllables_pattern(second).as_deref() != Some("CCV"))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn tosmabru(parts: &[String]) -> bool {
-    let Some(last_part) = parts.last() else {
-        return false;
-    };
-    if is_cmevla(last_part) {
-        return false;
-    }
-    if let Some(y_index) = parts.iter().position(|part| part == "y") {
-        let heads = &parts[..y_index];
-        return heads.len() > 1
-            && heads
-                .iter()
-                .all(|part| syllables_pattern(part).as_deref() == Some("CVC"))
-            && heads
-                .windows(2)
-                .all(|pair| consonant_pair_is_rank_two(&pair[0], &pair[1]));
-    }
-    if syllables_pattern(last_part).as_deref() == Some("CVCCV") {
-        let chars = last_part.chars().collect::<Vec<_>>();
-        if chars.len() >= 4
-            && is_consonant(chars[2])
-            && is_consonant(chars[3])
-            && permissible_consonant_pair(chars[2], chars[3]) == Some(2)
-        {
-            let heads = &parts[..parts.len().saturating_sub(1)];
-            return !heads.is_empty()
-                && heads
-                    .iter()
-                    .all(|part| syllables_pattern(part).as_deref() == Some("CVC"))
-                && parts
-                    .windows(2)
-                    .all(|pair| consonant_pair_is_rank_two(&pair[0], &pair[1]));
-        }
-    }
-    false
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn consonant_pair_is_rank_two(left: &str, right: &str) -> bool {
-    matches!(
-        (left.chars().last(), right.chars().next()),
-        (Some(left_tail), Some(right_head))
-            if is_consonant(left_tail)
-                && is_consonant(right_head)
-                && permissible_consonant_pair(left_tail, right_head) == Some(2)
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syllables_pattern(text: &str) -> Option<String> {
-    text.chars().map(classify_syllable_char).collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn classify_syllable_char(value: char) -> Option<char> {
-    if is_vowel(value) {
-        Some('V')
-    } else if is_consonant(value) {
-        Some('C')
-    } else if value == '\'' {
-        Some('\'')
-    } else if value == 'y' {
-        Some('Y')
-    } else {
-        None
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_vowel(value: char) -> bool {
-    matches!(value, 'a' | 'e' | 'i' | 'o' | 'u')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_consonant(value: char) -> bool {
-    matches!(
-        value,
-        'b' | 'c'
-            | 'd'
-            | 'f'
-            | 'g'
-            | 'j'
-            | 'k'
-            | 'l'
-            | 'm'
-            | 'n'
-            | 'p'
-            | 'r'
-            | 's'
-            | 't'
-            | 'v'
-            | 'x'
-            | 'z'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_cmevla(text: &str) -> bool {
-    text.chars()
-        .last()
-        .is_some_and(|value| !matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y' | '\''))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn permissible_consonant_pair(first: char, second: char) -> Option<i32> {
-    let consonant_order = "rlnmbvdgjzscxktfp";
-    let first_index = consonant_order.chars().position(|value| value == first)?;
-    let second_index = consonant_order.chars().position(|value| value == second)?;
-    PAIR_MATRIX
-        .get(first_index)
-        .and_then(|row| row.get(second_index))
-        .copied()
-}
-
-const PAIR_MATRIX: [[i32; 17]; 17] = [
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 1, 1, 1, 1, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1],
-    [2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 1, 1, 0, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
-];
 
 #[requires(true)]
 #[ensures(true)]
@@ -514,4 +700,63 @@ pub fn word_like_type_key(word_like: &WordLike) -> Option<&'static str> {
         jbotci_morphology::WordKind::Fuhivla => "fu'ivla",
         jbotci_morphology::WordKind::Cmevla => "cmevla",
     })
+}
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn builds_simple_lujvo_from_dictionary_words() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("bangu".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+        assert_eq!(result.word, "jbobau");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cmevla_mode_allows_consonant_final_output() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Cmevla,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::FixedRafsi("bau".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+        assert!(result.word.ends_with('s'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reports_missing_dictionary_entries() {
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("notlojban".to_owned()),
+            ],
+        )
+        .expect_err("missing entry");
+        assert_eq!(
+            render_jvozba_error(&error),
+            "No dictionary entry for `notlojban`."
+        );
+    }
 }

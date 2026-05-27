@@ -52,6 +52,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference rectangles are direct browser DOM measurements used only during hover rendering",
     ),
     (
+        "apps/jbotci-web/src/main.rs:VlackuJvozbaPaneState",
+        "vlacku jvozba pane state is transient persisted UI state normalized by load/save helpers",
+    ),
+    (
         "apps/jbotci/src/main.rs:Cli",
         "CLI root delegates input validation to clap",
     ),
@@ -446,6 +450,42 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:WebSourceRange",
         "source ranges mirror parser span metadata and may be absent at API boundaries",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebState",
+        "vlacku web state is a direct URL/local UI state envelope normalized by the result builder",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebResult",
+        "vlacku result payload is assembled from dictionary/search APIs and covered by web-core tests",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebCard",
+        "vlacku cards are renderer transport data derived from dictionary/search result cards",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPiece",
+        "composition pieces are display projections from morphology/jvozba decomposition output",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWordTypeOption",
+        "word type filter options are derived from embedded dictionary metadata each render",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuDictionaryInfo",
+        "dictionary info is derived summary data from the embedded dictionary",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuDictionaryWordTypeCount",
+        "dictionary word type counts are derived summary data from embedded dictionary metadata",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItem",
+        "web jvozba items are persisted UI input state validated by the shared jvozba builder",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegment",
+        "web jvozba segments are display projections from shared jvozba builder output",
     ),
     (
         "crates/jbotci-search/src/lib.rs:SearchHit",

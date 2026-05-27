@@ -13,8 +13,12 @@ use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_jvozba::{
+    JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
+    build_best_jvozba_detailed,
+};
 use jbotci_morphology::{
-    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, ends_with_consonant,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -58,16 +62,6 @@ struct Cli {
         require_equals = true,
     )]
     color: concolor_clap::ColorChoice,
-    #[arg(long = "ascii", global = true)]
-    ascii: bool,
-    #[arg(long = "detailed-errors", global = true)]
-    detailed_errors: bool,
-    #[arg(long = "trace-phase", global = true, value_enum)]
-    trace_phase: Option<CliTracePhase>,
-    #[arg(long = "trace-limit", global = true)]
-    trace_limit: Option<usize>,
-    #[arg(long = "trace-list", global = true)]
-    trace_list: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -265,6 +259,16 @@ impl From<CliGlideMark> for GlideMark {
 struct VlaseiInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
+    #[arg(long = "ascii")]
+    ascii: bool,
+    #[arg(long = "detailed-errors")]
+    detailed_errors: bool,
+    #[arg(long = "trace-phase", value_enum)]
+    trace_phase: Option<CliTracePhase>,
+    #[arg(long = "trace-limit")]
+    trace_limit: Option<usize>,
+    #[arg(long = "trace-list")]
+    trace_list: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
@@ -358,6 +362,16 @@ impl TextInput {
 struct GentufaInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
+    #[arg(long = "ascii")]
+    ascii: bool,
+    #[arg(long = "detailed-errors")]
+    detailed_errors: bool,
+    #[arg(long = "trace-phase", value_enum)]
+    trace_phase: Option<CliTracePhase>,
+    #[arg(long = "trace-limit")]
+    trace_limit: Option<usize>,
+    #[arg(long = "trace-list")]
+    trace_list: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
@@ -484,6 +498,7 @@ impl CliSumtiPlaces {
 struct VlackuInput {
     count: Option<usize>,
     index: bool,
+    ascii: bool,
     word_types: Vec<String>,
     min_votes: Option<i32>,
     min_similarity: Option<f32>,
@@ -537,6 +552,7 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
                 .value_parser(value_parser!(usize)),
         )
         .arg(Arg::new("index").long("index").action(ArgAction::SetTrue))
+        .arg(Arg::new("ascii").long("ascii").action(ArgAction::SetTrue))
         .arg(
             Arg::new("word_type")
                 .long("word-type")
@@ -633,6 +649,7 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
     VlackuInput {
         count: matches.get_one::<usize>("count").copied(),
         index: matches.get_flag("index"),
+        ascii: matches.get_flag("ascii"),
         word_types: matches
             .get_many::<String>("word_type")
             .map(|values| values.cloned().collect())
@@ -678,13 +695,111 @@ fn collect_ordered_vlacku_requests<F>(
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone)]
 #[invariant(true)]
 struct JvozbaInput {
-    #[arg(long = "cmevla")]
     cmevla: bool,
-    #[arg()]
-    parts: Vec<String>,
+    sources: Vec<JvozbaSourceInput>,
+}
+
+impl Args for JvozbaInput {
+    #[requires(true)]
+    #[ensures(true)]
+    fn augment_args(command: ClapCommand) -> ClapCommand {
+        augment_jvozba_args(command)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn augment_args_for_update(command: ClapCommand) -> ClapCommand {
+        augment_jvozba_args(command)
+    }
+}
+
+impl FromArgMatches for JvozbaInput {
+    #[requires(true)]
+    #[ensures(ret.is_ok())]
+    fn from_arg_matches(matches: &ArgMatches) -> std::result::Result<Self, clap::Error> {
+        Ok(parse_jvozba_matches(matches))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok())]
+    fn update_from_arg_matches(
+        &mut self,
+        matches: &ArgMatches,
+    ) -> std::result::Result<(), clap::Error> {
+        *self = parse_jvozba_matches(matches);
+        Ok(())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn augment_jvozba_args(command: ClapCommand) -> ClapCommand {
+    command
+        .arg(Arg::new("cmevla").long("cmevla").action(ArgAction::SetTrue))
+        .arg(
+            Arg::new("rafsi")
+                .long("rafsi")
+                .value_name("RAFSI")
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("parts")
+                .value_name("WORD")
+                .action(ArgAction::Append)
+                .num_args(0..),
+        )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_jvozba_matches(matches: &ArgMatches) -> JvozbaInput {
+    let mut ordered_sources = Vec::new();
+    collect_ordered_jvozba_sources(
+        matches,
+        "parts",
+        JvozbaSourceInput::Word,
+        &mut ordered_sources,
+    );
+    collect_ordered_jvozba_sources(
+        matches,
+        "rafsi",
+        JvozbaSourceInput::FixedRafsi,
+        &mut ordered_sources,
+    );
+    ordered_sources.sort_by_key(|(index, _)| *index);
+    JvozbaInput {
+        cmevla: matches.get_flag("cmevla"),
+        sources: ordered_sources
+            .into_iter()
+            .map(|(_, source)| source)
+            .collect(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_ordered_jvozba_sources<F>(
+    matches: &ArgMatches,
+    id: &'static str,
+    make_source: F,
+    output: &mut Vec<(usize, JvozbaSourceInput)>,
+) where
+    F: Fn(String) -> JvozbaSourceInput,
+{
+    let values = matches
+        .get_many::<String>(id)
+        .map(|values| values.cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let indices = matches
+        .indices_of(id)
+        .map(|indices| indices.collect::<Vec<_>>())
+        .unwrap_or_default();
+    for (index, value) in indices.into_iter().zip(values) {
+        output.push((index, make_source(value)));
+    }
 }
 
 #[requires(true)]
@@ -783,20 +898,16 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
     output_terminal_width: Option<usize>,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
-    let glyphs = cli_glyph_style(cli.ascii);
-    let diagnostic_detail = if cli.detailed_errors {
-        DiagnosticDetailMode::Detailed
-    } else {
-        DiagnosticDetailMode::Summary
-    };
-    let trace_limit = cli.trace_limit.unwrap_or(DEFAULT_TRACE_LIMIT);
-    let trace_limit_present = cli.trace_limit.is_some();
-    if trace_limit == 0 {
-        bail!("--trace-limit must be greater than 0");
-    }
-    let requested_trace_phase = cli.trace_phase.map(TracePhase::from);
     match cli.command {
         Command::Vlasei(mut input) => {
+            let glyphs = cli_glyph_style(input.ascii);
+            let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
+            let trace_limit = input.trace_limit.unwrap_or(DEFAULT_TRACE_LIMIT);
+            let trace_limit_present = input.trace_limit.is_some();
+            if trace_limit == 0 {
+                bail!("--trace-limit must be greater than 0");
+            }
+            let requested_trace_phase = input.trace_phase.map(TracePhase::from);
             normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
             validate_vlasei_options(&input, glyphs)?;
             validate_trace_controls(
@@ -805,12 +916,12 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                     command_name: "vlasei",
                     trace_phase: requested_trace_phase,
                     trace_limit_present,
-                    trace_list: cli.trace_list,
+                    trace_list: input.trace_list,
                     supports_morphology: true,
                     supports_syntax: false,
                 }),
             )?;
-            if cli.trace_list {
+            if input.trace_list {
                 write_trace_filter_list(
                     stdout,
                     requested_trace_phase.unwrap_or(TracePhase::Morphology),
@@ -933,6 +1044,14 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             Ok(CliStatus::Success)
         }
         Command::Gentufa(mut input) => {
+            let glyphs = cli_glyph_style(input.ascii);
+            let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
+            let trace_limit = input.trace_limit.unwrap_or(DEFAULT_TRACE_LIMIT);
+            let trace_limit_present = input.trace_limit.is_some();
+            if trace_limit == 0 {
+                bail!("--trace-limit must be greater than 0");
+            }
+            let requested_trace_phase = input.trace_phase.map(TracePhase::from);
             normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
             validate_trace_controls(
                 &input.trace,
@@ -940,12 +1059,12 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                     command_name: "gentufa",
                     trace_phase: requested_trace_phase,
                     trace_limit_present,
-                    trace_list: cli.trace_list,
+                    trace_list: input.trace_list,
                     supports_morphology: true,
                     supports_syntax: true,
                 }),
             )?;
-            if cli.trace_list {
+            if input.trace_list {
                 write_trace_filter_list(
                     stdout,
                     requested_trace_phase.unwrap_or(TracePhase::Syntax),
@@ -972,9 +1091,9 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             validate_trace_controls_for_unsupported_command(
                 "mulgau",
                 &input.trace,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
+                None,
+                false,
+                false,
             )?;
             let _ = input.read_text()?;
             command_not_implemented("mulgau")?;
@@ -984,22 +1103,16 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             validate_trace_controls_for_unsupported_command(
                 "tersmu",
                 &input.trace,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
+                None,
+                false,
+                false,
             )?;
             let _ = input.read_text()?;
             command_not_implemented("tersmu")?;
             Ok(CliStatus::Success)
         }
         Command::Vlacku(input) => {
-            validate_trace_controls_for_unsupported_command(
-                "vlacku",
-                &None,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
-            )?;
+            let glyphs = cli_glyph_style(input.ascii);
             run_vlacku(
                 input,
                 stdout,
@@ -1009,25 +1122,8 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                 output_terminal_width,
             )
         }
-        Command::Jvozba(_input) => {
-            validate_trace_controls_for_unsupported_command(
-                "jvozba",
-                &None,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
-            )?;
-            command_not_implemented("jvozba")?;
-            Ok(CliStatus::Success)
-        }
+        Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout),
         Command::Cukta(_input) => {
-            validate_trace_controls_for_unsupported_command(
-                "cukta",
-                &None,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
-            )?;
             command_not_implemented("cukta")?;
             Ok(CliStatus::Success)
         }
@@ -1035,25 +1131,16 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             validate_trace_controls_for_unsupported_command(
                 "zbasu",
                 &input.trace,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
+                None,
+                false,
+                false,
             )?;
             let _ = input.read_text()?;
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
         #[cfg(feature = "grammar-debug")]
-        Command::Gerna(input) => {
-            validate_trace_controls_for_unsupported_command(
-                "gerna",
-                &None,
-                requested_trace_phase,
-                trace_limit_present,
-                cli.trace_list,
-            )?;
-            run_gerna(input, stdout)
-        }
+        Command::Gerna(input) => run_gerna(input, stdout),
     }
 }
 
@@ -1089,6 +1176,70 @@ fn run_vlacku<WOut: Write, WErr: Write>(
         )?;
     }
     Ok(cli_status_from_vlacku_outcome(output.outcome))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_jvozba<WOut: Write>(
+    input: JvozbaInput,
+    stdout: &mut WOut,
+    color: bool,
+) -> Result<CliStatus> {
+    let mode = if input.cmevla {
+        JvozbaMode::Cmevla
+    } else {
+        JvozbaMode::Lujvo
+    };
+    let result =
+        build_best_jvozba_detailed(mode, jbotci_dictionary_data::english(), &input.sources)
+            .map_err(|message| anyhow!(message))?;
+    writeln!(stdout, "{}", render_jvozba_result(&result, mode, color))?;
+    Ok(CliStatus::Success)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_jvozba_result(result: &JvozbaBuildResult, mode: JvozbaMode, color: bool) -> String {
+    if !color || result.segments.is_empty() {
+        return result.word.clone();
+    }
+    let mut rafsi_index = 0;
+    let mut output = String::new();
+    let last_segment_index = result.segments.len().saturating_sub(1);
+    for (segment_index, segment) in result.segments.iter().enumerate() {
+        match segment.kind {
+            JvozbaSegmentKind::Rafsi => {
+                let segment_text = if mode == JvozbaMode::Cmevla
+                    && segment_index == last_segment_index
+                    && ends_with_consonant(&segment.text)
+                {
+                    let split_index = segment
+                        .text
+                        .char_indices()
+                        .last()
+                        .map(|(index, _)| index)
+                        .unwrap_or(segment.text.len());
+                    let rafsi_part = &segment.text[..split_index];
+                    let terminal_consonant = &segment.text[split_index..];
+                    let mut rendered = if rafsi_index % 2 == 0 {
+                        green(rafsi_part, true)
+                    } else {
+                        magenta(rafsi_part, true)
+                    };
+                    rendered.push_str(&dark(terminal_consonant, true));
+                    rendered
+                } else if rafsi_index % 2 == 0 {
+                    green(&segment.text, true)
+                } else {
+                    magenta(&segment.text, true)
+                };
+                output.push_str(&segment_text);
+                rafsi_index += 1;
+            }
+            JvozbaSegmentKind::Hyphen => output.push_str(&dark(&segment.text, true)),
+        }
+    }
+    output
 }
 
 #[requires(true)]
@@ -1281,7 +1432,7 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
     let mut header = String::new();
     header.push_str(&dark(&format!("{index}."), options.color));
     header.push(' ');
-    header.push_str(&yellow(&card.word, options.color));
+    header.push_str(&yellow_underlined(&card.word, options.color));
     header.push_str(&dark(" | ", options.color));
     header.push_str(&blue(&vlacku_header_type(card), options.color));
     if let Some(similarity) = card.similarity {
@@ -1635,6 +1786,16 @@ fn dark(text: &str, color: bool) -> String {
 fn yellow(text: &str, color: bool) -> String {
     if color {
         text.yellow().to_string()
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn yellow_underlined(text: &str, color: bool) -> String {
+    if color {
+        text.yellow().underline().to_string()
     } else {
         text.to_owned()
     }
@@ -2272,6 +2433,16 @@ fn cli_glyph_style(ascii: bool) -> GlyphStyle {
 
 #[requires(true)]
 #[ensures(true)]
+fn cli_diagnostic_detail(detailed_errors: bool) -> DiagnosticDetailMode {
+    if detailed_errors {
+        DiagnosticDetailMode::Detailed
+    } else {
+        DiagnosticDetailMode::Summary
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn phoneme_render_options(
     mark_stress: Option<CliStressMark>,
     mark_glides: Option<CliGlideMark>,
@@ -2736,6 +2907,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_jvozba_command() {
+        let Command::Jvozba(input) =
+            Cli::try_parse_from(["jbotci", "jvozba", "--cmevla", "lojbo", "--rafsi", "bau"])
+                .expect("jvozba command")
+                .command
+        else {
+            panic!("expected jvozba command");
+        };
+        assert!(input.cmevla);
+        assert_eq!(
+            input.sources,
+            vec![
+                JvozbaSourceInput::Word("lojbo".to_owned()),
+                JvozbaSourceInput::FixedRafsi("bau".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_jvozba_word_and_rafsi_order() {
+        let Command::Jvozba(input) = Cli::try_parse_from([
+            "jbotci", "jvozba", "--rafsi", "jbo", "bangu", "--rafsi", "bau",
+        ])
+        .expect("jvozba command")
+        .command
+        else {
+            panic!("expected jvozba command");
+        };
+        assert_eq!(
+            input.sources,
+            vec![
+                JvozbaSourceInput::FixedRafsi("jbo".to_owned()),
+                JvozbaSourceInput::Word("bangu".to_owned()),
+                JvozbaSourceInput::FixedRafsi("bau".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn parses_vlacku_mixed_repeated_request_order() {
         let Command::Vlacku(input) = Cli::try_parse_from([
             "jbotci",
@@ -3054,8 +3268,11 @@ mod tests {
     fn parses_color_policy_values() {
         let default_cli = Cli::try_parse_from(["jbotci", "gentufa", "coi"]).expect("default color");
         assert_eq!(default_cli.color, concolor_clap::ColorChoice::Auto);
-        assert!(!default_cli.ascii);
-        assert!(!default_cli.detailed_errors);
+        let Command::Gentufa(default_input) = default_cli.command else {
+            panic!("expected gentufa command");
+        };
+        assert!(!default_input.ascii);
+        assert!(!default_input.detailed_errors);
 
         let bare_cli =
             Cli::try_parse_from(["jbotci", "gentufa", "--color", "coi"]).expect("bare color");
@@ -3069,13 +3286,19 @@ mod tests {
             .expect("never color");
         assert_eq!(never_cli.color, concolor_clap::ColorChoice::Never);
 
-        let detailed_cli = Cli::try_parse_from(["jbotci", "--detailed-errors", "gentufa", "coi"])
+        let detailed_cli = Cli::try_parse_from(["jbotci", "gentufa", "--detailed-errors", "coi"])
             .expect("detailed errors");
-        assert!(detailed_cli.detailed_errors);
+        let Command::Gentufa(detailed_input) = detailed_cli.command else {
+            panic!("expected gentufa command");
+        };
+        assert!(detailed_input.detailed_errors);
 
         let ascii_cli =
-            Cli::try_parse_from(["jbotci", "--ascii", "gentufa", "coi"]).expect("ascii flag");
-        assert!(ascii_cli.ascii);
+            Cli::try_parse_from(["jbotci", "gentufa", "--ascii", "coi"]).expect("ascii flag");
+        let Command::Gentufa(ascii_input) = ascii_cli.command else {
+            panic!("expected gentufa command");
+        };
+        assert!(ascii_input.ascii);
     }
 
     #[test]
@@ -3084,22 +3307,22 @@ mod tests {
     fn parses_trace_options_and_aliases() {
         let cli = Cli::try_parse_from([
             "jbotci",
+            "gentufa",
             "--trace-phase",
             "all",
             "--trace-limit",
             "7",
-            "gentufa",
             "--trace",
             "argument:3",
             "mi",
             "klama",
         ])
         .expect("trace options");
-        assert_eq!(cli.trace_phase, Some(CliTracePhase::All));
-        assert_eq!(cli.trace_limit, Some(7));
         let Command::Gentufa(input) = cli.command else {
             panic!("expected gentufa command")
         };
+        assert_eq!(input.trace_phase, Some(CliTracePhase::All));
+        assert_eq!(input.trace_limit, Some(7));
         assert_eq!(input.trace, Some(Some("argument:3".to_owned())));
         assert_eq!(input.text, vec!["mi".to_owned(), "klama".to_owned()]);
 
@@ -3143,11 +3366,11 @@ mod tests {
     fn trace_context_flags_require_trace_or_trace_list() {
         let cases = [
             (
-                ["jbotci", "--trace-phase", "syntax", "gentufa", "coi"].as_slice(),
+                ["jbotci", "gentufa", "--trace-phase", "syntax", "coi"].as_slice(),
                 "`--trace-phase` requires `--trace` or `--trace-list`",
             ),
             (
-                ["jbotci", "--trace-limit", "3", "gentufa", "coi"].as_slice(),
+                ["jbotci", "gentufa", "--trace-limit", "3", "coi"].as_slice(),
                 "`--trace-limit` requires `--trace`",
             ),
             (
@@ -3177,9 +3400,9 @@ mod tests {
     fn trace_phase_is_validated_for_command() {
         let cli = Cli::try_parse_from([
             "jbotci",
+            "vlasei",
             "--trace-phase",
             "syntax",
-            "vlasei",
             "--trace",
             "coi",
         ])
@@ -3195,9 +3418,9 @@ mod tests {
 
         let cli = Cli::try_parse_from([
             "jbotci",
+            "gentufa",
             "--trace-phase",
             "morphology",
-            "gentufa",
             "--trace-list",
         ])
         .expect("trace list phase parses");
@@ -3515,8 +3738,8 @@ mod tests {
     fn ascii_rejects_incompatible_diacritic_flags() {
         let stress_cli = Cli::try_parse_from([
             "jbotci",
-            "--ascii",
             "gentufa",
+            "--ascii",
             "--format",
             "tree",
             "--mark-stress",
@@ -3532,8 +3755,8 @@ mod tests {
 
         let glide_cli = Cli::try_parse_from([
             "jbotci",
-            "--ascii",
             "vlasei",
+            "--ascii",
             "--format",
             "tree",
             "--mark-glides",
@@ -3551,7 +3774,7 @@ mod tests {
     #[ensures(true)]
     fn vlasei_ipa_rejects_ascii_output() {
         let cli = Cli::try_parse_from([
-            "jbotci", "--ascii", "vlasei", "--format", "ipa", "mi", "klama",
+            "jbotci", "vlasei", "--ascii", "--format", "ipa", "mi", "klama",
         ])
         .expect("vlasei IPA ASCII parses");
         let error =
@@ -3589,8 +3812,8 @@ mod tests {
     fn ascii_accepts_compatible_diacritic_flags() {
         let output = run_success_stdout(&[
             "jbotci",
-            "--ascii",
             "gentufa",
+            "--ascii",
             "--format",
             "tree",
             "--mark-stress",
@@ -3611,8 +3834,8 @@ mod tests {
     fn ascii_affects_human_and_json_outputs() {
         let gentufa_tree = run_success_stdout(&[
             "jbotci",
-            "--ascii",
             "gentufa",
+            "--ascii",
             "--format",
             "tree",
             "--show-spans",
@@ -3629,8 +3852,8 @@ mod tests {
 
         let gentufa_brackets = run_success_stdout(&[
             "jbotci",
-            "--ascii",
             "gentufa",
+            "--ascii",
             "--format",
             "brackets",
             "--decompose-lujvo",
@@ -3639,15 +3862,15 @@ mod tests {
         assert!(gentufa_brackets.contains("miv~y~sel~bai"));
 
         let gentufa_json = run_success_stdout(&[
-            "jbotci", "--ascii", "gentufa", "--format", "json", "coi", "klama",
+            "jbotci", "gentufa", "--ascii", "--format", "json", "coi", "klama",
         ]);
         assert!(gentufa_json.contains("\"phonemes\": \"coi\""));
         assert!(gentufa_json.contains("\"phonemes\": \"klama\""));
 
         let vlasei_tree = run_success_stdout(&[
             "jbotci",
-            "--ascii",
             "vlasei",
+            "--ascii",
             "--format",
             "tree",
             "--show-spans",
@@ -3659,8 +3882,8 @@ mod tests {
 
         let vlasei_brackets = run_success_stdout(&[
             "jbotci",
-            "--ascii",
             "vlasei",
+            "--ascii",
             "--format",
             "brackets",
             "--decompose-lujvo",
@@ -3669,7 +3892,7 @@ mod tests {
         assert!(vlasei_brackets.contains("miv~y~sel~bai"));
 
         let vlasei_json = run_success_stdout(&[
-            "jbotci", "--ascii", "vlasei", "--format", "json", "coi", "klama",
+            "jbotci", "vlasei", "--ascii", "--format", "json", "coi", "klama",
         ]);
         assert!(vlasei_json.contains("\"phonemes\": \"coi\""));
         assert!(vlasei_json.contains("\"phonemes\": \"klama\""));
@@ -4469,6 +4692,111 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn jvozba_outputs_best_lujvo_word() {
+        let run = run_cli_capture(&["jbotci", "jvozba", "lojbo", "bangu"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert_eq!(run.stdout, "jbobau\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_accepts_fixed_rafsi_and_cmevla_mode() {
+        let run = run_cli_capture(
+            &["jbotci", "jvozba", "--cmevla", "lojbo", "--rafsi", "bau"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert_eq!(run.stdout, "jbobaus\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_rejects_option_like_positional_rafsi() {
+        let error = Cli::try_parse_from(["jbotci", "jvozba", "lojbo", "-bau-"])
+            .expect_err("fixed rafsi marker is not positional syntax");
+
+        assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_rejects_unsupported_flags_with_clap() {
+        let error = Cli::try_parse_from(["jbotci", "jvozba", "--detailed-errors", "lojbo"])
+            .expect_err("jvozba does not expose detailed errors");
+
+        assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_help_only_lists_supported_options() {
+        let error = Cli::try_parse_from(["jbotci", "jvozba", "--help"]).expect_err("help");
+        assert_eq!(error.kind(), ErrorKind::DisplayHelp);
+        let help = error.to_string();
+
+        assert!(help.contains("--cmevla"));
+        assert!(help.contains("--rafsi"));
+        assert!(help.contains("--color"));
+        assert!(!help.contains("--detailed-errors"));
+        assert!(!help.contains("--trace-phase"));
+        assert!(!help.contains("--trace-list"));
+        assert!(!help.contains("--ascii"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_colorizes_segments_when_requested() {
+        let run = run_cli_capture(&["jbotci", "jvozba", "--color", "lojbo", "bangu"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("\x1b[32mjbo\x1b[39m"));
+        assert!(run.stdout.contains("\x1b[35mbau\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_colorizes_cmevla_suffix_like_hyphen() {
+        let run = run_cli_capture(
+            &["jbotci", "jvozba", "--color", "--cmevla", "birti", "zbasu"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("\x1b[32mbit\x1b[39m"));
+        assert!(run.stdout.contains("\x1b[90my\x1b[39m"));
+        assert!(run.stdout.contains("\x1b[35mzba\x1b[39m"));
+        assert!(run.stdout.contains("\x1b[90ms\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_errors_match_v0_text() {
+        let cli = Cli::try_parse_from(["jbotci", "jvozba", "lojbo"]).expect("jvozba args");
+        let error =
+            run_cli(cli, &mut Vec::new(), &mut Vec::new(), false).expect_err("jvozba error");
+
+        assert_eq!(
+            error.to_string(),
+            "jvozba requires at least two rafsi-producing inputs."
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_exact_valid_missing_outputs_classification_card() {
         let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "brodax"], false);
 
@@ -4510,7 +4838,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_lujvo_outputs_headword_decomposition_then_sources() {
         let run = run_cli_capture(
-            &["jbotci", "--ascii", "vlacku", "--lujvo", "mivyselbai"],
+            &["jbotci", "vlacku", "--ascii", "--lujvo", "mivyselbai"],
             false,
         );
 
@@ -4536,8 +4864,8 @@ mod tests {
         let run = run_cli_capture(
             &[
                 "jbotci",
-                "--ascii",
                 "vlacku",
+                "--ascii",
                 "--decompose-lujvo",
                 "--valsi",
                 "mivyselbai",
@@ -4643,11 +4971,13 @@ mod tests {
         );
 
         assert!(output.contains("\x1b[90m1.\x1b[39m"));
+        assert!(output.contains("\x1b[4m\x1b[33mklama"), "{output}");
         assert!(output.contains("\x1b[90m | \x1b[39m"));
         assert!(output.contains("\x1b[90msimilarity: \x1b[39m\x1b[35m100%\x1b[39m"));
         assert!(output.contains("\x1b[90mvotes: \x1b[39m\x1b[32m+7\x1b[39m"));
         assert!(output.contains("\x1b[90mrafsi: \x1b[39m\x1b[31mkla\x1b[39m"));
         assert!(output.contains("\x1b[90m{\x1b[39m\x1b[33mcadzu\x1b[39m\x1b[90m}\x1b[39m"));
+        assert!(!output.contains("\x1b[4mcadzu"), "{output}");
         assert!(
             output.contains("\x1b[90m⟨\x1b[39m\x1b[36m1\x1b[39m\x1b[90m⟩\x1b[39m"),
             "{output}"
