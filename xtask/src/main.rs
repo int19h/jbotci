@@ -63,6 +63,7 @@ struct Cli {
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
+#[invariant(::DistServer(..) => true)]
 enum Command {
     Check,
     Test,
@@ -82,6 +83,7 @@ enum Command {
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
     VendorDictionary(VendorDictionaryArgs),
+    DistServer(DistServerArgs),
 }
 
 #[derive(Debug, Args)]
@@ -182,6 +184,17 @@ struct VendorDictionaryArgs {
     check: bool,
 }
 
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct DistServerArgs {
+    #[arg(long, default_value = ".jbotci-build/jbotci-web")]
+    out_dir: PathBuf,
+    #[arg(long, default_value = "/jbotci")]
+    base_path: String,
+    #[arg(long)]
+    skip_web_bundle: bool,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[invariant(true)]
 struct CachedExport {
@@ -261,7 +274,113 @@ fn main() -> Result<()> {
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
+        Command::DistServer(args) => dist_server(args),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dist_server(args: DistServerArgs) -> Result<()> {
+    let out_dir = absolute_path(&args.out_dir)?;
+    if !args.skip_web_bundle {
+        if out_dir.exists() {
+            fs::remove_dir_all(&out_dir)
+                .with_context(|| format!("removing old web bundle `{}`", out_dir.display()))?;
+        }
+        run_dx_bundle(&out_dir, &args.base_path)?;
+    }
+    let web_dist = web_dist_dir(&out_dir)?;
+    copy_required_web_assets(&web_dist)?;
+    build_embedded_server(&web_dist)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
+    let base_path = normalized_dist_base_path(base_path);
+    let dioxus_public = Path::new("target/dx/jbotci-web/release/web/public");
+    if dioxus_public.exists() {
+        fs::remove_dir_all(dioxus_public)
+            .with_context(|| format!("removing old Dioxus output `{}`", dioxus_public.display()))?;
+    }
+    let mut command = ProcessCommand::new("dx");
+    command
+        .arg("bundle")
+        .arg("--web")
+        .arg("--release")
+        .arg("--debug-symbols")
+        .arg("false")
+        .arg("--out-dir")
+        .arg(out_dir)
+        .arg("--base-path")
+        .arg(base_path)
+        .current_dir("apps/jbotci-web");
+    let status = command.status().context("failed to run `dx bundle`")?;
+    check_status(status, "dx bundle --web --release")
+}
+
+#[requires(true)]
+#[ensures(!ret.starts_with('/'))]
+fn normalized_dist_base_path(base_path: &str) -> String {
+    base_path.trim().trim_matches('/').to_owned()
+}
+
+#[requires(out_dir.is_absolute())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_dir()) || ret.is_err())]
+fn web_dist_dir(out_dir: &Path) -> Result<PathBuf> {
+    let candidates = [out_dir.join("public"), out_dir.to_path_buf()];
+    candidates
+        .into_iter()
+        .find(|candidate| candidate.join("index.html").is_file())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "could not find Dioxus web `index.html` under `{}`",
+                out_dir.display()
+            )
+        })
+}
+
+#[requires(web_dist.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_required_web_assets(web_dist: &Path) -> Result<()> {
+    let source_fonts = Path::new("apps/jbotci-web/assets/fonts");
+    let target_fonts = web_dist.join("assets").join("fonts");
+    fs::create_dir_all(&target_fonts)
+        .with_context(|| format!("creating `{}`", target_fonts.display()))?;
+    for font_name in [
+        "noto-sans-variable.ttf",
+        "noto-sans-italic-variable.ttf",
+        "noto-sans-math-regular.otf",
+        "crisa-regular.otf",
+    ] {
+        fs::copy(source_fonts.join(font_name), target_fonts.join(font_name))
+            .with_context(|| format!("copying web font `{font_name}`"))?;
+    }
+    Ok(())
+}
+
+#[requires(web_dist.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_embedded_server(web_dist: &Path) -> Result<()> {
+    let status = ProcessCommand::new("cargo")
+        .arg("build")
+        .arg("-p")
+        .arg("jbotci-server")
+        .arg("--release")
+        .arg("--features")
+        .arg("embed-web-assets")
+        .env("JBOTCI_WEB_DIST", web_dist)
+        .status()
+        .with_context(|| {
+            format!(
+                "failed to run embedded server build with JBOTCI_WEB_DIST={}",
+                web_dist.display()
+            )
+        })?;
+    check_status(
+        status,
+        "cargo build -p jbotci-server --release --features embed-web-assets",
+    )
 }
 
 #[requires(true)]
@@ -763,7 +882,7 @@ fn slot_reaches_numbered_place(
         return true;
     }
     let visit_key = (frame, slot.clone());
-    if visited.iter().any(|seen| *seen == visit_key) {
+    if visited.contains(&visit_key) {
         return false;
     }
     visited.push(visit_key);
@@ -1678,7 +1797,7 @@ fn ensure_semantics_refs(
         .semantics
         .get_or_insert_with(Default::default)
         .refs
-        .get_or_insert_with(|| fixtures::ReferenceExpectation {
+        .get_or_insert(fixtures::ReferenceExpectation {
             status: ExpectationStatus::Success,
             raw: None,
         })

@@ -3,6 +3,7 @@ members = [
     ".",
     "apps/jbotci",
     "apps/jbotci-server",
+    "apps/jbotci-web",
     "crates/jbotci-cll",
     "crates/jbotci-diagnostics",
     "crates/bityzba",
@@ -19,6 +20,7 @@ members = [
     "crates/jbotci-syntax",
     "crates/jbotci-tree",
     "crates/jbotci-tree-macros",
+    "crates/jbotci-web-core",
     "xtask",
 ]
 resolver = "3"
@@ -74,6 +76,11 @@ unicode-width = "0.2"
 ureq = "3"
 vec1 = { version = "1.12.1", features = ["serde", "smallvec-v1"] }
 walkdir = "2"
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tower = "0.5"
+dioxus = "0.7"
+web-sys = "0.3"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
 jbotci-diagnostics = { path = "crates/jbotci-diagnostics" }
@@ -91,6 +98,7 @@ jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
 jbotci-tree = { path = "crates/jbotci-tree" }
 jbotci-tree-macros = { path = "crates/jbotci-tree-macros" }
+jbotci-web-core = { path = "crates/jbotci-web-core" }
 
 [dev-dependencies]
 bityzba.workspace = true

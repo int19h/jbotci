@@ -639,6 +639,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask/src/main.rs:Command::VendorDictionary",
         "xtask command enum delegates validation to clap and option structs",
     ),
+    (
+        "xtask/src/main.rs:Command::DistServer",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Blank",
+        "blank gentufa result is a unit state with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Success",
+        "web API result delegates payload constraints to GentufaSuccess and construction path",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Error",
+        "web API result delegates payload constraints to GentufaError and construction path",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
+        "error wrapper carries parser diagnostic text without additional semantic state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Node",
+        "internal borrowed layout cursor delegates validity to the referenced block tree node",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Leaf",
+        "internal borrowed layout cursor delegates validity to the referenced leaf part",
+    ),
 ];
 
 #[test]

@@ -1,6 +1,6 @@
 [package]
-name = "jbotci-server"
-description = "Server application for jbotci web and HTTP integrations."
+name = "jbotci-web"
+description = "Dioxus web client for jbotci."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,32 +9,22 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
-embed-web-assets = []
 expensive_contracts = []
 
 [[bin]]
-name = "jbotci-server"
+name = "jbotci-web"
 path = "src/main.rs"
 
-[lib]
-name = "jbotci_server"
-path = "src/lib.rs"
-
 [dependencies]
-anyhow.workspace = true
-axum.workspace = true
 bityzba.workspace = true
-clap.workspace = true
+dioxus = { workspace = true, features = ["web"] }
+jbotci-diagnostics.workspace = true
+jbotci-output.workspace = true
 jbotci-web-core.workspace = true
-serde.workspace = true
-tokio.workspace = true
+web-sys = { workspace = true, features = ["Location", "Storage", "Window"] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
-
-[dev-dependencies]
-serde_json.workspace = true
-tower.workspace = true
 
 [lints]
 workspace = true

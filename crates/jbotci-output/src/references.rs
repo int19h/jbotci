@@ -657,7 +657,7 @@ fn tree_word_label(tree: &TreeValue) -> Option<TreeWordLabel> {
             phonemes,
             ..
         } => Some(TreeWordLabel {
-            constructor: *constructor,
+            constructor,
             text: phonemes.clone(),
         }),
         TreeValue::Syntax { value, .. } => tree_word_label(value),

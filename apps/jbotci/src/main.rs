@@ -788,6 +788,7 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -1032,6 +1033,7 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]

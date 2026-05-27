@@ -5864,12 +5864,17 @@ fn advance_cursor_for_term_shape(cursor: &mut PlaceCursor, term: &TermSyntax) {
             let slot = fa_place_slot(fa).unwrap_or_else(|| cursor.next_numbered_slot());
             cursor.record_slot(slot);
         }
-        data!(TermSyntax::Tagged { tense_modal, .. }) => {
-            if tense_modal.is_none() {
-                let slot = cursor.next_numbered_slot();
-                cursor.record_slot(slot);
-            }
+        data!(TermSyntax::Tagged {
+            tense_modal: None,
+            ..
+        }) => {
+            let slot = cursor.next_numbered_slot();
+            cursor.record_slot(slot);
         }
+        data!(TermSyntax::Tagged {
+            tense_modal: Some(_),
+            ..
+        }) => {}
         data!(TermSyntax::JaiTagged { .. }) => {
             cursor.record_slot(fai_slot());
         }
@@ -6451,10 +6456,9 @@ mod tests {
             data!(ArgumentSyntax::Koha(koha)) => {
                 Some(koha.core_word().bare_word()?.canonical_phonemes())
             }
-            data!(ArgumentSyntax::Descriptor(descriptor)) => descriptor
-                .relation
-                .as_deref()
-                .and_then(|relation| relation_label(relation)),
+            data!(ArgumentSyntax::Descriptor(descriptor)) => {
+                descriptor.relation.as_deref().and_then(relation_label)
+            }
             data!(ArgumentSyntax::Name { names, .. }) => names
                 .value
                 .first()
