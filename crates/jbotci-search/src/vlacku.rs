@@ -9,6 +9,7 @@ use crate::phonetic::{
 };
 
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
+pub const OFFICIAL_WORD_VOTE_THRESHOLD: i32 = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -162,9 +163,12 @@ pub fn is_brivla_like(normalized_type: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.starts_with('+') == (value > 0))]
+#[ensures(value > OFFICIAL_WORD_VOTE_THRESHOLD -> ret == "∞")]
+#[ensures(value <= OFFICIAL_WORD_VOTE_THRESHOLD -> ret.starts_with('+') == (value > 0))]
 pub fn format_votes(value: i32) -> String {
-    if value > 0 {
+    if value > OFFICIAL_WORD_VOTE_THRESHOLD {
+        "∞".to_owned()
+    } else if value > 0 {
         format!("+{value}")
     } else {
         value.to_string()

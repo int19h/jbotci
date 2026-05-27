@@ -1,6 +1,6 @@
 use bityzba::{invariant, new, requires};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -37,6 +37,9 @@ use jbotci_syntax::{
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use owo_colors::OwoColorize;
+use unicode_width::UnicodeWidthStr;
+
+const VLACKU_DETAIL_INDENT: &str = "    ";
 
 #[derive(Debug, Parser)]
 #[command(name = "jbotci")]
@@ -676,15 +679,17 @@ fn run() -> Result<CliStatus> {
         stdout: stream_supports_ansi_color(concolor::Stream::Stdout),
         stderr: stream_supports_ansi_color(concolor::Stream::Stderr),
     };
+    let output_terminal_width = stdout_terminal_width();
     let diagnostic_terminal_width = stderr_terminal_width();
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    run_cli_with_color_policy_and_width(
+    run_cli_with_color_policy_and_terminal_widths(
         cli,
         &mut stdout,
         &mut stderr,
         color_policy,
         diagnostic_terminal_width,
+        output_terminal_width,
     )
 }
 
@@ -724,6 +729,27 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color_policy: CliColorPolicy,
     diagnostic_terminal_width: usize,
+) -> Result<CliStatus> {
+    run_cli_with_color_policy_and_terminal_widths(
+        cli,
+        stdout,
+        stderr,
+        color_policy,
+        diagnostic_terminal_width,
+        None,
+    )
+}
+
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    output_terminal_width: Option<usize>,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
     let glyphs = cli_glyph_style(cli.ascii);
@@ -943,7 +969,14 @@ fn run_cli_with_color_policy_and_width<WOut: Write, WErr: Write>(
                 trace_limit_present,
                 cli.trace_list,
             )?;
-            run_vlacku(input, stdout, stderr, color_policy.stdout, glyphs)
+            run_vlacku(
+                input,
+                stdout,
+                stderr,
+                color_policy.stdout,
+                glyphs,
+                output_terminal_width,
+            )
         }
         Command::Jvozba(_input) => {
             validate_trace_controls_for_unsupported_command(
@@ -1001,6 +1034,7 @@ fn run_vlacku<WOut: Write, WErr: Write>(
     stderr: &mut WErr,
     color: bool,
     glyphs: GlyphStyle,
+    output_terminal_width: Option<usize>,
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
     let options = vlacku_search_options(&input)?;
@@ -1009,7 +1043,11 @@ fn run_vlacku<WOut: Write, WErr: Write>(
         writeln!(stderr, "vlacku: {diagnostic}")?;
     }
     if !output.cards.is_empty() || output.outcome != VlackuOutcome::Invalid {
-        write!(stdout, "{}", render_vlacku_output(&output, color, glyphs))?;
+        write!(
+            stdout,
+            "{}",
+            render_vlacku_output_with_width(&output, color, glyphs, output_terminal_width)
+        )?;
     }
     Ok(cli_status_from_vlacku_outcome(output.outcome))
 }
@@ -1140,20 +1178,44 @@ fn cli_status_from_vlacku_outcome(outcome: VlackuOutcome) -> CliStatus {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn render_vlacku_output(output: &VlackuSearchOutput, color: bool, glyphs: GlyphStyle) -> String {
+    render_vlacku_output_with_width(output, color, glyphs, None)
+}
+
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(!ret.is_empty())]
+fn render_vlacku_output_with_width(
+    output: &VlackuSearchOutput,
+    color: bool,
+    glyphs: GlyphStyle,
+    output_terminal_width: Option<usize>,
+) -> String {
     if output.cards.is_empty() {
         return "No matches found.\n".to_owned();
     }
     let mut rendered = String::new();
     for (index, card) in output.cards.iter().enumerate() {
-        rendered.push_str(&render_vlacku_card(index + 1, card, color, glyphs));
+        rendered.push_str(&render_vlacku_card(
+            index + 1,
+            card,
+            color,
+            glyphs,
+            output_terminal_width,
+        ));
         rendered.push('\n');
     }
     rendered
 }
 
 #[requires(index > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(!ret.is_empty())]
-fn render_vlacku_card(index: usize, card: &VlackuCard, color: bool, glyphs: GlyphStyle) -> String {
+fn render_vlacku_card(
+    index: usize,
+    card: &VlackuCard,
+    color: bool,
+    glyphs: GlyphStyle,
+    output_terminal_width: Option<usize>,
+) -> String {
     let mut lines = Vec::new();
     let mut header = String::new();
     header.push_str(&dark(&format!("{index}."), color));
@@ -1193,24 +1255,111 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, color: bool, glyphs: Glyp
     }
     if !card.glosses.is_empty() {
         lines.push(format!("  {}", dark("glosses:", color)));
-        lines.push(format!(
-            "    {}",
-            render_vlacku_rich_text(&card.glosses.join("; "), color)
-        ));
+        push_vlacku_detail_lines(
+            &mut lines,
+            &card.glosses.join("; "),
+            color,
+            output_terminal_width,
+        );
     }
     if !card.definition.trim().is_empty() {
         lines.push(format!("  {}", dark("definitions:", color)));
         for line in card.definition.lines() {
-            lines.push(format!("    {}", render_vlacku_rich_text(line, color)));
+            push_vlacku_detail_lines(&mut lines, line, color, output_terminal_width);
         }
     }
     if !card.notes.trim().is_empty() {
         lines.push(format!("  {}", dark("notes:", color)));
         for line in card.notes.lines() {
-            lines.push(format!("    {}", render_vlacku_rich_text(line, color)));
+            push_vlacku_detail_lines(&mut lines, line, color, output_terminal_width);
         }
     }
     lines.join("\n") + "\n"
+}
+
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(true)]
+fn push_vlacku_detail_lines(
+    lines: &mut Vec<String>,
+    text: &str,
+    color: bool,
+    output_terminal_width: Option<usize>,
+) {
+    for line in wrap_vlacku_detail_line(text, output_terminal_width) {
+        lines.push(format!(
+            "{VLACKU_DETAIL_INDENT}{}",
+            render_vlacku_rich_text(&line, color)
+        ));
+    }
+}
+
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(!ret.is_empty())]
+fn wrap_vlacku_detail_line(text: &str, output_terminal_width: Option<usize>) -> Vec<String> {
+    let Some(output_terminal_width) = output_terminal_width else {
+        return vec![text.to_owned()];
+    };
+    let wrap_width = output_terminal_width
+        .saturating_sub(UnicodeWidthStr::width(VLACKU_DETAIL_INDENT))
+        .max(1);
+    if UnicodeWidthStr::width(text) <= wrap_width {
+        return vec![text.to_owned()];
+    }
+    let atoms = vlacku_wrap_atoms(text);
+    if atoms.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut current_width = 0;
+    for atom in atoms {
+        let atom_width = UnicodeWidthStr::width(atom.as_str());
+        if current.is_empty() {
+            current_width = atom_width;
+            current = atom;
+        } else if current_width + 1 + atom_width <= wrap_width {
+            current.push(' ');
+            current.push_str(&atom);
+            current_width += 1 + atom_width;
+        } else {
+            lines.push(current);
+            current_width = atom_width;
+            current = atom;
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+#[requires(true)]
+#[ensures(input.trim().is_empty() -> ret.is_empty())]
+fn vlacku_wrap_atoms(input: &str) -> Vec<String> {
+    let mut atoms = Vec::new();
+    let mut remaining = input.trim();
+    while !remaining.is_empty() {
+        if let Some(after_open) = remaining.strip_prefix('$') {
+            if let Some(close_index) = after_open.find('$') {
+                let mut atom_end = close_index + 2;
+                let trailing_text = &remaining[atom_end..];
+                let trailing_end = trailing_text
+                    .find(char::is_whitespace)
+                    .unwrap_or(trailing_text.len());
+                atom_end += trailing_end;
+                atoms.push(remaining[..atom_end].to_owned());
+                remaining = remaining[atom_end..].trim_start();
+                continue;
+            }
+        }
+        let atom_end = remaining
+            .find(char::is_whitespace)
+            .unwrap_or(remaining.len());
+        atoms.push(remaining[..atom_end].to_owned());
+        remaining = remaining[atom_end..].trim_start();
+    }
+    atoms
 }
 
 #[requires(true)]
@@ -2260,6 +2409,18 @@ fn read_text_input(file: Option<&PathBuf>, text: &[String]) -> Result<String> {
 #[ensures(true)]
 fn stream_supports_ansi_color(stream: concolor::Stream) -> bool {
     concolor::get(stream).ansi_color()
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|width| width > 0))]
+fn stdout_terminal_width() -> Option<usize> {
+    let stdout = std::io::stdout();
+    if !stdout.is_terminal() {
+        return None;
+    }
+    terminal_size::terminal_size_of(stdout)
+        .map(|(terminal_size::Width(width), _height)| usize::from(width))
+        .filter(|width| *width > 0)
 }
 
 #[requires(true)]
@@ -4162,7 +4323,7 @@ mod tests {
         assert!(run.stderr.is_empty(), "{}", run.stderr);
         assert!(
             run.stdout
-                .contains("1. klama | gismu | similarity: 100% | votes: +")
+                .contains("1. klama | gismu | similarity: 100% | votes: ∞")
         );
         assert!(run.stdout.contains("  rafsi: "));
         assert!(run.stdout.contains("  glosses:"));
@@ -4204,7 +4365,7 @@ mod tests {
         assert!(run.stderr.is_empty(), "{}", run.stderr);
         assert!(
             run.stdout
-                .contains("1. klama | gismu | similarity: 100% | votes: +")
+                .contains("1. klama | gismu | similarity: 100% | votes: ∞")
         );
     }
 
@@ -4350,6 +4511,75 @@ mod tests {
         assert!(output.contains("\x1b[90m$\x1b[39m\x1b[36mx_1\x1b[39m\x1b[90m$\x1b[39m"));
         assert!(output.contains("\x1b[37m{bad link}\x1b[39m"));
         assert!(output.contains("\x1b[37munmatched $x_2 remains plain\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
+        let output = render_vlacku_output_with_width(
+            &VlackuSearchOutput {
+                cards: vec![VlackuCard {
+                    word: "cmevla".to_owned(),
+                    word_type: "lujvo".to_owned(),
+                    selmaho: None,
+                    similarity: Some(1.0),
+                    votes: Some(4),
+                    rafsi: Vec::new(),
+                    glosses: Vec::new(),
+                    definition: "$x_1$ is a morphologically defined name word meaning $x_2$ in language $x_3$.".to_owned(),
+                    notes: "In Lojban, such words are characterized by ending with a consonant.".to_owned(),
+                    decomposition: Vec::new(),
+                }],
+                outcome: VlackuOutcome::Found,
+                diagnostics: Vec::new(),
+            },
+            false,
+            GlyphStyle::Unicode,
+            Some(48),
+        );
+
+        assert!(
+            output.contains(
+            "    $x_1$ is a morphologically defined name word\n    meaning $x_2$ in language $x_3$."
+            ),
+            "{output}"
+        );
+        assert!(
+            output.contains(
+                "    In Lojban, such words are characterized by\n    ending with a consonant."
+            ),
+            "{output}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_votes_above_official_threshold_render_infinity() {
+        let output = render_vlacku_output(
+            &VlackuSearchOutput {
+                cards: vec![VlackuCard {
+                    word: "klama".to_owned(),
+                    word_type: "gismu".to_owned(),
+                    selmaho: None,
+                    similarity: Some(1.0),
+                    votes: Some(10001),
+                    rafsi: Vec::new(),
+                    glosses: Vec::new(),
+                    definition: String::new(),
+                    notes: String::new(),
+                    decomposition: Vec::new(),
+                }],
+                outcome: VlackuOutcome::Found,
+                diagnostics: Vec::new(),
+            },
+            false,
+            GlyphStyle::Unicode,
+        );
+
+        assert!(output.contains("votes: ∞"));
+        assert!(!output.contains("votes: +10001"));
     }
 
     #[test]
