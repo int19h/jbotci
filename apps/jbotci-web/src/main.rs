@@ -111,6 +111,7 @@ fn font_face_css() -> String {
   font-family: "Noto Sans";
   src: url("{noto_sans}") format("truetype");
   font-weight: 100 900;
+  font-stretch: 62.5% 100%;
   font-style: normal;
   font-display: swap;
 }}
@@ -119,6 +120,7 @@ fn font_face_css() -> String {
   font-family: "Noto Sans";
   src: url("{noto_sans_italic}") format("truetype");
   font-weight: 100 900;
+  font-stretch: 62.5% 100%;
   font-style: italic;
   font-display: swap;
 }}
@@ -690,6 +692,7 @@ fn render_block(
     } else {
         "block-ref-target"
     };
+    let needs_incoming_overlap_sizer = incoming_count > 0 && block.row_span == 1;
     let outgoing_markers = block
         .ref_markers
         .iter()
@@ -713,6 +716,19 @@ fn render_block(
                         span { class: "ref-math ref-line",
                             { render_ref_marker(marker, reference_hover, &hover_state) }
                             span { class: "ref-arrow", "→" }
+                        }
+                    }
+                }
+            }
+            if needs_incoming_overlap_sizer {
+                span { class: "block-overlap-sizer", aria_hidden: "true",
+                    for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
+                        span { class: "block-overlap-line",
+                            span { class: "block-overlap-ref ref-math",
+                                { render_reference_label(&marker.label) }
+                                span { class: "ref-arrow", "→" }
+                            }
+                            span { class: "block-overlap-primary", "{block.label}" }
                         }
                     }
                 }

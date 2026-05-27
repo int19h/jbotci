@@ -709,6 +709,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .view-tab.active {
+  z-index: 3;
   color: var(--app-link);
   background: var(--page-bg);
 }
@@ -874,6 +875,43 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: underline;
 }
 
+.parse-page .block-overlap-sizer {
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: flex-start;
+  align-self: center;
+  height: 0;
+  min-width: max-content;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.parse-page .block-overlap-line {
+  display: block;
+  min-width: max-content;
+}
+
+.parse-page .block-overlap-ref {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.16rem;
+  color: var(--blocks-ref-text);
+  font-size: var(--blocks-place-size);
+  font-weight: 600;
+}
+
+.parse-page .block-overlap-primary {
+  display: inline-block;
+  padding-inline: 0.65rem var(--blocks-padding);
+}
+
+.parse-page .block-leaf .block-overlap-primary {
+  font-weight: bold;
+}
+
 .parse-page .block-leaf .block-label {
   justify-self: flex-start;
   align-self: flex-end;
@@ -903,10 +941,12 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .block-ref-target {
   grid-row: 1;
-  display: grid;
+  display: inline-grid;
+  grid-template-columns: max-content max-content;
   align-items: start;
-  justify-items: start;
-  gap: 0.08rem;
+  justify-items: end;
+  column-gap: 0.16rem;
+  row-gap: 0.08rem;
   justify-self: flex-start;
   align-self: flex-start;
   line-height: 1.05;
@@ -914,16 +954,25 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .block-ref-target .ref-line {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.16rem;
+  display: contents;
+}
+
+.parse-page .block-ref-target .ref-line .ref-arrow {
+  justify-self: start;
 }
 
 .parse-page .block-ref-source {
   grid-row: 3;
   justify-self: flex-end;
   align-self: flex-end;
-  transform: translate(calc(-1 * var(--blocks-ref-pad-x)), calc(-1 * var(--blocks-ref-pad-y)));
+  transform: translate(-0.12rem, calc(-1 * var(--blocks-ref-pad-y)));
+}
+
+.parse-page .block-ref-source .ref-math {
+  display: inline-grid;
+  grid-template-columns: max-content max-content;
+  align-items: baseline;
+  column-gap: 0.16rem;
 }
 
 .parse-page .block-ref-target .place-var,
@@ -964,7 +1013,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .ref-var .math-var mi,
 .parse-page .place-var .math-var mi {
-  font-family: "Noto Sans Math", "Noto Sans", serif;
+  font-family: "Noto Sans", "Noto Sans Math", serif;
 }
 
 .parse-page .ref-var .spa-cll-math *,
