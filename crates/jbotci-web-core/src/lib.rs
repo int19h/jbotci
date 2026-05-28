@@ -3,6 +3,7 @@
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
+use std::sync::OnceLock;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -2042,6 +2043,15 @@ pub struct VlackuWordTypeOption {
     pub indeterminate: bool,
 }
 
+#[invariant(!self.value.is_empty() && !self.label.is_empty() && self.count > 0)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VlackuWordTypeOptionTemplate {
+    value: String,
+    label: String,
+    section: VlackuWordTypeSection,
+    count: usize,
+}
+
 #[invariant(true)]
 #[invariant(::Cmavo => true)]
 #[invariant(::Cmevla => true)]
@@ -2055,6 +2065,9 @@ pub enum VlackuWordTypeSection {
     Brivla,
     Other,
 }
+
+static VLACKU_WORD_TYPE_OPTION_TEMPLATES: OnceLock<Vec<VlackuWordTypeOptionTemplate>> =
+    OnceLock::new();
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2580,47 +2593,67 @@ fn dictionary_word_type_options(selected_values: &[String]) -> Vec<VlackuWordTyp
         word_types: selected_values.to_vec(),
     })
     .word_types;
-    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    for entry in jbotci_dictionary_data::english().entries() {
-        let key = dictionary_option_key(entry);
-        *counts.entry(key).or_default() += 1;
-    }
     let brivla_child_values = vlacku_brivla_child_filter_values();
-    let brivla_count = brivla_child_values
-        .iter()
-        .filter_map(|value| counts.get(*value))
-        .copied()
-        .sum::<usize>();
-    if brivla_count > 0 {
-        counts.insert("brivla".to_owned(), brivla_count);
-    }
     let brivla_selected_count = brivla_child_values
         .iter()
         .filter(|value| selected_values.iter().any(|selected| selected == **value))
         .count();
-    let mut options = counts
-        .into_iter()
-        .filter(|(value, _)| is_visible_word_type_filter(value))
-        .map(|(value, count)| VlackuWordTypeOption {
-            label: word_type_label(&value),
-            section: word_type_section(&value),
-            selected: if value == "brivla" {
+    dictionary_word_type_option_templates()
+        .iter()
+        .map(|template| VlackuWordTypeOption {
+            label: template.label.clone(),
+            section: template.section,
+            selected: if template.value == "brivla" {
                 brivla_selected_count == brivla_child_values.len()
             } else {
-                selected_values.iter().any(|selected| selected == &value)
+                selected_values
+                    .iter()
+                    .any(|selected| selected == &template.value)
             },
-            indeterminate: value == "brivla"
+            indeterminate: template.value == "brivla"
                 && brivla_selected_count > 0
                 && brivla_selected_count < brivla_child_values.len(),
-            value,
-            count,
+            value: template.value.clone(),
+            count: template.count,
         })
-        .collect::<Vec<_>>();
-    options.sort_by(|left, right| {
-        word_type_order_key(left.section, &left.value)
-            .cmp(&word_type_order_key(right.section, &right.value))
-    });
-    options
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_word_type_option_templates() -> &'static [VlackuWordTypeOptionTemplate] {
+    VLACKU_WORD_TYPE_OPTION_TEMPLATES.get_or_init(|| {
+        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+        for entry in jbotci_dictionary_data::english().entries() {
+            let key = dictionary_option_key(entry);
+            *counts.entry(key).or_default() += 1;
+        }
+        let brivla_count = vlacku_brivla_child_filter_values()
+            .iter()
+            .filter_map(|value| counts.get(*value))
+            .copied()
+            .sum::<usize>();
+        if brivla_count > 0 {
+            counts.insert("brivla".to_owned(), brivla_count);
+        }
+        let mut templates = counts
+            .into_iter()
+            .filter(|(value, _)| is_visible_word_type_filter(value))
+            .map(|(value, count)| {
+                new!(VlackuWordTypeOptionTemplate {
+                    label: word_type_label(&value),
+                    section: word_type_section(&value),
+                    value,
+                    count,
+                })
+            })
+            .collect::<Vec<_>>();
+        templates.sort_by(|left, right| {
+            word_type_order_key(left.section, &left.value)
+                .cmp(&word_type_order_key(right.section, &right.value))
+        });
+        templates
+    })
 }
 
 #[requires(true)]

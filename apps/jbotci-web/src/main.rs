@@ -7,11 +7,11 @@ use jbotci_web_core::{
     VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo,
     VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode,
     VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
-    VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebState, VlackuWordTypeOption,
-    VlackuWordTypeSection, WebFeatureAvailability, build_vlacku_jvozba_output,
-    build_vlacku_web_result, parse_gentufa_for_web, parse_vlacku_web_route,
-    toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate, vlacku_web_url,
-    vlacku_word_type_options,
+    VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
+    VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability,
+    build_vlacku_jvozba_output, build_vlacku_web_result, parse_gentufa_for_web,
+    parse_vlacku_web_route, toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate,
+    vlacku_web_url, vlacku_word_type_options,
 };
 
 #[allow(unused_imports)]
@@ -209,6 +209,10 @@ fn App() -> Element {
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
+    let vlacku_result = use_memo(move || {
+        let state = vlacku_committed_state.read().clone();
+        build_vlacku_web_result(&state)
+    });
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
     let mut input_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
@@ -304,6 +308,7 @@ fn App() -> Element {
                                 render_vlacku_page(
                                     vlacku_draft_state,
                                     vlacku_committed_state,
+                                    vlacku_result,
                                     jvozba_pane,
                                     jvozba_drag,
                                     &base_path,
@@ -488,11 +493,12 @@ fn render_dialect_control(mut dialect: Signal<String>) -> Element {
 fn render_vlacku_page(
     vlacku_draft_state: Signal<VlackuWebState>,
     vlacku_committed_state: Signal<VlackuWebState>,
+    vlacku_result: Memo<VlackuWebResult>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     base_path: &str,
 ) -> Element {
-    let result = build_vlacku_web_result(&vlacku_committed_state.read());
+    let result = vlacku_result.read();
     let draft_state = vlacku_draft_state.read().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     let shell_class = if jvozba_pane.read().open {
