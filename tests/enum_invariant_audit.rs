@@ -1171,6 +1171,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Leaf",
         "internal borrowed layout cursor delegates validity to the referenced leaf part",
     ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gentufa",
+        "route variant delegates URL state constraints to GentufaWebState and canonical route builders",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Cukta",
+        "route variant delegates URL state constraints to CuktaWebState and canonical route builders",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Vlacku",
+        "route variant delegates URL state constraints to VlackuWebState and canonical route builders",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Settings",
+        "settings route is a unit state with no payload to constrain",
+    ),
 ];
 
 #[test]

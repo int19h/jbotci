@@ -36,6 +36,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "browser settings are persisted transport state constrained by closed enum fields",
     ),
     (
+        "apps/jbotci-web/src/main.rs:GentufaDisplayState",
+        "gentufa display toggles are two independent boolean URL controls with no invalid combination",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
@@ -510,6 +514,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebOptions",
         "web options are independent presentation controls with serde defaults",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebState",
+        "gentufa route state is normalized by parse and canonical URL builders before use",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebRequest",

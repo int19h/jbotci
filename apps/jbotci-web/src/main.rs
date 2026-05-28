@@ -10,17 +10,17 @@ use jbotci_web_core::{
     CuktaSearchResultCard, CuktaTargetOption, CuktaTocNode, CuktaWebMode, CuktaWebSearchState,
     CuktaWebState, CuktaWebView, GentufaBlock, GentufaCell, GentufaError, GentufaScript,
     GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebViewMode, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel,
-    VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
-    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
-    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
+    ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
+    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline,
+    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData, VlackuVoteDisplay,
     VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState, VlackuWordTypeOption,
-    VlackuWordTypeSection, WebFeatureAvailability, build_cukta_web_page,
-    build_vlacku_jvozba_output, build_vlacku_web_result, cukta_web_url, parse_cukta_web_route,
-    parse_gentufa_for_web, parse_vlacku_web_route, toggle_cukta_target_selection,
-    toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate, vlacku_web_url,
-    vlacku_word_type_options,
+    VlackuWordTypeSection, WebFeatureAvailability, WebRoute, build_cukta_web_page, build_page_meta,
+    build_vlacku_jvozba_output, build_vlacku_web_result, cukta_web_url, gentufa_web_url,
+    parse_cukta_web_route, parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route,
+    parse_web_route, toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
+    vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
 
 #[allow(unused_imports)]
@@ -35,6 +35,7 @@ use wasm_bindgen::closure::Closure;
 use std::cell::Cell;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
+const MANIFEST: Asset = asset!("/assets/manifest.webmanifest");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const FAVICON: Asset = asset!("/assets/icons/jbotci-icon-192.png");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
@@ -76,6 +77,7 @@ const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 thread_local! {
     static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
+    static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,10 +134,15 @@ enum AppRoute {
 struct UserSettings {
     theme: ThemeMode,
     script: GentufaScript,
-    show_elided: bool,
-    show_glosses: bool,
     stress: StressMark,
     glides: GlideMark,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct GentufaDisplayState {
+    show_elided: bool,
+    show_glosses: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,10 +190,20 @@ impl Default for UserSettings {
         Self {
             theme: ThemeMode::Auto,
             script: GentufaScript::Latin,
-            show_elided: false,
-            show_glosses: true,
             stress: StressMark::Acute,
             glides: GlideMark::Breve,
+        }
+    }
+}
+
+impl Default for GentufaDisplayState {
+    #[requires(true)]
+    #[ensures(!ret.show_elided)]
+    #[ensures(ret.show_glosses)]
+    fn default() -> Self {
+        Self {
+            show_elided: false,
+            show_glosses: true,
         }
     }
 }
@@ -271,16 +288,31 @@ fn font_face_css() -> String {
 #[requires(true)]
 #[ensures(true)]
 fn App() -> Element {
-    let route = route_from_current_path();
+    let route = use_signal(route_from_current_path);
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
-    let view_mode = use_signal(initial_view_mode);
+    let initial_gentufa = initial_gentufa_state();
+    let initial_gentufa_has_text = initial_gentufa_text_explicit();
+    let initial_gentufa_text = if initial_gentufa.text.is_empty() {
+        DEFAULT_GENTUFA_TEXT.to_owned()
+    } else {
+        initial_gentufa.text.clone()
+    };
+    let initial_gentufa_dialect = initial_gentufa.dialect.clone().unwrap_or_default();
+    let initial_gentufa_view_mode = initial_gentufa.view_mode;
+    let initial_gentufa_display = GentufaDisplayState {
+        show_elided: initial_gentufa.show_elided,
+        show_glosses: initial_gentufa.show_glosses,
+    };
+    let view_mode = use_signal(move || initial_gentufa_view_mode);
+    let gentufa_display = use_signal(move || initial_gentufa_display);
+    let mut gentufa_text_explicit = use_signal(move || initial_gentufa_has_text);
     let initial_cukta = initial_cukta_state();
     let cukta_state = use_signal(|| initial_cukta);
     let cukta_toc_filter = use_signal(String::new);
-    let cukta_toc_pinned = use_signal(|| true);
-    let cukta_toc_expansion = use_signal(CuktaTocExpansionState::default);
-    let cukta_toc_width = use_signal(default_cukta_toc_width);
+    let cukta_toc_pinned = use_signal(load_cukta_toc_pinned);
+    let cukta_toc_expansion = use_signal(load_cukta_toc_expansion);
+    let cukta_toc_width = use_signal(load_cukta_toc_width);
     let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
@@ -296,42 +328,109 @@ fn App() -> Element {
     });
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
-    let mut input_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
-    let mut parsed_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
-    let dialect = use_signal(String::new);
-    let mut parsed_dialect = use_signal(String::new);
+    let initial_input_text = initial_gentufa_text.clone();
+    let initial_parsed_text = initial_gentufa_text;
+    let initial_dialect = initial_gentufa_dialect.clone();
+    let initial_parsed_dialect = initial_gentufa_dialect;
+    let mut input_text = use_signal(move || initial_input_text.clone());
+    let mut parsed_text = use_signal(move || initial_parsed_text.clone());
+    let dialect = use_signal(move || initial_dialect.clone());
+    let mut parsed_dialect = use_signal(move || initial_parsed_dialect.clone());
     let reference_hover = use_signal(ReferenceHoverState::default);
 
     let settings_value = *settings.read();
+    let route_value = *route.read();
     let view_mode_value = *view_mode.read();
+    let gentufa_display_value = *gentufa_display.read();
     let request = GentufaWebRequest {
         text: parsed_text.read().clone(),
         options: web_options(
             settings_value,
+            gentufa_display_value,
             view_mode_value,
             parsed_dialect.read().clone(),
         ),
     };
     let result = parse_gentufa_for_web(&request);
+    let nav_gentufa_state = gentufa_state_from_parts(
+        &input_text.read(),
+        &dialect.read(),
+        view_mode_value,
+        gentufa_display_value,
+        *gentufa_text_explicit.read(),
+    );
+    let topbar_cukta_href = cukta_web_url(&base_path, &cukta_state.read());
+    let topbar_vlacku_href = vlacku_web_url(&base_path, &vlacku_committed_state.read());
+    let topbar_gentufa_href = gentufa_web_url(&base_path, &nav_gentufa_state);
+    install_browser_state_handlers(
+        route,
+        cukta_state,
+        vlacku_draft_state,
+        vlacku_committed_state,
+        input_text,
+        parsed_text,
+        dialect,
+        parsed_dialect,
+        view_mode,
+        gentufa_display,
+        gentufa_text_explicit,
+        &base_path,
+    );
+    let meta_base_path = base_path.clone();
+    use_effect(move || {
+        let route = *route.read();
+        let web_route = web_route_from_app_state(
+            route,
+            &cukta_state.read(),
+            &vlacku_committed_state.read(),
+            &gentufa_state_from_parts(
+                &input_text.read(),
+                &dialect.read(),
+                *view_mode.read(),
+                *gentufa_display.read(),
+                *gentufa_text_explicit.read(),
+            ),
+        );
+        let meta = build_page_meta(&meta_base_path, &web_route);
+        sync_document_head(&meta);
+    });
     let vlacku_url_base_path = base_path.clone();
     use_effect(move || {
-        if route == AppRoute::Vlacku {
+        if *route.read() == AppRoute::Vlacku {
             let state = vlacku_committed_state.read().clone();
             schedule_vlacku_url_push(&vlacku_url_base_path, &state);
         }
     });
     let cukta_url_base_path = base_path.clone();
     use_effect(move || {
-        if route == AppRoute::Cukta {
+        if *route.read() == AppRoute::Cukta {
             let state = cukta_state.read().clone();
             push_cukta_url(&cukta_url_base_path, &state);
         }
     });
+    let gentufa_url_base_path = base_path.clone();
     use_effect(move || {
-        if route == AppRoute::Vlacku {
+        if *route.read() == AppRoute::Gentufa {
+            let state = gentufa_state_from_parts(
+                &input_text.read(),
+                &dialect.read(),
+                *view_mode.read(),
+                *gentufa_display.read(),
+                *gentufa_text_explicit.read(),
+            );
+            replace_gentufa_url(&gentufa_url_base_path, &state);
+        }
+    });
+    use_effect(move || {
+        if *route.read() == AppRoute::Vlacku {
             let state = vlacku_draft_state.read().clone();
             set_brivla_toggle_indeterminate(vlacku_brivla_filter_indeterminate(&state.word_types));
             sync_vlacku_jvozba_pane_metrics();
+        }
+    });
+    use_effect(move || {
+        if *route.read() == AppRoute::Cukta {
+            restore_cukta_toc_scroll();
         }
     });
     let app_class = format!(
@@ -343,14 +442,24 @@ fn App() -> Element {
     rsx! {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
+        document::Link { rel: "manifest", href: MANIFEST }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON }
         document::Link { rel: "shortcut icon", r#type: "image/png", href: FAVICON }
+        document::Link { rel: "apple-touch-icon", href: FAVICON }
         div { class: "{app_class}",
-            { render_topbar(route, &base_path, settings, settings_value) }
+            { render_topbar(
+                route_value,
+                settings,
+                settings_value,
+                &topbar_cukta_href,
+                &topbar_vlacku_href,
+                &topbar_gentufa_href,
+                &nav_href(&base_path, AppRoute::Settings),
+            ) }
             main { class: "spa-main",
                 div { class: "spa-stack",
                     {
-                        match route {
+                        match route_value {
                             AppRoute::Gentufa => rsx! {
                                 section {
                                     class: "spa-page parse-page spa-gentufa-page",
@@ -366,7 +475,10 @@ fn App() -> Element {
                                                     placeholder: "{DEFAULT_GENTUFA_TEXT}",
                                                     value: "{input_text.read()}",
                                                     spellcheck: "false",
-                                                    oninput: move |event| input_text.set(event.value()),
+                                                    oninput: move |event| {
+                                                        input_text.set(event.value());
+                                                        gentufa_text_explicit.set(true);
+                                                    },
                                                 }
                                                 div { class: "form-actions",
                                                     { render_dialect_control(dialect) }
@@ -376,6 +488,7 @@ fn App() -> Element {
                                                         onclick: move |_| {
                                                             let next_text = input_text.read().clone();
                                                             let next_dialect = dialect.read().clone();
+                                                            gentufa_text_explicit.set(true);
                                                             parsed_text.set(next_text);
                                                             parsed_dialect.set(next_dialect);
                                                         },
@@ -385,7 +498,7 @@ fn App() -> Element {
                                             }
                                         }
                                         div { class: "gentufa-result-stack",
-                                            { render_result(&result, view_mode, view_mode_value, settings, settings_value, reference_hover) }
+                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover) }
                                         }
                                     }
                                 }
@@ -425,9 +538,12 @@ fn App() -> Element {
 #[ensures(true)]
 fn render_topbar(
     route: AppRoute,
-    base_path: &str,
     settings: Signal<UserSettings>,
     current: UserSettings,
+    cukta_href: &str,
+    vlacku_href: &str,
+    gentufa_href: &str,
+    settings_href: &str,
 ) -> Element {
     rsx! {
         header { class: "app-topbar spa-topbar",
@@ -435,7 +551,7 @@ fn render_topbar(
                 div { class: "app-topbar-left",
                     a {
                         class: "app-topbar-brand",
-                        href: nav_href(base_path, AppRoute::Settings),
+                        href: "{settings_href}",
                         aria_label: "Settings",
                         title: "Settings",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
@@ -449,19 +565,19 @@ fn render_topbar(
                     nav { class: "spa-nav", aria_label: "Primary navigation",
                         a {
                             class: topbar_link_class(route == AppRoute::Cukta),
-                            href: nav_href(base_path, AppRoute::Cukta),
+                            href: "{cukta_href}",
                             aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "cukta" }
                         }
                         a {
                             class: topbar_link_class(route == AppRoute::Vlacku),
-                            href: nav_href(base_path, AppRoute::Vlacku),
+                            href: "{vlacku_href}",
                             aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "vlacku" }
                         }
                         a {
                             class: topbar_link_class(route == AppRoute::Gentufa),
-                            href: nav_href(base_path, AppRoute::Gentufa),
+                            href: "{gentufa_href}",
                             aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "gentufa" }
                             span { class: "app-topbar-link-dots", aria_hidden: "true",
@@ -476,7 +592,7 @@ fn render_topbar(
                 div { class: "app-topbar-right",
                     a {
                         class: topbar_link_class(route == AppRoute::Settings),
-                        href: nav_href(base_path, AppRoute::Settings),
+                        href: "{settings_href}",
                         title: "Settings",
                         span { class: "app-topbar-link-label", "settings" }
                     }
@@ -632,7 +748,7 @@ fn render_cukta_page(
                         r#type: "button",
                         title: "Table of contents",
                         aria_pressed: pressed_attr(toc_is_pinned),
-                        onclick: move |_| toc_pinned.set(!toc_is_pinned),
+                        onclick: move |_| set_cukta_toc_pinned(&mut toc_pinned, !toc_is_pinned),
                         svg {
                             class: "cll-sidebar-toggle-icon",
                             view_box: "0 0 24 24",
@@ -677,7 +793,11 @@ fn render_cukta_page(
                                 }
                             }
                         }
-                        nav { class: "cll-toc-scroll", aria_label: "CLL table of contents",
+                        nav {
+                            class: "cll-toc-scroll",
+                            aria_label: "CLL table of contents",
+                            "data-cukta-toc-scroll": "1",
+                            onscroll: move |_| save_cukta_toc_scroll(),
                             ol { class: "cll-toc-tree",
                                 for node in page.toc.iter() {
                                     { render_cukta_toc_node(cukta_state, toc_expansion, node, &toc_filter.read()) }
@@ -779,9 +899,78 @@ fn default_cukta_toc_width() -> f64 {
 }
 
 #[requires(true)]
+#[ensures(ret >= cukta_toc_width_min())]
+#[ensures(ret <= cukta_toc_width_max())]
+fn load_cukta_toc_width() -> f64 {
+    storage_get("jbotci.cukta.toc.width.v1")
+        .and_then(|value| value.parse::<f64>().ok())
+        .map(clamp_cukta_toc_width)
+        .unwrap_or_else(default_cukta_toc_width)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn load_cukta_toc_pinned() -> bool {
+    storage_get("jbotci.cukta.toc.pinned.v1").as_deref() != Some("0")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn load_cukta_toc_expansion() -> CuktaTocExpansionState {
+    session_storage_get("jbotci.cukta.toc.expansion.v1")
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|value| {
+            let object = value.as_object()?;
+            let expanded = json_string_array(object.get("expanded"));
+            let mut collapsed = json_string_array(object.get("collapsed"));
+            collapsed.retain(|node_id| !expanded.iter().any(|expanded| expanded == node_id));
+            Some(new!(CuktaTocExpansionState {
+                expanded,
+                collapsed,
+            }))
+        })
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_string_array(value: Option<&serde_json::Value>) -> Vec<String> {
+    value
+        .and_then(serde_json::Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn save_cukta_toc_expansion(state: &CuktaTocExpansionState) {
+    let value = serde_json::json!({
+        "expanded": &state.expanded,
+        "collapsed": &state.collapsed,
+    });
+    session_storage_set("jbotci.cukta.toc.expansion.v1", &value.to_string());
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn set_cukta_toc_width(width: &mut Signal<f64>, next_width: f64) {
-    width.set(clamp_cukta_toc_width(next_width));
+    let next_width = clamp_cukta_toc_width(next_width);
+    storage_set("jbotci.cukta.toc.width.v1", &format!("{next_width:.0}"));
+    width.set(next_width);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_cukta_toc_pinned(pinned: &mut Signal<bool>, value: bool) {
+    storage_set("jbotci.cukta.toc.pinned.v1", if value { "1" } else { "0" });
+    pinned.set(value);
 }
 
 #[requires(true)]
@@ -975,6 +1164,7 @@ fn toggle_cukta_toc_node(
         default_expanded,
         !currently_expanded,
     );
+    save_cukta_toc_expansion(&next);
     toc_expansion.set(next);
 }
 
@@ -2073,8 +2263,25 @@ fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
     let prefix = base_path.trim_end_matches('/');
     match kind {
         CllLinkKind::Dictionary => format!("{prefix}/vlacku/{target}"),
-        CllLinkKind::Rafsi => format!("{prefix}/vlacku?mode=rafsi&q={target}"),
-        CllLinkKind::Parse => format!("{prefix}/gentufa?text={target}&dialect=allow-cgv"),
+        CllLinkKind::Rafsi => vlacku_web_url(
+            base_path,
+            &VlackuWebState {
+                mode: VlackuWebMode::Rafsi,
+                query: target.to_owned(),
+                count: VLACKU_WEB_DEFAULT_COUNT,
+                word_types: Vec::new(),
+            },
+        ),
+        CllLinkKind::Parse => gentufa_web_url(
+            base_path,
+            &GentufaWebState {
+                text: target.to_owned(),
+                dialect: Some("allow-cgv".to_owned()),
+                view_mode: GentufaWebViewMode::Blocks,
+                show_elided: false,
+                show_glosses: true,
+            },
+        ),
         CllLinkKind::Asset => cll_asset_href(base_path, target),
         CllLinkKind::Section | CllLinkKind::Example => embedded_cll_site()
             .map(|site| {
@@ -2145,6 +2352,65 @@ fn scroll_to_cukta_href(href: &str) {
 fn scroll_to_cukta_href(href: &str) {
     let _ = href;
 }
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn save_cukta_toc_scroll() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(Some(element)) = document.query_selector("[data-cukta-toc-scroll='1']") else {
+        return;
+    };
+    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
+        session_storage_set(
+            "jbotci.cukta.toc.scroll.v1",
+            &element.scroll_top().to_string(),
+        );
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn save_cukta_toc_scroll() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn restore_cukta_toc_scroll() {
+    let Some(raw) = session_storage_get("jbotci.cukta.toc.scroll.v1") else {
+        return;
+    };
+    let Ok(scroll_top) = raw.parse::<i32>() else {
+        return;
+    };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+            return;
+        };
+        let Ok(Some(element)) = document.query_selector("[data-cukta-toc-scroll='1']") else {
+            return;
+        };
+        if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
+            element.set_scroll_top(scroll_top);
+        }
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        30,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn restore_cukta_toc_scroll() {}
 
 #[requires(true)]
 #[ensures(true)]
@@ -3419,7 +3685,8 @@ fn render_result(
     result: &GentufaWebResult,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
-    settings: Signal<UserSettings>,
+    display: Signal<GentufaDisplayState>,
+    display_value: GentufaDisplayState,
     settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
@@ -3430,7 +3697,8 @@ fn render_result(
             success,
             view_mode,
             view_mode_value,
-            settings,
+            display,
+            display_value,
             settings_value,
             reference_hover,
         ),
@@ -3465,8 +3733,9 @@ fn render_success(
     success: &GentufaSuccess,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
-    settings: Signal<UserSettings>,
-    settings_value: UserSettings,
+    display: Signal<GentufaDisplayState>,
+    display_value: GentufaDisplayState,
+    _settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
     let reference_hover_value = reference_hover.read().clone();
@@ -3476,11 +3745,11 @@ fn render_success(
             { render_surface_output(success) }
             { render_diagnostics(success) }
             { render_view_tabs(view_mode, view_mode_value) }
-            { render_output_controls(view_mode_value, settings, settings_value) }
+            { render_output_controls(view_mode_value, display, display_value) }
             if view_mode_value == GentufaWebViewMode::Blocks {
-                { render_blocks(success, settings_value.show_glosses, reference_hover) }
+                { render_blocks(success, display_value.show_glosses, reference_hover) }
             } else {
-                { render_tree(success, settings_value.show_glosses, false, reference_hover) }
+                { render_tree(success, display_value.show_glosses, false, reference_hover) }
             }
         }
     }
@@ -3550,22 +3819,22 @@ fn render_view_tabs(
 #[ensures(true)]
 fn render_output_controls(
     view_mode: GentufaWebViewMode,
-    settings: Signal<UserSettings>,
-    current: UserSettings,
+    display: Signal<GentufaDisplayState>,
+    current: GentufaDisplayState,
 ) -> Element {
     match view_mode {
         GentufaWebViewMode::Blocks => rsx! {
             div { class: "controls blocks-controls",
-                { render_gloss_checkbox(settings, current.show_glosses) }
-                { render_elided_checkbox(settings, current.show_elided) }
+                { render_gloss_checkbox(display, current.show_glosses) }
+                { render_elided_checkbox(display, current.show_elided) }
             }
         },
         GentufaWebViewMode::Tree => rsx! {
             div { class: "controls table-controls",
-                { render_gloss_checkbox(settings, current.show_glosses) }
+                { render_gloss_checkbox(display, current.show_glosses) }
                 { render_static_checkbox("Show definitions", false, true) }
                 { render_static_checkbox("Decompose known lujvo", false, true) }
-                { render_elided_checkbox(settings, current.show_elided) }
+                { render_elided_checkbox(display, current.show_elided) }
             }
         },
     }
@@ -3588,13 +3857,13 @@ fn render_static_checkbox(label: &'static str, checked: bool, disabled: bool) ->
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gloss_checkbox(mut settings: Signal<UserSettings>, checked: bool) -> Element {
+fn render_gloss_checkbox(mut display: Signal<GentufaDisplayState>, checked: bool) -> Element {
     rsx! {
         label {
             input {
                 r#type: "checkbox",
                 checked,
-                onchange: move |_| toggle_glosses(&mut settings),
+                onchange: move |_| toggle_glosses(&mut display),
             }
             " Show glosses"
         }
@@ -3603,13 +3872,13 @@ fn render_gloss_checkbox(mut settings: Signal<UserSettings>, checked: bool) -> E
 
 #[requires(true)]
 #[ensures(true)]
-fn render_elided_checkbox(mut settings: Signal<UserSettings>, checked: bool) -> Element {
+fn render_elided_checkbox(mut display: Signal<GentufaDisplayState>, checked: bool) -> Element {
     rsx! {
         label {
             input {
                 r#type: "checkbox",
                 checked,
-                onchange: move |_| toggle_elided(&mut settings),
+                onchange: move |_| toggle_elided(&mut display),
             }
             " Show elided terminators"
         }
@@ -4316,11 +4585,6 @@ fn render_settings(settings: Signal<UserSettings>, current: UserSettings) -> Ele
                     h2 { "Script" }
                     { render_script_switch(settings, current.script) }
                 }
-                section { class: "settings-section",
-                    h2 { "Gentufa" }
-                    { render_gloss_checkbox(settings, current.show_glosses) }
-                    { render_elided_checkbox(settings, current.show_elided) }
-                }
             }
         }
     }
@@ -4369,6 +4633,7 @@ fn block_class(block: &GentufaBlock) -> String {
 #[ensures(true)]
 fn web_options(
     settings: UserSettings,
+    display: GentufaDisplayState,
     view_mode: GentufaWebViewMode,
     dialect: String,
 ) -> GentufaWebOptions {
@@ -4380,8 +4645,8 @@ fn web_options(
         },
         view_mode,
         script: settings.script,
-        show_elided: settings.show_elided,
-        show_glosses: settings.show_glosses,
+        show_elided: display.show_elided,
+        show_glosses: display.show_glosses,
         show_definitions: false,
         phonemes: PhonemeRenderOptions {
             mark_stress: settings.stress,
@@ -4410,20 +4675,18 @@ fn set_script(settings: &mut Signal<UserSettings>, script: GentufaScript) {
 
 #[requires(true)]
 #[ensures(true)]
-fn toggle_elided(settings: &mut Signal<UserSettings>) {
-    let mut next = *settings.read();
+fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
+    let mut next = *display.read();
     next.show_elided = !next.show_elided;
-    settings.set(next);
-    save_settings(&next);
+    display.set(next);
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn toggle_glosses(settings: &mut Signal<UserSettings>) {
-    let mut next = *settings.read();
+fn toggle_glosses(display: &mut Signal<GentufaDisplayState>) {
+    let mut next = *display.read();
     next.show_glosses = !next.show_glosses;
-    settings.set(next);
-    save_settings(&next);
+    display.set(next);
 }
 
 #[requires(true)]
@@ -4521,15 +4784,6 @@ fn script_class(script: GentufaScript) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
-fn initial_view_mode() -> GentufaWebViewMode {
-    current_query_value("view")
-        .as_deref()
-        .and_then(parse_view_mode)
-        .unwrap_or(GentufaWebViewMode::Blocks)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn initial_vlacku_state() -> VlackuWebState {
     parse_vlacku_web_route(&logical_current_path(), &current_query())
 }
@@ -4542,12 +4796,14 @@ fn initial_cukta_state() -> CuktaWebState {
 
 #[requires(true)]
 #[ensures(true)]
-fn parse_view_mode(value: &str) -> Option<GentufaWebViewMode> {
-    match value {
-        "tree" | "table" => Some(GentufaWebViewMode::Tree),
-        "blocks" => Some(GentufaWebViewMode::Blocks),
-        _ => None,
-    }
+fn initial_gentufa_state() -> GentufaWebState {
+    parse_gentufa_web_route(&logical_current_path(), &current_query())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn initial_gentufa_text_explicit() -> bool {
+    current_query_has_key("text")
 }
 
 #[requires(true)]
@@ -4593,6 +4849,582 @@ fn route_from_path(path: &str) -> AppRoute {
 fn logical_current_path() -> String {
     let path = current_path();
     path.strip_prefix("/jbotci").unwrap_or(&path).to_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_state_from_parts(
+    text: &str,
+    dialect: &str,
+    view_mode: GentufaWebViewMode,
+    display: GentufaDisplayState,
+    text_explicit: bool,
+) -> GentufaWebState {
+    GentufaWebState {
+        text: if text_explicit {
+            text.to_owned()
+        } else {
+            String::new()
+        },
+        dialect: if dialect.trim().is_empty() {
+            None
+        } else {
+            Some(dialect.to_owned())
+        },
+        view_mode,
+        show_elided: display.show_elided,
+        show_glosses: display.show_glosses,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn web_route_from_app_state(
+    route: AppRoute,
+    cukta: &CuktaWebState,
+    vlacku: &VlackuWebState,
+    gentufa: &GentufaWebState,
+) -> WebRoute {
+    match route {
+        AppRoute::Gentufa => WebRoute::Gentufa(gentufa.clone()),
+        AppRoute::Settings => WebRoute::Settings,
+        AppRoute::Cukta => WebRoute::Cukta(cukta.clone()),
+        AppRoute::Vlacku => WebRoute::Vlacku(vlacku.clone()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn app_route_for_web_route(route: &WebRoute) -> AppRoute {
+    match route {
+        WebRoute::Gentufa(_) => AppRoute::Gentufa,
+        WebRoute::Cukta(_) => AppRoute::Cukta,
+        WebRoute::Vlacku(_) => AppRoute::Vlacku,
+        WebRoute::Settings => AppRoute::Settings,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn install_browser_state_handlers(
+    route: Signal<AppRoute>,
+    cukta_state: Signal<CuktaWebState>,
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    input_text: Signal<String>,
+    parsed_text: Signal<String>,
+    dialect: Signal<String>,
+    parsed_dialect: Signal<String>,
+    view_mode: Signal<GentufaWebViewMode>,
+    gentufa_display: Signal<GentufaDisplayState>,
+    gentufa_text_explicit: Signal<bool>,
+    base_path: &str,
+) {
+    let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
+        if installed.get() {
+            false
+        } else {
+            installed.set(true);
+            true
+        }
+    });
+    if !should_install {
+        return;
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
+    let base_path_for_click = base_path.to_owned();
+    let click_route = route;
+    let click_cukta = cukta_state;
+    let click_vlacku_draft = vlacku_draft_state;
+    let click_vlacku_committed = vlacku_committed_state;
+    let click_input = input_text;
+    let click_parsed = parsed_text;
+    let click_dialect = dialect;
+    let click_parsed_dialect = parsed_dialect;
+    let click_view = view_mode;
+    let click_display = gentufa_display;
+    let click_text_explicit = gentufa_text_explicit;
+    let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+        let Some(href) = internal_href_from_click_event(&event, &base_path_for_click) else {
+            return;
+        };
+        event.prevent_default();
+        event.stop_propagation();
+        navigate_to_internal_href(
+            &href,
+            &base_path_for_click,
+            true,
+            click_route,
+            click_cukta,
+            click_vlacku_draft,
+            click_vlacku_committed,
+            click_input,
+            click_parsed,
+            click_dialect,
+            click_parsed_dialect,
+            click_view,
+            click_display,
+            click_text_explicit,
+        );
+    }) as Box<dyn FnMut(_)>);
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "click",
+        click_closure.as_ref().unchecked_ref(),
+        true,
+    );
+    click_closure.forget();
+
+    let base_path_for_pop = base_path.to_owned();
+    let pop_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        let logical_path = logical_current_path();
+        let query = current_query();
+        let web_route = parse_web_route(&logical_path, &query);
+        apply_web_route_to_client_state(
+            &web_route,
+            current_query_has_key("text"),
+            route,
+            cukta_state,
+            vlacku_draft_state,
+            vlacku_committed_state,
+            input_text,
+            parsed_text,
+            dialect,
+            parsed_dialect,
+            view_mode,
+            gentufa_display,
+            gentufa_text_explicit,
+        );
+        restore_scroll_for_current_url();
+        if let Some(hash) = current_hash() {
+            let target = format!(
+                "{}{}#{}",
+                current_path(),
+                current_query(),
+                hash.trim_start_matches('#')
+            );
+            if app_route_for_web_route(&web_route) == AppRoute::Cukta {
+                scroll_to_cukta_href(&target);
+            }
+        }
+        let meta = build_page_meta(&base_path_for_pop, &web_route);
+        sync_document_head(&meta);
+    }) as Box<dyn FnMut(_)>);
+    let _ =
+        window.add_event_listener_with_callback("popstate", pop_closure.as_ref().unchecked_ref());
+    pop_closure.forget();
+
+    let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        save_current_scroll_position();
+    }) as Box<dyn FnMut(_)>);
+    let _ =
+        window.add_event_listener_with_callback("scroll", scroll_closure.as_ref().unchecked_ref());
+    scroll_closure.forget();
+    restore_scroll_for_current_url();
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn install_browser_state_handlers(
+    route: Signal<AppRoute>,
+    cukta_state: Signal<CuktaWebState>,
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    input_text: Signal<String>,
+    parsed_text: Signal<String>,
+    dialect: Signal<String>,
+    parsed_dialect: Signal<String>,
+    view_mode: Signal<GentufaWebViewMode>,
+    gentufa_display: Signal<GentufaDisplayState>,
+    gentufa_text_explicit: Signal<bool>,
+    base_path: &str,
+) {
+    let _ = (
+        route,
+        cukta_state,
+        vlacku_draft_state,
+        vlacku_committed_state,
+        input_text,
+        parsed_text,
+        dialect,
+        parsed_dialect,
+        view_mode,
+        gentufa_display,
+        gentufa_text_explicit,
+        base_path,
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn internal_href_from_click_event(event: &web_sys::MouseEvent, base_path: &str) -> Option<String> {
+    if event.default_prevented()
+        || event.button() != 0
+        || event.alt_key()
+        || event.ctrl_key()
+        || event.meta_key()
+        || event.shift_key()
+    {
+        return None;
+    }
+    let target = event.target()?.dyn_into::<web_sys::Element>().ok()?;
+    let anchor = target.closest("a[href]").ok().flatten()?;
+    if anchor
+        .get_attribute("target")
+        .is_some_and(|target| !target.is_empty() && target != "_self")
+        || anchor.has_attribute("download")
+    {
+        return None;
+    }
+    normalize_internal_href(&anchor.get_attribute("href")?, base_path)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn normalize_internal_href(href: &str, base_path: &str) -> Option<String> {
+    let trimmed = href.trim();
+    if trimmed.is_empty()
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("mailto:")
+        || trimmed.starts_with("javascript:")
+        || trimmed.starts_with("//")
+    {
+        return None;
+    }
+    let path_query_hash = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        let origin = web_sys::window()?.location().origin().ok()?;
+        trimmed.strip_prefix(&origin)?.to_owned()
+    } else if trimmed.starts_with('/') {
+        trimmed.to_owned()
+    } else {
+        return None;
+    };
+    let (path, _, _) = split_href(&path_query_hash);
+    if has_app_asset_extension(path) {
+        return None;
+    }
+    let logical = strip_base_path_for_client(path, base_path)?;
+    if is_app_route_path_for_client(&logical) {
+        Some(path_query_hash)
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_app_asset_extension(path: &str) -> bool {
+    path.rsplit_once('/')
+        .map(|(_, name)| name.contains('.'))
+        .unwrap_or(false)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strip_base_path_for_client(path: &str, base_path: &str) -> Option<String> {
+    let normalized = if path.starts_with('/') {
+        path.to_owned()
+    } else {
+        format!("/{path}")
+    };
+    let base = base_path.trim_end_matches('/');
+    if base.is_empty() || base == "/" {
+        Some(normalized)
+    } else if normalized == base {
+        Some("/".to_owned())
+    } else {
+        normalized
+            .strip_prefix(&format!("{base}/"))
+            .map(|rest| format!("/{rest}"))
+    }
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_app_route_path_for_client(path: &str) -> bool {
+    let path = path.trim_end_matches('/');
+    path.is_empty()
+        || path == "/"
+        || path == "/gentufa"
+        || path.starts_with("/gentufa/")
+        || path == "/cukta"
+        || path.starts_with("/cukta/")
+        || path == "/vlacku"
+        || path.starts_with("/vlacku/")
+        || path == "/settings"
+        || path.starts_with("/settings/")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn split_href(href: &str) -> (&str, &str, Option<&str>) {
+    let (without_hash, hash) = href
+        .split_once('#')
+        .map(|(before, after)| (before, Some(after)))
+        .unwrap_or((href, None));
+    let (path, query) = without_hash
+        .split_once('?')
+        .map(|(path, query)| (path, query))
+        .unwrap_or((without_hash, ""));
+    (path, query, hash)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn navigate_to_internal_href(
+    href: &str,
+    base_path: &str,
+    push_history: bool,
+    route: Signal<AppRoute>,
+    cukta_state: Signal<CuktaWebState>,
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    input_text: Signal<String>,
+    parsed_text: Signal<String>,
+    dialect: Signal<String>,
+    parsed_dialect: Signal<String>,
+    view_mode: Signal<GentufaWebViewMode>,
+    gentufa_display: Signal<GentufaDisplayState>,
+    gentufa_text_explicit: Signal<bool>,
+) {
+    let (path, query, hash) = split_href(href);
+    let Some(logical_path) = strip_base_path_for_client(path, base_path) else {
+        return;
+    };
+    let web_route = parse_web_route(&logical_path, query);
+    let mut target = web_route_url(base_path, &web_route);
+    if let Some(hash) = hash.filter(|hash| !hash.is_empty()) {
+        target.push('#');
+        target.push_str(hash);
+    }
+    save_current_scroll_position();
+    set_browser_url(&target, push_history);
+    apply_web_route_to_client_state(
+        &web_route,
+        query_has_key(query, "text"),
+        route,
+        cukta_state,
+        vlacku_draft_state,
+        vlacku_committed_state,
+        input_text,
+        parsed_text,
+        dialect,
+        parsed_dialect,
+        view_mode,
+        gentufa_display,
+        gentufa_text_explicit,
+    );
+    if app_route_for_web_route(&web_route) == AppRoute::Cukta && hash.is_some() {
+        scroll_to_cukta_href(&target);
+    } else {
+        restore_scroll_for_url(&target);
+    }
+    let meta = build_page_meta(base_path, &web_route);
+    sync_document_head(&meta);
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn apply_web_route_to_client_state(
+    web_route: &WebRoute,
+    gentufa_text_is_explicit: bool,
+    mut route: Signal<AppRoute>,
+    mut cukta_state: Signal<CuktaWebState>,
+    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_committed_state: Signal<VlackuWebState>,
+    mut input_text: Signal<String>,
+    mut parsed_text: Signal<String>,
+    mut dialect: Signal<String>,
+    mut parsed_dialect: Signal<String>,
+    mut view_mode: Signal<GentufaWebViewMode>,
+    mut gentufa_display: Signal<GentufaDisplayState>,
+    mut gentufa_text_explicit: Signal<bool>,
+) {
+    route.set(app_route_for_web_route(web_route));
+    match web_route {
+        WebRoute::Gentufa(state) => {
+            let text = if state.text.is_empty() && !gentufa_text_is_explicit {
+                DEFAULT_GENTUFA_TEXT.to_owned()
+            } else {
+                state.text.clone()
+            };
+            let dialect_text = state.dialect.clone().unwrap_or_default();
+            input_text.set(text.clone());
+            parsed_text.set(text);
+            dialect.set(dialect_text.clone());
+            parsed_dialect.set(dialect_text);
+            view_mode.set(state.view_mode);
+            gentufa_display.set(GentufaDisplayState {
+                show_elided: state.show_elided,
+                show_glosses: state.show_glosses,
+            });
+            gentufa_text_explicit.set(gentufa_text_is_explicit);
+        }
+        WebRoute::Cukta(state) => {
+            cukta_state.set(state.clone());
+        }
+        WebRoute::Vlacku(state) => {
+            clear_vlacku_search_timer();
+            vlacku_draft_state.set(state.clone());
+            vlacku_committed_state.set(state.clone());
+        }
+        WebRoute::Settings => {}
+    }
+}
+
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn query_has_key(query: &str, key: &str) -> bool {
+    query
+        .trim_start_matches('?')
+        .split('&')
+        .filter(|part| !part.is_empty())
+        .any(|part| {
+            part.split_once('=')
+                .map_or(part == key, |(candidate, _)| candidate == key)
+        })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn set_browser_url(url: &str, push_history: bool) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let location = window.location();
+    let current = format!(
+        "{}{}{}",
+        location.pathname().unwrap_or_default(),
+        location.search().unwrap_or_default(),
+        location.hash().unwrap_or_default()
+    );
+    if current == url {
+        return;
+    }
+    if let Ok(history) = window.history() {
+        let method_result = if push_history {
+            history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url))
+        } else {
+            history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url))
+        };
+        let _ = method_result;
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn set_browser_url(url: &str, push_history: bool) {
+    let _ = (url, push_history);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn current_hash() -> Option<String> {
+    web_sys::window()
+        .and_then(|window| window.location().hash().ok())
+        .filter(|hash| !hash.is_empty())
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with("jbotci.scroll."))]
+fn scroll_storage_key(path_query_or_url: &str) -> String {
+    let (path, query, _) = split_href(path_query_or_url);
+    if query.is_empty() {
+        format!("jbotci.scroll.{path}")
+    } else {
+        format!("jbotci.scroll.{path}?{query}")
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn save_current_scroll_position() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let location = window.location();
+    let key = scroll_storage_key(&format!(
+        "{}{}",
+        location.pathname().unwrap_or_default(),
+        location.search().unwrap_or_default()
+    ));
+    let y = window.scroll_y().unwrap_or(0.0);
+    session_storage_set(&key, &format!("{y:.0}"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn save_current_scroll_position() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn restore_scroll_for_current_url() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let location = window.location();
+    restore_scroll_for_url(&format!(
+        "{}{}",
+        location.pathname().unwrap_or_default(),
+        location.search().unwrap_or_default()
+    ));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn restore_scroll_for_current_url() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn restore_scroll_for_url(url: &str) {
+    let key = scroll_storage_key(url);
+    let Some(raw) = session_storage_get(&key) else {
+        web_sys::window().map(|window| window.scroll_to_with_x_and_y(0.0, 0.0));
+        return;
+    };
+    let Ok(y) = raw.parse::<f64>() else {
+        return;
+    };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        if let Some(window) = web_sys::window() {
+            window.scroll_to_with_x_and_y(0.0, y);
+        }
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        30,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn restore_scroll_for_url(url: &str) {
+    let _ = url;
 }
 
 #[requires(true)]
@@ -4711,6 +5543,20 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn replace_gentufa_url(base_path: &str, state: &GentufaWebState) {
+    set_browser_url(&gentufa_web_url(base_path, state), false);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn replace_gentufa_url(base_path: &str, state: &GentufaWebState) {
+    let _ = (base_path, state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
     let target = cukta_web_url(base_path, state);
     if let Some(window) = web_sys::window() {
@@ -4734,6 +5580,162 @@ fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
 #[ensures(true)]
 fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
     let _ = (base_path, state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn sync_document_head(meta: &PageMeta) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
+    document.set_title(&meta.title);
+    if let Ok(nodes) = document.query_selector_all("[data-jbotci-meta='1']") {
+        for index in 0..nodes.length() {
+            if let Some(node) = nodes.item(index)
+                && let Some(parent) = node.parent_node()
+            {
+                let _ = parent.remove_child(&node);
+            }
+        }
+    }
+    let Ok(Some(head)) = document.query_selector("head") else {
+        return;
+    };
+    let canonical_url = absolute_href_for_client(&meta.canonical_url);
+    let manifest_href = absolute_href_for_client(&format!("{MANIFEST}"));
+    let icon_href = absolute_href_for_client(&format!("{FAVICON}"));
+    append_meta_name(&document, &head, "application-name", "jbotci");
+    append_meta_name(&document, &head, "apple-mobile-web-app-capable", "yes");
+    append_meta_name(&document, &head, "apple-mobile-web-app-title", "jbotci");
+    append_meta_name(&document, &head, "mobile-web-app-capable", "yes");
+    append_meta_name_with_extra(
+        &document,
+        &head,
+        "theme-color",
+        "#f6f1e8",
+        &[("media", "(prefers-color-scheme: light)")],
+    );
+    append_meta_name_with_extra(
+        &document,
+        &head,
+        "theme-color",
+        "#090705",
+        &[("media", "(prefers-color-scheme: dark)")],
+    );
+    append_link(&document, &head, "manifest", &manifest_href);
+    append_link(&document, &head, "icon", &icon_href);
+    append_link(&document, &head, "shortcut icon", &icon_href);
+    append_link(&document, &head, "apple-touch-icon", &icon_href);
+    append_meta_name(&document, &head, "description", &meta.description);
+    append_link(&document, &head, "canonical", &canonical_url);
+    append_meta_property(&document, &head, "og:title", &meta.title);
+    append_meta_property(&document, &head, "og:description", &meta.description);
+    append_meta_property(&document, &head, "og:type", "website");
+    append_meta_property(&document, &head, "og:url", &canonical_url);
+    append_meta_name(&document, &head, "twitter:title", &meta.title);
+    append_meta_name(&document, &head, "twitter:description", &meta.description);
+    if let Some(image) = &meta.image {
+        let image_url = absolute_href_for_client(&image.href);
+        append_meta_name(&document, &head, "twitter:card", "summary_large_image");
+        append_meta_property(&document, &head, "og:image", &image_url);
+        append_meta_name(&document, &head, "twitter:image", &image_url);
+        append_meta_property(&document, &head, "og:image:width", &image.width.to_string());
+        append_meta_property(
+            &document,
+            &head,
+            "og:image:height",
+            &image.height.to_string(),
+        );
+    } else {
+        append_meta_name(&document, &head, "twitter:card", "summary");
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn sync_document_head(meta: &PageMeta) {
+    let _ = meta;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn append_meta_name(
+    document: &web_sys::Document,
+    head: &web_sys::Element,
+    name: &str,
+    content: &str,
+) {
+    append_meta_name_with_extra(document, head, name, content, &[]);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn append_meta_name_with_extra(
+    document: &web_sys::Document,
+    head: &web_sys::Element,
+    name: &str,
+    content: &str,
+    extra: &[(&str, &str)],
+) {
+    if let Ok(element) = document.create_element("meta") {
+        let _ = element.set_attribute("data-jbotci-meta", "1");
+        let _ = element.set_attribute("name", name);
+        let _ = element.set_attribute("content", content);
+        for (key, value) in extra {
+            let _ = element.set_attribute(key, value);
+        }
+        let _ = head.append_child(&element);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn append_meta_property(
+    document: &web_sys::Document,
+    head: &web_sys::Element,
+    property: &str,
+    content: &str,
+) {
+    if let Ok(element) = document.create_element("meta") {
+        let _ = element.set_attribute("data-jbotci-meta", "1");
+        let _ = element.set_attribute("property", property);
+        let _ = element.set_attribute("content", content);
+        let _ = head.append_child(&element);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn append_link(document: &web_sys::Document, head: &web_sys::Element, rel: &str, href: &str) {
+    if let Ok(element) = document.create_element("link") {
+        let _ = element.set_attribute("data-jbotci-meta", "1");
+        let _ = element.set_attribute("rel", rel);
+        let _ = element.set_attribute("href", href);
+        let _ = head.append_child(&element);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn absolute_href_for_client(href: &str) -> String {
+    if href.starts_with('/') {
+        if let Some(window) = web_sys::window()
+            && let Ok(origin) = window.location().origin()
+        {
+            return format!("{}{}", origin.trim_end_matches('/'), href);
+        }
+    }
+    href.to_owned()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -4847,6 +5849,19 @@ fn current_query_value(key: &str) -> Option<String> {
         })
 }
 
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn current_query_has_key(key: &str) -> bool {
+    current_query()
+        .trim_start_matches('?')
+        .split('&')
+        .filter(|pair| !pair.is_empty())
+        .any(|pair| {
+            pair.split_once('=')
+                .map_or(pair == key, |(candidate, _)| candidate == key)
+        })
+}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
@@ -4873,8 +5888,6 @@ fn load_settings() -> UserSettings {
     if let Some(script) = storage_get("jbotci.script").and_then(|value| parse_script(&value)) {
         settings.script = script;
     }
-    settings.show_elided = storage_get("jbotci.show_elided").as_deref() == Some("true");
-    settings.show_glosses = storage_get("jbotci.show_glosses").as_deref() != Some("false");
     settings
 }
 
@@ -4894,22 +5907,6 @@ fn parse_theme(value: &str) -> Option<ThemeMode> {
 fn save_settings(settings: &UserSettings) {
     storage_set("jbotci.theme", theme_class(settings.theme));
     storage_set("jbotci.script", script_class(settings.script));
-    storage_set(
-        "jbotci.show_elided",
-        if settings.show_elided {
-            "true"
-        } else {
-            "false"
-        },
-    );
-    storage_set(
-        "jbotci.show_glosses",
-        if settings.show_glosses {
-            "true"
-        } else {
-            "false"
-        },
-    );
 }
 
 #[requires(true)]
@@ -5091,6 +6088,41 @@ fn storage_set(key: &str, value: &str) {
 #[requires(!key.is_empty())]
 #[ensures(true)]
 fn storage_set(key: &str, value: &str) {
+    let _ = (key, value);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn session_storage_get(key: &str) -> Option<String> {
+    web_sys::window()
+        .and_then(|window| window.session_storage().ok().flatten())
+        .and_then(|storage| storage.get_item(key).ok().flatten())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn session_storage_get(key: &str) -> Option<String> {
+    let _ = key;
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn session_storage_set(key: &str, value: &str) {
+    if let Some(storage) =
+        web_sys::window().and_then(|window| window.session_storage().ok().flatten())
+    {
+        let _ = storage.set_item(key, value);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn session_storage_set(key: &str, value: &str) {
     let _ = (key, value);
 }
 

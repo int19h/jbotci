@@ -97,6 +97,32 @@ impl Default for GentufaWebOptions {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub struct GentufaWebState {
+    pub text: String,
+    pub dialect: Option<String>,
+    pub view_mode: GentufaWebViewMode,
+    pub show_elided: bool,
+    pub show_glosses: bool,
+}
+
+impl Default for GentufaWebState {
+    #[requires(true)]
+    #[ensures(ret.text.is_empty())]
+    #[ensures(ret.view_mode == GentufaWebViewMode::Blocks)]
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            dialect: None,
+            view_mode: GentufaWebViewMode::Blocks,
+            show_elided: false,
+            show_glosses: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -2123,6 +2149,51 @@ impl Default for VlackuWebState {
 }
 
 #[invariant(true)]
+#[invariant(::Gentufa(_) => true)]
+#[invariant(::Cukta(_) => true)]
+#[invariant(::Vlacku(_) => true)]
+#[invariant(::Settings => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WebRoute {
+    Gentufa(GentufaWebState),
+    Cukta(CuktaWebState),
+    Vlacku(VlackuWebState),
+    Settings,
+}
+
+impl Default for WebRoute {
+    #[requires(true)]
+    #[ensures(matches!(ret, WebRoute::Gentufa(_)))]
+    fn default() -> Self {
+        WebRoute::Gentufa(GentufaWebState::default())
+    }
+}
+
+#[invariant(!self.href.is_empty())]
+#[invariant(self.width > 0)]
+#[invariant(self.height > 0)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SocialImage {
+    pub href: String,
+    pub width: usize,
+    pub height: usize,
+}
+
+#[invariant(!self.title.is_empty())]
+#[invariant(!self.description.is_empty())]
+#[invariant(self.canonical_url.starts_with('/'))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PageMeta {
+    pub title: String,
+    pub description: String,
+    pub canonical_url: String,
+    pub image: Option<SocialImage>,
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebResult {
@@ -2567,6 +2638,417 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 },
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_web_route(path: &str, query: &str) -> WebRoute {
+    let logical = path.trim_start_matches('/').trim_end_matches('/');
+    if logical.is_empty() {
+        WebRoute::Gentufa(GentufaWebState::default())
+    } else if logical == "settings" {
+        WebRoute::Settings
+    } else if logical == "cukta" || logical.starts_with("cukta/") {
+        WebRoute::Cukta(parse_cukta_web_route(path, query))
+    } else if logical == "vlacku" || logical.starts_with("vlacku/") {
+        WebRoute::Vlacku(parse_vlacku_web_route(path, query))
+    } else if logical == "gentufa" || logical.starts_with("gentufa/") {
+        WebRoute::Gentufa(parse_gentufa_web_route(path, query))
+    } else {
+        WebRoute::Gentufa(GentufaWebState::default())
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn web_route_url(base_path: &str, route: &WebRoute) -> String {
+    match route {
+        WebRoute::Gentufa(state) => gentufa_web_url(base_path, state),
+        WebRoute::Cukta(state) => cukta_web_url(base_path, state),
+        WebRoute::Vlacku(state) => vlacku_web_url(base_path, state),
+        WebRoute::Settings => prefixed_web_path(base_path, "/settings"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
+    match route {
+        WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
+        WebRoute::Cukta(state) => build_cukta_page_meta(base_path, state),
+        WebRoute::Vlacku(state) => build_vlacku_page_meta(base_path, state),
+        WebRoute::Settings => page_meta(
+            "Settings".to_owned(),
+            "Browser-facing jbotci display and parser preferences.".to_owned(),
+            web_route_url(base_path, route),
+            None,
+        ),
+    }
+}
+
+#[requires(!title.is_empty())]
+#[requires(!description.is_empty())]
+#[requires(canonical_url.starts_with('/'))]
+#[ensures(!ret.title.is_empty())]
+fn page_meta(
+    title: String,
+    description: String,
+    canonical_url: String,
+    image: Option<SocialImage>,
+) -> PageMeta {
+    new!(PageMeta {
+        title,
+        description,
+        canonical_url,
+        image,
+    })
+}
+
+#[requires(!href.is_empty())]
+#[requires(width > 0)]
+#[requires(height > 0)]
+#[ensures(!ret.href.is_empty())]
+fn social_image(href: String, width: usize, height: usize) -> SocialImage {
+    new!(SocialImage {
+        href,
+        width,
+        height,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
+    let state = normalize_gentufa_state(state);
+    let title = if state.text.trim().is_empty() {
+        "jbotci gentufa".to_owned()
+    } else {
+        format!("{} - jbotci gentufa", state.text.trim())
+    };
+    let request = GentufaWebRequest {
+        text: state.text.clone(),
+        options: GentufaWebOptions {
+            dialect: state.dialect.clone(),
+            view_mode: state.view_mode,
+            script: GentufaScript::Latin,
+            show_elided: state.show_elided,
+            show_glosses: state.show_glosses,
+            show_definitions: false,
+            phonemes: PhonemeRenderOptions::default(),
+        },
+    };
+    let description = match parse_gentufa_for_web(&request) {
+        GentufaWebResult::Blank => {
+            "Parse Lojban text into blocks, table rows, or Lean semantics.".to_owned()
+        }
+        GentufaWebResult::Success(success) => {
+            format!(
+                "Parse succeeded: {}",
+                truncate_preview(&success.brackets_text, 160)
+            )
+        }
+        GentufaWebResult::Error(error) => {
+            format!("Parse failed: {}", truncate_preview(&error.message, 160))
+        }
+    };
+    page_meta(title, description, gentufa_web_url(base_path, &state), None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_cukta_page_meta(base_path: &str, state: &CuktaWebState) -> PageMeta {
+    let state = normalize_cukta_state(state);
+    let canonical_url = cukta_web_url(base_path, &state);
+    let site = match embedded_cll_site() {
+        Ok(site) => site,
+        Err(error) => {
+            return page_meta(
+                "jbotci CLL - missing section".to_owned(),
+                format!("The requested CLL section was not found: {error}."),
+                canonical_url,
+                None,
+            );
+        }
+    };
+    match &state.view {
+        CuktaWebView::Index => page_meta(
+            "jbotci CLL - CLL index".to_owned(),
+            "Browse indexed CLL terms and jump directly into the embedded book.".to_owned(),
+            canonical_url,
+            None,
+        ),
+        CuktaWebView::Search(search) => {
+            let query = search.query.trim();
+            page_meta(
+                if query.is_empty() {
+                    "jbotci CLL - CLL search".to_owned()
+                } else {
+                    format!("{query} - jbotci CLL")
+                },
+                if query.is_empty() {
+                    "Search sections, paragraphs, and examples across the embedded CLL.".to_owned()
+                } else {
+                    format!("Searching cukta for “{query}”.")
+                },
+                canonical_url,
+                None,
+            )
+        }
+        CuktaWebView::Section { reference } => {
+            let Some(section_id) = cll_resolve_section_reference(site, reference) else {
+                return page_meta(
+                    "jbotci CLL - missing section".to_owned(),
+                    "The requested CLL section was not found.".to_owned(),
+                    canonical_url,
+                    None,
+                );
+            };
+            let Some(section) = cll_lookup_section(site, &section_id) else {
+                return page_meta(
+                    "jbotci CLL - missing section".to_owned(),
+                    "The requested CLL section was not found.".to_owned(),
+                    canonical_url,
+                    None,
+                );
+            };
+            let title = format!(
+                "The Complete Lojban Language - Chapter {}",
+                cll_section_chapter_title(site, &section.section_id).unwrap_or_else(|| {
+                    section
+                        .number
+                        .split_once('.')
+                        .map(|(chapter_number, _)| chapter_number.to_owned())
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or_else(|| "Unknown chapter".to_owned())
+                })
+            );
+            page_meta(
+                title,
+                format!("Section {}", format_section_display_title(section)),
+                canonical_url,
+                cukta_section_social_image(base_path, site, section),
+            )
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+    let state = normalize_vlacku_state(state);
+    let query = state.query.trim();
+    page_meta(
+        if state.mode == VlackuWebMode::Word && !query.is_empty() {
+            format!("{query} - jbotci vlacku")
+        } else if query.is_empty() {
+            "jbotci dictionary".to_owned()
+        } else {
+            format!("{query} - jbotci vlacku")
+        },
+        if state.mode == VlackuWebMode::Word && !query.is_empty() {
+            format!("Dictionary lookup for “{query}”.")
+        } else if query.is_empty() {
+            "Browse the embedded dictionary and Lensisku import metadata.".to_owned()
+        } else {
+            match state.mode {
+                VlackuWebMode::Meaning => format!("Meaning search for “{query}”."),
+                VlackuWebMode::Word => format!("Exact lookup for “{query}”."),
+                VlackuWebMode::Rafsi => format!("Rafsi search for “{query}”."),
+                VlackuWebMode::Sound => format!("Sound search for “{query}”."),
+            }
+        },
+        vlacku_web_url(base_path, &state),
+        None,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_section_social_image(
+    base_path: &str,
+    site: &jbotci_cll::CllSite,
+    section: &jbotci_cll::CllSection,
+) -> Option<SocialImage> {
+    let chapter = site
+        .chapters
+        .iter()
+        .find(|chapter| chapter.chapter_id == section.chapter_id)?;
+    first_social_image_from_blocks(base_path, &chapter.prelude_blocks)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn first_social_image_from_blocks(base_path: &str, blocks: &[CllBlock]) -> Option<SocialImage> {
+    for block in blocks {
+        match block {
+            CllBlock::Media { src, .. } => return social_image_for_cll_media(base_path, src),
+            CllBlock::List { items, .. } => {
+                for item in items {
+                    if let Some(image) = first_social_image_from_blocks(base_path, item) {
+                        return Some(image);
+                    }
+                }
+            }
+            CllBlock::Example(example) => {
+                if let Some(image) = first_social_image_from_blocks(base_path, &example.blocks) {
+                    return Some(image);
+                }
+            }
+            CllBlock::Table {
+                header_rows,
+                body_rows,
+                ..
+            } => {
+                for cell in header_rows.iter().chain(body_rows.iter()).flatten() {
+                    if let Some(image) = first_social_image_from_blocks(base_path, &cell.blocks) {
+                        return Some(image);
+                    }
+                }
+            }
+            CllBlock::VariableList { entries, .. } => {
+                for entry in entries {
+                    if let Some(image) = first_social_image_from_blocks(base_path, &entry.blocks) {
+                        return Some(image);
+                    }
+                }
+            }
+            CllBlock::BlockQuote { blocks, .. } => {
+                if let Some(image) = first_social_image_from_blocks(base_path, blocks) {
+                    return Some(image);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn social_image_for_cll_media(base_path: &str, src: &str) -> Option<SocialImage> {
+    let file_name = src
+        .trim_start_matches("assets/media/")
+        .trim_start_matches("media/")
+        .trim_start_matches("assets/cll/media/")
+        .trim_start_matches("cll/media/");
+    let (width, height) = cll_media_dimensions(file_name)?;
+    Some(social_image(
+        prefixed_web_path(base_path, &format!("/assets/cll/media/{file_name}")),
+        width,
+        height,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_media_dimensions(file_name: &str) -> Option<(usize, usize)> {
+    match file_name {
+        "chapter-2-diagram.svg.png" => Some((400, 267)),
+        "chapter-about.svg.png" => Some((400, 320)),
+        "chapter-abstractions.svg.png" => Some((400, 381)),
+        "chapter-anaphoric-cmavo.svg.png" => Some((400, 290)),
+        "chapter-attitudinals.gif" => Some((398, 404)),
+        "chapter-catalogue.svg.png" => Some((400, 348)),
+        "chapter-connectives.svg.png" => Some((400, 287)),
+        "chapter-grammars.svg.png" => Some((400, 720)),
+        "chapter-letterals.svg.png" => Some((400, 406)),
+        "chapter-lujvo.svg.png" => Some((400, 357)),
+        "chapter-mekso.gif" => Some((398, 404)),
+        "chapter-morphology.gif" => Some((398, 404)),
+        "chapter-negation.gif" => Some((398, 404)),
+        "chapter-phonology.gif" => Some((398, 404)),
+        "chapter-quantifiers.gif" => Some((398, 404)),
+        "chapter-relative-clauses.svg.png" => Some((400, 277)),
+        "chapter-selbri.svg.png" => Some((400, 394)),
+        "chapter-structure.svg.png" => Some((400, 406)),
+        "chapter-sumti.gif" => Some((398, 404)),
+        "chapter-sumti-tcita.gif" => Some((398, 404)),
+        "chapter-tenses.gif" => Some((398, 404)),
+        "chapter-tour.svg.png" => Some((400, 409)),
+        "logo.png" => Some((200, 133)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
+    GentufaWebState {
+        text: state.text.trim().to_owned(),
+        dialect: state
+            .dialect
+            .as_deref()
+            .map(str::trim)
+            .filter(|dialect| !dialect.is_empty())
+            .map(str::to_owned),
+        view_mode: state.view_mode,
+        show_elided: state.show_elided,
+        show_glosses: state.show_glosses,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_gentufa_web_route(path: &str, query: &str) -> GentufaWebState {
+    let logical = path.trim_start_matches('/').trim_end_matches('/');
+    let mut state = if logical == "gentufa" || logical.is_empty() {
+        GentufaWebState::default()
+    } else {
+        GentufaWebState::default()
+    };
+    for (key, value) in parse_query_pairs(query) {
+        match key.as_str() {
+            "text" => state.text = value,
+            "dialect" => state.dialect = Some(value),
+            "view" => {
+                if let Some(view_mode) = parse_gentufa_view_mode(&value) {
+                    state.view_mode = view_mode;
+                }
+            }
+            "glosses" => state.show_glosses = parse_query_bool(&value, true),
+            "elided" => state.show_elided = parse_query_bool(&value, false),
+            _ => {}
+        }
+    }
+    normalize_gentufa_state(&state)
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
+    let state = normalize_gentufa_state(state);
+    let mut pairs = Vec::new();
+    if !state.text.is_empty() {
+        pairs.push(("text".to_owned(), state.text.clone()));
+    }
+    if let Some(dialect) = state.dialect.as_ref() {
+        pairs.push(("dialect".to_owned(), dialect.clone()));
+    }
+    if state.view_mode != GentufaWebViewMode::Blocks {
+        pairs.push((
+            "view".to_owned(),
+            gentufa_view_mode_query_value(state.view_mode).to_owned(),
+        ));
+    }
+    if !state.show_glosses {
+        pairs.push(("glosses".to_owned(), "false".to_owned()));
+    }
+    if state.show_elided {
+        pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    let path = prefixed_web_path(base_path, "/gentufa");
+    if pairs.is_empty() {
+        path
+    } else {
+        format!(
+            "{path}?{}",
+            pairs
+                .iter()
+                .map(|(key, value)| format!("{key}={}", percent_encode(value)))
+                .collect::<Vec<_>>()
+                .join("&")
+        )
     }
 }
 
@@ -3151,6 +3633,46 @@ fn parse_vlacku_mode(value: &str) -> Option<VlackuWebMode> {
         "sound" => Some(VlackuWebMode::Sound),
         "meaning" | "smuni" => Some(VlackuWebMode::Meaning),
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gentufa_view_mode(value: &str) -> Option<GentufaWebViewMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "tree" | "table" => Some(GentufaWebViewMode::Tree),
+        "blocks" => Some(GentufaWebViewMode::Blocks),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_view_mode_query_value(mode: GentufaWebViewMode) -> &'static str {
+    match mode {
+        GentufaWebViewMode::Blocks => "blocks",
+        GentufaWebViewMode::Tree => "tree",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_query_bool(value: &str, default: bool) -> bool {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => default,
+    }
+}
+
+#[requires(suffix.starts_with('/'))]
+#[ensures(ret.starts_with('/'))]
+fn prefixed_web_path(base_path: &str, suffix: &str) -> String {
+    let prefix = base_path.trim_end_matches('/');
+    if prefix.is_empty() {
+        suffix.to_owned()
+    } else {
+        format!("{prefix}{suffix}")
     }
 }
 
@@ -4121,6 +4643,89 @@ mod tests {
             search_state.targets,
             vec!["section".to_owned(), "example".to_owned()]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_route_round_trips_primary_url_state() {
+        let state = parse_gentufa_web_route(
+            "/gentufa",
+            "?text=mi+klama&dialect=allow-cgv&view=tree&glosses=false&elided=true",
+        );
+
+        assert_eq!(state.text, "mi klama");
+        assert_eq!(state.dialect.as_deref(), Some("allow-cgv"));
+        assert_eq!(state.view_mode, GentufaWebViewMode::Tree);
+        assert!(!state.show_glosses);
+        assert!(state.show_elided);
+        assert_eq!(
+            gentufa_web_url("/jbotci", &state),
+            "/jbotci/gentufa?text=mi+klama&dialect=allow-cgv&view=tree&glosses=false&elided=true"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_route_and_metadata_follow_v0_page_details() {
+        let route = parse_web_route("/vlacku/klama", "");
+        assert_eq!(web_route_url("/jbotci", &route), "/jbotci/vlacku/klama");
+        let meta = build_page_meta("/jbotci", &route);
+        assert_eq!(meta.title, "klama - jbotci vlacku");
+        assert_eq!(meta.description, "Dictionary lookup for “klama”.");
+        assert_eq!(meta.canonical_url, "/jbotci/vlacku/klama");
+        assert!(meta.image.is_none());
+
+        let gentufa = build_page_meta(
+            "",
+            &WebRoute::Gentufa(GentufaWebState {
+                text: "mi klama".to_owned(),
+                dialect: None,
+                view_mode: GentufaWebViewMode::Blocks,
+                show_elided: false,
+                show_glosses: true,
+            }),
+        );
+        assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
+        assert!(gentufa.description.starts_with("Parse succeeded:"));
+        assert!(gentufa.image.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_chapter_metadata_uses_available_chapter_image() {
+        let site = embedded_cll_site().expect("embedded CLL site");
+        let (section_id, expected_file_name) = site
+            .chapters
+            .iter()
+            .find_map(|chapter| {
+                let file_name = chapter
+                    .prelude_blocks
+                    .iter()
+                    .find_map(|block| match block {
+                        CllBlock::Media { src, .. } => src.rsplit('/').next().map(str::to_owned),
+                        _ => None,
+                    })?;
+                let section_id = chapter.root_section_ids.first()?.clone();
+                Some((section_id, file_name))
+            })
+            .expect("at least one CLL chapter image");
+
+        let meta = build_page_meta(
+            "/jbotci",
+            &WebRoute::Cukta(CuktaWebState {
+                view: CuktaWebView::Section {
+                    reference: section_id,
+                },
+            }),
+        );
+        let image = meta.image.as_ref().expect("chapter image metadata");
+        assert!(image.href.ends_with(&expected_file_name));
+        assert!(image.href.starts_with("/jbotci/assets/cll/media/"));
+        assert!(image.width > 0);
+        assert!(image.height > 0);
     }
 
     #[test]

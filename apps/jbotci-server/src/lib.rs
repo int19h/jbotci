@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::header::{
-    ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HeaderMap, HeaderValue,
+    ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap, HeaderValue,
     LOCATION,
 };
 use axum::http::{Response, StatusCode, Uri};
@@ -19,7 +19,8 @@ use axum::{Json, Router};
 use bityzba::{ensures, invariant, requires};
 use clap::Parser;
 use jbotci_web_core::{
-    GentufaWebRequest, GentufaWebResult, WebFeatureAvailability, parse_gentufa_for_web,
+    GentufaWebRequest, GentufaWebResult, PageMeta, WebFeatureAvailability, build_page_meta,
+    parse_gentufa_for_web, parse_web_route,
 };
 use serde::Serialize;
 
@@ -85,6 +86,8 @@ pub struct EmbeddedAsset {
 include!(concat!(env!("OUT_DIR"), "/embedded_assets.rs"));
 
 const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
+const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
+const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
 
 #[requires(true)]
 #[ensures(ret.base_path.starts_with('/'))]
@@ -192,6 +195,11 @@ async fn static_or_spa(
     let Some(asset_path) = asset_path_for_request(request_path, &state.base_path) else {
         return plain_response(StatusCode::NOT_FOUND, "not found");
     };
+    if asset_path == "/index.html" {
+        return spa_index_response(&state, &headers, &uri)
+            .await
+            .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
+    }
     if let Some(static_dir) = &state.static_dir
         && let Some(response) =
             static_dir_response(static_dir, &asset_path, accepts_brotli(&headers)).await
@@ -200,6 +208,45 @@ async fn static_or_spa(
     }
     embedded_asset_response(&asset_path, accepts_brotli(&headers))
         .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn spa_index_response(
+    state: &AppState,
+    headers: &HeaderMap,
+    uri: &Uri,
+) -> Option<Response<Body>> {
+    let bytes = load_index_html_bytes(state).await?;
+    let html = String::from_utf8_lossy(&bytes);
+    let logical_path = strip_base_path(uri.path(), &state.base_path).unwrap_or_else(|| {
+        if uri.path().starts_with('/') {
+            uri.path().to_owned()
+        } else {
+            format!("/{}", uri.path())
+        }
+    });
+    let route = parse_web_route(&logical_path, uri.query().unwrap_or_default());
+    let meta = build_page_meta(&state.base_path, &route);
+    let rendered = apply_spa_head_metadata(&html, request_origin(headers).as_deref(), &meta);
+    Some(asset_response(
+        StatusCode::OK,
+        "/index.html",
+        None,
+        Body::from(rendered),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn load_index_html_bytes(state: &AppState) -> Option<Vec<u8>> {
+    if let Some(static_dir) = &state.static_dir {
+        let index_path = static_dir.join("index.html");
+        if let Ok(bytes) = std::fs::read(index_path) {
+            return Some(bytes);
+        }
+    }
+    select_embedded_asset(EMBEDDED_ASSETS, "/index.html", false).map(|asset| asset.bytes.to_vec())
 }
 
 #[requires(path.starts_with('/'))]
@@ -377,6 +424,256 @@ fn asset_response(
         .expect("asset response builder is valid")
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn apply_spa_head_metadata(html: &str, origin: Option<&str>, meta: &PageMeta) -> String {
+    let without_old_block = remove_managed_meta_block(html);
+    let (with_title, inserted_title) = replace_title(&without_old_block, &meta.title);
+    let block = render_meta_block(origin, meta, !inserted_title);
+    if let Some(head_end) = with_title.find("</head>") {
+        let mut output = String::with_capacity(with_title.len() + block.len() + 1);
+        output.push_str(&with_title[..head_end]);
+        output.push_str(&block);
+        output.push_str(&with_title[head_end..]);
+        output
+    } else {
+        format!("{with_title}{block}")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remove_managed_meta_block(html: &str) -> String {
+    let Some(start) = html.find(META_BLOCK_START) else {
+        return html.to_owned();
+    };
+    let Some(end) = html[start..].find(META_BLOCK_END) else {
+        return html.to_owned();
+    };
+    let block_end = start + end + META_BLOCK_END.len();
+    let mut output = String::with_capacity(html.len().saturating_sub(block_end - start));
+    output.push_str(&html[..start]);
+    output.push_str(&html[block_end..]);
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn replace_title(html: &str, title: &str) -> (String, bool) {
+    let Some(open_start) = html.find("<title") else {
+        return (html.to_owned(), false);
+    };
+    let Some(open_end_offset) = html[open_start..].find('>') else {
+        return (html.to_owned(), false);
+    };
+    let content_start = open_start + open_end_offset + 1;
+    let Some(close_offset) = html[content_start..].find("</title>") else {
+        return (html.to_owned(), false);
+    };
+    let content_end = content_start + close_offset;
+    let mut output = String::with_capacity(html.len() + title.len());
+    output.push_str(&html[..content_start]);
+    output.push_str(&escape_html_text(title));
+    output.push_str(&html[content_end..]);
+    (output, true)
+}
+
+#[requires(true)]
+#[ensures(ret.contains(META_BLOCK_START))]
+fn render_meta_block(origin: Option<&str>, meta: &PageMeta, include_title: bool) -> String {
+    let canonical_url = absolute_url(origin, &meta.canonical_url);
+    let mut lines = Vec::new();
+    lines.push(META_BLOCK_START.to_owned());
+    if include_title {
+        lines.push(format!("<title>{}</title>", escape_html_text(&meta.title)));
+    }
+    lines.push(meta_tag("application-name", "jbotci"));
+    lines.push(meta_tag("apple-mobile-web-app-capable", "yes"));
+    lines.push(meta_tag("apple-mobile-web-app-title", "jbotci"));
+    lines.push(meta_tag("mobile-web-app-capable", "yes"));
+    lines.push(meta_tag_with_extra(
+        "theme-color",
+        "#f6f1e8",
+        " media=\"(prefers-color-scheme: light)\"",
+    ));
+    lines.push(meta_tag_with_extra(
+        "theme-color",
+        "#090705",
+        " media=\"(prefers-color-scheme: dark)\"",
+    ));
+    let asset_base = base_path_from_canonical(&meta.canonical_url);
+    lines.push(link_tag(
+        "manifest",
+        &prefixed_asset_path(&asset_base, "/assets/manifest.webmanifest"),
+    ));
+    lines.push(link_tag(
+        "icon",
+        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+    ));
+    lines.push(link_tag(
+        "shortcut icon",
+        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+    ));
+    lines.push(link_tag(
+        "apple-touch-icon",
+        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+    ));
+    lines.push(meta_tag("description", &meta.description));
+    lines.push(link_tag("canonical", &canonical_url));
+    lines.push(property_meta_tag("og:title", &meta.title));
+    lines.push(property_meta_tag("og:description", &meta.description));
+    lines.push(property_meta_tag("og:type", "website"));
+    lines.push(property_meta_tag("og:url", &canonical_url));
+    lines.push(meta_tag("twitter:title", &meta.title));
+    lines.push(meta_tag("twitter:description", &meta.description));
+    if let Some(image) = &meta.image {
+        let image_url = absolute_url(origin, &image.href);
+        lines.push(meta_tag("twitter:card", "summary_large_image"));
+        lines.push(property_meta_tag("og:image", &image_url));
+        lines.push(meta_tag("twitter:image", &image_url));
+        lines.push(property_meta_tag(
+            "og:image:width",
+            &image.width.to_string(),
+        ));
+        lines.push(property_meta_tag(
+            "og:image:height",
+            &image.height.to_string(),
+        ));
+    } else {
+        lines.push(meta_tag("twitter:card", "summary"));
+    }
+    lines.push(META_BLOCK_END.to_owned());
+    format!("\n{}\n", lines.join("\n"))
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn meta_tag(name: &str, content: &str) -> String {
+    meta_tag_with_extra(name, content, "")
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn meta_tag_with_extra(name: &str, content: &str, extra_attributes: &str) -> String {
+    format!(
+        "<meta name=\"{}\" content=\"{}\"{}>",
+        escape_html_attr(name),
+        escape_html_attr(content),
+        extra_attributes
+    )
+}
+
+#[requires(!property.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn property_meta_tag(property: &str, content: &str) -> String {
+    format!(
+        "<meta property=\"{}\" content=\"{}\">",
+        escape_html_attr(property),
+        escape_html_attr(content),
+    )
+}
+
+#[requires(!rel.is_empty())]
+#[requires(href.starts_with('/') || href.starts_with("http://") || href.starts_with("https://"))]
+#[ensures(ret.contains("link"))]
+fn link_tag(rel: &str, href: &str) -> String {
+    format!(
+        "<link rel=\"{}\" href=\"{}\">",
+        escape_html_attr(rel),
+        escape_html_attr(href),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn base_path_from_canonical(canonical_url: &str) -> String {
+    let path = canonical_url
+        .split_once('?')
+        .map_or(canonical_url, |(path, _)| path);
+    ["/gentufa", "/cukta", "/vlacku", "/settings"]
+        .iter()
+        .find_map(|route| path.find(route).map(|index| path[..index].to_owned()))
+        .unwrap_or_default()
+}
+
+#[requires(suffix.starts_with('/'))]
+#[ensures(ret.starts_with('/'))]
+fn prefixed_asset_path(base_path: &str, suffix: &str) -> String {
+    let base_path = base_path.trim_end_matches('/');
+    if base_path.is_empty() {
+        suffix.to_owned()
+    } else {
+        format!("{base_path}{suffix}")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn absolute_url(origin: Option<&str>, href: &str) -> String {
+    if href.starts_with('/') {
+        if let Some(origin) = origin.filter(|value| !value.trim().is_empty()) {
+            format!("{}{}", origin.trim_end_matches('/'), href)
+        } else {
+            href.to_owned()
+        }
+    } else {
+        href.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn request_origin(headers: &HeaderMap) -> Option<String> {
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get(HOST))
+        .and_then(|value| value.to_str().ok())?
+        .split(',')
+        .next()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())?;
+    let scheme = headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .filter(|value| *value == "http" || *value == "https")
+        .unwrap_or("http");
+    Some(format!("{scheme}://{host}"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_text(input: &str) -> String {
+    let mut output = String::new();
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            _ => output.push(ch),
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_attr(input: &str) -> String {
+    let mut output = String::new();
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&#39;"),
+            _ => output.push(ch),
+        }
+    }
+    output
+}
+
 #[requires(path.starts_with('/'))]
 #[ensures(!ret.is_empty())]
 fn content_type_for_path(path: &str) -> &'static str {
@@ -433,6 +730,35 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
     use tower::ServiceExt;
+
+    #[requires(true)]
+    #[ensures(ret.is_dir())]
+    fn test_static_dir() -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "jbotci-server-spa-test-{}-{nanos}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).expect("create test static dir");
+        std::fs::write(
+            dir.join("index.html"),
+            "<!doctype html><html><head><title>jbotci</title></head><body><div id=\"main\"></div></body></html>",
+        )
+        .expect("write test index");
+        dir
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn response_text(response: Response<Body>) -> String {
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        String::from_utf8(bytes.to_vec()).expect("utf-8 body")
+    }
 
     #[test]
     #[requires(true)]
@@ -623,5 +949,93 @@ mod tests {
             .await
             .expect("body");
         assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn spa_gentufa_metadata_is_rendered_without_social_image() {
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(test_static_dir()),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header(HOST, "example.test")
+                    .header("x-forwarded-proto", "https")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+
+        assert!(body.contains("<title>mi klama - jbotci gentufa</title>"));
+        assert!(body.contains("name=\"description\""));
+        assert!(body.contains("Parse succeeded:"));
+        assert!(body.contains(
+            "property=\"og:url\" content=\"https://example.test/jbotci/gentufa?text=mi+klama\""
+        ));
+        assert!(body.contains("name=\"twitter:card\" content=\"summary\""));
+        assert!(!body.contains("property=\"og:image\""));
+        assert!(!body.contains("name=\"twitter:image\""));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn spa_cukta_and_vlacku_metadata_include_canonical_social_tags() {
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(test_static_dir()),
+        });
+        let cukta = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/cukta/index")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let cukta_body = response_text(cukta).await;
+        assert!(cukta_body.contains("<title>jbotci CLL - CLL index</title>"));
+        assert!(
+            cukta_body
+                .contains("Browse indexed CLL terms and jump directly into the embedded book.")
+        );
+        assert!(
+            cukta_body
+                .contains("property=\"og:url\" content=\"http://example.test/jbotci/cukta/index\"")
+        );
+        assert!(cukta_body.contains("name=\"twitter:title\" content=\"jbotci CLL - CLL index\""));
+
+        let vlacku = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/vlacku/klama")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let vlacku_body = response_text(vlacku).await;
+        assert!(vlacku_body.contains("<title>klama - jbotci vlacku</title>"));
+        assert!(vlacku_body.contains("Dictionary lookup for “klama”."));
+        assert!(
+            vlacku_body.contains(
+                "property=\"og:url\" content=\"http://example.test/jbotci/vlacku/klama\""
+            )
+        );
     }
 }
