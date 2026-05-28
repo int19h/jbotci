@@ -93,6 +93,6 @@ export function jbotciEmbeddingRemove() {
   return request("remove");
 }
 
-export function jbotciEmbeddingSearch(corpusId, query, limit) {
-  return request("search", { corpusId, query, limit });
+export function jbotciEmbeddingSearch(corpusId, query, limit, kindFiltersJson = "[]") {
+  return request("search", { corpusId, query, limit, kindFiltersJson });
 }

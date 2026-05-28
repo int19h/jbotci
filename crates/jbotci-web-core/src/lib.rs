@@ -34,8 +34,7 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, dictionary_entry_card, filter_vlacku_cards, format_votes,
-    is_brivla_like, is_cmavo_like, is_cmevla_like, is_fuhivla_like, is_gismu_like,
-    is_letteral_like, is_lujvo_like, normalize_word_type_filter, run_vlacku_requests,
+    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::{SourceId, SourceSpan};
@@ -1946,7 +1945,7 @@ pub fn embedding_worker_corpus_json() -> String {
         .map(|(id, entry)| EmbeddingWorkerDocument {
             id,
             input: dictionary_embedding_input(entry),
-            kind: None,
+            kind: Some(dictionary_option_key(entry)),
         })
         .collect::<Vec<_>>();
     let cll = embedded_cll_site()
@@ -4197,26 +4196,6 @@ fn dictionary_option_key(entry: &DictionaryEntry<'_>) -> String {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn grouped_word_type_filter_key(normalized: &str) -> String {
-    if is_cmavo_like(normalized) {
-        "cmavo".to_owned()
-    } else if is_letteral_like(normalized) {
-        "letteral".to_owned()
-    } else if is_cmevla_like(normalized) {
-        "cmevla".to_owned()
-    } else if is_fuhivla_like(normalized) {
-        "fu'ivla".to_owned()
-    } else if is_gismu_like(normalized) {
-        "gismu".to_owned()
-    } else if is_lujvo_like(normalized) {
-        "lujvo".to_owned()
-    } else {
-        normalized.to_owned()
-    }
-}
-
-#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn vlacku_brivla_child_filter_values() -> &'static [&'static str] {
     &["gismu", "lujvo", "fu'ivla"]
@@ -5346,6 +5325,22 @@ mod tests {
                 .get("dictionary")
                 .and_then(serde_json::Value::as_array)
                 .is_some_and(|items| !items.is_empty())
+        );
+        let dictionary = value
+            .get("dictionary")
+            .and_then(serde_json::Value::as_array)
+            .expect("dictionary rows");
+        let klama = dictionary
+            .iter()
+            .find(|item| {
+                item.get("input")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|input| input.contains("title: klama | text:"))
+            })
+            .expect("klama dictionary row");
+        assert_eq!(
+            klama.get("kind").and_then(serde_json::Value::as_str),
+            Some("gismu")
         );
     }
 

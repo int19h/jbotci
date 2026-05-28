@@ -15,6 +15,7 @@ use jbotci_cll::{
     clamp_cukta_result_count, cll_search_all_chunks,
 };
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
+use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_filter};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -198,6 +199,8 @@ pub struct DictionaryEmbeddingItem {
     pub word: String,
     pub definition_id: u64,
     pub input_hash: String,
+    #[serde(default)]
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -398,6 +401,12 @@ pub fn dictionary_embedding_input(entry: &DictionaryEntry<'_>) -> String {
         body_parts.push(glosses);
     }
     build_retrieval_document_input(&body_parts.join("\n"), entry.word)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn dictionary_embedding_kind(entry: &DictionaryEntry<'_>) -> String {
+    grouped_word_type_filter_key(&normalize_word_type_filter(entry.word_type.as_str()))
 }
 
 #[requires(true)]
@@ -981,6 +990,7 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
                 word: entry.word.to_owned(),
                 definition_id: entry.definition_id.0,
                 input_hash: sha256_hex_bytes(input.as_bytes()),
+                kind: dictionary_embedding_kind(entry),
             }
         })
         .collect::<Vec<_>>();
@@ -1545,6 +1555,16 @@ mod tests {
         let manifest: EmbeddingPackManifest = read_json_file(&manifest_path).expect("manifest");
         assert_eq!(manifest.dimensions, 4);
         assert_eq!(manifest.corpora.len(), 2);
+        let vlacku_corpus = manifest
+            .corpora
+            .iter()
+            .find(|corpus| corpus.corpus_id == VLACKU_CORPUS_ID)
+            .expect("vlacku corpus");
+        let items_path =
+            pack_root(dir.path(), &spec.model_key, &report.pack_id).join(&vlacku_corpus.items_url);
+        let items: Vec<DictionaryEmbeddingItem> =
+            read_json_file(&items_path).expect("dictionary items");
+        assert!(items.iter().any(|item| item.kind == "gismu"));
     }
 
     #[test]

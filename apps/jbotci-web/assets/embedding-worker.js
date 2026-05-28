@@ -47,7 +47,12 @@ self.onmessage = async (event) => {
     } else if (type === "remove") {
       value = await removeAll();
     } else if (type === "search") {
-      value = await search(payload?.corpusId, payload?.query, payload?.limit || 0);
+      value = await search(
+        payload?.corpusId,
+        payload?.query,
+        payload?.limit || 0,
+        payload?.kindFiltersJson || "[]",
+      );
     } else {
       throw new Error(`unknown embedding worker request: ${type}`);
     }
@@ -67,14 +72,14 @@ async function setup(corpusJson) {
   }
   setupInProgress = true;
   try {
+    const corpus = JSON.parse(corpusJson);
     await requestPersistentStorage();
     await checkQuota();
     await updateStatus("checking", "Looking for a same-origin vector pack.");
-    const remoteLoaded = await loadRemotePackIfAvailable();
+    const remoteLoaded = await loadRemotePackIfAvailable(corpus);
     await updateStatus("loading-model", "Downloading or opening EmbeddingGemma Q4.");
     await ensureModel();
     if (!remoteLoaded) {
-      const corpus = JSON.parse(corpusJson);
       await buildLocalPack(corpus);
     }
     await updateStatus("ready", remoteLoaded
@@ -155,11 +160,14 @@ async function removeAll() {
   return status();
 }
 
-async function search(corpusId, query, limit) {
+async function search(corpusId, query, limit, kindFiltersJson) {
   const trimmedQuery = String(query || "").trim();
   if (!trimmedQuery) {
     return { hits: [], message: null };
   }
+  const kindFilters = parseStringArray(kindFiltersJson)
+    .map(normalizeWordTypeFilter)
+    .filter((value) => value.length > 0);
   let pack = await getMeta("pack");
   if (!pack) {
     await loadRemotePackIfAvailable();
@@ -178,10 +186,16 @@ async function search(corpusId, query, limit) {
       message: `The cached embedding pack does not contain ${corpusId}.`,
     };
   }
+  if (kindFilters.length > 0 && !corpusSupportsKindFilters(corpus)) {
+    return {
+      hits: [],
+      message: "The cached embedding pack does not include word-type metadata. Remove and download embeddings again.",
+    };
+  }
   await ensureModel();
   const queryEmbedding = await embedTexts([QUERY_PREFIX + trimmedQuery]);
   const vectors = await readCorpusVectors(corpus);
-  const hits = rankHits(vectors, queryEmbedding[0], corpus.items, limit);
+  const hits = rankHits(vectors, queryEmbedding[0], corpus.items, limit, kindFilters);
   return { hits, message: hits.length === 0 ? "No matches found." : null };
 }
 
@@ -321,6 +335,25 @@ async function buildLocalPack(corpus) {
   });
 }
 
+function corpusKindLookups(corpus) {
+  return {
+    "vlacku-en": documentKindLookup(corpus?.dictionary || []),
+    "cukta-cll": documentKindLookup(corpus?.cll || []),
+  };
+}
+
+function documentKindLookup(docs) {
+  const lookup = new Map();
+  for (const doc of docs) {
+    const id = Number(doc?.id);
+    const kind = normalizeWordTypeFilter(doc?.kind || "");
+    if (Number.isInteger(id) && kind.length > 0) {
+      lookup.set(id, kind);
+    }
+  }
+  return lookup;
+}
+
 async function buildLocalCorpus(corpusId, docs) {
   await updateStatus(
     "indexing",
@@ -344,13 +377,13 @@ async function buildLocalCorpus(corpusId, docs) {
     items: docs.map((doc, row) => ({
       id: doc.id,
       row,
-      kind: doc.kind || null,
+      kind: normalizeWordTypeFilter(doc.kind || "") || null,
     })),
     shards: [{ key: vectorKey, byteLen: vectors.byteLength }],
   };
 }
 
-async function loadRemotePackIfAvailable() {
+async function loadRemotePackIfAvailable(corpus = null) {
   const catalog = await fetchJsonIfAvailable(`${REMOTE_BASE}/catalog.json`);
   if (catalog === null) {
     return false;
@@ -371,39 +404,44 @@ async function loadRemotePackIfAvailable() {
   const totalVectorBytes = remotePackVectorBytes(manifest);
   let downloadedVectorBytes = 0;
   const corpora = {};
-  for (const corpus of manifest.corpora || []) {
+  const kindLookups = corpusKindLookups(corpus);
+  for (const corpusManifest of manifest.corpora || []) {
     await updateStatus(
       "downloading-index",
-      `Downloading ${corpus.corpus_id} vector pack.`,
-      progressValue("index", corpus.corpus_id, downloadedVectorBytes, totalVectorBytes),
+      `Downloading ${corpusManifest.corpus_id} vector pack.`,
+      progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
     );
-    const items = await fetchJson(`${packBase}/${corpus.items_url}`);
+    const items = await fetchJson(`${packBase}/${corpusManifest.items_url}`);
     const shards = [];
-    for (const shard of corpus.shards || []) {
+    for (const shard of corpusManifest.shards || []) {
       const shardUrl = `${packBase}/${shard.url}`;
       const bytes = await fetchArrayBuffer(shardUrl);
       if (bytes.byteLength !== shard.byte_len && bytes.byteLength !== shard.byteLen) {
         throw new Error(`remote vector shard ${shard.url} has the wrong size`);
       }
-      const key = `remote/${MODEL_KEY}/${manifest.pack_id}/${corpus.corpus_id}/${shard.url}`;
+      const key = `remote/${MODEL_KEY}/${manifest.pack_id}/${corpusManifest.corpus_id}/${shard.url}`;
       await putBinary(key, bytes);
       downloadedVectorBytes += bytes.byteLength;
       await updateStatus(
         "downloading-index",
-        `Downloaded ${corpus.corpus_id} vector shard ${shard.url}.`,
-        progressValue("index", corpus.corpus_id, downloadedVectorBytes, totalVectorBytes),
+        `Downloaded ${corpusManifest.corpus_id} vector shard ${shard.url}.`,
+        progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
       );
       shards.push({ key, byteLen: bytes.byteLength });
     }
-    corpora[corpus.corpus_id] = {
-      corpusId: corpus.corpus_id,
-      rowCount: corpus.row_count,
-      dimensions: corpus.dimensions,
-      items: items.map((item, row) => ({
-        id: item.entry_index ?? item.chunk_index,
-        row,
-        kind: item.kind || null,
-      })),
+    const kindLookup = kindLookups[corpusManifest.corpus_id] || new Map();
+    corpora[corpusManifest.corpus_id] = {
+      corpusId: corpusManifest.corpus_id,
+      rowCount: corpusManifest.row_count,
+      dimensions: corpusManifest.dimensions,
+      items: items.map((item, row) => {
+        const id = item.entry_index ?? item.chunk_index;
+        return {
+          id,
+          row,
+          kind: normalizeWordTypeFilter(item.kind || kindLookup.get(id) || "") || null,
+        };
+      }),
       shards,
     };
   }
@@ -501,10 +539,13 @@ async function readCorpusVectors(corpus) {
   return new Float32Array(combined.buffer);
 }
 
-function rankHits(vectors, query, items, limit) {
+function rankHits(vectors, query, items, limit, kindFilters) {
   const rowCount = Math.min(items.length, Math.floor(vectors.length / DIMENSIONS));
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
+    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+      continue;
+    }
     let score = 0;
     const base = row * DIMENSIONS;
     for (let dim = 0; dim < DIMENSIONS; dim += 1) {
@@ -514,6 +555,78 @@ function rankHits(vectors, query, items, limit) {
   }
   hits.sort((left, right) => right.score - left.score || left.id - right.id);
   return limit > 0 ? hits.slice(0, limit) : hits;
+}
+
+function itemMatchesKindFilters(item, kindFilters) {
+  if (kindFilters.length === 0) {
+    return true;
+  }
+  const kind = normalizeWordTypeFilter(item?.kind || "");
+  return kind.length > 0 && kindFilters.some((wanted) => matchesWordTypeFilter(wanted, kind));
+}
+
+function matchesWordTypeFilter(wanted, normalizedType) {
+  return wanted === normalizedType
+    || (wanted === "cmavo" && isCmavoLike(normalizedType))
+    || (wanted === "letteral" && isLetteralLike(normalizedType))
+    || (wanted === "cmevla" && isCmevlaLike(normalizedType))
+    || (wanted === "gismu" && isGismuLike(normalizedType))
+    || (wanted === "fu'ivla" && isFuhivlaLike(normalizedType))
+    || (wanted === "lujvo" && isLujvoLike(normalizedType))
+    || (wanted === "brivla" && isBrivlaLike(normalizedType));
+}
+
+function normalizeWordTypeFilter(value) {
+  return String(value || "").trim().toLowerCase().split(" ").join("-");
+}
+
+function isCmavoLike(normalizedType) {
+  return normalizedType === "cmavo"
+    || normalizedType.startsWith("cmavo-")
+    || normalizedType === "experimental-cmavo"
+    || normalizedType === "obsolete-cmavo";
+}
+
+function isLetteralLike(normalizedType) {
+  return normalizedType === "bu-letteral" || normalizedType === "letteral";
+}
+
+function isCmevlaLike(normalizedType) {
+  return normalizedType === "cmevla" || normalizedType === "obsolete-cmevla";
+}
+
+function isGismuLike(normalizedType) {
+  return normalizedType === "gismu" || normalizedType === "experimental-gismu";
+}
+
+function isFuhivlaLike(normalizedType) {
+  return normalizedType === "fu'ivla" || normalizedType === "obsolete-fu'ivla";
+}
+
+function isLujvoLike(normalizedType) {
+  return normalizedType === "lujvo"
+    || normalizedType === "zei-lujvo"
+    || normalizedType === "obsolete-zei-lujvo";
+}
+
+function isBrivlaLike(normalizedType) {
+  return isGismuLike(normalizedType)
+    || isLujvoLike(normalizedType)
+    || isFuhivlaLike(normalizedType);
+}
+
+function corpusSupportsKindFilters(corpus) {
+  return (corpus.items || []).some((item) =>
+    typeof item.kind === "string" && item.kind.length > 0
+  );
+}
+
+function parseStringArray(json) {
+  const value = JSON.parse(json || "[]");
+  if (!Array.isArray(value)) {
+    throw new Error("embedding search filters must be a JSON array");
+  }
+  return value.filter((item) => typeof item === "string");
 }
 
 function normalize(vector) {

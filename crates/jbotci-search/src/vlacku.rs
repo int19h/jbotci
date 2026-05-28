@@ -154,6 +154,26 @@ pub fn matches_word_type_filter(wanted: &str, normalized_type: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+pub fn grouped_word_type_filter_key(normalized_type: &str) -> String {
+    if is_cmavo_like(normalized_type) {
+        "cmavo".to_owned()
+    } else if is_letteral_like(normalized_type) {
+        "letteral".to_owned()
+    } else if is_cmevla_like(normalized_type) {
+        "cmevla".to_owned()
+    } else if is_gismu_like(normalized_type) {
+        "gismu".to_owned()
+    } else if is_fuhivla_like(normalized_type) {
+        "fu'ivla".to_owned()
+    } else if is_lujvo_like(normalized_type) {
+        "lujvo".to_owned()
+    } else {
+        normalized_type.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn is_cmavo_like(normalized_type: &str) -> bool {
     normalized_type == "cmavo"
         || normalized_type.starts_with("cmavo-")

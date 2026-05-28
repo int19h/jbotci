@@ -860,7 +860,12 @@ extern "C" {
     fn js_embedding_remove() -> js_sys::Promise;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingSearch)]
-    fn js_embedding_search(corpus_id: &str, query: &str, limit: usize) -> js_sys::Promise;
+    fn js_embedding_search(
+        corpus_id: &str,
+        query: &str,
+        limit: usize,
+        kind_filters_json: &str,
+    ) -> js_sys::Promise;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -959,7 +964,15 @@ async fn remove_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>)
 #[ensures(true)]
 async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticResultState {
     let limit = vlacku_semantic_worker_limit(&state);
-    match embedding_search_json("vlacku-en", &state.query, limit).await {
+    let normalized_state = normalize_vlacku_state(&state);
+    match embedding_search_json(
+        "vlacku-en",
+        &state.query,
+        limit,
+        &normalized_state.word_types,
+    )
+    .await
+    {
         Ok(json) => {
             let (hits, message) = parse_vlacku_semantic_search_json(&json);
             VlackuSemanticResultState {
@@ -979,12 +992,9 @@ async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticRes
 }
 
 #[requires(true)]
-#[ensures(ret == 0 || (ret >= 1 && ret <= VLACKU_WEB_MAX_COUNT))]
+#[ensures(ret >= 1 && ret <= VLACKU_WEB_MAX_COUNT)]
 fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
     let normalized_state = normalize_vlacku_state(state);
-    if !normalized_state.word_types.is_empty() {
-        return 0;
-    }
     normalized_state
         .count
         .saturating_add(1)
@@ -994,7 +1004,7 @@ fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
 #[requires(true)]
 #[ensures(true)]
 async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemanticResultState {
-    match embedding_search_json("cukta-cll", &state.query, 0).await {
+    match embedding_search_json("cukta-cll", &state.query, 0, &[]).await {
         Ok(json) => {
             let (hits, message) = parse_cukta_semantic_search_json(&json);
             CuktaSemanticResultState {
@@ -1062,8 +1072,16 @@ async fn embedding_search_json(
     corpus_id: &str,
     query: &str,
     limit: usize,
+    kind_filters: &[String],
 ) -> Result<String, String> {
-    promise_to_string(js_embedding_search(corpus_id, query, limit)).await
+    let kind_filters_json = serde_json::to_string(kind_filters).unwrap_or_else(|_| "[]".to_owned());
+    promise_to_string(js_embedding_search(
+        corpus_id,
+        query,
+        limit,
+        &kind_filters_json,
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1073,6 +1091,7 @@ async fn embedding_search_json(
     _corpus_id: &str,
     _query: &str,
     _limit: usize,
+    _kind_filters: &[String],
 ) -> Result<String, String> {
     Err(
         "Open Settings and download embeddings in the browser before using meaning search."
@@ -6898,14 +6917,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_semantic_worker_limit_preserves_filtered_result_set() {
+    fn vlacku_semantic_worker_limit_bounds_filtered_results() {
         let state = VlackuWebState {
             mode: VlackuWebMode::Meaning,
             query: "klama".to_owned(),
             count: 20,
             word_types: vec!["gismu".to_owned()],
         };
-        assert_eq!(vlacku_semantic_worker_limit(&state), 0);
+        assert_eq!(vlacku_semantic_worker_limit(&state), 21);
     }
 
     #[test]
