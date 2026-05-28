@@ -18,6 +18,7 @@ use axum::{Json, Router};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use clap::Parser;
+use jbotci_embeddings::EMBEDDING_INDEX_DIR_ENV;
 use jbotci_web_core::{
     GentufaWebRequest, GentufaWebResult, PageMeta, WebFeatureAvailability, build_page_meta,
     parse_gentufa_for_web, parse_web_route,
@@ -37,6 +38,8 @@ pub struct Cli {
     pub base_path: String,
     #[arg(long)]
     pub static_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub embedding_index_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +49,7 @@ pub struct ServerConfig {
     pub port: u16,
     pub base_path: String,
     pub static_dir: Option<PathBuf>,
+    pub embedding_index_dir: Option<PathBuf>,
 }
 
 impl From<Cli> for ServerConfig {
@@ -57,6 +61,9 @@ impl From<Cli> for ServerConfig {
             port: cli.port,
             base_path: normalize_base_path(&cli.base_path),
             static_dir: cli.static_dir,
+            embedding_index_dir: cli
+                .embedding_index_dir
+                .or_else(|| non_empty_env_path(EMBEDDING_INDEX_DIR_ENV)),
         }
     }
 }
@@ -66,6 +73,7 @@ impl From<Cli> for ServerConfig {
 struct AppState {
     base_path: String,
     static_dir: Option<PathBuf>,
+    embedding_index_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -117,6 +125,7 @@ pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState {
         base_path: normalize_base_path(&config.base_path),
         static_dir: config.static_dir,
+        embedding_index_dir: config.embedding_index_dir,
     });
     Router::new()
         .route("/api/health", get(health))
@@ -200,6 +209,14 @@ async fn static_or_spa(
             .await
             .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
     }
+    if asset_path.starts_with("/assets/embeddings/")
+        && let Some(embedding_index_dir) = &state.embedding_index_dir
+        && let Some(response) =
+            embedding_index_response(embedding_index_dir, &asset_path, accepts_brotli(&headers))
+                .await
+    {
+        return response;
+    }
     if let Some(static_dir) = &state.static_dir
         && let Some(response) =
             static_dir_response(static_dir, &asset_path, accepts_brotli(&headers)).await
@@ -208,6 +225,14 @@ async fn static_or_spa(
     }
     embedded_asset_response(&asset_path, accepts_brotli(&headers))
         .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn non_empty_env_path(name: &str) -> Option<PathBuf> {
+    std::env::var_os(name)
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty())
 }
 
 #[requires(true)]
@@ -357,6 +382,17 @@ async fn static_dir_response(
         encoding,
         Body::from(bytes),
     ))
+}
+
+#[requires(asset_path.starts_with("/assets/embeddings/"))]
+#[ensures(true)]
+async fn embedding_index_response(
+    embedding_index_dir: &Path,
+    asset_path: &str,
+    accepts_brotli: bool,
+) -> Option<Response<Body>> {
+    let relative_asset_path = asset_path.trim_start_matches("/assets/embeddings");
+    static_dir_response(embedding_index_dir, relative_asset_path, accepts_brotli).await
 }
 
 #[requires(asset_path.starts_with('/'))]
@@ -689,6 +725,7 @@ fn content_type_for_path(path: &str) -> &'static str {
         Some("ttf") => "font/ttf",
         Some("woff") => "font/woff",
         Some("woff2") => "font/woff2",
+        Some("f32") => "application/octet-stream",
         _ => "application/octet-stream",
     }
 }
@@ -696,7 +733,10 @@ fn content_type_for_path(path: &str) -> &'static str {
 #[requires(path.starts_with('/'))]
 #[ensures(!ret.is_empty())]
 fn cache_control_for_path(path: &str) -> &'static str {
-    if path == "/index.html" {
+    if path == "/index.html"
+        || path == "/assets/embeddings/v1/catalog.json"
+        || path == "/v1/catalog.json"
+    {
         "no-cache"
     } else {
         "public, max-age=31536000, immutable"
@@ -729,7 +769,10 @@ mod tests {
     use axum::http::{Method, Request};
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use std::sync::{Mutex, OnceLock};
     use tower::ServiceExt;
+
+    static EMBEDDING_ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
     #[requires(true)]
     #[ensures(ret.is_dir())]
@@ -752,12 +795,60 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret.is_dir())]
+    fn test_embedding_index_dir() -> PathBuf {
+        let dir = test_static_dir().join("embeddings");
+        std::fs::create_dir_all(dir.join("v1/models/test/packs/pack/corpora/vlacku-en"))
+            .expect("create embedding dir");
+        std::fs::write(
+            dir.join("v1/catalog.json"),
+            "{\"schema_version\":1,\"models\":[]}\n",
+        )
+        .expect("write catalog");
+        std::fs::write(
+            dir.join("v1/models/test/packs/pack/corpora/vlacku-en/vectors-0000.f32"),
+            [0u8, 0, 0, 0],
+        )
+        .expect("write vector shard");
+        dir
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_env_lock() -> &'static Mutex<()> {
+        EMBEDDING_ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn set_embedding_test_env(name: &str, value: Option<&std::ffi::OsStr>) {
+        // The env override is process-global, so these tests serialize updates to
+        // keep ServerConfig conversion deterministic under a parallel test runner.
+        unsafe {
+            if let Some(value) = value {
+                std::env::set_var(name, value);
+            } else {
+                std::env::remove_var(name);
+            }
+        }
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     async fn response_text(response: Response<Body>) -> String {
         let bytes = to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("body");
         String::from_utf8(bytes.to_vec()).expect("utf-8 body")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn response_bytes(response: Response<Body>) -> Vec<u8> {
+        to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body")
+            .to_vec()
     }
 
     #[test]
@@ -785,6 +876,27 @@ mod tests {
             asset_path_for_request("/jbotci/cukta/section/11.9", "/jbotci").as_deref(),
             Some("/index.html")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn server_config_uses_embedding_index_env_when_flag_is_absent() {
+        let _guard = embedding_env_lock()
+            .lock()
+            .expect("embedding env lock is not poisoned");
+        let dir = test_embedding_index_dir();
+        let old_value = std::env::var_os(EMBEDDING_INDEX_DIR_ENV);
+        set_embedding_test_env(EMBEDDING_INDEX_DIR_ENV, Some(dir.as_os_str()));
+        let config = ServerConfig::from(Cli {
+            host: "127.0.0.1".to_owned(),
+            port: 8080,
+            base_path: "/jbotci".to_owned(),
+            static_dir: None,
+            embedding_index_dir: None,
+        });
+        set_embedding_test_env(EMBEDDING_INDEX_DIR_ENV, old_value.as_deref());
+        assert_eq!(config.embedding_index_dir, Some(dir));
     }
 
     #[test]
@@ -828,6 +940,7 @@ mod tests {
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: None,
+            embedding_index_dir: None,
         });
         let request = GentufaWebRequest {
             text: "mi klama".to_owned(),
@@ -864,6 +977,7 @@ mod tests {
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: None,
+            embedding_index_dir: None,
         });
         let response = app
             .clone()
@@ -891,12 +1005,122 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn embedding_assets_return_404_without_index_dir() {
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: None,
+            embedding_index_dir: None,
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/embeddings/v1/catalog.json")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn embedding_assets_serve_catalog_and_vector_shards() {
+        let embedding_index_dir = test_embedding_index_dir();
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: None,
+            embedding_index_dir: Some(embedding_index_dir),
+        });
+        let catalog = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/embeddings/v1/catalog.json")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("catalog response");
+        assert_eq!(catalog.status(), StatusCode::OK);
+        assert_eq!(
+            catalog
+                .headers()
+                .get(CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("no-cache")
+        );
+        assert_eq!(
+            response_text(catalog).await,
+            "{\"schema_version\":1,\"models\":[]}\n"
+        );
+
+        let shard = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/embeddings/v1/models/test/packs/pack/corpora/vlacku-en/vectors-0000.f32")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("shard response");
+        assert_eq!(shard.status(), StatusCode::OK);
+        assert_eq!(
+            shard
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/octet-stream")
+        );
+        assert_eq!(response_bytes(shard).await, vec![0, 0, 0, 0]);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn embedding_assets_reject_path_traversal() {
+        let root = test_embedding_index_dir();
+        let secret_path = root
+            .parent()
+            .expect("test root has parent")
+            .join("secret.txt");
+        std::fs::write(&secret_path, "secret").expect("write secret");
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: None,
+            embedding_index_dir: Some(root),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/embeddings/../secret.txt")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn root_redirects_to_gentufa_route() {
         let app = router(ServerConfig {
             host: "127.0.0.1".to_owned(),
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: None,
+            embedding_index_dir: None,
         });
         let response = app
             .oneshot(
@@ -927,6 +1151,7 @@ mod tests {
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: Some(static_dir),
+            embedding_index_dir: None,
         });
         let response = app
             .oneshot(
@@ -960,6 +1185,7 @@ mod tests {
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: Some(test_static_dir()),
+            embedding_index_dir: None,
         });
         let response = app
             .oneshot(
@@ -995,6 +1221,7 @@ mod tests {
             port: 0,
             base_path: "/jbotci".to_owned(),
             static_dir: Some(test_static_dir()),
+            embedding_index_dir: None,
         });
         let cukta = app
             .clone()

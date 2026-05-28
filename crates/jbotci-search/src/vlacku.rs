@@ -18,12 +18,14 @@ pub const OFFICIAL_WORD_VOTE_THRESHOLD: i32 = 10_000;
 #[invariant(::Lujvo(_) => true)]
 #[invariant(::Glob(_) => true)]
 #[invariant(::Sound(_) => true)]
+#[invariant(::Meaning(_) => true)]
 pub enum VlackuRequest {
     Valsi(String),
     Rafsi(String),
     Lujvo(String),
     Glob(String),
     Sound(String),
+    Meaning(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -225,6 +227,9 @@ fn run_single_request(
         VlackuRequest::Lujvo(query) => cards_for_lujvo(dictionary, query, options),
         VlackuRequest::Glob(pattern) => cards_for_glob(dictionary, pattern, options),
         VlackuRequest::Sound(query) => cards_for_sound(dictionary, query, options),
+        VlackuRequest::Meaning(_) => {
+            invalid_output("Semantic vlacku search requires an embedding backend.".to_owned())
+        }
     }
 }
 
@@ -242,7 +247,9 @@ fn cards_for_valsi(
         let cards = filter_and_limit(
             entries
                 .into_iter()
-                .map(|entry| entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo))
+                .map(|entry| {
+                    dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+                })
                 .collect(),
             options,
             false,
@@ -262,7 +269,7 @@ fn cards_for_rafsi(
         dictionary
             .lookup_rafsi(query)
             .map(|matched| {
-                entry_card(
+                dictionary_entry_card(
                     dictionary,
                     matched.entry,
                     Some(1.0),
@@ -303,9 +310,9 @@ fn cards_for_lujvo(
 
     if let Some(decomposition) = &decomposition {
         cards.extend(decomposition.source_words.iter().filter_map(|source_word| {
-            dictionary
-                .lookup_word(source_word)
-                .map(|entry| entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo))
+            dictionary.lookup_word(source_word).map(|entry| {
+                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+            })
         }));
     }
 
@@ -340,7 +347,9 @@ fn cards_for_glob(
             .entries()
             .iter()
             .filter(|entry| compiled.matches(&glob_target_key(entry.word)))
-            .map(|entry| entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo))
+            .map(|entry| {
+                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+            })
             .collect(),
         options,
         false,
@@ -384,7 +393,7 @@ fn cards_for_sound(
             .into_iter()
             .filter(|(_, similarity, _)| *similarity >= min_similarity)
             .map(|(_, similarity, entry)| {
-                entry_card(dictionary, entry, Some(similarity), options.decompose_lujvo)
+                dictionary_entry_card(dictionary, entry, Some(similarity), options.decompose_lujvo)
             })
             .collect(),
         options,
@@ -473,7 +482,7 @@ fn word_kind_type_key(kind: WordKind) -> &'static str {
 
 #[requires(true)]
 #[ensures(!ret.word.is_empty())]
-fn entry_card(
+pub fn dictionary_entry_card(
     dictionary: &Dictionary<'_>,
     entry: &DictionaryEntry<'_>,
     similarity: Option<f32>,
@@ -564,7 +573,7 @@ fn format_keyword(keyword: &Keyword<'_>) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn filter_and_limit(
+pub fn filter_vlacku_cards(
     cards: Vec<VlackuCard>,
     options: &VlackuSearchOptions,
     similarity_mode: bool,
@@ -574,6 +583,16 @@ fn filter_and_limit(
         .filter(|card| passes_filters(card, options, similarity_mode))
         .take(options.count)
         .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn filter_and_limit(
+    cards: Vec<VlackuCard>,
+    options: &VlackuSearchOptions,
+    similarity_mode: bool,
+) -> Vec<VlackuCard> {
+    filter_vlacku_cards(cards, options, similarity_mode)
 }
 
 #[requires(true)]

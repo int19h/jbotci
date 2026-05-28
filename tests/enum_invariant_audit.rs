@@ -60,6 +60,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries reference analysis diagnostics",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Environment",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Io",
+        "embedding error variant wraps std::io::Error with contextual text",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Json",
+        "embedding error variant wraps serde_json::Error with contextual text",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Http",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidModel",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidIndex",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::UnsupportedModel",
+        "embedding error variant carries the unsupported model key for rendering",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::MissingCompatiblePack",
+        "embedding error variant carries the requested model key for rendering",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::DimensionMismatch",
+        "embedding error variant carries expected and actual dimensions produced by validation paths",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Backend",
+        "embedding error variant carries only an already formatted backend diagnostic message",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
         "internal fallback lujvo parser validates segment text before converting to Phonemes",
     ),
@@ -514,6 +554,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
         "sound query parsing validates request text before ALINE matching",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
+        "semantic query text is validated by CLI and embedded locally before vector search",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
@@ -1022,6 +1066,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/main.rs:Command::Zbasu",
         "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/main.rs:Command::Setup",
+        "CLI enum delegates validation to clap and setup option handling",
     ),
     (
         "tests/support/fixtures/mod.rs:Provenance::Cll",

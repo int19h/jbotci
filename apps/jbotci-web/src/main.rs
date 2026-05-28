@@ -7,19 +7,21 @@ use jbotci_cll::{
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
-    CuktaSearchResultCard, CuktaTargetOption, CuktaTocNode, CuktaWebMode, CuktaWebSearchState,
-    CuktaWebState, CuktaWebView, GentufaBlock, GentufaCell, GentufaError, GentufaScript,
-    GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
-    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline,
-    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
-    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData, VlackuVoteDisplay,
-    VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState, VlackuWordTypeOption,
-    VlackuWordTypeSection, WebFeatureAvailability, WebRoute, build_cukta_web_page, build_page_meta,
-    build_vlacku_jvozba_output, build_vlacku_web_result, cukta_web_url, gentufa_web_url,
-    parse_cukta_web_route, parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route,
-    parse_web_route, toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
+    CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
+    CuktaWebSearchState, CuktaWebState, CuktaWebView, GentufaBlock, GentufaCell, GentufaError,
+    GentufaScript, GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
+    GentufaWebResult, GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel,
+    ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT,
+    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo,
+    VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode,
+    VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
+    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
+    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability, WebRoute,
+    build_cukta_semantic_web_page, build_cukta_web_page, build_page_meta,
+    build_vlacku_jvozba_output, build_vlacku_semantic_web_result, build_vlacku_web_result,
+    cukta_web_url, embedding_worker_corpus_json, gentufa_web_url, parse_cukta_web_route,
+    parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
+    toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
 
@@ -30,11 +32,15 @@ use bityzba::{data, ensures, invariant, new, requires};
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
+const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
+const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const MANIFEST: Asset = asset!("/assets/manifest.webmanifest");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const FAVICON: Asset = asset!("/assets/icons/jbotci-icon-192.png");
@@ -138,6 +144,36 @@ struct UserSettings {
     glides: GlideMark,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct EmbeddingSettingsState {
+    status: String,
+    detail: String,
+    model_size: String,
+    index_size: String,
+    progress_label: Option<String>,
+    progress_percent: Option<u8>,
+    busy: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct VlackuSemanticResultState {
+    state: Option<VlackuWebState>,
+    hits: Vec<VlackuSemanticSearchHit>,
+    message: Option<String>,
+    loading: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct CuktaSemanticResultState {
+    state: Option<CuktaWebSearchState>,
+    hits: Vec<CuktaSemanticSearchHit>,
+    message: Option<String>,
+    loading: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 struct GentufaDisplayState {
@@ -192,6 +228,48 @@ impl Default for UserSettings {
             script: GentufaScript::Latin,
             stress: StressMark::Acute,
             glides: GlideMark::Breve,
+        }
+    }
+}
+
+impl Default for EmbeddingSettingsState {
+    #[requires(true)]
+    #[ensures(!ret.busy)]
+    fn default() -> Self {
+        Self {
+            status: "unknown".to_owned(),
+            detail: "Checking browser embedding storage.".to_owned(),
+            model_size: "unknown".to_owned(),
+            index_size: "unknown".to_owned(),
+            progress_label: None,
+            progress_percent: None,
+            busy: false,
+        }
+    }
+}
+
+impl Default for VlackuSemanticResultState {
+    #[requires(true)]
+    #[ensures(!ret.loading)]
+    fn default() -> Self {
+        Self {
+            state: None,
+            hits: Vec::new(),
+            message: None,
+            loading: false,
+        }
+    }
+}
+
+impl Default for CuktaSemanticResultState {
+    #[requires(true)]
+    #[ensures(!ret.loading)]
+    fn default() -> Self {
+        Self {
+            state: None,
+            hits: Vec::new(),
+            message: None,
+            loading: false,
         }
     }
 }
@@ -291,6 +369,7 @@ fn App() -> Element {
     let route = use_signal(route_from_current_path);
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
+    let embedding_settings = use_signal(EmbeddingSettingsState::default);
     let initial_gentufa = initial_gentufa_state();
     let initial_gentufa_has_text = initial_gentufa_text_explicit();
     let initial_gentufa_text = if initial_gentufa.text.is_empty() {
@@ -317,11 +396,13 @@ fn App() -> Element {
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
+    let vlacku_semantic_result = use_signal(VlackuSemanticResultState::default);
     let vlacku_result = use_memo(move || {
         let state = vlacku_committed_state.read().clone();
         build_vlacku_web_result(&state)
     });
     let cukta_page_base_path = base_path.clone();
+    let cukta_semantic_result = use_signal(CuktaSemanticResultState::default);
     let cukta_page = use_memo(move || {
         let state = cukta_state.read().clone();
         build_cukta_web_page(&cukta_page_base_path, &state)
@@ -376,6 +457,61 @@ fn App() -> Element {
         gentufa_text_explicit,
         &base_path,
     );
+    use_effect(move || {
+        configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
+    });
+    use_effect(move || {
+        if *route.read() == AppRoute::Settings {
+            spawn(async move {
+                refresh_embedding_settings(embedding_settings).await;
+            });
+        }
+    });
+    use_effect(move || {
+        let state = vlacku_committed_state.read().clone();
+        let mut result_signal = vlacku_semantic_result;
+        if state.mode != VlackuWebMode::Meaning || state.query.trim().is_empty() {
+            result_signal.set(VlackuSemanticResultState::default());
+            return;
+        }
+        result_signal.set(VlackuSemanticResultState {
+            state: Some(state.clone()),
+            hits: Vec::new(),
+            message: None,
+            loading: true,
+        });
+        spawn(async move {
+            let result = load_vlacku_semantic_result(state).await;
+            result_signal.set(result);
+        });
+    });
+    use_effect(move || {
+        let state = cukta_state.read().clone();
+        let search_state = match state.view {
+            CuktaWebView::Search(search_state)
+                if search_state.mode == CuktaWebMode::Meaning
+                    && !search_state.query.trim().is_empty() =>
+            {
+                search_state
+            }
+            _ => {
+                let mut result_signal = cukta_semantic_result;
+                result_signal.set(CuktaSemanticResultState::default());
+                return;
+            }
+        };
+        let mut result_signal = cukta_semantic_result;
+        result_signal.set(CuktaSemanticResultState {
+            state: Some(search_state.clone()),
+            hits: Vec::new(),
+            message: None,
+            loading: true,
+        });
+        spawn(async move {
+            let result = load_cukta_semantic_result(search_state).await;
+            result_signal.set(result);
+        });
+    });
     let meta_base_path = base_path.clone();
     use_effect(move || {
         let route = *route.read();
@@ -442,6 +578,8 @@ fn App() -> Element {
     rsx! {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
+        document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
+        document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
         document::Link { rel: "manifest", href: MANIFEST }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON }
         document::Link { rel: "shortcut icon", r#type: "image/png", href: FAVICON }
@@ -503,11 +641,12 @@ fn App() -> Element {
                                     }
                                 }
                             },
-                            AppRoute::Settings => render_settings(settings, settings_value),
+                            AppRoute::Settings => render_settings(settings, settings_value, embedding_settings),
                             AppRoute::Cukta => {
                                 render_cukta_page(
                                     cukta_state,
                                     cukta_page,
+                                    cukta_semantic_result,
                                     cukta_toc_filter,
                                     cukta_toc_pinned,
                                     cukta_toc_expansion,
@@ -521,6 +660,7 @@ fn App() -> Element {
                                     vlacku_draft_state,
                                     vlacku_committed_state,
                                     vlacku_result,
+                                    vlacku_semantic_result,
                                     jvozba_pane,
                                     jvozba_drag,
                                     &base_path,
@@ -704,11 +844,432 @@ fn render_dialect_control(mut dialect: Signal<String>) -> Element {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = "/assets/embeddings.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureWorker)]
+    fn js_embedding_configure_worker(worker_url: &str);
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingStatus)]
+    fn js_embedding_status() -> js_sys::Promise;
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingSetup)]
+    fn js_embedding_setup(corpus_json: &str) -> js_sys::Promise;
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingRemove)]
+    fn js_embedding_remove() -> js_sys::Promise;
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingSearch)]
+    fn js_embedding_search(corpus_id: &str, query: &str, limit: usize) -> js_sys::Promise;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!worker_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_worker_url(worker_url: &str) {
+    js_embedding_configure_worker(worker_url);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!worker_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_worker_url(_worker_url: &str) {}
+
+#[requires(true)]
+#[ensures(true)]
+async fn refresh_embedding_settings(mut settings: Signal<EmbeddingSettingsState>) {
+    match embedding_status_json().await {
+        Ok(json) => settings.set(embedding_settings_from_json(
+            &json,
+            "Browser embeddings are ready.",
+        )),
+        Err(error) => settings.set(EmbeddingSettingsState {
+            status: "unavailable".to_owned(),
+            detail: error,
+            model_size: "unknown".to_owned(),
+            index_size: "unknown".to_owned(),
+            progress_label: None,
+            progress_percent: None,
+            busy: false,
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn setup_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
+    let corpus_json = embedding_worker_corpus_json();
+    match embedding_setup_json(&corpus_json).await {
+        Ok(json) => settings.set(embedding_settings_from_json(
+            &json,
+            "Browser embeddings are ready.",
+        )),
+        Err(error) => settings.set(EmbeddingSettingsState {
+            status: "error".to_owned(),
+            detail: error,
+            model_size: "unknown".to_owned(),
+            index_size: "unknown".to_owned(),
+            progress_label: None,
+            progress_percent: None,
+            busy: false,
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn poll_embedding_settings_while_busy(mut settings: Signal<EmbeddingSettingsState>) {
+    loop {
+        sleep_ms(350).await;
+        if !settings.read().busy {
+            break;
+        }
+        if let Ok(json) = embedding_status_json().await {
+            let mut next =
+                embedding_settings_from_json(&json, "Browser embeddings are being prepared.");
+            next.busy = true;
+            settings.set(next);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn remove_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
+    match embedding_remove_json().await {
+        Ok(json) => settings.set(embedding_settings_from_json(
+            &json,
+            "Browser embeddings were removed.",
+        )),
+        Err(error) => settings.set(EmbeddingSettingsState {
+            status: "error".to_owned(),
+            detail: error,
+            model_size: "unknown".to_owned(),
+            index_size: "unknown".to_owned(),
+            progress_label: None,
+            progress_percent: None,
+            busy: false,
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticResultState {
+    match embedding_search_json("vlacku-en", &state.query, 0).await {
+        Ok(json) => {
+            let (hits, message) = parse_vlacku_semantic_search_json(&json);
+            VlackuSemanticResultState {
+                state: Some(state),
+                hits,
+                message,
+                loading: false,
+            }
+        }
+        Err(error) => VlackuSemanticResultState {
+            state: Some(state),
+            hits: Vec::new(),
+            message: Some(error),
+            loading: false,
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemanticResultState {
+    match embedding_search_json("cukta-cll", &state.query, 0).await {
+        Ok(json) => {
+            let (hits, message) = parse_cukta_semantic_search_json(&json);
+            CuktaSemanticResultState {
+                state: Some(state),
+                hits,
+                message,
+                loading: false,
+            }
+        }
+        Err(error) => CuktaSemanticResultState {
+            state: Some(state),
+            hits: Vec::new(),
+            message: Some(error),
+            loading: false,
+        },
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_status_json() -> Result<String, String> {
+    promise_to_string(js_embedding_status()).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn embedding_status_json() -> Result<String, String> {
+    Err("Browser embeddings are available only in the wasm web app.".to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_setup_json(corpus_json: &str) -> Result<String, String> {
+    promise_to_string(js_embedding_setup(corpus_json)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn embedding_setup_json(_corpus_json: &str) -> Result<String, String> {
+    Err("Browser embeddings are available only in the wasm web app.".to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_remove_json() -> Result<String, String> {
+    promise_to_string(js_embedding_remove()).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn embedding_remove_json() -> Result<String, String> {
+    Err("Browser embeddings are available only in the wasm web app.".to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_search_json(
+    corpus_id: &str,
+    query: &str,
+    limit: usize,
+) -> Result<String, String> {
+    promise_to_string(js_embedding_search(corpus_id, query, limit)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn embedding_search_json(
+    _corpus_id: &str,
+    _query: &str,
+    _limit: usize,
+) -> Result<String, String> {
+    Err(
+        "Open Settings and download embeddings in the browser before using meaning search."
+            .to_owned(),
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn promise_to_string(promise: js_sys::Promise) -> Result<String, String> {
+    let value = wasm_bindgen_futures::JsFuture::from(promise)
+        .await
+        .map_err(js_value_to_string)?;
+    value
+        .as_string()
+        .ok_or_else(|| "embedding worker returned a non-string response".to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(milliseconds >= 0)]
+#[ensures(true)]
+async fn sleep_ms(milliseconds: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        let Some(window) = web_sys::window() else {
+            let _ = resolve.call0(&JsValue::NULL);
+            return;
+        };
+        let resolve_now = resolve.clone();
+        let closure = Closure::once(move || {
+            let _ = resolve_now.call0(&JsValue::NULL);
+        });
+        if window
+            .set_timeout_with_callback_and_timeout_and_arguments_0(
+                closure.as_ref().unchecked_ref(),
+                milliseconds,
+            )
+            .is_ok()
+        {
+            closure.forget();
+        } else {
+            let _ = resolve.call0(&JsValue::NULL);
+        }
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(milliseconds >= 0)]
+#[ensures(true)]
+async fn sleep_ms(_milliseconds: i32) {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn js_value_to_string(value: JsValue) -> String {
+    value.as_string().unwrap_or_else(|| {
+        js_sys::JSON::stringify(&value)
+            .ok()
+            .and_then(|text| text.as_string())
+            .unwrap_or_else(|| "embedding worker request failed".to_owned())
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.status.is_empty())]
+fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingSettingsState {
+    let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
+    let status = json_string(&value, "status").unwrap_or_else(|| "unknown".to_owned());
+    let detail = json_string(&value, "detail")
+        .or_else(|| json_string(&value, "message"))
+        .unwrap_or_else(|| fallback_detail.to_owned());
+    let model_size = value
+        .get("modelBytes")
+        .and_then(serde_json::Value::as_u64)
+        .map(human_bytes)
+        .unwrap_or_else(|| "unknown".to_owned());
+    let model_runtime = match (
+        json_string(&value, "modelDtype"),
+        json_string(&value, "modelDevice"),
+    ) {
+        (Some(dtype), Some(device)) => Some(format!("{dtype}/{device}")),
+        (Some(dtype), None) => Some(dtype),
+        _ => None,
+    };
+    let model_size = match model_runtime {
+        Some(runtime) if model_size != "unknown" => format!("{model_size} ({runtime})"),
+        Some(runtime) => runtime,
+        None => model_size,
+    };
+    let index_size = value
+        .get("indexBytes")
+        .and_then(serde_json::Value::as_u64)
+        .map(human_bytes)
+        .unwrap_or_else(|| "unknown".to_owned());
+    let progress = value.get("progress");
+    let progress_label = progress
+        .and_then(|progress| json_string(progress, "label"))
+        .filter(|label| !label.is_empty());
+    let progress_percent = progress
+        .and_then(|progress| progress.get("percent"))
+        .and_then(serde_json::Value::as_u64)
+        .map(|percent| percent.min(100) as u8);
+    EmbeddingSettingsState {
+        status,
+        detail,
+        model_size,
+        index_size,
+        progress_label,
+        progress_percent,
+        busy: false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_semantic_search_json(json: &str) -> (Vec<VlackuSemanticSearchHit>, Option<String>) {
+    let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
+    let message = json_string(&value, "message");
+    let hits = value
+        .get("hits")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|hit| {
+            Some(VlackuSemanticSearchHit {
+                entry_index: hit.get("id")?.as_u64()? as usize,
+                score: hit.get("score")?.as_f64()? as f32,
+            })
+        })
+        .collect();
+    (hits, message)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_cukta_semantic_search_json(json: &str) -> (Vec<CuktaSemanticSearchHit>, Option<String>) {
+    let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
+    let message = json_string(&value, "message");
+    let hits = value
+        .get("hits")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|hit| {
+            Some(CuktaSemanticSearchHit {
+                chunk_index: hit.get("id")?.as_u64()? as usize,
+                score: hit.get("score")?.as_f64()? as f32,
+            })
+        })
+        .collect();
+    (hits, message)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_string(value: &serde_json::Value, key: &str) -> Option<String> {
+    value
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn human_bytes(bytes: u64) -> String {
+    const MIB: f64 = 1024.0 * 1024.0;
+    if bytes < 1024 * 1024 {
+        format!("{bytes} B")
+    } else {
+        format!("{:.1} MiB", bytes as f64 / MIB)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn current_cukta_page(
+    base_path: &str,
+    state: &CuktaWebState,
+    semantic_result: &CuktaSemanticResultState,
+    fallback: &CuktaPageData,
+) -> CuktaPageData {
+    let CuktaWebView::Search(search_state) = &state.view else {
+        return fallback.clone();
+    };
+    if search_state.mode != CuktaWebMode::Meaning {
+        return fallback.clone();
+    }
+    if search_state.query.trim().is_empty() {
+        return build_cukta_semantic_web_page(base_path, state, &[], None);
+    }
+    if semantic_result.state.as_ref() == Some(search_state) {
+        let message = if semantic_result.loading {
+            Some("Loading semantic search index.".to_owned())
+        } else {
+            semantic_result.message.clone()
+        };
+        return build_cukta_semantic_web_page(base_path, state, &semantic_result.hits, message);
+    }
+    build_cukta_semantic_web_page(
+        base_path,
+        state,
+        &[],
+        Some("Preparing semantic search.".to_owned()),
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_page(
     cukta_state: Signal<CuktaWebState>,
     cukta_page: Memo<CuktaPageData>,
+    cukta_semantic_result: Signal<CuktaSemanticResultState>,
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
     toc_expansion: Signal<CuktaTocExpansionState>,
@@ -716,7 +1277,14 @@ fn render_cukta_page(
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     base_path: &str,
 ) -> Element {
-    let page = cukta_page.read();
+    let current_state = cukta_state.read().clone();
+    let semantic_result = cukta_semantic_result.read().clone();
+    let page = current_cukta_page(
+        base_path,
+        &current_state,
+        &semantic_result,
+        &cukta_page.read(),
+    );
     let toc_is_pinned = *toc_pinned.read();
     let is_resizing = toc_resize.read().is_some();
     let shell_class = class_names(
@@ -1384,7 +1952,7 @@ fn render_cukta_search_controls(
                     class: "query-input",
                     r#type: "search",
                     aria_label: "CLL search query",
-                    placeholder: if state.mode == CuktaWebMode::Word { "valsi" } else { "meaning search disabled" },
+                    placeholder: if state.mode == CuktaWebMode::Word { "valsi" } else { "semantic search" },
                     spellcheck: "false",
                     value: "{state.query}",
                     oninput: move |event| {
@@ -1422,7 +1990,7 @@ fn render_cukta_mode_button(
             class: vlacku_mode_class(option_selected),
             r#type: "button",
             disabled: option_disabled,
-            title: if option_disabled { "Meaning search will be enabled when vector search is ported" } else { "Find CLL passages containing this word" },
+            title: if mode == CuktaWebMode::Meaning { "Find CLL passages with similar meaning" } else { "Find CLL passages containing this word" },
             aria_pressed: pressed_attr(option_selected),
             onclick: move |_| {
                 if !option_disabled {
@@ -2469,15 +3037,46 @@ fn set_cukta_state(cukta_state: &mut Signal<CuktaWebState>, state: CuktaWebState
 
 #[requires(true)]
 #[ensures(true)]
+fn current_vlacku_result(
+    committed_state: &VlackuWebState,
+    semantic_result: &VlackuSemanticResultState,
+    fallback: &VlackuWebResult,
+) -> VlackuWebResult {
+    if committed_state.mode != VlackuWebMode::Meaning {
+        return fallback.clone();
+    }
+    if committed_state.query.trim().is_empty() {
+        return build_vlacku_semantic_web_result(committed_state, &[], None);
+    }
+    if semantic_result.state.as_ref() == Some(committed_state) {
+        let message = if semantic_result.loading {
+            Some("Loading semantic search index.".to_owned())
+        } else {
+            semantic_result.message.clone()
+        };
+        return build_vlacku_semantic_web_result(committed_state, &semantic_result.hits, message);
+    }
+    build_vlacku_semantic_web_result(
+        committed_state,
+        &[],
+        Some("Preparing semantic search.".to_owned()),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_vlacku_page(
     vlacku_draft_state: Signal<VlackuWebState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     vlacku_result: Memo<VlackuWebResult>,
+    vlacku_semantic_result: Signal<VlackuSemanticResultState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     base_path: &str,
 ) -> Element {
-    let result = vlacku_result.read();
+    let committed_state = vlacku_committed_state.read().clone();
+    let semantic_result = vlacku_semantic_result.read().clone();
+    let result = current_vlacku_result(&committed_state, &semantic_result, &vlacku_result.read());
     let draft_state = vlacku_draft_state.read().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     let shell_class = if jvozba_pane.read().open {
@@ -2520,7 +3119,7 @@ fn render_vlacku_controls(
                                 span { class: "mode-bracket-label", "exact" }
                             }
                             div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
-                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
+                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", false) }
                                 { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Sound, "sound", false) }
                                 { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Word, "word", false) }
                                 { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
@@ -3422,7 +4021,7 @@ fn vlacku_mode_class(active: bool) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn vlacku_mode_title(mode: VlackuWebMode, disabled: bool) -> &'static str {
     if disabled {
-        "Meaning search will be enabled when vector search is ported"
+        "Semantic search is unavailable in this browser"
     } else {
         match mode {
             VlackuWebMode::Word => "Find the word with exact spelling",
@@ -3442,7 +4041,7 @@ fn vlacku_query_placeholder(mode: VlackuWebMode) -> &'static str {
         VlackuWebMode::Word => "valsi",
         VlackuWebMode::Rafsi => "rafsi",
         VlackuWebMode::Sound => "Lojban or [aj piː ej]",
-        VlackuWebMode::Meaning => "meaning search disabled",
+        VlackuWebMode::Meaning => "semantic search",
     }
 }
 
@@ -4572,11 +5171,17 @@ fn rect_anchor_toward(from: ReferenceRect, to: ReferenceRect) -> (f64, f64) {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_settings(settings: Signal<UserSettings>, current: UserSettings) -> Element {
+fn render_settings(
+    settings: Signal<UserSettings>,
+    current: UserSettings,
+    embedding_settings: Signal<EmbeddingSettingsState>,
+) -> Element {
+    let embedding_state = embedding_settings.read().clone();
     rsx! {
         section { class: "spa-page settings-page",
             div { class: "page-container settings-container",
                 h1 { "Settings" }
+                { render_embedding_settings(embedding_settings, &embedding_state) }
                 section { class: "settings-section",
                     h2 { "Theme" }
                     { render_theme_switch(settings, current.theme) }
@@ -4585,6 +5190,121 @@ fn render_settings(settings: Signal<UserSettings>, current: UserSettings) -> Ele
                     h2 { "Script" }
                     { render_script_switch(settings, current.script) }
                 }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_embedding_settings(
+    mut embedding_settings: Signal<EmbeddingSettingsState>,
+    state: &EmbeddingSettingsState,
+) -> Element {
+    let busy = state.busy;
+    rsx! {
+        section { class: "settings-section embeddings-settings",
+            h2 { "Embeddings" }
+            div { class: "settings-kv-grid",
+                span { class: "settings-kv-label", "Status" }
+                span { class: "settings-kv-value", "{state.status}" }
+                span { class: "settings-kv-label", "Model" }
+                span { class: "settings-kv-value", "{state.model_size}" }
+                span { class: "settings-kv-label", "Index" }
+                span { class: "settings-kv-value", "{state.index_size}" }
+            }
+            p { class: "settings-help-text", "{state.detail}" }
+            { render_embedding_progress(state) }
+            div { class: "settings-actions",
+                button {
+                    class: "settings-action-button",
+                    r#type: "button",
+                    disabled: busy,
+                    onclick: move |_| {
+                        let mut next = embedding_settings.read().clone();
+                        next.busy = true;
+                        next.detail = "Downloading model and preparing the browser index.".to_owned();
+                        next.progress_label = Some("Embedding setup".to_owned());
+                        next.progress_percent = None;
+                        embedding_settings.set(next);
+                        spawn(async move {
+                            poll_embedding_settings_while_busy(embedding_settings).await;
+                        });
+                        spawn(async move {
+                            setup_browser_embeddings(embedding_settings).await;
+                        });
+                    },
+                    "Download"
+                }
+                button {
+                    class: "settings-action-button",
+                    r#type: "button",
+                    disabled: busy,
+                    onclick: move |_| {
+                        let mut next = embedding_settings.read().clone();
+                        next.busy = true;
+                        next.detail = "Checking for a compatible vector pack.".to_owned();
+                        next.progress_label = Some("Embedding setup".to_owned());
+                        next.progress_percent = None;
+                        embedding_settings.set(next);
+                        spawn(async move {
+                            poll_embedding_settings_while_busy(embedding_settings).await;
+                        });
+                        spawn(async move {
+                            setup_browser_embeddings(embedding_settings).await;
+                        });
+                    },
+                    "Update"
+                }
+                button {
+                    class: "settings-action-button danger",
+                    r#type: "button",
+                    disabled: busy,
+                    onclick: move |_| {
+                        let mut next = embedding_settings.read().clone();
+                        next.busy = true;
+                        next.detail = "Removing browser embedding storage.".to_owned();
+                        next.progress_label = None;
+                        next.progress_percent = None;
+                        embedding_settings.set(next);
+                        spawn(async move {
+                            remove_browser_embeddings(embedding_settings).await;
+                        });
+                    },
+                    "Remove"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
+    if !state.busy && state.progress_percent.is_none() {
+        return rsx! {};
+    }
+    let label = state.progress_label.as_deref().unwrap_or("Embedding setup");
+    if let Some(percent) = state.progress_percent {
+        rsx! {
+            div { class: "settings-progress-row",
+                progress {
+                    class: "settings-progress",
+                    max: "100",
+                    value: "{percent}",
+                    aria_label: "{label}",
+                }
+                span { class: "settings-progress-label", "{label} {percent}%" }
+            }
+        }
+    } else {
+        rsx! {
+            div { class: "settings-progress-row",
+                progress {
+                    class: "settings-progress",
+                    aria_label: "{label}",
+                }
+                span { class: "settings-progress-label", "{label}" }
             }
         }
     }

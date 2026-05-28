@@ -11,12 +11,17 @@ use clap::{
 };
 use jbotci_cll::{
     CllError, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaTargetFilter,
-    DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request,
+    DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request, render_search_output,
 };
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_embeddings::native::{load_backend_for_search, setup_embeddings};
+use jbotci_embeddings::{
+    DEFAULT_MODEL_KEY, SetupOptions, default_index_root, semantic_cukta_output,
+    semantic_vlacku_hits,
+};
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
     build_best_jvozba_detailed,
@@ -37,7 +42,8 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCard, VlackuCompositionKind,
     VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
-    format_votes, normalize_word_type_filter, run_vlacku_requests,
+    dictionary_entry_card, filter_vlacku_cards, format_votes, normalize_word_type_filter,
+    run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -80,6 +86,7 @@ struct Cli {
 #[invariant(::Jvozba(..) => true)]
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
+#[invariant(::Setup(..) => true)]
 #[invariant(::Gerna(..) => true)]
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
@@ -98,6 +105,8 @@ enum Command {
     Cukta(CuktaInput),
     #[command(name = "zbasu")]
     Zbasu(TextInput),
+    #[command(name = "setup")]
+    Setup(SetupInput),
     #[cfg(feature = "grammar-debug")]
     #[command(name = "gerna", visible_alias = "grammar")]
     Gerna(GernaInput),
@@ -549,6 +558,21 @@ struct VlackuInput {
     decompose_lujvo: bool,
     requests: Vec<VlackuRequest>,
     query: Vec<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+#[invariant(true)]
+struct SetupInput {
+    #[arg(long = "embedding")]
+    embedding: bool,
+    #[arg(long = "force")]
+    force: bool,
+    #[arg(long = "model", default_value = DEFAULT_MODEL_KEY)]
+    model: String,
+    #[arg(long = "index-dir")]
+    index_dir: Option<PathBuf>,
+    #[arg(long = "model-dir")]
+    model_dir: Option<PathBuf>,
 }
 
 impl Args for VlackuInput {
@@ -1179,9 +1203,35 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
+        Command::Setup(input) => run_setup(input, stdout),
         #[cfg(feature = "grammar-debug")]
         Command::Gerna(input) => run_gerna(input, stdout),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_setup<WOut: Write>(input: SetupInput, stdout: &mut WOut) -> Result<CliStatus> {
+    if !input.embedding {
+        bail!("Choose at least one setup task, e.g. `jbotci setup --embedding`.");
+    }
+    let report = setup_embeddings(&SetupOptions {
+        model_key: input.model,
+        force: input.force,
+        index_dir: input.index_dir,
+        model_dir: input.model_dir,
+    })
+    .map_err(|error| anyhow!(error.to_string()))?;
+    writeln!(
+        stdout,
+        "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\ndictionary rows: {}\nCLL rows: {}",
+        report.model_path.display(),
+        report.index_root.display(),
+        report.pack_id,
+        report.dictionary_rows,
+        report.cll_rows
+    )?;
+    Ok(CliStatus::Success)
 }
 
 #[requires(true)]
@@ -1196,7 +1246,17 @@ fn run_vlacku<WOut: Write, WErr: Write>(
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
     let options = vlacku_search_options(&input)?;
-    let output = run_vlacku_requests(jbotci_dictionary_data::english(), &input.requests, &options);
+    let output = if input.requests.is_empty() {
+        match run_semantic_vlacku(&input, &options) {
+            Ok(output) => output,
+            Err(error) => {
+                writeln!(stderr, "vlacku: {error}")?;
+                return Ok(CliStatus::InvalidInput);
+            }
+        }
+    } else {
+        run_vlacku_requests(jbotci_dictionary_data::english(), &input.requests, &options)
+    };
     for diagnostic in &output.diagnostics {
         writeln!(stderr, "vlacku: {diagnostic}")?;
     }
@@ -1220,6 +1280,43 @@ fn run_vlacku<WOut: Write, WErr: Write>(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_semantic_vlacku(
+    input: &VlackuInput,
+    options: &VlackuSearchOptions,
+) -> Result<VlackuSearchOutput> {
+    let query = joined_query_text(&input.query).trim().to_owned();
+    if query.is_empty() {
+        bail!("vlacku query text must be non-empty.");
+    }
+    let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
+    let mut backend = load_backend_for_search(DEFAULT_MODEL_KEY, None)
+        .map_err(|error| anyhow!(error.to_string()))?;
+    let dictionary = jbotci_dictionary_data::english();
+    let hits = semantic_vlacku_hits(
+        &mut backend,
+        &query,
+        dictionary.entries().len(),
+        &index_root,
+        DEFAULT_MODEL_KEY,
+    )
+    .map_err(|error| anyhow!(error.to_string()))?;
+    let cards = hits
+        .into_iter()
+        .filter_map(|hit| {
+            dictionary.entries().get(hit.entry_index).map(|entry| {
+                dictionary_entry_card(dictionary, entry, Some(hit.score), options.decompose_lujvo)
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(VlackuSearchOutput {
+        cards: filter_vlacku_cards(cards, options, true),
+        outcome: VlackuOutcome::Found,
+        diagnostics: Vec::new(),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_cukta<WOut: Write, WErr: Write>(
     input: CuktaInput,
     stdout: &mut WOut,
@@ -1228,13 +1325,42 @@ fn run_cukta<WOut: Write, WErr: Write>(
     validate_cukta_input(&input)?;
     let request = cukta_request_from_input(&input)?;
     let site = embedded_cll_site().map_err(|error| anyhow!(error.to_string()))?;
-    let rendered = match render_cukta_request(site, &request, input.format.into()) {
-        Ok(rendered) => rendered,
-        Err(CllError::SemanticSearchDisabled) => {
-            writeln!(stderr, "{}", CllError::SemanticSearchDisabled)?;
-            return Ok(CliStatus::InvalidInput);
+    let rendered = match &request {
+        CuktaRequest::Search {
+            mode: CuktaSearchMode::Meaning,
+            query,
+            count,
+            targets,
+        } => {
+            let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
+            let output =
+                match load_backend_for_search(DEFAULT_MODEL_KEY, None).and_then(|mut backend| {
+                    semantic_cukta_output(
+                        &mut backend,
+                        jbotci_cll::cll_search_all_chunks(site),
+                        query,
+                        *count,
+                        *targets,
+                        &index_root,
+                        DEFAULT_MODEL_KEY,
+                    )
+                }) {
+                    Ok(output) => output,
+                    Err(error) => {
+                        writeln!(stderr, "{error}")?;
+                        return Ok(CliStatus::InvalidInput);
+                    }
+                };
+            render_search_output(&output, input.format.into())
         }
-        Err(error) => return Err(anyhow!(error.to_string())),
+        _ => match render_cukta_request(site, &request, input.format.into()) {
+            Ok(rendered) => rendered,
+            Err(CllError::SemanticSearchDisabled) => {
+                writeln!(stderr, "{}", CllError::SemanticSearchDisabled)?;
+                return Ok(CliStatus::InvalidInput);
+            }
+            Err(error) => return Err(anyhow!(error.to_string())),
+        },
     };
     write!(stdout, "{rendered}")?;
     if !rendered.ends_with('\n') {
@@ -1479,11 +1605,9 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
                 "No query provided for vlacku. Use --valsi, --rafsi, --lujvo, --glob, or --sound."
             );
         }
-        bail!(
-            "Semantic vlacku search is reserved for future embeddings; use --valsi, --rafsi, --lujvo, --glob, or --sound."
-        );
+        let _ = joined_query_text(&input.query);
     }
-    if !input.query.is_empty() {
+    if !input.query.is_empty() && !input.requests.is_empty() {
         bail!(
             "Do not pass positional query text when using --valsi, --rafsi, --lujvo, --glob, or --sound."
         );
@@ -1499,8 +1623,8 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     if sound_count == 1 && input.requests.len() > 1 {
         bail!("`--sound` cannot be combined with --valsi, --rafsi, --lujvo, or --glob");
     }
-    if input.min_similarity.is_some() && sound_count != 1 {
-        bail!("`--min-similarity` is only valid with `--sound`");
+    if input.min_similarity.is_some() && sound_count != 1 && !input.requests.is_empty() {
+        bail!("`--min-similarity` is only valid with `--sound` or semantic search");
     }
     for request in &input.requests {
         validate_vlacku_request_value(request)?;
@@ -1518,6 +1642,7 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
         VlackuRequest::Lujvo(value) => ("--lujvo", value),
         VlackuRequest::Glob(value) => ("--glob", value),
         VlackuRequest::Sound(value) => ("--sound", value),
+        VlackuRequest::Meaning(value) => ("semantic query", value),
     };
     if value.trim().is_empty() {
         bail!("{flag} requires a non-empty value");
@@ -3067,8 +3192,11 @@ mod tests {
     use clap::CommandFactory;
     use clap::error::ErrorKind;
     use jbotci_dialect::DialectFeature;
+    use jbotci_embeddings::{EMBEDDING_INDEX_DIR_ENV, EMBEDDING_MODEL_DIR_ENV};
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::parse_syntax_tree;
+    use std::path::Path;
+    use std::sync::{Mutex, OnceLock};
 
     #[test]
     #[requires(true)]
@@ -3213,7 +3341,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn rejects_reserved_vlacku_embedding_inputs() {
+    fn rejects_reserved_vlacku_index_and_accepts_semantic_query_path() {
         let index_cli = Cli::try_parse_from(["jbotci", "vlacku", "--index", "--valsi", "klama"])
             .expect("index flag parses");
         let index_error = run_cli(index_cli, &mut Vec::new(), &mut Vec::new(), false)
@@ -3224,11 +3352,14 @@ mod tests {
                 .contains("future semantic embeddings")
         );
 
-        let positional_cli = Cli::try_parse_from(["jbotci", "vlacku", "going somewhere"])
-            .expect("semantic positional query parses");
-        let positional_error = run_cli(positional_cli, &mut Vec::new(), &mut Vec::new(), false)
-            .expect_err("semantic query is not implemented");
-        assert!(positional_error.to_string().contains("future embeddings"));
+        let run = run_cli_capture_with_embedding_dirs(
+            &["jbotci", "vlacku", "going somewhere"],
+            false,
+            &unique_embedding_test_path("reserved-vlacku-model-missing"),
+            &unique_embedding_test_path("reserved-vlacku-index-missing"),
+        );
+        assert_eq!(run.status, CliStatus::InvalidInput);
+        assert!(run.stderr.contains("jbotci setup --embedding"));
     }
 
     #[test]
@@ -4954,14 +5085,74 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn cukta_semantic_search_is_disabled() {
-        let run = run_cli_capture(&["jbotci", "cukta", "lojban"], false);
+    fn cukta_semantic_search_reports_missing_setup() {
+        let run = run_cli_capture_with_embedding_dirs(
+            &["jbotci", "cukta", "lojban"],
+            false,
+            &unique_embedding_test_path("cukta-model-missing"),
+            &unique_embedding_test_path("cukta-index-missing"),
+        );
 
         assert_eq!(run.status, CliStatus::InvalidInput);
         assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(run.stderr.contains("jbotci setup --embedding"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_search_reports_missing_setup() {
+        let run = run_cli_capture_with_embedding_dirs(
+            &["jbotci", "vlacku", "language"],
+            false,
+            &unique_embedding_test_path("vlacku-model-missing"),
+            &unique_embedding_test_path("vlacku-index-missing"),
+        );
+
+        assert_eq!(run.status, CliStatus::InvalidInput);
+        assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(run.stderr.contains("jbotci setup --embedding"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn setup_embedding_requires_a_setup_task() {
+        let cli = Cli::try_parse_from(["jbotci", "setup"]).expect("setup parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let result = run_cli(cli, &mut output, &mut error, false);
+
+        assert!(result.is_err());
+        assert!(output.is_empty());
+        assert!(error.is_empty());
         assert!(
-            run.stderr
-                .contains("cukta meaning search is not available yet")
+            result
+                .expect_err("setup without task fails")
+                .to_string()
+                .contains("jbotci setup --embedding")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn setup_embedding_rejects_unknown_model_without_download() {
+        let cli =
+            Cli::try_parse_from(["jbotci", "setup", "--embedding", "--model", "unknown-model"])
+                .expect("setup parses");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let result = run_cli(cli, &mut output, &mut error, false);
+
+        assert!(result.is_err());
+        assert!(output.is_empty());
+        assert!(error.is_empty());
+        assert!(
+            result
+                .expect_err("unknown model fails")
+                .to_string()
+                .contains("unsupported embedding model")
         );
     }
 
@@ -5423,6 +5614,60 @@ mod tests {
         status: CliStatus,
         stdout: String,
         stderr: String,
+    }
+
+    static EMBEDDING_ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_env_lock() -> &'static Mutex<()> {
+        EMBEDDING_ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    #[requires(!suffix.is_empty())]
+    #[ensures(!ret.as_os_str().is_empty())]
+    fn unique_embedding_test_path(suffix: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "jbotci-embedding-test-{}-{}",
+            std::process::id(),
+            suffix
+        ))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_cli_capture_with_embedding_dirs(
+        args: &[&str],
+        color_enabled: bool,
+        model_dir: &Path,
+        index_dir: &Path,
+    ) -> CapturedCliRun {
+        let _guard = embedding_env_lock()
+            .lock()
+            .expect("embedding env lock is not poisoned");
+        let old_model_dir = std::env::var_os(EMBEDDING_MODEL_DIR_ENV);
+        let old_index_dir = std::env::var_os(EMBEDDING_INDEX_DIR_ENV);
+        set_embedding_test_env(EMBEDDING_MODEL_DIR_ENV, Some(model_dir.as_os_str()));
+        set_embedding_test_env(EMBEDDING_INDEX_DIR_ENV, Some(index_dir.as_os_str()));
+        let run = run_cli_capture(args, color_enabled);
+        set_embedding_test_env(EMBEDDING_MODEL_DIR_ENV, old_model_dir.as_deref());
+        set_embedding_test_env(EMBEDDING_INDEX_DIR_ENV, old_index_dir.as_deref());
+        run
+    }
+
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn set_embedding_test_env(name: &str, value: Option<&std::ffi::OsStr>) {
+        // The embedding env vars are process-global; tests that mutate them hold
+        // EMBEDDING_ENV_LOCK so concurrent semantic-search tests cannot observe a
+        // half-updated pair.
+        unsafe {
+            if let Some(value) = value {
+                std::env::set_var(name, value);
+            } else {
+                std::env::remove_var(name);
+            }
+        }
     }
 
     #[requires(true)]

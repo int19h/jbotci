@@ -8,11 +8,12 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllBlock, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID,
-    DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT, cll_first_section_id,
-    cll_index_entries, cll_lookup_section, cll_next_section_id, cll_previous_section_id,
-    cll_resolve_section_reference, cll_search_chunk_href, cll_section_chapter_title, cukta_search,
-    embedded_cll_site, format_section_display_title, truncate_preview,
+    CllBlock, CllSearchChunk, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
+    DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
+    cll_first_section_id, cll_index_entries, cll_lookup_section, cll_next_section_id,
+    cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
+    cll_search_chunk_href, cll_section_chapter_title, cukta_search, embedded_cll_site,
+    format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
@@ -32,9 +33,9 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCompositionKind,
-    VlackuRequest, VlackuSearchOptions, format_votes, is_brivla_like, is_cmavo_like,
-    is_cmevla_like, is_fuhivla_like, is_gismu_like, is_letteral_like, is_lujvo_like,
-    normalize_word_type_filter, run_vlacku_requests,
+    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, filter_vlacku_cards, format_votes,
+    is_brivla_like, is_cmavo_like, is_cmevla_like, is_fuhivla_like, is_gismu_like,
+    is_letteral_like, is_lujvo_like, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::{SourceId, SourceSpan};
@@ -1914,6 +1915,129 @@ pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
 
 pub const CUKTA_WEB_DEFAULT_COUNT: usize = DEFAULT_CUKTA_WEB_RESULT_COUNT;
 pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
+pub const WEB_EMBEDDING_MODEL_KEY: &str = "embedding-gemma-300m-q4-768";
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EmbeddingWorkerCorpus {
+    model_key: String,
+    input_format_version: String,
+    dictionary: Vec<EmbeddingWorkerDocument>,
+    cll: Vec<EmbeddingWorkerDocument>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+struct EmbeddingWorkerDocument {
+    id: usize,
+    input: String,
+    kind: Option<String>,
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn embedding_worker_corpus_json() -> String {
+    let dictionary = jbotci_dictionary_data::english()
+        .entries()
+        .iter()
+        .enumerate()
+        .map(|(id, entry)| EmbeddingWorkerDocument {
+            id,
+            input: dictionary_embedding_input(entry),
+            kind: None,
+        })
+        .collect::<Vec<_>>();
+    let cll = embedded_cll_site()
+        .map(|site| {
+            cll_search_all_chunks(site)
+                .iter()
+                .enumerate()
+                .map(|(id, chunk)| EmbeddingWorkerDocument {
+                    id,
+                    input: cll_embedding_input(chunk),
+                    kind: Some(cukta_chunk_kind_label(chunk.kind).to_owned()),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    serde_json::to_string(&EmbeddingWorkerCorpus {
+        model_key: WEB_EMBEDDING_MODEL_KEY.to_owned(),
+        input_format_version: "egemma-v0-parity-1".to_owned(),
+        dictionary,
+        cll,
+    })
+    .unwrap_or_else(|_| "{}".to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.contains(&entry.word))]
+fn dictionary_embedding_input(entry: &DictionaryEntry<'_>) -> String {
+    let mut body_parts = Vec::new();
+    let definition = replace_dollar_markup_with_placeholder(entry.definition);
+    if !definition.trim().is_empty() {
+        body_parts.push(definition);
+    }
+    let glosses = entry
+        .gloss_keywords
+        .iter()
+        .map(|keyword| match keyword.meaning {
+            Some(meaning) => format!("{} ({meaning})", keyword.word),
+            None => keyword.word.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    if !glosses.trim().is_empty() {
+        body_parts.push(glosses);
+    }
+    retrieval_document_input(&body_parts.join("\n"), entry.word)
+}
+
+#[requires(true)]
+#[ensures(ret.contains(&chunk.label))]
+fn cll_embedding_input(chunk: &CllSearchChunk) -> String {
+    retrieval_document_input(&chunk.text, &chunk.label)
+}
+
+#[requires(true)]
+#[ensures(ret.contains(" | text: "))]
+fn retrieval_document_input(content: &str, title: &str) -> String {
+    let safe_title = if title.trim().is_empty() {
+        "none"
+    } else {
+        title
+    };
+    format!("title: {safe_title} | text: {content}")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn replace_dollar_markup_with_placeholder(input: &str) -> String {
+    let mut output = String::new();
+    let mut rest = input;
+    loop {
+        let Some(start) = rest.find('$') else {
+            output.push_str(rest);
+            break;
+        };
+        output.push_str(&rest[..start]);
+        let after_start = &rest[start + 1..];
+        let Some(end) = after_start.find('$') else {
+            output.push('$');
+            output.push_str(after_start);
+            break;
+        };
+        let inside = &after_start[..end];
+        if inside.trim().is_empty() {
+            output.push_str("$ $");
+        } else {
+            output.push_str("place");
+        }
+        rest = &after_start[end + 1..];
+    }
+    output
+}
 
 #[invariant(true)]
 #[invariant(::Meaning => true)]
@@ -2061,6 +2185,14 @@ pub struct CuktaSearchResultCard {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaSemanticSearchHit {
+    pub chunk_index: usize,
+    pub score: f32,
+}
+
+#[invariant(true)]
 #[invariant(::Section { .. } => true)]
 #[invariant(::Index { .. } => true)]
 #[invariant(::Search { .. } => true)]
@@ -2204,6 +2336,14 @@ pub struct VlackuWebResult {
     pub has_more: bool,
     pub message: Option<String>,
     pub errors: Vec<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuSemanticSearchHit {
+    pub entry_index: usize,
+    pub score: f32,
 }
 
 #[invariant(true)]
@@ -2510,6 +2650,87 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
 
 #[requires(true)]
 #[ensures(true)]
+pub fn build_vlacku_semantic_web_result(
+    state: &VlackuWebState,
+    hits: &[VlackuSemanticSearchHit],
+    message: Option<String>,
+) -> VlackuWebResult {
+    let normalized_state = normalize_vlacku_state(state);
+    let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
+    if normalized_state.query.trim().is_empty() {
+        return VlackuWebResult {
+            state: normalized_state,
+            cards: Vec::new(),
+            word_type_options,
+            dictionary_info: Some(build_vlacku_dictionary_info()),
+            has_more: false,
+            message: None,
+            errors: Vec::new(),
+        };
+    }
+    if let Some(message) = message {
+        return VlackuWebResult {
+            state: normalized_state,
+            cards: Vec::new(),
+            word_type_options,
+            dictionary_info: None,
+            has_more: false,
+            message: Some(message),
+            errors: Vec::new(),
+        };
+    }
+
+    let dictionary = jbotci_dictionary_data::english();
+    let cards = hits
+        .iter()
+        .filter_map(|hit| {
+            dictionary
+                .entries()
+                .get(hit.entry_index)
+                .map(|entry| dictionary_entry_card(dictionary, entry, Some(hit.score), true))
+        })
+        .collect::<Vec<_>>();
+    let fetch_count = normalized_state
+        .count
+        .saturating_add(1)
+        .min(VLACKU_WEB_MAX_COUNT);
+    let filtered = filter_vlacku_cards(
+        cards,
+        &VlackuSearchOptions {
+            count: fetch_count,
+            word_types: normalized_state.word_types.clone(),
+            min_votes: None,
+            min_similarity: None,
+            decompose_lujvo: true,
+        },
+        true,
+    );
+    let has_more = filtered.len() > normalized_state.count;
+    let cards = filtered
+        .into_iter()
+        .take(normalized_state.count)
+        .enumerate()
+        .map(|(index, card)| web_card_from_search_card(index + 1, card))
+        .collect::<Vec<_>>();
+    let message = if cards.is_empty() {
+        Some("No matches found.".to_owned())
+    } else {
+        None
+    };
+
+    VlackuWebResult {
+        state: normalized_state,
+        cards,
+        word_type_options,
+        dictionary_info: None,
+        has_more,
+        message,
+        errors: Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPageData {
     let normalized_state = normalize_cukta_state(state);
     let site = match embedded_cll_site() {
@@ -2638,6 +2859,88 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 },
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_cukta_semantic_web_page(
+    base_path: &str,
+    state: &CuktaWebState,
+    hits: &[CuktaSemanticSearchHit],
+    message: Option<String>,
+) -> CuktaPageData {
+    let normalized_state = normalize_cukta_state(state);
+    let search_state = match normalized_state.view.clone() {
+        CuktaWebView::Search(search_state) => search_state,
+        _ => return build_cukta_web_page(base_path, &normalized_state),
+    };
+    let site = match embedded_cll_site() {
+        Ok(site) => site,
+        Err(error) => {
+            return CuktaPageData {
+                toc: Vec::new(),
+                current_section_id: None,
+                page_kind: CuktaPageKind::Error {
+                    message: error.to_string(),
+                },
+            };
+        }
+    };
+    let targets = cukta_target_filter(&search_state.targets);
+    let chunks = cll_search_all_chunks(site);
+    let mut results = Vec::new();
+    if message.is_none() && !search_state.query.trim().is_empty() {
+        for hit in hits {
+            let Some(chunk) = chunks.get(hit.chunk_index) else {
+                continue;
+            };
+            if !cukta_chunk_allowed(chunk.kind, targets) {
+                continue;
+            }
+            results.push(CuktaSearchResultCard {
+                rank: results.len() + 1,
+                similarity_label: Some(format!("{:.0}%", hit.score * 100.0)),
+                kind: cukta_chunk_kind_label(chunk.kind).to_owned(),
+                label: chunk.label.clone(),
+                href: cukta_chunk_href(base_path, chunk),
+                section_label: format!("{}. {}", chunk.section_number, chunk.section_title),
+                preview: truncate_preview(&chunk.text, 420),
+            });
+            if results.len() > search_state.count {
+                break;
+            }
+        }
+    }
+    let has_more = results.len() > search_state.count;
+    results.truncate(search_state.count);
+    let message = message.or_else(|| {
+        (results.is_empty() && !search_state.query.trim().is_empty())
+            .then(|| "No matches found.".to_owned())
+    });
+    CuktaPageData {
+        toc: build_cukta_toc(site, base_path, None),
+        current_section_id: None,
+        page_kind: CuktaPageKind::Search {
+            state: search_state.clone(),
+            mode_options: cukta_mode_options(search_state.mode),
+            target_options: cukta_target_options(&search_state.targets),
+            results,
+            message,
+            has_more,
+            load_more_href: if has_more {
+                let mut next = search_state;
+                next.count = next.count.saturating_mul(2).clamp(1, CUKTA_WEB_MAX_COUNT);
+                Some(cukta_web_url(
+                    base_path,
+                    &CuktaWebState {
+                        view: CuktaWebView::Search(next),
+                    },
+                ))
+            } else {
+                None
+            },
+        },
     }
 }
 
@@ -3300,7 +3603,7 @@ fn cukta_mode_options(selected: CuktaWebMode) -> Vec<CuktaModeOption> {
             value: "smuni".to_owned(),
             label: "meaning".to_owned(),
             selected: selected == CuktaWebMode::Meaning,
-            disabled: true,
+            disabled: false,
         },
         CuktaModeOption {
             value: "valsi".to_owned(),
@@ -3417,6 +3720,16 @@ fn cukta_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
         CllSearchChunkKind::Section => "section",
         CllSearchChunkKind::Paragraph => "paragraph",
         CllSearchChunkKind::Example => "example",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_chunk_allowed(kind: CllSearchChunkKind, targets: CuktaTargetFilter) -> bool {
+    match kind {
+        CllSearchChunkKind::Section => targets.sections,
+        CllSearchChunkKind::Paragraph => targets.paragraphs,
+        CllSearchChunkKind::Example => targets.examples,
     }
 }
 
@@ -4731,7 +5044,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn cukta_builds_section_word_search_and_disabled_meaning_pages() {
+    fn cukta_builds_section_word_search_and_semantic_pages() {
         let section_page = build_cukta_web_page("", &CuktaWebState::default());
         assert!(section_page.current_section_id.is_some());
         assert!(matches!(
@@ -4766,28 +5079,40 @@ mod tests {
             Some("4.3. brivla")
         );
 
-        let meaning_page = build_cukta_web_page(
+        let meaning_state = CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState {
+                mode: CuktaWebMode::Meaning,
+                query: "lojban".to_owned(),
+                count: 3,
+                targets: default_cukta_target_values(),
+            }),
+        };
+        let meaning_page = build_cukta_semantic_web_page(
             "",
-            &CuktaWebState {
-                view: CuktaWebView::Search(CuktaWebSearchState {
-                    mode: CuktaWebMode::Meaning,
-                    query: "lojban".to_owned(),
-                    count: 3,
-                    targets: default_cukta_target_values(),
-                }),
-            },
+            &meaning_state,
+            &[CuktaSemanticSearchHit {
+                chunk_index: 0,
+                score: 0.75,
+            }],
+            None,
         );
         let CuktaPageKind::Search {
-            results, message, ..
+            results,
+            message,
+            mode_options,
+            ..
         } = meaning_page.page_kind
         else {
             panic!("expected meaning search page");
         };
-        assert!(results.is_empty());
+        assert!(message.is_none(), "{message:?}");
         assert_eq!(
-            message.as_deref(),
-            Some("Meaning search is not available yet.")
+            results
+                .first()
+                .map(|result| result.similarity_label.as_deref()),
+            Some(Some("75%"))
         );
+        assert!(mode_options.iter().all(|option| !option.disabled));
     }
 
     #[test]
@@ -4854,20 +5179,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_blank_query_returns_dictionary_info_and_disabled_meaning_message() {
+    fn vlacku_blank_query_returns_dictionary_info_and_semantic_results_render() {
         let blank = build_vlacku_web_result(&VlackuWebState::default());
         assert!(blank.dictionary_info.is_some());
 
-        let meaning = build_vlacku_web_result(&VlackuWebState {
-            mode: VlackuWebMode::Meaning,
-            query: "klama".to_owned(),
-            count: 20,
-            word_types: Vec::new(),
-        });
-        assert_eq!(
-            meaning.message.as_deref(),
-            Some("Meaning search is not available yet.")
+        let dictionary = jbotci_dictionary_data::english();
+        let klama_index = dictionary
+            .entries()
+            .iter()
+            .position(|entry| entry.word == "klama")
+            .expect("klama exists");
+        let meaning = build_vlacku_semantic_web_result(
+            &VlackuWebState {
+                mode: VlackuWebMode::Meaning,
+                query: "go somewhere".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            &[VlackuSemanticSearchHit {
+                entry_index: klama_index,
+                score: 0.91,
+            }],
+            None,
         );
+        assert_eq!(
+            meaning.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(
+            meaning.cards.first().and_then(|card| card.similarity),
+            Some(0.91)
+        );
+
+        let missing = build_vlacku_semantic_web_result(
+            &VlackuWebState {
+                mode: VlackuWebMode::Meaning,
+                query: "klama".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            &[],
+            Some("Open Settings".to_owned()),
+        );
+        assert_eq!(missing.message.as_deref(), Some("Open Settings"));
     }
 
     #[test]
@@ -4971,6 +5325,28 @@ mod tests {
             output,
             VlackuJvozbaOutput::Success { ref word, .. } if word == "jbobau"
         ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_worker_corpus_json_uses_browser_worker_schema() {
+        let json = embedding_worker_corpus_json();
+        let value = serde_json::from_str::<serde_json::Value>(&json)
+            .expect("embedding worker corpus should be valid JSON");
+
+        assert_eq!(
+            value.get("modelKey").and_then(serde_json::Value::as_str),
+            Some(WEB_EMBEDDING_MODEL_KEY)
+        );
+        assert!(value.get("model-key").is_none());
+        assert!(value.get("model_key").is_none());
+        assert!(
+            value
+                .get("dictionary")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|items| !items.is_empty())
+        );
     }
 
     #[test]

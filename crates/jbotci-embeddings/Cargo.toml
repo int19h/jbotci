@@ -1,6 +1,6 @@
 [package]
-name = "jbotci-web-core"
-description = "Shared web/API view models and gentufa parser facade for jbotci."
+name = "jbotci-embeddings"
+description = "EmbeddingGemma model, vector pack, and semantic search support for jbotci."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,29 +9,30 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
+default = []
 expensive_contracts = []
+native-llama = ["dep:llama-cpp-4"]
 
 [dependencies]
+anyhow.workspace = true
 bityzba.workspace = true
+brotli.workspace = true
+directories.workspace = true
 jbotci-cll.workspace = true
-jbotci-diagnostics.workspace = true
-jbotci-dialect.workspace = true
 jbotci-dictionary.workspace = true
 jbotci-dictionary-data.workspace = true
-jbotci-jvozba.workspace = true
-jbotci-morphology.workspace = true
-jbotci-output.workspace = true
-jbotci-search.workspace = true
-jbotci-semantics.workspace = true
-jbotci-source.workspace = true
-jbotci-syntax.workspace = true
-jbotci-tree.workspace = true
+llama-cpp-4 = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
+ureq.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

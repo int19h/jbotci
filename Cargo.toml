@@ -11,6 +11,7 @@ members = [
     "crates/jbotci-dialect",
     "crates/jbotci-dictionary",
     "crates/jbotci-dictionary-data",
+    "crates/jbotci-embeddings",
     "crates/jbotci-jvozba",
     "crates/jbotci-morphology",
     "crates/jbotci-output",
@@ -81,9 +82,15 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 tower = "0.5"
 dioxus = "0.7"
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
 web-sys = "0.3"
 bzip2 = "0.6.1"
+brotli = "8.0.3"
+directories = "6.0.0"
+llama-cpp-4 = { version = "0.3.0", default-features = false }
 roxmltree = "0.21.1"
+tempfile = "3.27.0"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
 jbotci-diagnostics = { path = "crates/jbotci-diagnostics" }
@@ -92,6 +99,7 @@ bityzba-macros = { path = "crates/bityzba-macros" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
 jbotci-dictionary-data = { path = "crates/jbotci-dictionary-data" }
+jbotci-embeddings = { path = "crates/jbotci-embeddings" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
 jbotci-morphology = { path = "crates/jbotci-morphology" }
 jbotci-output = { path = "crates/jbotci-output" }

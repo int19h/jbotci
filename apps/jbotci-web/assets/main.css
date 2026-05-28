@@ -1373,6 +1373,76 @@ body::-webkit-scrollbar-thumb:hover,
   border-top: 1px solid var(--border-color);
 }
 
+.settings-kv-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 0.8rem;
+  align-items: baseline;
+  max-width: 34rem;
+}
+
+.settings-kv-label {
+  color: var(--app-muted);
+  font-size: 0.88rem;
+}
+
+.settings-kv-value {
+  min-width: 0;
+  color: var(--app-text);
+  overflow-wrap: anywhere;
+}
+
+.settings-help-text {
+  margin: 0;
+  max-width: 42rem;
+  color: var(--app-muted);
+}
+
+.settings-progress-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 18rem) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  max-width: 42rem;
+}
+
+.settings-progress {
+  width: 100%;
+  height: 0.75rem;
+  accent-color: var(--app-accent);
+}
+
+.settings-progress-label {
+  min-width: 0;
+  color: var(--app-muted);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.settings-action-button {
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 0.35rem;
+  background: var(--app-surface-1);
+  color: var(--app-text);
+}
+
+.settings-action-button:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  background: color-mix(in srgb, var(--app-surface-1) 82%, var(--app-accent));
+}
+
+.settings-action-button:disabled {
+  opacity: 0.58;
+}
+
 .dictionary-page {
   --app-surface-0: var(--surface-elevated);
   --app-surface-3: #e3d2b8;

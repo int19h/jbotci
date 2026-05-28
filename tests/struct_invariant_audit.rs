@@ -64,6 +64,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku jvozba drag state is transient browser pointer state constrained by drag handlers",
     ),
     (
+        "apps/jbotci-web/src/main.rs:EmbeddingSettingsState",
+        "embedding settings state is transient browser worker status parsed from JSON responses",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:VlackuSemanticResultState",
+        "vlacku semantic result state mirrors browser worker hits and is keyed by the committed search state",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:CuktaSemanticResultState",
+        "cukta semantic result state mirrors browser worker hits and is keyed by the committed search state",
+    ),
+    (
         "apps/jbotci/src/main.rs:Cli",
         "CLI root delegates input validation to clap",
     ),
@@ -90,6 +102,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/main.rs:VlackuInput",
         "custom clap parser preserves ordered request flags and command validation checks mode combinations",
+    ),
+    (
+        "apps/jbotci/src/main.rs:SetupInput",
+        "setup CLI input delegates model and directory validation to setup command execution",
     ),
     (
         "apps/jbotci/src/main.rs:VlaseiInput",
@@ -192,6 +208,70 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "section parse context is private loader state derived from an already parsed section heading",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingModelSpec",
+        "embedding model specs are fixed catalog records created by model_spec",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingCatalogModel",
+        "embedding catalog model rows are written by setup after pack validation",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingCatalog",
+        "embedding catalog is a static transport manifest written by setup",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingRuntime",
+        "embedding runtime entries are fixed manifest transport metadata",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:VectorShardManifest",
+        "vector shard manifests are generated from written shard files and SHA-256 checks",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusManifest",
+        "corpus manifests are generated from validated item files and vector shards",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingPackManifest",
+        "embedding pack manifests are generated after all corpus shards are written and validated",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:DictionaryEmbeddingItem",
+        "dictionary embedding item rows are generated from embedded dictionary entry order",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CllEmbeddingItem",
+        "CLL embedding item rows are generated from embedded CLL search chunk order",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:VectorHit",
+        "vector hits are produced by bounded vector ranking over validated row-major matrices",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:DictionarySemanticHit",
+        "dictionary semantic hits are produced by joining vector hits to generated item rows",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:QueryEmbedding",
+        "query embeddings are produced by backend implementations and normalized before search",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupOptions",
+        "embedding setup options are validated by model lookup and path resolution",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupReport",
+        "embedding setup reports are returned only after pack construction or validated reuse",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:FakeBackend",
+        "test fake backend is constrained by test construction and used only for fixture packs",
+    ),
+    (
+        "crates/jbotci-embeddings/src/native.rs:NativeGemmaEmbeddingBackend",
+        "native backend fields are produced by llama.cpp model/context initialization",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:CuktaIndexEntry",
         "web Cukta index entries are presentation DTOs projected from validated CLL site data",
     ),
@@ -206,6 +286,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaSearchResultCard",
         "web Cukta result cards are projected from ranked CLL search matches",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaSemanticSearchHit",
+        "web semantic hit DTOs are parsed from browser worker vector-search output before rendering",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:EmbeddingWorkerCorpus",
+        "browser worker corpus DTO is generated from embedded dictionary and CLL data immediately before JSON serialization",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:EmbeddingWorkerDocument",
+        "browser worker document DTO is generated from v0-parity embedding input builders",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaSectionLink",
@@ -578,6 +670,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebCard",
         "vlacku cards are renderer transport data derived from dictionary/search result cards",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuSemanticSearchHit",
+        "web semantic hit DTOs are parsed from browser worker vector-search output before rendering",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPiece",
