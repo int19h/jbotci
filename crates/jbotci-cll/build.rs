@@ -36,6 +36,7 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
     chapters.retain(|path| path.extension().is_some_and(|extension| extension == "xml"));
     chapters.sort();
 
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     let mut generated = String::new();
     generated.push_str("pub const EMBEDDED_CLL_CHAPTERS: &[(&str, &[u8])] = &[\n");
     for path in chapters {
@@ -46,15 +47,18 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
         println!("cargo:rerun-if-changed={}", path.display());
         let source = fs::read(&path)?;
         let compressed = compress_bzip2(&source)?;
+        let compressed_file_name = format!("{file_name}.bz2");
+        let compressed_path = out_dir.join(&compressed_file_name);
+        fs::write(&compressed_path, compressed)?;
         generated.push_str("    (");
         generated.push_str(&format!("{file_name:?}"));
-        generated.push_str(", &");
-        generated.push_str(&format!("{compressed:?}"));
+        generated.push_str(", include_bytes!(concat!(env!(\"OUT_DIR\"), \"/\", ");
+        generated.push_str(&format!("{compressed_file_name:?}"));
+        generated.push_str("))");
         generated.push_str("),\n");
     }
     generated.push_str("];\n");
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     fs::write(out_dir.join("embedded_cll.rs"), generated)?;
     Ok(())
 }
