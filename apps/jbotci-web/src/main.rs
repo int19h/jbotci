@@ -19,9 +19,9 @@ use jbotci_web_core::{
     VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability, WebRoute,
     build_cukta_semantic_web_page, build_cukta_web_page, build_page_meta,
     build_vlacku_jvozba_output, build_vlacku_semantic_web_result, build_vlacku_web_result,
-    cukta_web_url, embedding_worker_corpus_json, gentufa_web_url, parse_cukta_web_route,
-    parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
-    toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
+    cukta_web_url, embedding_worker_corpus_json, gentufa_web_url, normalize_vlacku_state,
+    parse_cukta_web_route, parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route,
+    parse_web_route, toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
 
@@ -873,7 +873,9 @@ fn configure_embedding_worker_url(worker_url: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(!worker_url.is_empty())]
 #[ensures(true)]
-fn configure_embedding_worker_url(_worker_url: &str) {}
+fn configure_embedding_worker_url(worker_url: &str) {
+    let _ = worker_url;
+}
 
 #[requires(true)]
 #[ensures(true)]
@@ -956,7 +958,8 @@ async fn remove_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>)
 #[requires(true)]
 #[ensures(true)]
 async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticResultState {
-    match embedding_search_json("vlacku-en", &state.query, 0).await {
+    let limit = vlacku_semantic_worker_limit(&state);
+    match embedding_search_json("vlacku-en", &state.query, limit).await {
         Ok(json) => {
             let (hits, message) = parse_vlacku_semantic_search_json(&json);
             VlackuSemanticResultState {
@@ -973,6 +976,19 @@ async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticRes
             loading: false,
         },
     }
+}
+
+#[requires(true)]
+#[ensures(ret == 0 || (ret >= 1 && ret <= VLACKU_WEB_MAX_COUNT))]
+fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
+    let normalized_state = normalize_vlacku_state(state);
+    if !normalized_state.word_types.is_empty() {
+        return 0;
+    }
+    normalized_state
+        .count
+        .saturating_add(1)
+        .min(VLACKU_WEB_MAX_COUNT)
 }
 
 #[requires(true)]
@@ -1107,7 +1123,9 @@ async fn sleep_ms(milliseconds: i32) {
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(milliseconds >= 0)]
 #[ensures(true)]
-async fn sleep_ms(_milliseconds: i32) {}
+async fn sleep_ms(milliseconds: i32) {
+    let _ = milliseconds;
+}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -6862,6 +6880,45 @@ mod tests {
     fn vlacku_search_debounce_is_longer_than_url_debounce() {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_worker_limit_bounds_unfiltered_results() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        assert_eq!(vlacku_semantic_worker_limit(&state), 21);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_worker_limit_preserves_filtered_result_set() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: vec!["gismu".to_owned()],
+        };
+        assert_eq!(vlacku_semantic_worker_limit(&state), 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_worker_limit_clamps_unfiltered_results() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: usize::MAX,
+            word_types: Vec::new(),
+        };
+        assert_eq!(vlacku_semantic_worker_limit(&state), VLACKU_WEB_MAX_COUNT);
     }
 
     #[test]
