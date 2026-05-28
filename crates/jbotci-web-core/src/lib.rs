@@ -2471,6 +2471,12 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 .chapters
                 .iter()
                 .find(|chapter| chapter.chapter_id == section.chapter_id)
+                .filter(|chapter| {
+                    chapter
+                        .root_section_ids
+                        .first()
+                        .is_some_and(|first_section_id| first_section_id == &section.section_id)
+                })
                 .map(|chapter| chapter.prelude_blocks.clone())
                 .unwrap_or_default();
             CuktaPageData {

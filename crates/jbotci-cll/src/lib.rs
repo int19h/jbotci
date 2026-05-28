@@ -5,10 +5,11 @@ use std::io::Read;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use bzip2::read::BzDecoder;
 use roxmltree::{Document, Node};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 pub const DEFAULT_CUKTA_CLI_RESULT_COUNT: usize = 10;
@@ -100,6 +101,8 @@ pub struct CllExample {
     pub label: String,
     pub anchor_id: String,
     pub title: Option<String>,
+    pub parse_href: Option<String>,
+    pub blocks: Vec<CllBlock>,
     pub lojban: String,
     pub gloss_en: Option<String>,
     pub translation_en: Option<String>,
@@ -115,14 +118,104 @@ pub struct CllExampleLine {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllSimpleListOrientation {
+    Horizontal,
+    Vertical,
+}
+
+#[invariant(col_span.is_none_or(|span| span > 0))]
+#[invariant(row_span.is_none_or(|span| span > 0))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllTableCell {
+    pub blocks: Vec<CllBlock>,
+    pub col_span: Option<usize>,
+    pub row_span: Option<usize>,
+}
+
+#[invariant(!term.is_empty() || !blocks.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllVariableEntry {
+    pub term: Vec<CllInline>,
+    pub blocks: Vec<CllBlock>,
+}
+
+#[invariant(!kind.is_empty())]
+#[invariant(!cells.is_empty())]
+#[invariant(cells.iter().all(|cell| !cell.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllInterlinearRow {
+    pub kind: String,
+    pub cells: Vec<Vec<CllInline>>,
+}
+
+#[invariant(!kind.is_empty())]
+#[invariant(!body.is_empty() || comment.as_ref().is_some_and(|line| !line.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllLojbanizationLine {
+    pub kind: String,
+    pub body: Vec<CllInline>,
+    pub comment: Option<Vec<CllInline>>,
+}
+
+#[invariant(!kind.is_empty())]
+#[invariant(!body.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllLujvoPart {
+    pub kind: String,
+    pub body: Vec<CllInline>,
+}
+
+#[invariant(!rule_name.is_empty())]
+#[invariant(!anchor_id.is_empty())]
+#[invariant(rule_href.as_ref().is_none_or(|href| !href.is_empty()))]
+#[invariant(!rhs.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllEbnfEntry {
+    pub rule_name: String,
+    pub anchor_id: String,
+    pub rule_href: Option<String>,
+    pub rhs: Vec<CllEbnfToken>,
+}
+
+#[invariant(true)]
+#[invariant(::Text { .. } => true)]
+#[invariant(::Operator { .. } => true)]
+#[invariant(::Hash { .. } => true)]
+#[invariant(::Terminal { .. } => true)]
+#[invariant(::ElidableTerminator { .. } => true)]
+#[invariant(::Nonterminal { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllEbnfToken {
+    Text { body: String },
+    Operator { body: String },
+    Hash { body: String },
+    Terminal { body: String, href: Option<String> },
+    ElidableTerminator { body: String, href: Option<String> },
+    Nonterminal { body: String, href: Option<String> },
+}
+
+#[invariant(true)]
 #[invariant(::Paragraph { .. } => true)]
 #[invariant(::List { .. } => true)]
 #[invariant(::Example(_) => true)]
 #[invariant(::Table { .. } => true)]
+#[invariant(::SimpleListTable { .. } => true)]
+#[invariant(::VariableList { .. } => true)]
 #[invariant(::Media { .. } => true)]
 #[invariant(::Rule { .. } => true)]
 #[invariant(::Code { .. } => true)]
 #[invariant(::Heading { .. } => true)]
+#[invariant(::BlockQuote { .. } => true)]
+#[invariant(::Definition { .. } => true)]
+#[invariant(::InterlinearGloss { .. } => true)]
+#[invariant(::CmavoList { .. } => true)]
+#[invariant(::Lojbanization { .. } => true)]
+#[invariant(::LujvoMaking { .. } => true)]
+#[invariant(::GrammarTemplate { .. } => true)]
+#[invariant(::Ebnf { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllBlock {
@@ -138,11 +231,24 @@ pub enum CllBlock {
     },
     Example(CllExample),
     Table {
-        caption: Option<String>,
-        rows: Vec<Vec<Vec<CllBlock>>>,
+        id: Option<String>,
+        caption: Option<Vec<CllInline>>,
+        header_rows: Vec<Vec<CllTableCell>>,
+        body_rows: Vec<Vec<CllTableCell>>,
+        classes: Vec<String>,
+    },
+    SimpleListTable {
+        id: Option<String>,
+        orientation: CllSimpleListOrientation,
+        rows: Vec<Vec<Option<Vec<CllInline>>>>,
+    },
+    VariableList {
+        id: Option<String>,
+        entries: Vec<CllVariableEntry>,
     },
     Media {
         id: Option<String>,
+        title: Option<Vec<CllInline>>,
         src: String,
         alt: String,
     },
@@ -159,31 +265,109 @@ pub enum CllBlock {
         level: u8,
         title: String,
     },
+    BlockQuote {
+        id: Option<String>,
+        blocks: Vec<CllBlock>,
+    },
+    Definition {
+        id: Option<String>,
+        body: Vec<CllInline>,
+    },
+    InterlinearGloss {
+        id: Option<String>,
+        aligned: bool,
+        rows: Vec<CllInterlinearRow>,
+        natlang: Vec<Vec<CllInline>>,
+        comments: Vec<Vec<CllInline>>,
+    },
+    CmavoList {
+        id: Option<String>,
+        titles: Vec<Vec<CllInline>>,
+        headers: Vec<Vec<CllInline>>,
+        rows: Vec<Vec<Vec<CllInline>>>,
+    },
+    Lojbanization {
+        id: Option<String>,
+        lines: Vec<CllLojbanizationLine>,
+    },
+    LujvoMaking {
+        id: Option<String>,
+        parts: Vec<CllLujvoPart>,
+    },
+    GrammarTemplate {
+        id: Option<String>,
+        body: Vec<CllInline>,
+    },
+    Ebnf {
+        id: Option<String>,
+        entries: Vec<CllEbnfEntry>,
+    },
 }
 
 #[invariant(true)]
 #[invariant(::Text(_) => true)]
 #[invariant(::Emphasis { .. } => true)]
 #[invariant(::Quote { .. } => true)]
+#[invariant(::LanguageSpan { .. } => true)]
+#[invariant(::CiteTitle { .. } => true)]
+#[invariant(::Subscript { .. } => true)]
+#[invariant(::Superscript { .. } => true)]
 #[invariant(::Link { .. } => true)]
 #[invariant(::Code(_) => true)]
+#[invariant(::Elidable { .. } => true)]
+#[invariant(::InlineMath { .. } => true)]
+#[invariant(::Anchor { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllInline {
     Text(String),
     Emphasis {
-        role: Option<String>,
-        text: String,
+        language: Option<String>,
+        inlines: Vec<CllInline>,
     },
     Quote {
-        text: String,
+        language: Option<String>,
+        inlines: Vec<CllInline>,
+    },
+    LanguageSpan {
+        kind: CllLanguageSpanKind,
+        language: Option<String>,
+        inlines: Vec<CllInline>,
+    },
+    CiteTitle {
+        inlines: Vec<CllInline>,
+    },
+    Subscript {
+        inlines: Vec<CllInline>,
+    },
+    Superscript {
+        inlines: Vec<CllInline>,
     },
     Link {
         target: String,
-        text: String,
+        inlines: Vec<CllInline>,
         kind: CllLinkKind,
     },
     Code(String),
+    Elidable {
+        shown: String,
+        forced: bool,
+        inlines: Vec<CllInline>,
+    },
+    InlineMath {
+        text: String,
+    },
+    Anchor {
+        id: String,
+    },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllLanguageSpanKind {
+    ForeignPhrase,
+    JboPhrase,
 }
 
 #[invariant(true)]
@@ -343,6 +527,19 @@ struct LinkResolution {
     kind: CllLinkKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum AnchorMode {
+    TopLevel,
+    Nested,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct BlockParseState {
+    chapter_example_counter: usize,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()))]
 pub fn embedded_cll_site() -> Result<&'static CllSite, CllError> {
@@ -458,6 +655,9 @@ fn parse_chapter(
     let mut index_entries = Vec::new();
     let mut root_section_ids = Vec::new();
     let mut section_index = 0usize;
+    let mut parse_state = BlockParseState {
+        chapter_example_counter: 0,
+    };
 
     if let Some(title_node) = title_node {
         collect_title_anchors(
@@ -480,6 +680,7 @@ fn parse_chapter(
                 chapter_number,
                 section_index,
                 source_path,
+                &mut parse_state,
             )?;
             root_section_ids.push(parsed.0.section_id.clone());
             examples.extend(parsed.1);
@@ -516,6 +717,7 @@ fn parse_section(
     chapter_number: u16,
     section_index: usize,
     source_path: &str,
+    parse_state: &mut BlockParseState,
 ) -> Result<
     (
         CllSection,
@@ -541,7 +743,6 @@ fn parse_section(
         section_title: section_title.clone(),
         source_path: source_path.to_owned(),
     };
-    let mut example_counter = 0usize;
     let mut examples = Vec::new();
     let mut anchors = Vec::new();
     let mut index_entries = Vec::new();
@@ -566,21 +767,23 @@ fn parse_section(
         }
     }
 
-    let mut blocks = Vec::new();
-    for child in section_node.children().filter(Node::is_element) {
-        if child.has_tag_name("title") {
-            continue;
-        }
-        if let Some(block) = parse_block(
-            child,
-            &context,
-            &mut example_counter,
-            &mut examples,
-            &mut anchors,
-        ) {
-            blocks.push(block);
-        }
-    }
+    let content_nodes = section_node
+        .children()
+        .filter(|child| {
+            child.is_text()
+                || (child.is_element()
+                    && !child.has_tag_name("title")
+                    && !child.has_tag_name("indexterm"))
+        })
+        .collect::<Vec<_>>();
+    let blocks = parse_blocks_from_nodes(
+        &content_nodes,
+        &context,
+        AnchorMode::TopLevel,
+        parse_state,
+        &mut examples,
+        &mut anchors,
+    );
     let plain_text = normalized_plain_text(&blocks_plain_text(&blocks));
     anchors.push((
         section_id.clone(),
@@ -625,74 +828,235 @@ fn parse_standalone_chapter_block(node: Node<'_, '_>) -> Option<CllBlock> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn parse_blocks_from_nodes(
+    nodes: &[Node<'_, '_>],
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Vec<CllBlock> {
+    let mut blocks = Vec::new();
+    let mut inline_nodes = Vec::new();
+    for node in nodes {
+        if node.is_element() && is_block_element(*node) {
+            flush_inline_nodes_as_paragraph(&mut blocks, &mut inline_nodes, None, None);
+            blocks.extend(parse_block(
+                *node,
+                context,
+                anchor_mode,
+                parse_state,
+                examples,
+                anchors,
+            ));
+        } else if node.is_text() || node.is_element() {
+            inline_nodes.push(*node);
+        }
+    }
+    flush_inline_nodes_as_paragraph(&mut blocks, &mut inline_nodes, None, None);
+    blocks
+}
+
 #[requires(node.is_element())]
 #[ensures(true)]
 fn parse_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
-    example_counter: &mut usize,
+    anchor_mode: AnchorMode,
+    parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
-) -> Option<CllBlock> {
+) -> Vec<CllBlock> {
     if node.has_tag_name("para") || node.has_tag_name("simpara") {
-        return parse_paragraph_block(node);
+        return parse_paragraph_blocks(node, context, anchor_mode, parse_state, examples, anchors);
     }
     if node.has_tag_name("itemizedlist") || node.has_tag_name("orderedlist") {
-        return parse_list_block(node, context, example_counter, examples, anchors);
+        return parse_list_block(node, context, parse_state, examples, anchors)
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("simplelist") {
+        return parse_simple_list_block(node).into_iter().collect();
     }
     if node.has_tag_name("example") {
-        return parse_example_block(node, context, example_counter, examples, anchors);
+        return parse_example_block(node, context, parse_state, examples, anchors)
+            .into_iter()
+            .collect();
     }
     if node.has_tag_name("informaltable") || node.has_tag_name("table") {
-        return parse_table_block(node, context, example_counter, examples, anchors);
+        return parse_table_block(node, context, parse_state, examples, anchors)
+            .into_iter()
+            .collect();
     }
     if node.has_tag_name("mediaobject") {
-        return parse_media_block(node);
+        return parse_media_block(node).into_iter().collect();
     }
-    if node.has_tag_name("programlisting") || node.has_tag_name("screen") {
+    if node.has_tag_name("programlisting")
+        || node.has_tag_name("screen")
+        || node.has_tag_name("literallayout")
+    {
         let text = normalized_plain_text(&raw_text(node));
-        return (!text.is_empty()).then_some(CllBlock::Code {
-            language: attr_string(node, "language"),
-            text,
-        });
+        return (!text.is_empty())
+            .then_some(CllBlock::Code {
+                language: attr_string(node, "language"),
+                text,
+            })
+            .into_iter()
+            .collect();
     }
     if node.has_tag_name("variablelist") {
-        let rows = node
-            .children()
-            .filter(|child| child.is_element() && child.has_tag_name("varlistentry"))
-            .filter_map(|entry| {
-                parse_variable_list_entry(entry, context, example_counter, examples, anchors)
-            })
-            .collect::<Vec<_>>();
-        return (!rows.is_empty()).then_some(CllBlock::List {
-            ordered: false,
-            items: rows,
-        });
+        return parse_variable_list_block(node, context, parse_state, examples, anchors)
+            .into_iter()
+            .collect();
     }
     if node.has_tag_name("bridgehead") {
-        let title = visible_text(node);
-        return (!title.is_empty()).then_some(CllBlock::Heading { level: 3, title });
+        let inlines = parse_inlines(node);
+        let title = inline_plain_text(&inlines);
+        return (!title.is_empty())
+            .then_some(CllBlock::Heading { level: 3, title })
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("blockquote") {
+        let blocks = parse_blocks_from_nodes(
+            &node.children().collect::<Vec<_>>(),
+            context,
+            AnchorMode::Nested,
+            parse_state,
+            examples,
+            anchors,
+        );
+        return (!blocks.is_empty())
+            .then_some(CllBlock::BlockQuote {
+                id: block_anchor_id_for("quote", anchor_mode, context, node),
+                blocks,
+            })
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("definition") || node.has_tag_name("grammar-template") {
+        let body = parse_inlines(node);
+        return (!body.is_empty())
+            .then_some(if node.has_tag_name("definition") {
+                CllBlock::Definition {
+                    id: block_anchor_id_for("definition", anchor_mode, context, node),
+                    body,
+                }
+            } else {
+                CllBlock::GrammarTemplate {
+                    id: block_anchor_id_for("grammar-template", anchor_mode, context, node),
+                    body,
+                }
+            })
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("interlinear-gloss") {
+        return parse_interlinear_gloss_block(node, context, anchor_mode)
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("interlinear-gloss-itemized") {
+        return parse_interlinear_gloss_itemized_block(node, context, anchor_mode)
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("cmavo-list") {
+        return parse_cmavo_list_block(node, context, anchor_mode)
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("lojbanization") {
+        return parse_lojbanization_block(node, context, anchor_mode)
+            .into_iter()
+            .collect();
+    }
+    if node.has_tag_name("lujvo-making") {
+        return parse_lujvo_making_block(node, context, anchor_mode)
+            .into_iter()
+            .collect();
     }
     let text = visible_text(node);
-    (!text.is_empty()).then_some(CllBlock::Paragraph {
-        anchor_id: xml_id(node),
-        role: attr_string(node, "role"),
-        inlines: vec![CllInline::Text(text.clone())],
-        text,
-    })
+    (!text.is_empty())
+        .then_some(CllBlock::Paragraph {
+            anchor_id: xml_id(node),
+            role: attr_string(node, "role"),
+            inlines: vec![CllInline::Text(text.clone())],
+            text,
+        })
+        .into_iter()
+        .collect()
 }
 
 #[requires(node.is_element())]
 #[ensures(true)]
-fn parse_paragraph_block(node: Node<'_, '_>) -> Option<CllBlock> {
-    let inlines = parse_inlines(node);
+fn parse_paragraph_blocks(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Vec<CllBlock> {
+    let mut blocks = Vec::new();
+    let mut inline_nodes = Vec::new();
+    for child in node.children() {
+        if child.is_element() && is_block_element(child) {
+            flush_inline_nodes_as_paragraph(
+                &mut blocks,
+                &mut inline_nodes,
+                paragraph_anchor_id_for(anchor_mode, context, node),
+                attr_string(node, "role"),
+            );
+            blocks.extend(parse_block(
+                child,
+                context,
+                AnchorMode::Nested,
+                parse_state,
+                examples,
+                anchors,
+            ));
+        } else if child.is_text()
+            || (child.is_element()
+                && !child.has_tag_name("title")
+                && !child.has_tag_name("indexterm"))
+        {
+            inline_nodes.push(child);
+        }
+    }
+    flush_inline_nodes_as_paragraph(
+        &mut blocks,
+        &mut inline_nodes,
+        paragraph_anchor_id_for(anchor_mode, context, node),
+        attr_string(node, "role"),
+    );
+    blocks
+}
+
+#[requires(true)]
+#[ensures(inline_nodes.is_empty())]
+fn flush_inline_nodes_as_paragraph(
+    blocks: &mut Vec<CllBlock>,
+    inline_nodes: &mut Vec<Node<'_, '_>>,
+    anchor_id: Option<String>,
+    role: Option<String>,
+) {
+    if inline_nodes.is_empty() {
+        return;
+    }
+    let inlines = trim_inline_runs(parse_inline_nodes(inline_nodes));
+    inline_nodes.clear();
     let text = normalized_plain_text(&inline_plain_text(&inlines));
-    (!text.is_empty()).then_some(CllBlock::Paragraph {
-        anchor_id: xml_id(node),
-        role: attr_string(node, "role"),
-        inlines,
-        text,
-    })
+    if !text.is_empty() {
+        blocks.push(CllBlock::Paragraph {
+            anchor_id,
+            role,
+            inlines,
+            text,
+        });
+    }
 }
 
 #[requires(node.is_element())]
@@ -700,7 +1064,7 @@ fn parse_paragraph_block(node: Node<'_, '_>) -> Option<CllBlock> {
 fn parse_list_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
-    example_counter: &mut usize,
+    parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
@@ -708,10 +1072,14 @@ fn parse_list_block(
         .children()
         .filter(|child| child.is_element() && child.has_tag_name("listitem"))
         .map(|item| {
-            item.children()
-                .filter(Node::is_element)
-                .filter_map(|child| parse_block(child, context, example_counter, examples, anchors))
-                .collect::<Vec<_>>()
+            parse_blocks_from_nodes(
+                &non_title_child_nodes(item),
+                context,
+                AnchorMode::Nested,
+                parse_state,
+                examples,
+                anchors,
+            )
         })
         .filter(|blocks| !blocks.is_empty())
         .collect::<Vec<_>>();
@@ -723,24 +1091,98 @@ fn parse_list_block(
 
 #[requires(node.is_element())]
 #[ensures(true)]
+fn parse_simple_list_block(node: Node<'_, '_>) -> Option<CllBlock> {
+    let member_bodies = node
+        .children()
+        .filter(|child| child.is_element() && child.has_tag_name("member"))
+        .map(parse_inlines)
+        .map(trim_inline_runs)
+        .filter(|body| !body.is_empty())
+        .collect::<Vec<_>>();
+    if member_bodies.is_empty() {
+        return None;
+    }
+    let columns = attr_usize(node, "columns").unwrap_or(1).max(1);
+    let orientation = match attr_string(node, "type").as_deref() {
+        Some("horiz") => CllSimpleListOrientation::Horizontal,
+        _ => CllSimpleListOrientation::Vertical,
+    };
+    let rows = match orientation {
+        CllSimpleListOrientation::Horizontal => simple_list_rows_horizontal(columns, member_bodies),
+        CllSimpleListOrientation::Vertical => simple_list_rows_vertical(columns, member_bodies),
+    };
+    Some(CllBlock::SimpleListTable {
+        id: xml_id(node),
+        orientation,
+        rows,
+    })
+}
+
+#[requires(columns > 0)]
+#[ensures(true)]
+fn simple_list_rows_horizontal(
+    columns: usize,
+    members: Vec<Vec<CllInline>>,
+) -> Vec<Vec<Option<Vec<CllInline>>>> {
+    members
+        .chunks(columns)
+        .map(|chunk| chunk.iter().cloned().map(Some).collect())
+        .collect()
+}
+
+#[requires(columns > 0)]
+#[ensures(true)]
+fn simple_list_rows_vertical(
+    columns: usize,
+    members: Vec<Vec<CllInline>>,
+) -> Vec<Vec<Option<Vec<CllInline>>>> {
+    let row_count = members.len().div_ceil(columns).max(1);
+    (0..row_count)
+        .map(|row_index| {
+            (0..columns)
+                .map(|column_index| members.get(row_index + column_index * row_count).cloned())
+                .collect()
+        })
+        .collect()
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
 fn parse_example_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
-    example_counter: &mut usize,
+    parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    *example_counter += 1;
-    let label = format!("{}.{}", context.section_number, *example_counter);
+    parse_state.chapter_example_counter += 1;
+    let example_number = format!(
+        "{}.{}",
+        context.chapter_number, parse_state.chapter_example_counter
+    );
+    let display_label = format!("Example {example_number}");
     let xml_id = xml_id(node);
     let title_node = child_element(node, "title");
-    let title = title_node
+    let explicit_title = title_node
         .map(visible_text)
         .filter(|value| !value.is_empty());
     let title_anchor = title_node.and_then(first_anchor_id);
-    let anchor_id = title_anchor
-        .or(xml_id.clone())
-        .unwrap_or_else(|| format!("{}-example-{}", context.section_id, *example_counter));
+    let anchor_id = title_anchor.or(xml_id.clone()).unwrap_or_else(|| {
+        format!(
+            "{}-example-{}",
+            context.section_id, parse_state.chapter_example_counter
+        )
+    });
+    let mut nested_examples = Vec::new();
+    let mut blocks = parse_blocks_from_nodes(
+        &non_title_child_nodes(node),
+        context,
+        AnchorMode::Nested,
+        parse_state,
+        &mut nested_examples,
+        anchors,
+    );
+    examples.extend(nested_examples);
     let mut lines = parse_example_lines(node);
     if lines.is_empty() {
         lines = parse_plain_example_lines(node);
@@ -768,18 +1210,33 @@ fn parse_example_block(
             .collect::<Vec<_>>()
             .join("\n")
     };
+    if blocks.is_empty() && !plain_text.trim().is_empty() {
+        blocks.push(CllBlock::Paragraph {
+            anchor_id: None,
+            role: None,
+            inlines: vec![CllInline::Text(plain_text.clone())],
+            text: normalized_plain_text(&plain_text),
+        });
+    }
     let example = CllExample {
         reference: CllReference {
             chapter: context.chapter_number,
             section_number: context.section_number.clone(),
             section_id: context.section_id.clone(),
-            example_number: Some(label.clone()),
+            example_number: Some(example_number),
             example_id: Some(anchor_id.clone()),
             source_path: context.source_path.clone(),
         },
-        label: label.clone(),
+        label: display_label.clone(),
         anchor_id: anchor_id.clone(),
-        title,
+        title: explicit_title,
+        parse_href: collect_jbo_snippet(node).map(|snippet| {
+            format!(
+                "../gentufa?text={}&dialect=allow-cgv",
+                percent_encode_plain(&snippet)
+            )
+        }),
+        blocks,
         lojban,
         gloss_en,
         translation_en,
@@ -790,7 +1247,7 @@ fn parse_example_block(
         anchor_id.clone(),
         CllAnchor {
             section_id: context.section_id.clone(),
-            label: format!("Example {label}"),
+            label: display_label.clone(),
         },
     ));
     if let Some(xml_id) = xml_id {
@@ -798,7 +1255,7 @@ fn parse_example_block(
             xml_id,
             CllAnchor {
                 section_id: context.section_id.clone(),
-                label: format!("Example {label}"),
+                label: display_label,
             },
         ));
     }
@@ -811,48 +1268,122 @@ fn parse_example_block(
 fn parse_table_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
-    example_counter: &mut usize,
+    parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    let caption = child_element(node, "title").map(visible_text);
-    let rows = node
-        .descendants()
-        .filter(|descendant| descendant.is_element() && descendant.has_tag_name("tr"))
-        .map(|row| {
-            row.children()
-                .filter(|cell| {
-                    cell.is_element() && (cell.has_tag_name("td") || cell.has_tag_name("th"))
-                })
-                .map(|cell| {
-                    let blocks = cell
-                        .children()
-                        .filter(Node::is_element)
-                        .filter_map(|child| {
-                            parse_block(child, context, example_counter, examples, anchors)
-                        })
-                        .collect::<Vec<_>>();
-                    if blocks.is_empty() {
-                        let text = visible_text(cell);
-                        if text.is_empty() {
-                            Vec::new()
-                        } else {
-                            vec![CllBlock::Paragraph {
-                                anchor_id: None,
-                                role: None,
-                                inlines: vec![CllInline::Text(text.clone())],
-                                text,
-                            }]
-                        }
-                    } else {
-                        blocks
-                    }
-                })
-                .collect::<Vec<_>>()
-        })
+    let source = child_element(node, "tgroup")
+        .or_else(|| child_element(node, "tbody"))
+        .unwrap_or(node);
+    let header_rows = child_element(source, "thead")
+        .map(|thead| parse_table_rows(thead, context, parse_state, examples, anchors))
+        .unwrap_or_default();
+    let tbody_rows = child_element(source, "tbody")
+        .map(|tbody| parse_table_rows(tbody, context, parse_state, examples, anchors))
+        .unwrap_or_default();
+    let body_rows = if tbody_rows.is_empty() {
+        parse_table_rows(source, context, parse_state, examples, anchors)
+    } else {
+        tbody_rows
+    };
+    let caption = child_element(node, "caption")
+        .or_else(|| child_element(node, "title"))
+        .map(parse_inlines)
+        .map(trim_inline_runs)
+        .filter(|inlines| !inlines.is_empty());
+    if header_rows.is_empty() && body_rows.is_empty() {
+        return None;
+    }
+    let mut classes: Vec<String> = attr_string(node, "class")
+        .map(|value| value.split_whitespace().map(str::to_owned).collect())
+        .unwrap_or_default();
+    if table_is_simple_list_chart(&header_rows, &body_rows)
+        && !classes.iter().any(|class| class == "simplelist-chart")
+    {
+        classes.push("simplelist-chart".to_owned());
+    }
+    Some(CllBlock::Table {
+        id: block_anchor_id_for("table", AnchorMode::TopLevel, context, node),
+        caption,
+        header_rows,
+        body_rows,
+        classes,
+    })
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_table_rows(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Vec<Vec<CllTableCell>> {
+    node.children()
+        .filter(|row| row.is_element() && (row.has_tag_name("row") || row.has_tag_name("tr")))
+        .map(|row| parse_table_row(row, context, parse_state, examples, anchors))
         .filter(|row| !row.is_empty())
-        .collect::<Vec<_>>();
-    (!rows.is_empty()).then_some(CllBlock::Table { caption, rows })
+        .collect()
+}
+
+#[requires(row.is_element())]
+#[ensures(true)]
+fn parse_table_row(
+    row: Node<'_, '_>,
+    context: &SectionParseContext,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Vec<CllTableCell> {
+    row.children()
+        .filter(|cell| {
+            cell.is_element()
+                && (cell.has_tag_name("entry")
+                    || cell.has_tag_name("td")
+                    || cell.has_tag_name("th"))
+        })
+        .map(|cell| {
+            let mut blocks = parse_blocks_from_nodes(
+                &cell.children().collect::<Vec<_>>(),
+                context,
+                AnchorMode::Nested,
+                parse_state,
+                examples,
+                anchors,
+            );
+            if blocks.is_empty() {
+                let text = visible_text(cell);
+                if !text.is_empty() {
+                    blocks.push(CllBlock::Paragraph {
+                        anchor_id: None,
+                        role: None,
+                        inlines: vec![CllInline::Text(text.clone())],
+                        text,
+                    });
+                }
+            }
+            new!(CllTableCell {
+                blocks,
+                col_span: attr_usize(cell, "colspan"),
+                row_span: attr_usize(cell, "rowspan"),
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn table_is_simple_list_chart(
+    header_rows: &[Vec<CllTableCell>],
+    body_rows: &[Vec<CllTableCell>],
+) -> bool {
+    header_rows.is_empty()
+        && !body_rows.is_empty()
+        && body_rows.iter().all(|row| {
+            row.iter()
+                .all(|cell| matches!(cell.blocks.as_slice(), [CllBlock::SimpleListTable { .. }]))
+        })
 }
 
 #[requires(node.is_element())]
@@ -869,8 +1400,37 @@ fn parse_media_block(node: Node<'_, '_>) -> Option<CllBlock> {
         .unwrap_or_default();
     Some(CllBlock::Media {
         id: xml_id(node),
+        title: child_element(node, "title")
+            .map(parse_inlines)
+            .map(trim_inline_runs)
+            .filter(|inlines| !inlines.is_empty()),
         src,
         alt,
+    })
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_variable_list_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Option<CllBlock> {
+    if context.section_id == "section-EBNF" {
+        return parse_ebnf_block(node, context);
+    }
+    let entries = node
+        .children()
+        .filter(|child| child.is_element() && child.has_tag_name("varlistentry"))
+        .filter_map(|entry| {
+            parse_variable_list_entry(entry, context, parse_state, examples, anchors)
+        })
+        .collect::<Vec<_>>();
+    (!entries.is_empty()).then_some(CllBlock::VariableList {
+        id: block_anchor_id_for("variable-list", AnchorMode::TopLevel, context, node),
+        entries,
     })
 }
 
@@ -879,34 +1439,31 @@ fn parse_media_block(node: Node<'_, '_>) -> Option<CllBlock> {
 fn parse_variable_list_entry(
     entry: Node<'_, '_>,
     context: &SectionParseContext,
-    example_counter: &mut usize,
+    parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
-) -> Option<Vec<CllBlock>> {
+) -> Option<CllVariableEntry> {
     let term = entry
         .children()
         .find(|child| child.is_element() && child.has_tag_name("term"))
-        .map(visible_text)
+        .map(parse_inlines)
+        .map(trim_inline_runs)
         .unwrap_or_default();
-    let mut body = Vec::new();
+    let mut blocks = Vec::new();
     for listitem in entry
         .children()
         .filter(|child| child.is_element() && child.has_tag_name("listitem"))
     {
-        body.extend(
-            listitem
-                .children()
-                .filter(Node::is_element)
-                .filter_map(|child| {
-                    parse_block(child, context, example_counter, examples, anchors)
-                }),
-        );
+        blocks.extend(parse_blocks_from_nodes(
+            &non_title_child_nodes(listitem),
+            context,
+            AnchorMode::Nested,
+            parse_state,
+            examples,
+            anchors,
+        ));
     }
-    (!term.is_empty() || !body.is_empty()).then_some(vec![CllBlock::Rule {
-        id: xml_id(entry),
-        term,
-        body,
-    }])
+    (!term.is_empty() || !blocks.is_empty()).then_some(new!(CllVariableEntry { term, blocks }))
 }
 
 #[requires(node.is_element())]
@@ -963,77 +1520,156 @@ fn parse_plain_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
 #[requires(node.is_element())]
 #[ensures(true)]
 fn parse_inlines(node: Node<'_, '_>) -> Vec<CllInline> {
+    parse_inline_nodes(&node.children().collect::<Vec<_>>())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
     let mut inlines = Vec::new();
-    for child in node.children() {
+    for child in nodes {
         if child.is_text() {
             push_text_inline(&mut inlines, child.text().unwrap_or_default());
         } else if child.is_element() {
-            if child.has_tag_name("indexterm") || child.has_tag_name("anchor") {
+            if is_display_none_element(*child) || child.has_tag_name("indexterm") {
                 continue;
             }
-            if child.has_tag_name("xref") {
-                if let Some(target) = attr_string(child, "linkend") {
-                    let label = attr_string(child, "xreflabel").unwrap_or_else(|| target.clone());
-                    inlines.push(CllInline::Link {
-                        target,
-                        text: label,
-                        kind: CllLinkKind::Section,
-                    });
+            match child.tag_name().name() {
+                "anchor" => {
+                    if let Some(id) = xml_id(*child) {
+                        inlines.push(CllInline::Anchor { id });
+                    }
                 }
-            } else if child.has_tag_name("link") {
-                let target = attr_string(child, "linkend")
-                    .or_else(|| attr_string(child, "href"))
-                    .or_else(|| attr_string(child, "xlink:href"));
-                let text = visible_text(child);
-                if let Some(target) = target {
-                    if !text.is_empty() {
+                "xref" => {
+                    if let Some(target) = attr_string(*child, "linkend") {
+                        let label =
+                            attr_string(*child, "xreflabel").unwrap_or_else(|| target.clone());
                         inlines.push(CllInline::Link {
                             target,
-                            text,
+                            inlines: vec![CllInline::Text(label)],
+                            kind: CllLinkKind::Section,
+                        });
+                    }
+                }
+                "ulink" | "link" => {
+                    let target = attr_string(*child, "href")
+                        .or_else(|| attr_string(*child, "url"))
+                        .or_else(|| attr_string(*child, "xlink:href"))
+                        .or_else(|| attr_string(*child, "linkend"));
+                    if let Some(target) = target {
+                        let body = trim_inline_runs(parse_inlines(*child));
+                        let body = if body.is_empty() {
+                            vec![CllInline::Text(target.clone())]
+                        } else {
+                            body
+                        };
+                        inlines.push(CllInline::Link {
+                            target,
+                            inlines: body,
                             kind: CllLinkKind::External,
                         });
                     }
                 }
-            } else if child.has_tag_name("quote") {
-                let text = visible_text(child);
-                if !text.is_empty() {
-                    inlines.push(CllInline::Quote { text });
+                "quote" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::Quote {
+                            language: attr_string(*child, "lang"),
+                            inlines: nested,
+                        });
+                    }
                 }
-            } else if child.has_tag_name("emphasis") || child.has_tag_name("citetitle") {
-                let text = visible_text(child);
-                if !text.is_empty() {
-                    inlines.push(CllInline::Emphasis {
-                        role: attr_string(child, "role"),
-                        text,
+                "emphasis" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::Emphasis {
+                            language: attr_string(*child, "lang"),
+                            inlines: nested,
+                        });
+                    }
+                }
+                "citetitle" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::CiteTitle { inlines: nested });
+                    }
+                }
+                "foreignphrase" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::ForeignPhrase,
+                            language: attr_string(*child, "lang"),
+                            inlines: nested,
+                        });
+                    }
+                }
+                "jbophrase" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::JboPhrase,
+                            language: attr_string(*child, "lang"),
+                            inlines: nested,
+                        });
+                    }
+                }
+                "subscript" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::Subscript { inlines: nested });
+                    }
+                }
+                "superscript" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    if !nested.is_empty() {
+                        inlines.push(CllInline::Superscript { inlines: nested });
+                    }
+                }
+                "valsi" | "cmavo" | "gismu" | "cmevla" | "rafsi" => {
+                    let text = visible_text(*child);
+                    if !text.is_empty() {
+                        let is_rafsi = child.has_tag_name("rafsi");
+                        inlines.push(CllInline::Link {
+                            target: normalize_valsis_query(&text),
+                            inlines: vec![CllInline::Text(text)],
+                            kind: if is_rafsi {
+                                CllLinkKind::Rafsi
+                            } else {
+                                CllLinkKind::Dictionary
+                            },
+                        });
+                    }
+                }
+                "code" | "literal" => {
+                    let text = visible_text(*child);
+                    if !text.is_empty() {
+                        inlines.push(CllInline::Code(text));
+                    }
+                }
+                "elidable" => {
+                    let nested = trim_inline_runs(parse_inlines(*child));
+                    let shown = visible_text(*child);
+                    inlines.push(CllInline::Elidable {
+                        shown,
+                        forced: attr_string(*child, "elidable")
+                            .is_some_and(|value| value.eq_ignore_ascii_case("false")),
+                        inlines: nested,
                     });
                 }
-            } else if matches!(
-                child.tag_name().name(),
-                "valsi" | "cmavo" | "gismu" | "cmevla" | "rafsi"
-            ) {
-                let text = visible_text(child);
-                if !text.is_empty() {
-                    inlines.push(CllInline::Link {
-                        target: text.clone(),
-                        text,
-                        kind: if child.has_tag_name("rafsi") {
-                            CllLinkKind::Rafsi
-                        } else {
-                            CllLinkKind::Dictionary
-                        },
-                    });
+                "dbmath" | "dbinlinemath" | "mmlmath" | "mmlinlinemath" | "math" => {
+                    let text = visible_text(*child);
+                    if !text.is_empty() {
+                        inlines.push(CllInline::InlineMath { text });
+                    }
                 }
-            } else if child.has_tag_name("code") || child.has_tag_name("literal") {
-                let text = visible_text(child);
-                if !text.is_empty() {
-                    inlines.push(CllInline::Code(text));
-                }
-            } else {
-                let nested = parse_inlines(child);
-                if nested.is_empty() {
-                    push_text_inline(&mut inlines, &visible_text(child));
-                } else {
-                    inlines.extend(nested);
+                _ => {
+                    let nested = parse_inlines(*child);
+                    if nested.is_empty() {
+                        push_text_inline(&mut inlines, &visible_text(*child));
+                    } else {
+                        inlines.extend(nested);
+                    }
                 }
             }
         }
@@ -1072,6 +1708,878 @@ fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
         }
     }
     merged
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn is_block_element(node: Node<'_, '_>) -> bool {
+    matches!(
+        node.tag_name().name(),
+        "para"
+            | "simpara"
+            | "example"
+            | "itemizedlist"
+            | "orderedlist"
+            | "simplelist"
+            | "variablelist"
+            | "informaltable"
+            | "table"
+            | "programlisting"
+            | "screen"
+            | "literallayout"
+            | "blockquote"
+            | "mediaobject"
+            | "note"
+            | "tip"
+            | "warning"
+            | "important"
+            | "caution"
+            | "bridgehead"
+            | "definition"
+            | "dbmath"
+            | "math"
+            | "interlinear-gloss"
+            | "interlinear-gloss-itemized"
+            | "cmavo-list"
+            | "lojbanization"
+            | "lujvo-making"
+            | "grammar-template"
+    )
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn is_display_none_element(node: Node<'_, '_>) -> bool {
+    attr_string(node, "role").is_some_and(|role| role.trim().eq_ignore_ascii_case("display-none"))
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn non_title_child_nodes<'a, 'input>(node: Node<'a, 'input>) -> Vec<Node<'a, 'input>> {
+    node.children()
+        .filter(|child| {
+            child.is_text()
+                || (child.is_element()
+                    && !is_display_none_element(*child)
+                    && !child.has_tag_name("title")
+                    && !child.has_tag_name("indexterm"))
+        })
+        .collect()
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn paragraph_anchor_id_for(
+    anchor_mode: AnchorMode,
+    context: &SectionParseContext,
+    node: Node<'_, '_>,
+) -> Option<String> {
+    xml_id(node).or_else(|| match anchor_mode {
+        AnchorMode::TopLevel => Some(synthetic_anchor_id("para", context, node)),
+        AnchorMode::Nested => None,
+    })
+}
+
+#[requires(node.is_element())]
+#[requires(!prefix.is_empty())]
+#[ensures(true)]
+fn block_anchor_id_for(
+    prefix: &str,
+    anchor_mode: AnchorMode,
+    context: &SectionParseContext,
+    node: Node<'_, '_>,
+) -> Option<String> {
+    xml_id(node).or_else(|| match anchor_mode {
+        AnchorMode::TopLevel => Some(synthetic_anchor_id(prefix, context, node)),
+        AnchorMode::Nested => None,
+    })
+}
+
+#[requires(node.is_element())]
+#[requires(!prefix.is_empty())]
+#[ensures(!ret.is_empty())]
+fn synthetic_anchor_id(prefix: &str, context: &SectionParseContext, node: Node<'_, '_>) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(prefix.as_bytes());
+    hasher.update(b"|");
+    hasher.update(context.section_id.as_bytes());
+    hasher.update(b"|");
+    hasher.update(normalized_plain_text(&visible_text_raw(node)).as_bytes());
+    let digest = hasher.finalize();
+    let hex = digest
+        .iter()
+        .take(10)
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("cll-{prefix}-{hex}")
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn attr_usize(node: Node<'_, '_>, name: &str) -> Option<usize> {
+    attr_string(node, name)
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 1)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn trim_inline_runs(inlines: Vec<CllInline>) -> Vec<CllInline> {
+    let start = inlines
+        .iter()
+        .position(|inline| !inline_is_whitespace(inline))
+        .unwrap_or(inlines.len());
+    let end = inlines
+        .iter()
+        .rposition(|inline| !inline_is_whitespace(inline))
+        .map(|index| index + 1)
+        .unwrap_or(start);
+    inlines[start..end].to_vec()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn inline_is_whitespace(inline: &CllInline) -> bool {
+    matches!(inline, CllInline::Text(text) if text.chars().all(char::is_whitespace))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_valsis_query(text: &str) -> String {
+    text.trim()
+        .trim_matches('.')
+        .to_ascii_lowercase()
+        .replace('h', "'")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn linked_jbo_text_inlines(text: &str) -> Vec<CllInline> {
+    let mut inlines = Vec::new();
+    let mut current = String::new();
+    let mut in_space = None::<bool>;
+    for character in text.chars() {
+        let character_is_space = character.is_whitespace();
+        if in_space.is_some_and(|value| value != character_is_space) && !current.is_empty() {
+            push_jbo_run(&mut inlines, &current, in_space.unwrap_or(false));
+            current.clear();
+        }
+        in_space = Some(character_is_space);
+        current.push(character);
+    }
+    if !current.is_empty() {
+        push_jbo_run(&mut inlines, &current, in_space.unwrap_or(false));
+    }
+    inlines
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_jbo_run(inlines: &mut Vec<CllInline>, run: &str, is_space: bool) {
+    if is_space {
+        inlines.push(CllInline::Text(run.to_owned()));
+        return;
+    }
+    for (index, segment) in run.split("--").enumerate() {
+        if index > 0 {
+            inlines.push(CllInline::Text("--".to_owned()));
+        }
+        if segment.is_empty() {
+            continue;
+        }
+        let query = normalize_valsis_query(segment);
+        if query
+            .chars()
+            .any(|character| character.is_ascii_alphabetic() || character == '\'')
+        {
+            inlines.push(CllInline::Link {
+                target: query,
+                inlines: vec![CllInline::Text(segment.to_owned())],
+                kind: CllLinkKind::Dictionary,
+            });
+        } else {
+            inlines.push(CllInline::Text(segment.to_owned()));
+        }
+    }
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_interlinear_gloss_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+) -> Option<CllBlock> {
+    let line_elements = node
+        .children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .collect::<Vec<_>>();
+    let maybe_aligned = aligned_interlinear_rows(&line_elements);
+    let rows = maybe_aligned.clone().unwrap_or_else(|| {
+        line_elements
+            .iter()
+            .filter(|line| !line.has_tag_name("natlang") && !line.has_tag_name("comment"))
+            .filter_map(|line| plain_interlinear_row(*line))
+            .collect()
+    });
+    let natlang = interlinear_side_lines(&line_elements, "natlang");
+    let comments = interlinear_side_lines(&line_elements, "comment");
+    (!rows.is_empty() || !natlang.is_empty() || !comments.is_empty()).then_some(
+        CllBlock::InterlinearGloss {
+            id: block_anchor_id_for("interlinear", anchor_mode, context, node),
+            aligned: maybe_aligned.is_some(),
+            rows,
+            natlang,
+            comments,
+        },
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn aligned_interlinear_rows(line_elements: &[Node<'_, '_>]) -> Option<Vec<CllInterlinearRow>> {
+    let jbo_line = single_named_line(line_elements, "jbo")?;
+    let gloss_line = single_named_line(line_elements, "gloss")?;
+    if line_elements.iter().any(|line| {
+        !matches!(
+            line.tag_name().name(),
+            "jbo" | "gloss" | "natlang" | "comment"
+        )
+    }) {
+        return None;
+    }
+    let jbo_tokens = normalized_plain_text(&visible_text_raw(jbo_line))
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let gloss_tokens = normalized_plain_text(&visible_text_raw(gloss_line))
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    if jbo_tokens.len() <= 1 || jbo_tokens.len() != gloss_tokens.len() {
+        return None;
+    }
+    Some(vec![
+        new!(CllInterlinearRow {
+            kind: "jbo".to_owned(),
+            cells: jbo_tokens
+                .iter()
+                .map(|token| linked_jbo_text_inlines(token))
+                .collect(),
+        }),
+        new!(CllInterlinearRow {
+            kind: "gloss".to_owned(),
+            cells: gloss_tokens
+                .into_iter()
+                .map(|token| vec![CllInline::Text(token)])
+                .collect(),
+        }),
+    ])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn single_named_line<'a, 'input>(
+    line_elements: &[Node<'a, 'input>],
+    name: &str,
+) -> Option<Node<'a, 'input>> {
+    let mut matches = line_elements
+        .iter()
+        .copied()
+        .filter(|line| line.has_tag_name(name));
+    let first = matches.next()?;
+    matches.next().is_none().then_some(first)
+}
+
+#[requires(line.is_element())]
+#[ensures(true)]
+fn plain_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
+    let kind = line.tag_name().name().to_owned();
+    let body = if line.has_tag_name("jbo") || line.has_tag_name("jbophrase") {
+        linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(line)))
+    } else {
+        trim_inline_runs(parse_inlines(line))
+    };
+    (!body.is_empty()).then_some(new!(CllInterlinearRow {
+        kind,
+        cells: vec![body],
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn interlinear_side_lines(line_elements: &[Node<'_, '_>], name: &str) -> Vec<Vec<CllInline>> {
+    line_elements
+        .iter()
+        .filter(|line| line.has_tag_name(name))
+        .map(|line| trim_inline_runs(parse_inlines(*line)))
+        .filter(|body| !body.is_empty())
+        .collect()
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_interlinear_gloss_itemized_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+) -> Option<CllBlock> {
+    let line_elements = node
+        .children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .collect::<Vec<_>>();
+    let rows = line_elements
+        .iter()
+        .filter(|line| !line.has_tag_name("natlang") && !line.has_tag_name("comment"))
+        .filter_map(|line| itemized_interlinear_row(*line))
+        .collect::<Vec<_>>();
+    let natlang = interlinear_side_lines(&line_elements, "natlang");
+    let comments = interlinear_side_lines(&line_elements, "comment");
+    (!rows.is_empty() || !natlang.is_empty() || !comments.is_empty()).then_some(
+        CllBlock::InterlinearGloss {
+            id: block_anchor_id_for("interlinear", anchor_mode, context, node),
+            aligned: true,
+            rows,
+            natlang,
+            comments,
+        },
+    )
+}
+
+#[requires(line.is_element())]
+#[ensures(true)]
+fn itemized_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
+    let kind = line.tag_name().name().to_owned();
+    let cells = line
+        .children()
+        .flat_map(|child| collect_interlinear_cell(child, &kind))
+        .map(trim_inline_runs)
+        .filter(|cell| !cell.is_empty())
+        .collect::<Vec<_>>();
+    (!cells.is_empty()).then_some(new!(CllInterlinearRow { kind, cells }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_interlinear_cell(node: Node<'_, '_>, kind: &str) -> Vec<Vec<CllInline>> {
+    if node.is_text() {
+        let text = normalized_plain_text(node.text().unwrap_or_default());
+        if text.is_empty() {
+            return Vec::new();
+        }
+        return vec![if kind == "jbo" {
+            linked_jbo_text_inlines(&text)
+        } else {
+            vec![CllInline::Text(text)]
+        }];
+    }
+    if !node.is_element() || node.has_tag_name("indexterm") {
+        return Vec::new();
+    }
+    if kind == "jbo" {
+        if node.has_tag_name("elidable") {
+            return vec![vec![CllInline::Elidable {
+                shown: visible_text(node),
+                forced: attr_string(node, "elidable")
+                    .is_some_and(|value| value.eq_ignore_ascii_case("false")),
+                inlines: linked_jbo_text_inlines(&visible_text(node)),
+            }]];
+        }
+        return vec![linked_jbo_text_inlines(&visible_text(node))];
+    }
+    vec![parse_inlines(node)]
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_cmavo_list_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+) -> Option<CllBlock> {
+    let entry_rows = node
+        .children()
+        .filter(|child| child.is_element() && child.has_tag_name("cmavo-entry"))
+        .map(|entry| {
+            entry
+                .children()
+                .filter(Node::is_element)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let column_count = entry_rows.iter().map(Vec::len).max().unwrap_or(0);
+    if column_count == 0 {
+        return None;
+    }
+    let header_cells = child_element(node, "cmavo-list-head")
+        .map(|head| head.children().filter(Node::is_element).collect::<Vec<_>>())
+        .unwrap_or_default();
+    let headers = (0..column_count)
+        .map(|index| {
+            header_cells
+                .get(index)
+                .map(|cell| trim_inline_runs(parse_inlines(*cell)))
+                .filter(|body| !body.is_empty())
+                .unwrap_or_else(|| vec![CllInline::Text(cmavo_column_label(index))])
+        })
+        .collect::<Vec<_>>();
+    let rows = entry_rows
+        .iter()
+        .map(|entry_cells| {
+            (0..column_count)
+                .map(|index| {
+                    entry_cells
+                        .get(index)
+                        .map(|cell| trim_inline_runs(parse_inlines(*cell)))
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let titles = node
+        .children()
+        .filter(|child| child.is_element() && child.has_tag_name("title"))
+        .map(parse_inlines)
+        .map(trim_inline_runs)
+        .filter(|body| !body.is_empty())
+        .collect::<Vec<_>>();
+    Some(CllBlock::CmavoList {
+        id: block_anchor_id_for("cmavo-list", anchor_mode, context, node),
+        titles,
+        headers,
+        rows,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_column_label(index: usize) -> String {
+    match index {
+        0 => "cmavo",
+        1 => "selma'o",
+        2 => "description",
+        _ => "",
+    }
+    .to_owned()
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_lojbanization_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+) -> Option<CllBlock> {
+    let lines = node
+        .children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .filter_map(|line| {
+            let kind = line.tag_name().name().to_owned();
+            let body_nodes = line
+                .children()
+                .filter(|child| {
+                    child.is_text()
+                        || (child.is_element()
+                            && !child.has_tag_name("comment")
+                            && !child.has_tag_name("indexterm"))
+                })
+                .collect::<Vec<_>>();
+            let body = if kind == "jbo" {
+                linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(line)))
+            } else {
+                trim_inline_runs(parse_inline_nodes(&body_nodes))
+            };
+            let comment = child_element(line, "comment")
+                .map(parse_inlines)
+                .map(trim_inline_runs)
+                .filter(|value| !value.is_empty());
+            (!body.is_empty() || comment.is_some()).then_some(new!(CllLojbanizationLine {
+                kind,
+                body,
+                comment,
+            }))
+        })
+        .collect::<Vec<_>>();
+    (!lines.is_empty()).then_some(CllBlock::Lojbanization {
+        id: block_anchor_id_for("lojbanization", anchor_mode, context, node),
+        lines,
+    })
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_lujvo_making_block(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    anchor_mode: AnchorMode,
+) -> Option<CllBlock> {
+    let parts = node
+        .children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .filter_map(|part| {
+            let kind = part.tag_name().name().to_owned();
+            let body = if matches!(kind.as_str(), "jbo" | "veljvo" | "rafsi") {
+                linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(part)))
+            } else {
+                trim_inline_runs(parse_inlines(part))
+            };
+            (!body.is_empty()).then_some(new!(CllLujvoPart { kind, body }))
+        })
+        .collect::<Vec<_>>();
+    (!parts.is_empty()).then_some(CllBlock::LujvoMaking {
+        id: block_anchor_id_for("lujvo-making", anchor_mode, context, node),
+        parts,
+    })
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_ebnf_block(node: Node<'_, '_>, context: &SectionParseContext) -> Option<CllBlock> {
+    let entry_nodes = node
+        .children()
+        .filter(|child| child.is_element() && child.has_tag_name("varlistentry"))
+        .collect::<Vec<_>>();
+    let defined_rules = entry_nodes
+        .iter()
+        .filter_map(|entry| child_element(*entry, "term"))
+        .map(|term| extract_ebnf_rule_name(&visible_text(term)))
+        .filter(|rule| !rule.is_empty())
+        .collect::<BTreeSet<_>>();
+    let entries = entry_nodes
+        .iter()
+        .filter_map(|entry| parse_ebnf_entry(*entry, &defined_rules))
+        .collect::<Vec<_>>();
+    (!entries.is_empty()).then_some(CllBlock::Ebnf {
+        id: block_anchor_id_for("ebnf", AnchorMode::TopLevel, context, node),
+        entries,
+    })
+}
+
+#[requires(entry.is_element())]
+#[ensures(true)]
+fn parse_ebnf_entry(entry: Node<'_, '_>, defined_rules: &BTreeSet<String>) -> Option<CllEbnfEntry> {
+    let term = child_element(entry, "term")?;
+    let listitem = child_element(entry, "listitem")?;
+    let para = child_element(listitem, "para")?;
+    let rule_name = extract_ebnf_rule_name(&visible_text(term));
+    let rhs_text = normalized_plain_text(&visible_text_raw(para));
+    if rule_name.is_empty() || rhs_text.is_empty() {
+        return None;
+    }
+    Some(new!(CllEbnfEntry {
+        anchor_id: ebnf_rule_anchor_id(&rule_name),
+        rule_href: ebnf_symbol_href(&rule_name),
+        rhs: tokenize_ebnf_rule_rhs(&rule_name, defined_rules, &rhs_text),
+        rule_name,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn extract_ebnf_rule_name(text: &str) -> String {
+    text.trim()
+        .chars()
+        .take_while(|character| {
+            character.is_ascii_alphanumeric() || *character == '-' || *character == '\''
+        })
+        .collect()
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(ret.starts_with("ebnf-rule-"))]
+pub fn ebnf_rule_anchor_id(rule_name: &str) -> String {
+    let slug = rule_name
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .split('-')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+    format!("ebnf-rule-{slug}")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tokenize_ebnf_rule_rhs(
+    rule_name: &str,
+    defined_rules: &BTreeSet<String>,
+    rhs_text: &str,
+) -> Vec<CllEbnfToken> {
+    if rule_name == "any-word" || rule_name == "anything" {
+        return vec![CllEbnfToken::Text {
+            body: rhs_text.to_owned(),
+        }];
+    }
+    tokenize_ebnf_tokens(defined_rules, rhs_text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tokenize_ebnf_tokens(defined_rules: &BTreeSet<String>, rhs_text: &str) -> Vec<CllEbnfToken> {
+    let chars = rhs_text.chars().collect::<Vec<_>>();
+    let mut index = 0usize;
+    let mut tokens = Vec::new();
+    while index < chars.len() {
+        let character = chars[index];
+        if character.is_whitespace() {
+            let start = index;
+            while index < chars.len() && chars[index].is_whitespace() {
+                index += 1;
+            }
+            tokens.push(CllEbnfToken::Text {
+                body: chars[start..index].iter().collect(),
+            });
+        } else if character == '\u{201c}' {
+            let start = index;
+            index += 1;
+            while index < chars.len() && chars[index] != '\u{201d}' {
+                index += 1;
+            }
+            if index < chars.len() {
+                index += 1;
+            }
+            tokens.push(CllEbnfToken::Text {
+                body: chars[start..index].iter().collect(),
+            });
+        } else if character == '/' {
+            if let Some((body, symbol, next_index)) = parse_ebnf_elidable(&chars, index) {
+                tokens.push(CllEbnfToken::ElidableTerminator {
+                    body,
+                    href: ebnf_symbol_href(&symbol),
+                });
+                index = next_index;
+            } else {
+                tokens.push(CllEbnfToken::Operator {
+                    body: character.to_string(),
+                });
+                index += 1;
+            }
+        } else if index + 3 <= chars.len() && chars[index..index + 3] == ['.', '.', '.'] {
+            tokens.push(CllEbnfToken::Operator {
+                body: "...".to_owned(),
+            });
+            index += 3;
+        } else if is_ebnf_boundary(character) {
+            let body = character.to_string();
+            if character == '#' {
+                tokens.push(CllEbnfToken::Hash { body });
+            } else {
+                tokens.push(CllEbnfToken::Operator { body });
+            }
+            index += 1;
+        } else if is_ebnf_identifier_char(character) {
+            let start = index;
+            while index < chars.len() && is_ebnf_identifier_char(chars[index]) {
+                index += 1;
+            }
+            let body = chars[start..index].iter().collect::<String>();
+            tokens.push(classify_ebnf_identifier(&body, defined_rules));
+        } else {
+            tokens.push(CllEbnfToken::Text {
+                body: character.to_string(),
+            });
+            index += 1;
+        }
+    }
+    tokens
+}
+
+#[requires(index < chars.len())]
+#[ensures(true)]
+fn parse_ebnf_elidable(chars: &[char], index: usize) -> Option<(String, String, usize)> {
+    let mut cursor = index + 1;
+    let symbol_start = cursor;
+    while cursor < chars.len() && is_ebnf_identifier_char(chars[cursor]) {
+        cursor += 1;
+    }
+    if cursor == symbol_start {
+        return None;
+    }
+    let symbol = chars[symbol_start..cursor].iter().collect::<String>();
+    if cursor < chars.len() && chars[cursor] == '/' {
+        cursor += 1;
+        return Some((chars[index..cursor].iter().collect(), symbol, cursor));
+    }
+    if cursor + 1 < chars.len() && chars[cursor] == '#' && chars[cursor + 1] == '/' {
+        cursor += 2;
+        return Some((chars[index..cursor].iter().collect(), symbol, cursor));
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classify_ebnf_identifier(body: &str, defined_rules: &BTreeSet<String>) -> CllEbnfToken {
+    if let Some(href) = ebnf_symbol_href(body) {
+        return CllEbnfToken::Terminal {
+            body: body.to_owned(),
+            href: Some(href),
+        };
+    }
+    if defined_rules.contains(body) {
+        return CllEbnfToken::Nonterminal {
+            body: body.to_owned(),
+            href: Some(format!("#{}", ebnf_rule_anchor_id(body))),
+        };
+    }
+    let letters = body
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .collect::<Vec<_>>();
+    if !letters.is_empty()
+        && letters
+            .iter()
+            .all(|character| !character.is_ascii_lowercase())
+    {
+        return CllEbnfToken::Terminal {
+            body: body.to_owned(),
+            href: ebnf_symbol_href(body),
+        };
+    }
+    if letters
+        .iter()
+        .any(|character| character.is_ascii_lowercase())
+    {
+        return CllEbnfToken::Nonterminal {
+            body: body.to_owned(),
+            href: None,
+        };
+    }
+    CllEbnfToken::Text {
+        body: body.to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ebnf_symbol_href(symbol: &str) -> Option<String> {
+    match symbol {
+        "BRIVLA" => Some(section_href("section-morphology-brivla")),
+        "CMEVLA" => Some(section_href("section-cmevla")),
+        "any-word" | "anything" => Some(section_href("section-more-quotations")),
+        "null" => Some(section_href("section-erasure")),
+        _ if symbol
+            .chars()
+            .any(|character| character.is_ascii_uppercase()) =>
+        {
+            Some(format!("{}#{symbol}", section_href("section-index")))
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_ebnf_boundary(character: char) -> bool {
+    matches!(character, '|' | '&' | '[' | ']' | '(' | ')' | '=' | '#')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_ebnf_identifier_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '-' || character == '\''
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn wrap_ebnf_choice_lines(tokens: &[CllEbnfToken]) -> Vec<Vec<CllEbnfToken>> {
+    let mut lines = Vec::new();
+    let mut current = Vec::new();
+    let mut depth = 0usize;
+    for token in tokens {
+        if depth == 0 && matches!(token, CllEbnfToken::Operator { body } if body == "|") {
+            current.push(token.clone());
+            push_trimmed_ebnf_line(&mut lines, &mut current);
+        } else {
+            depth = next_ebnf_depth(depth, token);
+            current.push(token.clone());
+        }
+    }
+    push_trimmed_ebnf_line(&mut lines, &mut current);
+    if lines.len() <= 1 {
+        vec![tokens.to_vec()]
+    } else {
+        lines
+    }
+}
+
+#[requires(true)]
+#[ensures(current.is_empty())]
+fn push_trimmed_ebnf_line(lines: &mut Vec<Vec<CllEbnfToken>>, current: &mut Vec<CllEbnfToken>) {
+    let line = std::mem::take(current);
+    let start = line
+        .iter()
+        .position(|token| !ebnf_token_is_whitespace(token))
+        .unwrap_or(line.len());
+    let end = line
+        .iter()
+        .rposition(|token| !ebnf_token_is_whitespace(token))
+        .map(|index| index + 1)
+        .unwrap_or(start);
+    if start < end {
+        lines.push(line[start..end].to_vec());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ebnf_token_is_whitespace(token: &CllEbnfToken) -> bool {
+    matches!(token, CllEbnfToken::Text { body } if body.chars().all(char::is_whitespace))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn next_ebnf_depth(depth: usize, token: &CllEbnfToken) -> usize {
+    match token {
+        CllEbnfToken::Operator { body } if body == "[" || body == "(" => depth + 1,
+        CllEbnfToken::Operator { body } if body == "]" || body == ")" => depth.saturating_sub(1),
+        _ => depth,
+    }
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn collect_jbo_snippet(node: Node<'_, '_>) -> Option<String> {
+    let lines = node
+        .descendants()
+        .filter(|descendant| descendant.is_element() && descendant.has_tag_name("jbo"))
+        .map(|line| normalized_plain_text(&visible_text_raw(line)))
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    let (first, rest) = lines.split_first()?;
+    let mut parts = Vec::with_capacity(lines.len());
+    parts.push(first.clone());
+    parts.extend(rest.iter().map(|line| {
+        line.trim_start()
+            .trim_start_matches("...")
+            .trim_start_matches('\u{2026}')
+            .trim_start()
+            .to_owned()
+    }));
+    Some(parts.join(" "))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn percent_encode_plain(text: &str) -> String {
+    let mut output = String::new();
+    for byte in text.as_bytes() {
+        match *byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                output.push(char::from(*byte));
+            }
+            b' ' => output.push_str("%20"),
+            value => output.push_str(&format!("%{value:02X}")),
+        }
+    }
+    output
 }
 
 #[requires(node.is_element())]
@@ -1149,17 +2657,23 @@ fn build_example_reference_index(site: &CllSite) -> BTreeMap<String, String> {
     for (id, example) in &site.examples_by_id {
         insert_reference(&mut index, id, id);
         insert_reference(&mut index, &example.label, id);
+        if let Some(example_number) = &example.reference.example_number {
+            insert_reference(&mut index, example_number, id);
+        }
         if let Some(example_id) = &example.reference.example_id {
             insert_reference(&mut index, example_id, id);
         }
     }
     for (anchor_id, anchor) in &site.anchors_by_id {
         if let Some(example_label) = anchor.label.strip_prefix("Example ") {
-            if let Some(example) = site
-                .examples_by_id
-                .values()
-                .find(|example| example.label == example_label)
-            {
+            if let Some(example) = site.examples_by_id.values().find(|example| {
+                example.label == anchor.label
+                    || example
+                        .reference
+                        .example_number
+                        .as_deref()
+                        .is_some_and(|number| number == example_label)
+            }) {
                 insert_reference(&mut index, anchor_id, &example.anchor_id);
             }
         }
@@ -1210,7 +2724,7 @@ fn build_link_resolutions(site: &CllSite) -> BTreeMap<String, LinkResolution> {
         resolutions.insert(
             example.anchor_id.clone(),
             LinkResolution {
-                label: format!("Example {}", example.label),
+                label: example.label.clone(),
                 kind: CllLinkKind::Example,
             },
         );
@@ -1218,10 +2732,20 @@ fn build_link_resolutions(site: &CllSite) -> BTreeMap<String, LinkResolution> {
             &mut resolutions,
             &example.label,
             LinkResolution {
-                label: format!("Example {}", example.label),
+                label: example.label.clone(),
                 kind: CllLinkKind::Example,
             },
         );
+        if let Some(example_number) = &example.reference.example_number {
+            insert_link_resolution(
+                &mut resolutions,
+                example_number,
+                LinkResolution {
+                    label: example.label.clone(),
+                    kind: CllLinkKind::Example,
+                },
+            );
+        }
     }
     resolutions
 }
@@ -1250,35 +2774,201 @@ fn resolve_block_links(blocks: &mut [CllBlock], resolutions: &BTreeMap<String, L
                     resolve_block_links(item, resolutions);
                 }
             }
-            CllBlock::Table { rows, .. } => {
+            CllBlock::Table {
+                caption,
+                header_rows,
+                body_rows,
+                ..
+            } => {
+                if let Some(caption) = caption {
+                    resolve_inline_links(caption, resolutions);
+                }
+                for row in header_rows.iter_mut().chain(body_rows.iter_mut()) {
+                    *row = std::mem::take(row)
+                        .into_iter()
+                        .map(|cell| resolve_table_cell_links(cell, resolutions))
+                        .collect();
+                }
+            }
+            CllBlock::SimpleListTable { rows, .. } => {
                 for row in rows {
-                    for cell in row {
-                        resolve_block_links(cell, resolutions);
+                    for cell in row.iter_mut().flatten() {
+                        resolve_inline_links(cell, resolutions);
                     }
                 }
             }
+            CllBlock::VariableList { entries, .. } => {
+                *entries = std::mem::take(entries)
+                    .into_iter()
+                    .map(|entry| resolve_variable_entry_links(entry, resolutions))
+                    .collect();
+            }
             CllBlock::Rule { body, .. } => resolve_block_links(body, resolutions),
-            CllBlock::Example(_)
-            | CllBlock::Media { .. }
-            | CllBlock::Code { .. }
-            | CllBlock::Heading { .. } => {}
+            CllBlock::Example(example) => resolve_block_links(&mut example.blocks, resolutions),
+            CllBlock::Media { title, .. } => {
+                if let Some(title) = title {
+                    resolve_inline_links(title, resolutions);
+                }
+            }
+            CllBlock::BlockQuote { blocks, .. } => resolve_block_links(blocks, resolutions),
+            CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
+                resolve_inline_links(body, resolutions);
+            }
+            CllBlock::InterlinearGloss {
+                rows,
+                natlang,
+                comments,
+                ..
+            } => {
+                *rows = std::mem::take(rows)
+                    .into_iter()
+                    .map(|row| resolve_interlinear_row_links(row, resolutions))
+                    .collect();
+                for line in natlang.iter_mut().chain(comments.iter_mut()) {
+                    resolve_inline_links(line, resolutions);
+                }
+            }
+            CllBlock::CmavoList {
+                titles,
+                headers,
+                rows,
+                ..
+            } => {
+                for title in titles.iter_mut().chain(headers.iter_mut()) {
+                    resolve_inline_links(title, resolutions);
+                }
+                for row in rows {
+                    for cell in row {
+                        resolve_inline_links(cell, resolutions);
+                    }
+                }
+            }
+            CllBlock::Lojbanization { lines, .. } => {
+                *lines = std::mem::take(lines)
+                    .into_iter()
+                    .map(|line| resolve_lojbanization_line_links(line, resolutions))
+                    .collect();
+            }
+            CllBlock::LujvoMaking { parts, .. } => {
+                *parts = std::mem::take(parts)
+                    .into_iter()
+                    .map(|part| resolve_lujvo_part_links(part, resolutions))
+                    .collect();
+            }
+            CllBlock::Code { .. } | CllBlock::Heading { .. } | CllBlock::Ebnf { .. } => {}
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
+fn resolve_table_cell_links(
+    cell: CllTableCell,
+    resolutions: &BTreeMap<String, LinkResolution>,
+) -> CllTableCell {
+    let data = cell.into_data();
+    let mut blocks = data.blocks;
+    resolve_block_links(&mut blocks, resolutions);
+    CllTableCell::from_data(data!(CllTableCell { blocks, ..data }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn resolve_variable_entry_links(
+    entry: CllVariableEntry,
+    resolutions: &BTreeMap<String, LinkResolution>,
+) -> CllVariableEntry {
+    let data = entry.into_data();
+    let mut term = data.term;
+    let mut blocks = data.blocks;
+    resolve_inline_links(&mut term, resolutions);
+    resolve_block_links(&mut blocks, resolutions);
+    CllVariableEntry::from_data(data!(CllVariableEntry { term, blocks }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn resolve_interlinear_row_links(
+    row: CllInterlinearRow,
+    resolutions: &BTreeMap<String, LinkResolution>,
+) -> CllInterlinearRow {
+    let data = row.into_data();
+    let mut cells = data.cells;
+    for cell in &mut cells {
+        resolve_inline_links(cell, resolutions);
+    }
+    CllInterlinearRow::from_data(data!(CllInterlinearRow {
+        kind: data.kind,
+        cells,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn resolve_lojbanization_line_links(
+    line: CllLojbanizationLine,
+    resolutions: &BTreeMap<String, LinkResolution>,
+) -> CllLojbanizationLine {
+    let data = line.into_data();
+    let mut body = data.body;
+    let mut comment = data.comment;
+    resolve_inline_links(&mut body, resolutions);
+    if let Some(comment) = &mut comment {
+        resolve_inline_links(comment, resolutions);
+    }
+    CllLojbanizationLine::from_data(data!(CllLojbanizationLine {
+        kind: data.kind,
+        body,
+        comment,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn resolve_lujvo_part_links(
+    part: CllLujvoPart,
+    resolutions: &BTreeMap<String, LinkResolution>,
+) -> CllLujvoPart {
+    let data = part.into_data();
+    let mut body = data.body;
+    resolve_inline_links(&mut body, resolutions);
+    CllLujvoPart::from_data(data!(CllLujvoPart {
+        kind: data.kind,
+        body,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn resolve_inline_links(inlines: &mut [CllInline], resolutions: &BTreeMap<String, LinkResolution>) {
     for inline in inlines {
-        if let CllInline::Link { target, text, kind } = inline {
-            if *kind == CllLinkKind::Section
-                && let Some(resolution) = resolutions.get(target)
-            {
-                *kind = resolution.kind;
-                if text == target {
-                    *text = resolution.label.clone();
+        match inline {
+            CllInline::Link {
+                target,
+                inlines,
+                kind,
+            } => {
+                resolve_inline_links(inlines, resolutions);
+                if *kind == CllLinkKind::Section
+                    && let Some(resolution) = resolutions.get(target)
+                {
+                    *kind = resolution.kind;
+                    if inline_plain_text(inlines) == *target {
+                        *inlines = vec![CllInline::Text(resolution.label.clone())];
+                    }
                 }
             }
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Elidable { inlines, .. } => resolve_inline_links(inlines, resolutions),
+            CllInline::Text(_)
+            | CllInline::Code(_)
+            | CllInline::InlineMath { .. }
+            | CllInline::Anchor { .. } => {}
         }
     }
 }
@@ -1363,21 +3053,44 @@ fn collect_block_search_chunks(
                         tagged_words: example_tagged_words(example),
                     });
                 }
+                collect_block_search_chunks(section, &example.blocks, chunks);
             }
             CllBlock::List { items, .. } => {
                 for item in items {
                     collect_block_search_chunks(section, item, chunks);
                 }
             }
-            CllBlock::Table { rows, .. } => {
-                for row in rows {
+            CllBlock::Table {
+                header_rows,
+                body_rows,
+                ..
+            } => {
+                for row in header_rows.iter().chain(body_rows.iter()) {
                     for cell in row {
-                        collect_block_search_chunks(section, cell, chunks);
+                        collect_block_search_chunks(section, &cell.blocks, chunks);
                     }
                 }
             }
+            CllBlock::VariableList { entries, .. } => {
+                for entry in entries {
+                    collect_block_search_chunks(section, &entry.blocks, chunks);
+                }
+            }
             CllBlock::Rule { body, .. } => collect_block_search_chunks(section, body, chunks),
-            CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::Heading { .. } => {}
+            CllBlock::BlockQuote { blocks, .. } => {
+                collect_block_search_chunks(section, blocks, chunks)
+            }
+            CllBlock::SimpleListTable { .. }
+            | CllBlock::Media { .. }
+            | CllBlock::Code { .. }
+            | CllBlock::Heading { .. }
+            | CllBlock::Definition { .. }
+            | CllBlock::InterlinearGloss { .. }
+            | CllBlock::CmavoList { .. }
+            | CllBlock::Lojbanization { .. }
+            | CllBlock::LujvoMaking { .. }
+            | CllBlock::GrammarTemplate { .. }
+            | CllBlock::Ebnf { .. } => {}
         }
     }
 }
@@ -1585,7 +3298,7 @@ pub fn render_cukta_request(
                 .ok_or_else(|| CllError::NotFound(format!("CLL example not found: {reference}")))?;
             let example = cll_lookup_example(site, &example_id)
                 .ok_or_else(|| CllError::NotFound(format!("CLL example not found: {reference}")))?;
-            Ok(render_example(example, format))
+            Ok(render_example(site, example, format))
         }
         CuktaRequest::Search {
             mode,
@@ -1726,35 +3439,48 @@ pub fn render_section(site: &CllSite, section: &CllSection, format: CllRenderFor
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_example(example: &CllExample, format: CllRenderFormat) -> String {
+pub fn render_example(site: &CllSite, example: &CllExample, format: CllRenderFormat) -> String {
     match format {
         CllRenderFormat::Html => {
             let mut output = format!(
-                "<figure id=\"{}\" class=\"cll-example\"><figcaption>Example {}</figcaption>",
+                "<figure id=\"{}\" class=\"cll-example\"><figcaption class=\"cll-example-head\"><span class=\"cll-example-title\">{}</span>",
                 escape_html(&example.anchor_id),
                 escape_html(&example.label)
             );
-            for line in &example.lines {
-                output.push_str("<p class=\"cll-ig-line cll-ig-");
-                output.push_str(&escape_html(&line.kind));
-                output.push_str("\">");
-                output.push_str(&escape_html(&line.text));
-                output.push_str("</p>");
+            if let Some(parse_href) = &example.parse_href {
+                output.push_str(
+                    "<a class=\"cll-parse-example spa-cll-link spa-cll-link-parse\" href=\"",
+                );
+                output.push_str(&escape_html(parse_href));
+                output.push_str("\">Parse</a>");
+            }
+            output.push_str("</figcaption>");
+            for block in &example.blocks {
+                output.push_str(&render_block_html(site, block));
             }
             output.push_str("</figure>\n");
             output
         }
         CllRenderFormat::Markdown | CllRenderFormat::Raw => {
-            let mut output = format!("### Example {}\n\n", example.label);
-            for line in &example.lines {
-                if line.kind == "text" {
-                    output.push_str(&line.text);
-                    output.push('\n');
-                } else {
-                    output.push_str(&format!("{}: {}\n", line.kind, line.text));
-                }
+            let mut output = format!("### {}", example.label);
+            if let Some(parse_href) = &example.parse_href {
+                output.push_str(&format!(" [Parse]({parse_href})"));
             }
-            output.push('\n');
+            output.push_str("\n\n");
+            for block in &example.blocks {
+                render_block_markdown(site, block, &mut output, 0);
+            }
+            if example.blocks.is_empty() {
+                for line in &example.lines {
+                    if line.kind == "text" {
+                        output.push_str(&line.text);
+                        output.push('\n');
+                    } else {
+                        output.push_str(&format!("{}: {}\n", line.kind, line.text));
+                    }
+                }
+                output.push('\n');
+            }
             output
         }
     }
@@ -1894,14 +3620,35 @@ fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
             .flat_map(|item| blocks_tagged_words(item))
             .collect(),
         CllBlock::Example(example) => example_tagged_words(example),
-        CllBlock::Table { rows, .. } => rows
+        CllBlock::Table {
+            header_rows,
+            body_rows,
+            ..
+        } => header_rows
             .iter()
-            .flat_map(|row| row.iter().flat_map(|cell| blocks_tagged_words(cell)))
+            .chain(body_rows.iter())
+            .flat_map(|row| {
+                row.iter()
+                    .flat_map(|cell| blocks_tagged_words(&cell.blocks))
+            })
+            .collect(),
+        CllBlock::VariableList { entries, .. } => entries
+            .iter()
+            .flat_map(|entry| blocks_tagged_words(&entry.blocks))
             .collect(),
         CllBlock::Rule { body, .. } => blocks_tagged_words(body),
-        CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::Heading { .. } => {
-            BTreeSet::new()
-        }
+        CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(blocks),
+        CllBlock::SimpleListTable { .. }
+        | CllBlock::Media { .. }
+        | CllBlock::Code { .. }
+        | CllBlock::Heading { .. }
+        | CllBlock::Definition { .. }
+        | CllBlock::InterlinearGloss { .. }
+        | CllBlock::CmavoList { .. }
+        | CllBlock::Lojbanization { .. }
+        | CllBlock::LujvoMaking { .. }
+        | CllBlock::GrammarTemplate { .. }
+        | CllBlock::Ebnf { .. } => BTreeSet::new(),
     }
 }
 
@@ -1910,14 +3657,29 @@ fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
 fn inlines_tagged_words(inlines: &[CllInline]) -> BTreeSet<String> {
     let mut words = BTreeSet::new();
     for inline in inlines {
-        if let CllInline::Link {
-            target,
-            text,
-            kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
-        } = inline
-        {
-            words.extend(collect_tagged_words(target));
-            words.extend(collect_tagged_words(text));
+        match inline {
+            CllInline::Link {
+                target,
+                inlines,
+                kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
+            } => {
+                words.extend(collect_tagged_words(target));
+                words.extend(collect_tagged_words(&inline_plain_text(inlines)));
+            }
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Elidable { inlines, .. } => {
+                words.extend(inlines_tagged_words(inlines));
+            }
+            CllInline::Text(_)
+            | CllInline::Code(_)
+            | CllInline::Link { .. }
+            | CllInline::InlineMath { .. }
+            | CllInline::Anchor { .. } => {}
         }
     }
     words
@@ -1992,25 +3754,37 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             output.push('\n');
         }
         CllBlock::Example(example) => {
-            output.push_str(&render_example(example, CllRenderFormat::Markdown))
+            output.push_str(&render_example(site, example, CllRenderFormat::Markdown))
         }
-        CllBlock::Table { caption, rows } => {
-            if let Some(caption) = caption {
-                output.push_str(&format!("**{caption}**\n\n"));
-            }
-            for row in rows {
-                let cells = row
-                    .iter()
-                    .map(|cell| blocks_plain_text(cell))
-                    .collect::<Vec<_>>();
-                output.push_str("| ");
-                output.push_str(&cells.join(" | "));
-                output.push_str(" |\n");
-            }
-            output.push('\n');
+        CllBlock::Table {
+            caption,
+            header_rows,
+            body_rows,
+            ..
+        } => {
+            render_table_markdown(site, caption.as_deref(), header_rows, body_rows, output);
         }
-        CllBlock::Media { src, alt, .. } => {
+        CllBlock::SimpleListTable { rows, .. } => {
+            render_simple_list_table_markdown(site, rows, output);
+        }
+        CllBlock::VariableList { entries, .. } => {
+            for entry in entries {
+                output.push_str("**");
+                output.push_str(&render_inlines_markdown(site, &entry.term));
+                output.push_str("**\n\n");
+                for block in &entry.blocks {
+                    render_block_markdown(site, block, output, depth);
+                }
+            }
+        }
+        CllBlock::Media {
+            title, src, alt, ..
+        } => {
             output.push_str(&format!("![{}]({})\n\n", alt, src));
+            if let Some(title) = title {
+                output.push_str(&render_inlines_markdown(site, title));
+                output.push_str("\n\n");
+            }
         }
         CllBlock::Rule { term, body, .. } => {
             output.push_str(&format!("**{term}**\n\n"));
@@ -2029,6 +3803,48 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             output.push_str(title);
             output.push_str("\n\n");
         }
+        CllBlock::BlockQuote { blocks, .. } => {
+            let mut inner = String::new();
+            for block in blocks {
+                render_block_markdown(site, block, &mut inner, depth);
+            }
+            for line in inner.trim().lines() {
+                output.push_str("> ");
+                output.push_str(line);
+                output.push('\n');
+            }
+            output.push('\n');
+        }
+        CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
+            output.push_str(&render_inlines_markdown(site, body));
+            output.push_str("\n\n");
+        }
+        CllBlock::InterlinearGloss {
+            rows,
+            natlang,
+            comments,
+            ..
+        } => render_interlinear_markdown(site, rows, natlang, comments, output),
+        CllBlock::CmavoList {
+            titles,
+            headers,
+            rows,
+            ..
+        } => render_cmavo_list_markdown(site, titles, headers, rows, output),
+        CllBlock::Lojbanization { lines, .. } => {
+            render_lojbanization_markdown(site, lines, output);
+        }
+        CllBlock::LujvoMaking { parts, .. } => {
+            for part in parts {
+                output.push_str("- **");
+                output.push_str(&part.kind);
+                output.push_str("**: ");
+                output.push_str(&render_inlines_markdown(site, &part.body));
+                output.push('\n');
+            }
+            output.push('\n');
+        }
+        CllBlock::Ebnf { entries, .. } => render_ebnf_markdown(site, entries, output),
     }
 }
 
@@ -2070,46 +3886,81 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             output.push_str(&format!("</{tag}>"));
             output
         }
-        CllBlock::Example(example) => render_example(example, CllRenderFormat::Html),
-        CllBlock::Table { caption, rows } => {
-            let mut output = String::from("<table class=\"cll-table\">");
+        CllBlock::Example(example) => render_example(site, example, CllRenderFormat::Html),
+        CllBlock::Table {
+            id,
+            caption,
+            header_rows,
+            body_rows,
+            classes,
+        } => {
+            let mut output = format!(
+                "<table{} class=\"{}\">",
+                render_optional_id(id.as_deref()),
+                table_classes(classes)
+            );
             if let Some(caption) = caption {
                 output.push_str("<caption>");
-                output.push_str(&escape_html(caption));
+                output.push_str(&render_inlines_html(site, caption));
                 output.push_str("</caption>");
             }
-            for row in rows {
-                output.push_str("<tr>");
-                for cell in row {
-                    output.push_str("<td>");
-                    for block in cell {
-                        output.push_str(&render_block_html(site, block));
-                    }
-                    output.push_str("</td>");
-                }
-                output.push_str("</tr>");
+            if !header_rows.is_empty() {
+                output.push_str("<thead>");
+                render_table_rows_html(site, "th", header_rows, &mut output);
+                output.push_str("</thead>");
             }
+            output.push_str("<tbody>");
+            render_table_rows_html(site, "td", body_rows, &mut output);
+            output.push_str("</tbody>");
             output.push_str("</table>");
             output
         }
-        CllBlock::Media { id, src, alt } => {
-            let id = id
-                .as_ref()
-                .map(|value| format!(" id=\"{}\"", escape_html(value)))
-                .unwrap_or_default();
-            format!(
-                "<figure{id} class=\"cll-media\"><img src=\"{}\" alt=\"{}\" /></figure>",
+        CllBlock::SimpleListTable {
+            id,
+            orientation,
+            rows,
+        } => render_simple_list_table_html(site, id.as_deref(), *orientation, rows),
+        CllBlock::VariableList { id, entries } => {
+            let mut output = format!(
+                "<dl{} class=\"cll-variable-list\">",
+                render_optional_id(id.as_deref())
+            );
+            for entry in entries {
+                output.push_str("<dt>");
+                output.push_str(&render_inlines_html(site, &entry.term));
+                output.push_str("</dt><dd>");
+                for block in &entry.blocks {
+                    output.push_str(&render_block_html(site, block));
+                }
+                output.push_str("</dd>");
+            }
+            output.push_str("</dl>");
+            output
+        }
+        CllBlock::Media {
+            id,
+            title,
+            src,
+            alt,
+        } => {
+            let mut output = format!(
+                "<figure{} class=\"cll-media\"><img src=\"{}\" alt=\"{}\" />",
+                render_optional_id(id.as_deref()),
                 escape_html(src),
                 escape_html(alt)
-            )
+            );
+            if let Some(title) = title {
+                output.push_str("<figcaption>");
+                output.push_str(&render_inlines_html(site, title));
+                output.push_str("</figcaption>");
+            }
+            output.push_str("</figure>");
+            output
         }
         CllBlock::Rule { id, term, body } => {
-            let id = id
-                .as_ref()
-                .map(|value| format!(" id=\"{}\"", escape_html(value)))
-                .unwrap_or_default();
             let mut output = format!(
-                "<div{id} class=\"cll-rule\"><dt>{}</dt><dd>",
+                "<div{} class=\"cll-rule\"><dt>{}</dt><dd>",
+                render_optional_id(id.as_deref()),
                 escape_html(term)
             );
             for block in body {
@@ -2128,6 +3979,45 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             let level = (*level).clamp(2, 6);
             format!("<h{level}>{}</h{level}>", escape_html(title))
         }
+        CllBlock::BlockQuote { id, blocks } => {
+            let mut output = format!(
+                "<blockquote{} class=\"cll-blockquote\">",
+                render_optional_id(id.as_deref())
+            );
+            for block in blocks {
+                output.push_str(&render_block_html(site, block));
+            }
+            output.push_str("</blockquote>");
+            output
+        }
+        CllBlock::Definition { id, body } => format!(
+            "<p{} class=\"cll-definition\">{}</p>",
+            render_optional_id(id.as_deref()),
+            render_inlines_html(site, body)
+        ),
+        CllBlock::InterlinearGloss {
+            id,
+            aligned,
+            rows,
+            natlang,
+            comments,
+        } => render_interlinear_html(site, id.as_deref(), *aligned, rows, natlang, comments),
+        CllBlock::CmavoList {
+            id,
+            titles,
+            headers,
+            rows,
+        } => render_cmavo_list_html(site, id.as_deref(), titles, headers, rows),
+        CllBlock::Lojbanization { id, lines } => {
+            render_lojbanization_html(site, id.as_deref(), lines)
+        }
+        CllBlock::LujvoMaking { id, parts } => render_lujvo_making_html(site, id.as_deref(), parts),
+        CllBlock::GrammarTemplate { id, body } => format!(
+            "<p{} class=\"cll-grammar-template\">{}</p>",
+            render_optional_id(id.as_deref()),
+            render_inlines_html(site, body)
+        ),
+        CllBlock::Ebnf { id, entries } => render_ebnf_html(site, id.as_deref(), entries),
     }
 }
 
@@ -2138,12 +4028,55 @@ fn render_inlines_markdown(site: &CllSite, inlines: &[CllInline]) -> String {
     for inline in inlines {
         match inline {
             CllInline::Text(text) => output.push_str(text),
-            CllInline::Emphasis { text, .. } => output.push_str(&format!("*{text}*")),
-            CllInline::Quote { text } => output.push_str(&format!("\"{text}\"")),
-            CllInline::Link { target, text, kind } => {
+            CllInline::Emphasis { inlines, .. } => {
+                output.push('*');
+                output.push_str(&render_inlines_markdown(site, inlines));
+                output.push('*');
+            }
+            CllInline::Quote { inlines, .. } => {
+                output.push('"');
+                output.push_str(&render_inlines_markdown(site, inlines));
+                output.push('"');
+            }
+            CllInline::LanguageSpan { inlines, .. } | CllInline::CiteTitle { inlines } => {
+                output.push_str(&render_inlines_markdown(site, inlines));
+            }
+            CllInline::Subscript { inlines } => {
+                output.push('~');
+                output.push_str(&render_inlines_markdown(site, inlines));
+                output.push('~');
+            }
+            CllInline::Superscript { inlines } => {
+                output.push('^');
+                output.push_str(&render_inlines_markdown(site, inlines));
+                output.push('^');
+            }
+            CllInline::Link {
+                target,
+                inlines,
+                kind,
+            } => {
+                let text = render_inlines_markdown(site, inlines);
+                let text = if text.is_empty() {
+                    target.as_str()
+                } else {
+                    &text
+                };
                 output.push_str(&format!("[{text}]({})", cll_link_href(site, *kind, target)));
             }
             CllInline::Code(text) => output.push_str(&format!("`{text}`")),
+            CllInline::Elidable { shown, inlines, .. } => {
+                let text = render_inlines_markdown(site, inlines);
+                output.push('[');
+                if text.is_empty() {
+                    output.push_str(shown);
+                } else {
+                    output.push_str(&text);
+                }
+                output.push(']');
+            }
+            CllInline::InlineMath { text } => output.push_str(text),
+            CllInline::Anchor { .. } => {}
         }
     }
     output
@@ -2156,21 +4089,59 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
     for inline in inlines {
         match inline {
             CllInline::Text(text) => output.push_str(&escape_html(text)),
-            CllInline::Emphasis { text, .. } => {
-                output.push_str("<em>");
-                output.push_str(&escape_html(text));
+            CllInline::Emphasis { language, inlines } => {
+                output.push_str("<em");
+                output.push_str(&render_optional_lang(language.as_deref()));
+                output.push('>');
+                output.push_str(&render_inlines_html(site, inlines));
                 output.push_str("</em>");
             }
-            CllInline::Quote { text } => {
-                output.push_str("<q>");
-                output.push_str(&escape_html(text));
+            CllInline::Quote { language, inlines } => {
+                output.push_str("<q");
+                output.push_str(&render_optional_lang(language.as_deref()));
+                output.push('>');
+                output.push_str(&render_inlines_html(site, inlines));
                 output.push_str("</q>");
             }
-            CllInline::Link { target, text, kind } => {
+            CllInline::LanguageSpan {
+                kind,
+                language,
+                inlines,
+            } => {
+                output.push_str("<span class=\"");
+                output.push_str(language_span_class(*kind));
+                output.push('"');
+                output.push_str(&render_optional_lang(language.as_deref()));
+                output.push('>');
+                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str("</span>");
+            }
+            CllInline::CiteTitle { inlines } => {
+                output.push_str("<cite>");
+                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str("</cite>");
+            }
+            CllInline::Subscript { inlines } => {
+                output.push_str("<sub>");
+                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str("</sub>");
+            }
+            CllInline::Superscript { inlines } => {
+                output.push_str("<sup>");
+                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str("</sup>");
+            }
+            CllInline::Link {
+                target,
+                inlines,
+                kind,
+            } => {
                 output.push_str("<a href=\"");
                 output.push_str(&escape_html(&cll_link_href(site, *kind, target)));
+                output.push_str("\" class=\"spa-cll-link ");
+                output.push_str(link_kind_class(*kind));
                 output.push_str("\">");
-                output.push_str(&escape_html(text));
+                output.push_str(&render_inlines_html(site, inlines));
                 output.push_str("</a>");
             }
             CllInline::Code(text) => {
@@ -2178,9 +4149,586 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
                 output.push_str(&escape_html(text));
                 output.push_str("</code>");
             }
+            CllInline::Elidable {
+                shown,
+                forced,
+                inlines,
+            } => {
+                let class = if *forced {
+                    "cll-elidable cll-elidable-forced"
+                } else {
+                    "cll-elidable"
+                };
+                output.push_str("<span class=\"");
+                output.push_str(class);
+                output.push_str("\">");
+                if inlines.is_empty() {
+                    output.push_str(&escape_html(shown));
+                } else {
+                    output.push_str(&render_inlines_html(site, inlines));
+                }
+                output.push_str("</span>");
+            }
+            CllInline::InlineMath { text } => {
+                output.push_str("<span class=\"cll-inline-math\">");
+                output.push_str(&escape_html(text));
+                output.push_str("</span>");
+            }
+            CllInline::Anchor { id } => {
+                output.push_str("<span id=\"");
+                output.push_str(&escape_html(id));
+                output.push_str("\"></span>");
+            }
         }
     }
     output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_table_markdown(
+    site: &CllSite,
+    caption: Option<&[CllInline]>,
+    header_rows: &[Vec<CllTableCell>],
+    body_rows: &[Vec<CllTableCell>],
+    output: &mut String,
+) {
+    if let Some(caption) = caption {
+        output.push_str("**");
+        output.push_str(&render_inlines_markdown(site, caption));
+        output.push_str("**\n\n");
+    }
+    let rows = header_rows
+        .iter()
+        .chain(body_rows.iter())
+        .collect::<Vec<_>>();
+    render_markdown_table_rows(
+        rows.iter().map(|row| {
+            row.iter()
+                .map(|cell| markdown_table_cell_text(&blocks_plain_text(&cell.blocks)))
+                .collect::<Vec<_>>()
+        }),
+        output,
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_simple_list_table_markdown(
+    site: &CllSite,
+    rows: &[Vec<Option<Vec<CllInline>>>],
+    output: &mut String,
+) {
+    render_markdown_table_rows(
+        rows.iter().map(|row| {
+            row.iter()
+                .map(|cell| {
+                    cell.as_deref()
+                        .map(|inlines| {
+                            markdown_table_cell_text(&render_inlines_markdown(site, inlines))
+                        })
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>()
+        }),
+        output,
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_markdown_table_rows<I>(rows: I, output: &mut String)
+where
+    I: IntoIterator<Item = Vec<String>>,
+{
+    let rows = rows.into_iter().collect::<Vec<_>>();
+    if rows.is_empty() {
+        return;
+    }
+    let width = rows.iter().map(Vec::len).max().unwrap_or(0);
+    if width == 0 {
+        return;
+    }
+    for (row_index, row) in rows.iter().enumerate() {
+        output.push('|');
+        for cell_index in 0..width {
+            output.push(' ');
+            output.push_str(row.get(cell_index).map(String::as_str).unwrap_or_default());
+            output.push_str(" |");
+        }
+        output.push('\n');
+        if row_index == 0 {
+            output.push('|');
+            for _ in 0..width {
+                output.push_str(" --- |");
+            }
+            output.push('\n');
+        }
+    }
+    output.push('\n');
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn markdown_table_cell_text(text: &str) -> String {
+    text.replace('|', "\\|").replace('\n', "<br>")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_interlinear_markdown(
+    site: &CllSite,
+    rows: &[CllInterlinearRow],
+    natlang: &[Vec<CllInline>],
+    comments: &[Vec<CllInline>],
+    output: &mut String,
+) {
+    let table_rows = rows
+        .iter()
+        .map(|row| {
+            row.cells
+                .iter()
+                .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    render_markdown_table_rows(table_rows, output);
+    for line in comments {
+        output.push_str("_");
+        output.push_str(&render_inlines_markdown(site, line));
+        output.push_str("_\n\n");
+    }
+    for line in natlang {
+        output.push_str("> ");
+        output.push_str(&render_inlines_markdown(site, line));
+        output.push_str("\n\n");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_list_markdown(
+    site: &CllSite,
+    titles: &[Vec<CllInline>],
+    headers: &[Vec<CllInline>],
+    rows: &[Vec<Vec<CllInline>>],
+    output: &mut String,
+) {
+    for title in titles {
+        output.push_str("**");
+        output.push_str(&render_inlines_markdown(site, title));
+        output.push_str("**\n\n");
+    }
+    let header = if headers.is_empty() {
+        Vec::new()
+    } else {
+        headers
+            .iter()
+            .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
+            .collect::<Vec<_>>()
+    };
+    let rendered_rows = rows.iter().map(|row| {
+        row.iter()
+            .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
+            .collect::<Vec<_>>()
+    });
+    if header.is_empty() {
+        render_markdown_table_rows(rendered_rows, output);
+    } else {
+        render_markdown_table_rows(std::iter::once(header).chain(rendered_rows), output);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lojbanization_markdown(
+    site: &CllSite,
+    lines: &[CllLojbanizationLine],
+    output: &mut String,
+) {
+    let rows = lines.iter().map(|line| {
+        vec![
+            line.kind.clone(),
+            markdown_table_cell_text(&render_inlines_markdown(site, &line.body)),
+            line.comment
+                .as_deref()
+                .map(|comment| markdown_table_cell_text(&render_inlines_markdown(site, comment)))
+                .unwrap_or_default(),
+        ]
+    });
+    render_markdown_table_rows(rows, output);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_markdown(site: &CllSite, entries: &[CllEbnfEntry], output: &mut String) {
+    for entry in entries {
+        output.push_str("**");
+        output.push_str(&entry.rule_name);
+        output.push_str("** = ");
+        output.push_str(&render_ebnf_tokens_markdown(site, &entry.rhs));
+        output.push_str("\n\n");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_tokens_markdown(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
+    let mut output = String::new();
+    for token in tokens {
+        match token {
+            CllEbnfToken::Text { body }
+            | CllEbnfToken::Operator { body }
+            | CllEbnfToken::Hash { body } => output.push_str(body),
+            CllEbnfToken::Terminal { body, href }
+            | CllEbnfToken::ElidableTerminator { body, href }
+            | CllEbnfToken::Nonterminal { body, href } => {
+                if let Some(href) = href {
+                    output.push_str(&format!("[{body}]({})", render_ebnf_href(site, href)));
+                } else {
+                    output.push_str(body);
+                }
+            }
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_href(site: &CllSite, href: &str) -> String {
+    if let Some(target) = href.strip_prefix("../vlacku/") {
+        return cll_link_href(site, CllLinkKind::Dictionary, target);
+    }
+    href.to_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_optional_id(id: Option<&str>) -> String {
+    id.map(|value| format!(" id=\"{}\"", escape_html(value)))
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_optional_lang(language: Option<&str>) -> String {
+    language
+        .map(|value| format!(" lang=\"{}\"", escape_html(value)))
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn table_classes(classes: &[String]) -> String {
+    let mut output = String::from("cll-table");
+    for class in classes {
+        output.push(' ');
+        output.push_str("cll-table-");
+        output.push_str(class);
+    }
+    output
+}
+
+#[requires(!tag_name.is_empty())]
+#[ensures(true)]
+fn render_table_rows_html(
+    site: &CllSite,
+    tag_name: &str,
+    rows: &[Vec<CllTableCell>],
+    output: &mut String,
+) {
+    for row in rows {
+        output.push_str("<tr>");
+        for cell in row {
+            output.push('<');
+            output.push_str(tag_name);
+            if let Some(col_span) = cell.col_span {
+                output.push_str(&format!(" colspan=\"{col_span}\""));
+            }
+            if let Some(row_span) = cell.row_span {
+                output.push_str(&format!(" rowspan=\"{row_span}\""));
+            }
+            output.push('>');
+            for block in &cell.blocks {
+                output.push_str(&render_block_html(site, block));
+            }
+            output.push_str("</");
+            output.push_str(tag_name);
+            output.push('>');
+        }
+        output.push_str("</tr>");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_simple_list_table_html(
+    site: &CllSite,
+    id: Option<&str>,
+    orientation: CllSimpleListOrientation,
+    rows: &[Vec<Option<Vec<CllInline>>>],
+) -> String {
+    let orientation_class = match orientation {
+        CllSimpleListOrientation::Horizontal => "horizontal",
+        CllSimpleListOrientation::Vertical => "vertical",
+    };
+    let mut output = format!(
+        "<table{} class=\"cll-simplelist cll-simplelist-{orientation_class}\"><tbody>",
+        render_optional_id(id)
+    );
+    for row in rows {
+        output.push_str("<tr>");
+        for cell in row {
+            output.push_str("<td>");
+            if let Some(inlines) = cell {
+                output.push_str(&render_inlines_html(site, inlines));
+            }
+            output.push_str("</td>");
+        }
+        output.push_str("</tr>");
+    }
+    output.push_str("</tbody></table>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_interlinear_html(
+    site: &CllSite,
+    id: Option<&str>,
+    aligned: bool,
+    rows: &[CllInterlinearRow],
+    natlang: &[Vec<CllInline>],
+    comments: &[Vec<CllInline>],
+) -> String {
+    let mut output = format!(
+        "<div{} class=\"cll-interlinear{}\">",
+        render_optional_id(id),
+        if aligned {
+            " cll-interlinear-aligned"
+        } else {
+            ""
+        }
+    );
+    if !rows.is_empty() {
+        output.push_str("<table class=\"cll-interlinear-table\"><tbody>");
+        for row in rows {
+            output.push_str("<tr class=\"cll-interlinear-row cll-interlinear-row-");
+            output.push_str(&escape_html(&row.kind));
+            output.push_str("\">");
+            for cell in &row.cells {
+                output.push_str("<td>");
+                output.push_str(&render_inlines_html(site, cell));
+                output.push_str("</td>");
+            }
+            output.push_str("</tr>");
+        }
+        output.push_str("</tbody></table>");
+    }
+    for line in comments {
+        output.push_str("<p class=\"cll-interlinear-comment\">");
+        output.push_str(&render_inlines_html(site, line));
+        output.push_str("</p>");
+    }
+    for line in natlang {
+        output.push_str("<p class=\"cll-natlang\">");
+        output.push_str(&render_inlines_html(site, line));
+        output.push_str("</p>");
+    }
+    output.push_str("</div>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_list_html(
+    site: &CllSite,
+    id: Option<&str>,
+    titles: &[Vec<CllInline>],
+    headers: &[Vec<CllInline>],
+    rows: &[Vec<Vec<CllInline>>],
+) -> String {
+    let mut output = format!("<div{} class=\"cll-cmavo-list\">", render_optional_id(id));
+    for title in titles {
+        output.push_str("<p class=\"cll-cmavo-list-title\">");
+        output.push_str(&render_inlines_html(site, title));
+        output.push_str("</p>");
+    }
+    output.push_str("<table><tbody>");
+    if !headers.is_empty() {
+        output.push_str("<tr>");
+        for header in headers {
+            output.push_str("<th>");
+            output.push_str(&render_inlines_html(site, header));
+            output.push_str("</th>");
+        }
+        output.push_str("</tr>");
+    }
+    for row in rows {
+        output.push_str("<tr>");
+        for cell in row {
+            output.push_str("<td>");
+            output.push_str(&render_inlines_html(site, cell));
+            output.push_str("</td>");
+        }
+        output.push_str("</tr>");
+    }
+    output.push_str("</tbody></table></div>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lojbanization_html(
+    site: &CllSite,
+    id: Option<&str>,
+    lines: &[CllLojbanizationLine],
+) -> String {
+    let mut output = format!(
+        "<table{} class=\"cll-lojbanization\"><tbody>",
+        render_optional_id(id)
+    );
+    for line in lines {
+        output.push_str("<tr class=\"cll-lojbanization-line cll-lojbanization-line-");
+        output.push_str(&escape_html(&line.kind));
+        output.push_str("\"><th>");
+        output.push_str(&escape_html(&line.kind));
+        output.push_str("</th><td>");
+        output.push_str(&render_inlines_html(site, &line.body));
+        output.push_str("</td><td>");
+        if let Some(comment) = &line.comment {
+            output.push_str(&render_inlines_html(site, comment));
+        }
+        output.push_str("</td></tr>");
+    }
+    output.push_str("</tbody></table>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoPart]) -> String {
+    let mut output = format!("<ul{} class=\"cll-lujvo-making\">", render_optional_id(id));
+    for part in parts {
+        output.push_str("<li class=\"cll-lujvo-part cll-lujvo-part-");
+        output.push_str(&escape_html(&part.kind));
+        output.push_str("\"><span class=\"cll-lujvo-part-kind\">");
+        output.push_str(&escape_html(&part.kind));
+        output.push_str("</span> ");
+        output.push_str(&render_inlines_html(site, &part.body));
+        output.push_str("</li>");
+    }
+    output.push_str("</ul>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_html(site: &CllSite, id: Option<&str>, entries: &[CllEbnfEntry]) -> String {
+    let mut output = format!("<dl{} class=\"cll-ebnf\">", render_optional_id(id));
+    for entry in entries {
+        output.push_str("<dt id=\"");
+        output.push_str(&escape_html(&entry.anchor_id));
+        output.push_str("\"><a class=\"cll-ebnf-rule-name\" href=\"");
+        output.push_str(&escape_html(
+            &entry
+                .rule_href
+                .clone()
+                .unwrap_or_else(|| format!("#{}", entry.anchor_id)),
+        ));
+        output.push_str("\">");
+        output.push_str(&escape_html(&entry.rule_name));
+        output.push_str("</a></dt><dd>");
+        output.push_str(&render_ebnf_tokens_html(site, &entry.rhs));
+        output.push_str("</dd>");
+    }
+    output.push_str("</dl>");
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
+    let mut output = String::new();
+    for token in tokens {
+        match token {
+            CllEbnfToken::Text { body } => {
+                output.push_str("<span class=\"cll-ebnf-text\">");
+                output.push_str(&escape_html(body));
+                output.push_str("</span>");
+            }
+            CllEbnfToken::Operator { body } => {
+                output.push_str("<span class=\"cll-ebnf-operator\">");
+                output.push_str(&escape_html(body));
+                output.push_str("</span>");
+            }
+            CllEbnfToken::Hash { body } => {
+                output.push_str("<span class=\"cll-ebnf-hash\">");
+                output.push_str(&escape_html(body));
+                output.push_str("</span>");
+            }
+            CllEbnfToken::Terminal { body, href } => {
+                render_ebnf_link_html(site, "cll-ebnf-terminal", body, href, &mut output);
+            }
+            CllEbnfToken::ElidableTerminator { body, href } => {
+                render_ebnf_link_html(site, "cll-ebnf-elidable", body, href, &mut output);
+            }
+            CllEbnfToken::Nonterminal { body, href } => {
+                render_ebnf_link_html(site, "cll-ebnf-nonterminal", body, href, &mut output);
+            }
+        }
+    }
+    output
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_ebnf_link_html(
+    site: &CllSite,
+    class_name: &str,
+    body: &str,
+    href: &Option<String>,
+    output: &mut String,
+) {
+    if let Some(href) = href {
+        output.push_str("<a class=\"");
+        output.push_str(class_name);
+        output.push_str("\" href=\"");
+        output.push_str(&escape_html(&render_ebnf_href(site, href)));
+        output.push_str("\">");
+        output.push_str(&escape_html(body));
+        output.push_str("</a>");
+    } else {
+        output.push_str("<span class=\"");
+        output.push_str(class_name);
+        output.push_str("\">");
+        output.push_str(&escape_html(body));
+        output.push_str("</span>");
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn language_span_class(kind: CllLanguageSpanKind) -> &'static str {
+    match kind {
+        CllLanguageSpanKind::ForeignPhrase => "spa-cll-foreignphrase",
+        CllLanguageSpanKind::JboPhrase => "spa-cll-jbophrase",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn link_kind_class(kind: CllLinkKind) -> &'static str {
+    match kind {
+        CllLinkKind::Section => "spa-cll-link-section",
+        CllLinkKind::Example => "spa-cll-link-example",
+        CllLinkKind::Dictionary => "spa-cll-link-dictionary",
+        CllLinkKind::Rafsi => "spa-cll-link-rafsi",
+        CllLinkKind::Parse => "spa-cll-link-parse",
+        CllLinkKind::Asset => "spa-cll-link-asset",
+        CllLinkKind::External => "spa-cll-link-external",
+    }
 }
 
 #[requires(true)]
@@ -2277,7 +4825,14 @@ fn xml_id(node: Node<'_, '_>) -> Option<String> {
 #[requires(node.is_element())]
 #[ensures(true)]
 fn attr_string(node: Node<'_, '_>, name: &str) -> Option<String> {
-    node.attribute(name).map(str::to_owned)
+    node.attribute(name)
+        .or_else(|| {
+            let local_name = name.rsplit(':').next().unwrap_or(name);
+            node.attributes()
+                .find(|attribute| attribute.name() == local_name)
+                .map(|attribute| attribute.value())
+        })
+        .map(str::to_owned)
 }
 
 #[requires(node.is_element())]
@@ -2348,14 +4903,29 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
     let mut output = String::new();
     for inline in inlines {
         match inline {
-            CllInline::Text(text)
-            | CllInline::Code(text)
-            | CllInline::Emphasis { text, .. }
-            | CllInline::Quote { text }
-            | CllInline::Link { text, .. } => {
+            CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text } => {
                 output.push_str(text);
                 output.push(' ');
             }
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Link { inlines, .. } => {
+                output.push_str(&inline_plain_text(inlines));
+                output.push(' ');
+            }
+            CllInline::Elidable { shown, inlines, .. } => {
+                if inlines.is_empty() {
+                    output.push_str(shown);
+                } else {
+                    output.push_str(&inline_plain_text(inlines));
+                }
+                output.push(' ');
+            }
+            CllInline::Anchor { .. } => {}
         }
     }
     normalized_plain_text(&output)
@@ -2383,16 +4953,37 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
                 output.push_str(&example.plain_text);
                 output.push('\n');
             }
-            CllBlock::Table { caption, rows } => {
+            CllBlock::Table {
+                caption,
+                header_rows,
+                body_rows,
+                ..
+            } => {
                 if let Some(caption) = caption {
-                    output.push_str(caption);
+                    output.push_str(&inline_plain_text(caption));
                     output.push('\n');
                 }
-                for row in rows {
+                for row in header_rows.iter().chain(body_rows.iter()) {
                     for cell in row {
-                        output.push_str(&blocks_plain_text(cell));
+                        output.push_str(&blocks_plain_text(&cell.blocks));
                         output.push('\n');
                     }
+                }
+            }
+            CllBlock::SimpleListTable { rows, .. } => {
+                for row in rows {
+                    for cell in row.iter().flatten() {
+                        output.push_str(&inline_plain_text(cell));
+                        output.push('\n');
+                    }
+                }
+            }
+            CllBlock::VariableList { entries, .. } => {
+                for entry in entries {
+                    output.push_str(&inline_plain_text(&entry.term));
+                    output.push('\n');
+                    output.push_str(&blocks_plain_text(&entry.blocks));
+                    output.push('\n');
                 }
             }
             CllBlock::Media { alt, .. } => {
@@ -2404,9 +4995,90 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
                 output.push('\n');
                 output.push_str(&blocks_plain_text(body));
             }
+            CllBlock::BlockQuote { blocks, .. } => {
+                output.push_str(&blocks_plain_text(blocks));
+                output.push('\n');
+            }
+            CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
+                output.push_str(&inline_plain_text(body));
+                output.push('\n');
+            }
+            CllBlock::InterlinearGloss {
+                rows,
+                natlang,
+                comments,
+                ..
+            } => {
+                for row in rows {
+                    for cell in &row.cells {
+                        output.push_str(&inline_plain_text(cell));
+                        output.push('\n');
+                    }
+                }
+                for line in natlang.iter().chain(comments.iter()) {
+                    output.push_str(&inline_plain_text(line));
+                    output.push('\n');
+                }
+            }
+            CllBlock::CmavoList {
+                titles,
+                headers,
+                rows,
+                ..
+            } => {
+                for line in titles.iter().chain(headers.iter()) {
+                    output.push_str(&inline_plain_text(line));
+                    output.push('\n');
+                }
+                for row in rows {
+                    for cell in row {
+                        output.push_str(&inline_plain_text(cell));
+                        output.push('\n');
+                    }
+                }
+            }
+            CllBlock::Lojbanization { lines, .. } => {
+                for line in lines {
+                    output.push_str(&inline_plain_text(&line.body));
+                    output.push('\n');
+                    if let Some(comment) = &line.comment {
+                        output.push_str(&inline_plain_text(comment));
+                        output.push('\n');
+                    }
+                }
+            }
+            CllBlock::LujvoMaking { parts, .. } => {
+                for part in parts {
+                    output.push_str(&inline_plain_text(&part.body));
+                    output.push('\n');
+                }
+            }
+            CllBlock::Ebnf { entries, .. } => {
+                for entry in entries {
+                    output.push_str(&entry.rule_name);
+                    output.push('\n');
+                    for token in &entry.rhs {
+                        output.push_str(&ebnf_token_plain_text(token));
+                    }
+                    output.push('\n');
+                }
+            }
         }
     }
     normalized_plain_text(&output)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ebnf_token_plain_text(token: &CllEbnfToken) -> String {
+    match token {
+        CllEbnfToken::Text { body }
+        | CllEbnfToken::Operator { body }
+        | CllEbnfToken::Hash { body }
+        | CllEbnfToken::Terminal { body, .. }
+        | CllEbnfToken::ElidableTerminator { body, .. }
+        | CllEbnfToken::Nonterminal { body, .. } => body.clone(),
+    }
 }
 
 #[requires(true)]
@@ -2460,7 +5132,7 @@ mod tests {
             Some("section-bridi")
         );
         assert!(
-            cll_resolve_example_reference(site, "1.3.1")
+            cll_resolve_example_reference(site, "2.1")
                 .as_deref()
                 .is_some_and(|value| !value.is_empty())
         );
@@ -2482,7 +5154,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-bridi").expect("section should exist");
         let rendered = render_section(site, section, CllRenderFormat::Markdown);
-        assert!(rendered.contains("Example 2.1.1"));
+        assert!(rendered.contains("Example 2.1"));
         assert!(rendered.contains("John is the father of Sam."));
         assert!(!rendered.contains("[example-random-id-qIuj]"));
     }

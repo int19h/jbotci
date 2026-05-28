@@ -182,7 +182,7 @@ async fn static_or_spa(
                     .expect("favicon response builder is valid")
             });
     }
-    if request_path.starts_with("/api/") {
+    if is_api_request_path(request_path, &state.base_path) {
         return plain_response(StatusCode::NOT_FOUND, "not found");
     }
     if request_path == "/" || (state.base_path != "/" && request_path == state.base_path) {
@@ -210,10 +210,33 @@ fn asset_path_for_request(path: &str, base_path: &str) -> Option<String> {
         return Some(path.to_owned());
     }
     let stripped = strip_base_path(path, base_path)?;
-    if stripped == "/" || !has_file_extension(&stripped) {
+    if stripped == "/" || is_spa_route_path(&stripped) || !has_file_extension(&stripped) {
         return Some("/index.html".to_owned());
     }
     Some(stripped)
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_spa_route_path(path: &str) -> bool {
+    path == "/gentufa"
+        || path.starts_with("/gentufa/")
+        || path == "/vlacku"
+        || path.starts_with("/vlacku/")
+        || path == "/cukta"
+        || path.starts_with("/cukta/")
+        || path == "/settings"
+        || path.starts_with("/settings/")
+}
+
+#[requires(path.starts_with('/'))]
+#[requires(base_path.starts_with('/'))]
+#[ensures(true)]
+fn is_api_request_path(path: &str, base_path: &str) -> bool {
+    if path.starts_with("/api/") {
+        return true;
+    }
+    strip_base_path(path, base_path).is_some_and(|stripped| stripped.starts_with("/api/"))
 }
 
 #[requires(path.starts_with('/'))]
@@ -432,6 +455,10 @@ mod tests {
             asset_path_for_request("/jbotci/cukta", "/jbotci").as_deref(),
             Some("/index.html")
         );
+        assert_eq!(
+            asset_path_for_request("/jbotci/cukta/section/11.9", "/jbotci").as_deref(),
+            Some("/index.html")
+        );
     }
 
     #[test]
@@ -513,9 +540,20 @@ mod tests {
             static_dir: None,
         });
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/api/missing")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/api/cukta")
                     .body(Body::empty())
                     .expect("request"),
             )

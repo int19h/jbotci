@@ -172,6 +172,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "target filters intentionally preserve all checkbox states before validation/defaulting",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:BlockParseState",
+        "private CLL block parse state is a monotonically advanced chapter-local counter",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:LinkResolution",
         "link resolutions are private loader intermediates derived from the completed anchor index",
     ),

@@ -1,5 +1,9 @@
 use dioxus::prelude::*;
-use jbotci_cll::{CllBlock, CllInline, CllLinkKind, cll_link_href, embedded_cll_site};
+use jbotci_cll::{
+    CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
+    CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
+    embedded_cll_site,
+};
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
@@ -241,6 +245,8 @@ fn App() -> Element {
     let initial_cukta = initial_cukta_state();
     let cukta_state = use_signal(|| initial_cukta);
     let cukta_toc_filter = use_signal(String::new);
+    let cukta_toc_pinned = use_signal(|| true);
+    let cukta_toc_toggles = use_signal(Vec::<String>::new);
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
@@ -351,7 +357,14 @@ fn App() -> Element {
                             },
                             AppRoute::Settings => render_settings(settings, settings_value),
                             AppRoute::Cukta => {
-                                render_cukta_page(cukta_state, cukta_page, cukta_toc_filter, &base_path)
+                                render_cukta_page(
+                                    cukta_state,
+                                    cukta_page,
+                                    cukta_toc_filter,
+                                    cukta_toc_pinned,
+                                    cukta_toc_toggles,
+                                    &base_path,
+                                )
                             }
                             AppRoute::Vlacku => {
                                 render_vlacku_page(
@@ -544,15 +557,35 @@ fn render_cukta_page(
     cukta_state: Signal<CuktaWebState>,
     cukta_page: Memo<CuktaPageData>,
     mut toc_filter: Signal<String>,
+    mut toc_pinned: Signal<bool>,
+    toc_toggles: Signal<Vec<String>>,
     base_path: &str,
 ) -> Element {
     let page = cukta_page.read();
+    let toc_is_pinned = *toc_pinned.read();
+    let shell_class = class_names("cll-shell", &[("cll-toc-autohide", !toc_is_pinned)]);
     rsx! {
         section { class: "spa-page cll-page spa-cukta-page",
             h1 { class: "sr-only", "jbotci cukta" }
-            div { class: "cll-shell",
+            div { class: "{shell_class}",
                 aside { class: "cll-sidebar",
-                    button { class: "cll-sidebar-toggle", r#type: "button", title: "Table of contents", "☰" }
+                    button {
+                        class: "cll-sidebar-toggle",
+                        r#type: "button",
+                        title: "Table of contents",
+                        aria_pressed: pressed_attr(toc_is_pinned),
+                        onclick: move |_| toc_pinned.set(!toc_is_pinned),
+                        svg {
+                            view_box: "0 0 24 24",
+                            path {
+                                d: "M4.5 5.5H19.5 M4.5 11.5H7.5 M9.75 11.5H19.5 M7.5 17.5H10.5 M12.75 17.5H19.5",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2",
+                                stroke_linecap: "round",
+                            }
+                        }
+                    }
                     div { class: "cll-toc-popup",
                         div { class: "cll-toc-head",
                             label { class: "cll-toc-search",
@@ -589,7 +622,7 @@ fn render_cukta_page(
                             }
                             ol { class: "cll-toc-tree",
                                 for node in page.toc.iter() {
-                                    { render_cukta_toc_node(cukta_state, node, &toc_filter.read()) }
+                                    { render_cukta_toc_node(cukta_state, toc_toggles, node, &toc_filter.read()) }
                                 }
                             }
                         }
@@ -649,6 +682,7 @@ fn render_cukta_page(
 #[ensures(true)]
 fn render_cukta_toc_node(
     cukta_state: Signal<CuktaWebState>,
+    toc_toggles: Signal<Vec<String>>,
     node: &CuktaTocNode,
     filter: &str,
 ) -> Element {
@@ -669,50 +703,95 @@ fn render_cukta_toc_node(
     if !visible {
         return rsx! {};
     }
+    let expanded = toc_node_expanded(node, &filter, &toc_toggles.read());
     let class = class_names(
         "cll-toc-node",
         &[
+            ("active", node.active),
             ("is-active", node.active),
+            ("current", node.current),
             ("is-current", node.current),
+            ("cll-chapter-node", node.section_id.is_none()),
             ("is-chapter", node.section_id.is_none()),
+            ("has-children", !node.children.is_empty()),
+            ("is-expanded", expanded),
         ],
     );
-    let expanded = node.active || (!filter.is_empty() && visible);
     rsx! {
         li { class: "{class}",
-            a {
-                class: "cll-toc-link",
-                href: "{node.href}",
-                onclick: {
-                    let section_id = node.section_id.clone();
-                    move |event| {
-                        if let Some(section_id) = section_id.clone() {
-                            event.prevent_default();
-                            set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                view: CuktaWebView::Section { reference: section_id },
-                            });
+            div { class: "cll-toc-row",
+                if !node.children.is_empty() {
+                    button {
+                        class: "cll-toc-toggle",
+                        r#type: "button",
+                        aria_expanded: if expanded { "true" } else { "false" },
+                        title: if expanded { "Collapse" } else { "Expand" },
+                        onclick: {
+                            let node_id = node.node_id.clone();
+                            move |_| toggle_cukta_toc_node(&mut toc_toggles.clone(), &node_id)
+                        },
+                        span { aria_hidden: "true",
+                            if expanded { "▾" } else { "▸" }
                         }
                     }
-                },
-                if node.section_id.is_none() {
-                    span { class: "cll-toc-expander", aria_hidden: "true",
-                        if expanded { "▾" } else { "▸" }
+                } else {
+                    span { class: "cll-toc-spacer", aria_hidden: "true" }
+                }
+                a {
+                    class: "cll-toc-link",
+                    href: "{node.href}",
+                    onclick: {
+                        let section_id = node.section_id.clone();
+                        move |event| {
+                            if let Some(section_id) = section_id.clone() {
+                                event.prevent_default();
+                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                    view: CuktaWebView::Section { reference: section_id },
+                                });
+                            }
+                        }
+                    },
+                    if let Some(number) = &node.number_label {
+                        span { class: "cll-toc-number", "{number}" }
                     }
+                    span { class: "cll-toc-title", "{node.label}" }
                 }
-                if let Some(number) = &node.number_label {
-                    span { class: "cll-toc-number", "{number}" }
-                }
-                span { class: "cll-toc-title", "{node.label}" }
             }
             if !node.children.is_empty() && expanded {
-                ol {
+                ol { class: "cll-toc-children",
                     for child in node.children.iter() {
-                        { render_cukta_toc_node(cukta_state, child, &filter) }
+                        { render_cukta_toc_node(cukta_state, toc_toggles, child, &filter) }
                     }
                 }
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn toc_node_expanded(node: &CuktaTocNode, filter: &str, toggles: &[String]) -> bool {
+    if !filter.trim().is_empty() {
+        return true;
+    }
+    let default_expanded = node.active;
+    if toggles.iter().any(|id| id == &node.node_id) {
+        !default_expanded
+    } else {
+        default_expanded
+    }
+}
+
+#[requires(!node_id.is_empty())]
+#[ensures(true)]
+fn toggle_cukta_toc_node(toc_toggles: &mut Signal<Vec<String>>, node_id: &str) {
+    let mut toggles = toc_toggles.read().clone();
+    if let Some(index) = toggles.iter().position(|id| id == node_id) {
+        toggles.remove(index);
+    } else {
+        toggles.push(node_id.to_owned());
+    }
+    toc_toggles.set(toggles);
 }
 
 #[requires(true)]
@@ -734,12 +813,12 @@ fn render_cukta_section(
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
-                        { render_cll_block(block, base_path) }
+                        { render_cll_block(cukta_state, block, base_path) }
                     }
                 }
             }
             for block in blocks.iter() {
-                { render_cll_block(block, base_path) }
+                { render_cll_block(cukta_state, block, base_path) }
             }
             nav { class: "cll-section-nav",
                 if let Some(previous) = previous {
@@ -842,7 +921,7 @@ fn render_cukta_search(
             }
             div { class: "cll-search-results",
                 for card in results.iter() {
-                    { render_cukta_search_card(card) }
+                    { render_cukta_search_card(cukta_state, card) }
                 }
             }
             if has_more {
@@ -995,14 +1074,31 @@ fn render_cukta_target_check(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cukta_search_card(card: &CuktaSearchResultCard) -> Element {
+fn render_cukta_search_card(
+    cukta_state: Signal<CuktaWebState>,
+    card: &CuktaSearchResultCard,
+) -> Element {
     rsx! {
         article { class: "cll-search-result-card result-card",
             header { class: "cll-search-result-head result-header",
                 div {
                     p { class: "cll-search-result-meta", "{card.kind} · {card.section_label}" }
                     h2 { class: "cll-search-result-title",
-                        a { href: "{card.href}", "{card.rank}. {card.label}" }
+                        a {
+                            href: "{card.href}",
+                            onclick: {
+                                let href = card.href.clone();
+                                move |event| {
+                                    if let Some(reference) = cukta_section_reference_from_href(&href) {
+                                        event.prevent_default();
+                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                            view: CuktaWebView::Section { reference },
+                                        });
+                                    }
+                                }
+                            },
+                            "{card.rank}. {card.label}"
+                        }
                     }
                 }
                 if let Some(similarity) = &card.similarity_label {
@@ -1016,7 +1112,11 @@ fn render_cukta_search_card(card: &CuktaSearchResultCard) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
+fn render_cll_block(
+    cukta_state: Signal<CuktaWebState>,
+    block: &CllBlock,
+    base_path: &str,
+) -> Element {
     match block {
         CllBlock::Paragraph {
             anchor_id,
@@ -1034,7 +1134,7 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
                         "{text}"
                     } else {
                         for inline in inlines.iter() {
-                            { render_cll_inline(inline, base_path) }
+                            { render_cll_inline(cukta_state, inline, base_path) }
                         }
                     }
                 }
@@ -1047,7 +1147,7 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, base_path) }
+                                    { render_cll_block(cukta_state, child, base_path) }
                                 }
                             }
                         }
@@ -1059,7 +1159,7 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, base_path) }
+                                    { render_cll_block(cukta_state, child, base_path) }
                                 }
                             }
                         }
@@ -1069,26 +1169,72 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
         }
         CllBlock::Example(example) => rsx! {
             figure { id: "{example.anchor_id}", class: "cll-example",
-                figcaption { "Example {example.label}" }
-                div { class: "cll-interlinear",
-                    for line in example.lines.iter() {
-                        p { class: "cll-ig-line cll-ig-{line.kind}", "{line.text}" }
+                figcaption { class: "cll-example-head",
+                    span { class: "cll-example-title", "{example.label}" }
+                    if let Some(parse_href) = &example.parse_href {
+                        a {
+                            class: "cll-parse-example spa-cll-link spa-cll-link-parse",
+                            href: cll_parse_href(base_path, parse_href),
+                            "Parse"
+                        }
+                    }
+                }
+                if example.blocks.is_empty() {
+                    div { class: "cll-interlinear",
+                        for line in example.lines.iter() {
+                            p { class: "cll-ig-line cll-ig-{line.kind}", "{line.text}" }
+                        }
+                    }
+                } else {
+                    for child in example.blocks.iter() {
+                        { render_cll_block(cukta_state, child, base_path) }
                     }
                 }
             }
         },
-        CllBlock::Table { caption, rows } => rsx! {
-            table { class: "cll-table",
+        CllBlock::Table {
+            id,
+            caption,
+            header_rows,
+            body_rows,
+            classes,
+        } => {
+            let table_class = cll_table_class(classes);
+            rsx! {
+            table { id: id.clone().unwrap_or_default(), class: "{table_class}",
                 if let Some(caption) = caption {
-                    caption { "{caption}" }
+                    caption {
+                        for inline in caption.iter() {
+                            { render_cll_inline(cukta_state, inline, base_path) }
+                        }
+                    }
+                }
+                if !header_rows.is_empty() {
+                    thead {
+                        for row in header_rows.iter() {
+                            tr {
+                                for cell in row.iter() {
+                                    th {
+                                        colspan: "{cell.col_span.unwrap_or(1)}",
+                                        rowspan: "{cell.row_span.unwrap_or(1)}",
+                                        for child in cell.blocks.iter() {
+                                            { render_cll_block(cukta_state, child, base_path) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 tbody {
-                    for row in rows.iter() {
+                    for row in body_rows.iter() {
                         tr {
                             for cell in row.iter() {
                                 td {
-                                    for child in cell.iter() {
-                                        { render_cll_block(child, base_path) }
+                                    colspan: "{cell.col_span.unwrap_or(1)}",
+                                    rowspan: "{cell.row_span.unwrap_or(1)}",
+                                    for child in cell.blocks.iter() {
+                                        { render_cll_block(cukta_state, child, base_path) }
                                     }
                                 }
                             }
@@ -1096,12 +1242,72 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
                     }
                 }
             }
+            }
+        }
+        CllBlock::SimpleListTable {
+            id,
+            orientation,
+            rows,
+        } => {
+            let orientation_class = match orientation {
+                CllSimpleListOrientation::Horizontal => "horizontal",
+                CllSimpleListOrientation::Vertical => "vertical",
+            };
+            rsx! {
+                table {
+                    id: id.clone().unwrap_or_default(),
+                    class: "cll-simplelist cll-simplelist-{orientation_class}",
+                    tbody {
+                        for row in rows.iter() {
+                            tr {
+                                for cell in row.iter() {
+                                    td {
+                                        if let Some(inlines) = cell {
+                                            for inline in inlines.iter() {
+                                                { render_cll_inline(cukta_state, inline, base_path) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        CllBlock::VariableList { id, entries } => rsx! {
+            dl { id: id.clone().unwrap_or_default(), class: "cll-variable-list",
+                for entry in entries.iter() {
+                    dt {
+                        for inline in entry.term.iter() {
+                            { render_cll_inline(cukta_state, inline, base_path) }
+                        }
+                    }
+                    dd {
+                        for child in entry.blocks.iter() {
+                            { render_cll_block(cukta_state, child, base_path) }
+                        }
+                    }
+                }
+            }
         },
-        CllBlock::Media { id, src, alt } => {
+        CllBlock::Media {
+            id,
+            title,
+            src,
+            alt,
+        } => {
             let asset_src = cll_asset_href(base_path, src);
             rsx! {
                 figure { id: id.clone().unwrap_or_default(), class: "cll-media",
                     img { src: "{asset_src}", alt: "{alt}" }
+                    if let Some(title) = title {
+                        figcaption {
+                            for inline in title.iter() {
+                                { render_cll_inline(cukta_state, inline, base_path) }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1110,7 +1316,7 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
                 dt { "{term}" }
                 dd {
                     for child in body.iter() {
-                        { render_cll_block(child, base_path) }
+                        { render_cll_block(cukta_state, child, base_path) }
                     }
                 }
             }
@@ -1122,21 +1328,436 @@ fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
             let class_name = format!("cll-heading cll-heading-{level}");
             rsx! { h2 { class: "{class_name}", "{title}" } }
         }
+        CllBlock::BlockQuote { id, blocks } => rsx! {
+            blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
+                for child in blocks.iter() {
+                    { render_cll_block(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllBlock::Definition { id, body } => rsx! {
+            p { id: id.clone().unwrap_or_default(), class: "cll-definition",
+                for inline in body.iter() {
+                    { render_cll_inline(cukta_state, inline, base_path) }
+                }
+            }
+        },
+        CllBlock::InterlinearGloss {
+            id,
+            aligned,
+            rows,
+            natlang,
+            comments,
+        } => render_cll_interlinear(
+            cukta_state,
+            id.as_deref(),
+            *aligned,
+            rows,
+            natlang,
+            comments,
+            base_path,
+        ),
+        CllBlock::CmavoList {
+            id,
+            titles,
+            headers,
+            rows,
+        } => render_cll_cmavo_list(cukta_state, id.as_deref(), titles, headers, rows, base_path),
+        CllBlock::Lojbanization { id, lines } => {
+            render_cll_lojbanization(cukta_state, id.as_deref(), lines, base_path)
+        }
+        CllBlock::LujvoMaking { id, parts } => {
+            render_cll_lujvo_making(cukta_state, id.as_deref(), parts, base_path)
+        }
+        CllBlock::GrammarTemplate { id, body } => rsx! {
+            p { id: id.clone().unwrap_or_default(), class: "cll-grammar-template",
+                for inline in body.iter() {
+                    { render_cll_inline(cukta_state, inline, base_path) }
+                }
+            }
+        },
+        CllBlock::Ebnf { id, entries } => render_cll_ebnf(id.as_deref(), entries, base_path),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_inline(inline: &CllInline, base_path: &str) -> Element {
+fn render_cll_inline(
+    cukta_state: Signal<CuktaWebState>,
+    inline: &CllInline,
+    base_path: &str,
+) -> Element {
     match inline {
         CllInline::Text(text) => rsx! { "{text}" },
-        CllInline::Emphasis { text, .. } => rsx! { em { "{text}" } },
-        CllInline::Quote { text } => rsx! { q { "{text}" } },
-        CllInline::Link { target, text, kind } => {
+        CllInline::Emphasis { language, inlines } => rsx! {
+            em { lang: language.clone().unwrap_or_default(),
+                for child in inlines.iter() {
+                    { render_cll_inline(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllInline::Quote { language, inlines } => rsx! {
+            q { lang: language.clone().unwrap_or_default(),
+                for child in inlines.iter() {
+                    { render_cll_inline(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllInline::LanguageSpan {
+            kind,
+            language,
+            inlines,
+        } => {
+            let class_name = cll_language_span_class(*kind);
+            rsx! {
+                span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
+                    for child in inlines.iter() {
+                        { render_cll_inline(cukta_state, child, base_path) }
+                    }
+                }
+            }
+        }
+        CllInline::CiteTitle { inlines } => rsx! {
+            cite {
+                for child in inlines.iter() {
+                    { render_cll_inline(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllInline::Subscript { inlines } => rsx! {
+            sub {
+                for child in inlines.iter() {
+                    { render_cll_inline(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllInline::Superscript { inlines } => rsx! {
+            sup {
+                for child in inlines.iter() {
+                    { render_cll_inline(cukta_state, child, base_path) }
+                }
+            }
+        },
+        CllInline::Link {
+            target,
+            inlines,
+            kind,
+        } => {
             let href = cll_inline_href(base_path, *kind, target);
-            rsx! { a { class: "cll-inline-link", href: "{href}", "{text}" } }
+            let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
+            let is_cukta_link = matches!(kind, CllLinkKind::Section | CllLinkKind::Example);
+            rsx! {
+                a {
+                    class: "{class_name}",
+                    href: "{href}",
+                    onclick: move |event| {
+                        if is_cukta_link {
+                            if let Some(reference) = cukta_section_reference_from_href(&href) {
+                                event.prevent_default();
+                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                    view: CuktaWebView::Section { reference },
+                                });
+                                scroll_to_cukta_href(&href);
+                            }
+                        }
+                    },
+                    for child in inlines.iter() {
+                        { render_cll_inline(cukta_state, child, base_path) }
+                    }
+                }
+            }
         }
         CllInline::Code(text) => rsx! { code { "{text}" } },
+        CllInline::Elidable {
+            shown,
+            forced,
+            inlines,
+        } => {
+            let class_name = class_names("cll-elidable", &[("cll-elidable-forced", *forced)]);
+            rsx! {
+                span { class: "{class_name}",
+                    if inlines.is_empty() {
+                        "{shown}"
+                    } else {
+                        for child in inlines.iter() {
+                            { render_cll_inline(cukta_state, child, base_path) }
+                        }
+                    }
+                }
+            }
+        }
+        CllInline::InlineMath { text } => rsx! { span { class: "cll-inline-math", "{text}" } },
+        CllInline::Anchor { id } => rsx! { span { id: "{id}" } },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_interlinear(
+    cukta_state: Signal<CuktaWebState>,
+    id: Option<&str>,
+    aligned: bool,
+    rows: &[CllInterlinearRow],
+    natlang: &[Vec<CllInline>],
+    comments: &[Vec<CllInline>],
+    base_path: &str,
+) -> Element {
+    let class_name = class_names("cll-interlinear", &[("cll-interlinear-aligned", aligned)]);
+    rsx! {
+        div { id: id.unwrap_or_default(), class: "{class_name}",
+            if !rows.is_empty() {
+                table { class: "cll-interlinear-table",
+                    tbody {
+                        for row in rows.iter() {
+                            tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
+                                for cell in row.cells.iter() {
+                                    td {
+                                        for inline in cell.iter() {
+                                            { render_cll_inline(cukta_state, inline, base_path) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for comment in comments.iter() {
+                p { class: "cll-ig-comment cll-interlinear-comment",
+                    for inline in comment.iter() {
+                        { render_cll_inline(cukta_state, inline, base_path) }
+                    }
+                }
+            }
+            for line in natlang.iter() {
+                p { class: "cll-ig-natlang-text cll-natlang",
+                    for inline in line.iter() {
+                        { render_cll_inline(cukta_state, inline, base_path) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_cmavo_list(
+    cukta_state: Signal<CuktaWebState>,
+    id: Option<&str>,
+    titles: &[Vec<CllInline>],
+    headers: &[Vec<CllInline>],
+    rows: &[Vec<Vec<CllInline>>],
+    base_path: &str,
+) -> Element {
+    rsx! {
+        div { id: id.unwrap_or_default(), class: "cll-cmavo-list",
+            for title in titles.iter() {
+                p { class: "cll-cmavo-list-title",
+                    for inline in title.iter() {
+                        { render_cll_inline(cukta_state, inline, base_path) }
+                    }
+                }
+            }
+            table {
+                tbody {
+                    if !headers.is_empty() {
+                        tr {
+                            for header in headers.iter() {
+                                th {
+                                    for inline in header.iter() {
+                                        { render_cll_inline(cukta_state, inline, base_path) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for row in rows.iter() {
+                        tr {
+                            for cell in row.iter() {
+                                td {
+                                    for inline in cell.iter() {
+                                        { render_cll_inline(cukta_state, inline, base_path) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_lojbanization(
+    cukta_state: Signal<CuktaWebState>,
+    id: Option<&str>,
+    lines: &[CllLojbanizationLine],
+    base_path: &str,
+) -> Element {
+    rsx! {
+        table { id: id.unwrap_or_default(), class: "cll-lojbanization cll-lojbanization-table",
+            tbody {
+                for line in lines.iter() {
+                    tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{line.kind} cll-lojbanization-{line.kind}",
+                        th { "{line.kind}" }
+                        td {
+                            for inline in line.body.iter() {
+                                { render_cll_inline(cukta_state, inline, base_path) }
+                            }
+                        }
+                        td {
+                            if let Some(comment) = &line.comment {
+                                for inline in comment.iter() {
+                                    { render_cll_inline(cukta_state, inline, base_path) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_lujvo_making(
+    cukta_state: Signal<CuktaWebState>,
+    id: Option<&str>,
+    parts: &[CllLujvoPart],
+    base_path: &str,
+) -> Element {
+    rsx! {
+        ul { id: id.unwrap_or_default(), class: "cll-lujvo-making",
+            for part in parts.iter() {
+                li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
+                    span { class: "cll-lujvo-part-kind", "{part.kind}" }
+                    for inline in part.body.iter() {
+                        { render_cll_inline(cukta_state, inline, base_path) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_ebnf(id: Option<&str>, entries: &[CllEbnfEntry], base_path: &str) -> Element {
+    rsx! {
+        dl { id: id.unwrap_or_default(), class: "cll-ebnf",
+            for entry in entries.iter() {
+                dt { id: "{entry.anchor_id}", class: "cll-ebnf-head",
+                    a {
+                        class: "cll-ebnf-rule cll-ebnf-rule-name",
+                        href: entry.rule_href.clone().unwrap_or_else(|| format!("#{}", entry.anchor_id)),
+                        "{entry.rule_name}"
+                    }
+                }
+                dd { class: "cll-ebnf-rhs",
+                    for token in entry.rhs.iter() {
+                        { render_cll_ebnf_token(token, base_path) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_ebnf_token(token: &CllEbnfToken, base_path: &str) -> Element {
+    match token {
+        CllEbnfToken::Text { body } => rsx! { span { class: "cll-ebnf-text", "{body}" } },
+        CllEbnfToken::Operator { body } => {
+            rsx! { span { class: "cll-ebnf-op cll-ebnf-operator", "{body}" } }
+        }
+        CllEbnfToken::Hash { body } => rsx! { span { class: "cll-ebnf-hash", "{body}" } },
+        CllEbnfToken::Terminal { body, href } => {
+            render_cll_ebnf_link("cll-ebnf-terminal", body, href.as_deref(), base_path)
+        }
+        CllEbnfToken::ElidableTerminator { body, href } => {
+            render_cll_ebnf_link("cll-ebnf-elidable", body, href.as_deref(), base_path)
+        }
+        CllEbnfToken::Nonterminal { body, href } => {
+            render_cll_ebnf_link("cll-ebnf-nonterminal", body, href.as_deref(), base_path)
+        }
+    }
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_cll_ebnf_link(
+    class_name: &str,
+    body: &str,
+    href: Option<&str>,
+    base_path: &str,
+) -> Element {
+    if let Some(href) = href {
+        let href = cll_ebnf_href(base_path, href);
+        rsx! {
+            a { class: "{class_name}", href: "{href}", "{body}" }
+        }
+    } else {
+        rsx! { span { class: "{class_name}", "{body}" } }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cll_table_class(classes: &[String]) -> String {
+    let mut class_name = String::from("cll-table");
+    for class in classes {
+        class_name.push(' ');
+        class_name.push_str("cll-table-");
+        class_name.push_str(class);
+    }
+    class_name
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cll_language_span_class(kind: CllLanguageSpanKind) -> &'static str {
+    match kind {
+        CllLanguageSpanKind::ForeignPhrase => "spa-cll-foreignphrase",
+        CllLanguageSpanKind::JboPhrase => "spa-cll-jbophrase",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cll_link_kind_class(kind: CllLinkKind) -> &'static str {
+    match kind {
+        CllLinkKind::Section => "spa-cll-link-section",
+        CllLinkKind::Example => "spa-cll-link-example",
+        CllLinkKind::Dictionary => "spa-cll-link-dictionary",
+        CllLinkKind::Rafsi => "spa-cll-link-rafsi",
+        CllLinkKind::Parse => "spa-cll-link-parse",
+        CllLinkKind::Asset => "spa-cll-link-asset",
+        CllLinkKind::External => "spa-cll-link-external",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_parse_href(base_path: &str, href: &str) -> String {
+    if let Some(query) = href.strip_prefix("../gentufa") {
+        format!("{}/gentufa{query}", base_path.trim_end_matches('/'))
+    } else {
+        href.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_ebnf_href(base_path: &str, href: &str) -> String {
+    if let Some(target) = href.strip_prefix("../vlacku/") {
+        format!("{}/vlacku/{target}", base_path.trim_end_matches('/'))
+    } else {
+        href.to_owned()
     }
 }
 
@@ -1161,6 +1782,62 @@ fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
             .unwrap_or_else(|_| format!("{prefix}/cukta/section/{target}")),
         CllLinkKind::External => target.to_owned(),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_section_reference_from_href(href: &str) -> Option<String> {
+    let without_hash = href.split('#').next().unwrap_or(href);
+    if let Some(reference) = without_hash
+        .rsplit_once("/cukta/section/")
+        .map(|(_, value)| value)
+    {
+        return (!reference.is_empty()).then(|| reference.to_owned());
+    }
+    if let Some(reference) = without_hash.strip_prefix("section/") {
+        return (!reference.is_empty()).then(|| reference.to_owned());
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_anchor_from_href(href: &str) -> Option<String> {
+    href.split_once('#')
+        .map(|(_, anchor)| anchor)
+        .filter(|anchor| !anchor.is_empty())
+        .map(str::to_owned)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_to_cukta_href(href: &str) {
+    let Some(anchor) = cukta_anchor_from_href(href) else {
+        return;
+    };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+            if let Some(element) = document.get_element_by_id(&anchor) {
+                element.scroll_into_view();
+            }
+        }
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        30,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_to_cukta_href(href: &str) {
+    let _ = href;
 }
 
 #[requires(true)]
