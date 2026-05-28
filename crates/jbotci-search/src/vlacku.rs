@@ -142,6 +142,7 @@ pub fn normalize_word_type_filter(raw: &str) -> String {
 pub fn matches_word_type_filter(wanted: &str, normalized_type: &str) -> bool {
     wanted == normalized_type
         || (wanted == "cmavo" && is_cmavo_like(normalized_type))
+        || (wanted == "letteral" && is_letteral_like(normalized_type))
         || (wanted == "cmevla" && is_cmevla_like(normalized_type))
         || (wanted == "gismu" && is_gismu_like(normalized_type))
         || (wanted == "fu'ivla" && is_fuhivla_like(normalized_type))
@@ -156,7 +157,12 @@ pub fn is_cmavo_like(normalized_type: &str) -> bool {
         || normalized_type.starts_with("cmavo-")
         || normalized_type == "experimental-cmavo"
         || normalized_type == "obsolete-cmavo"
-        || normalized_type == "bu-letteral"
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_letteral_like(normalized_type: &str) -> bool {
+    normalized_type == "bu-letteral" || normalized_type == "letteral"
 }
 
 #[requires(true)]
@@ -188,7 +194,9 @@ pub fn is_lujvo_like(normalized_type: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn is_brivla_like(normalized_type: &str) -> bool {
-    !is_cmavo_like(normalized_type) && !is_cmevla_like(normalized_type)
+    is_gismu_like(normalized_type)
+        || is_lujvo_like(normalized_type)
+        || is_fuhivla_like(normalized_type)
 }
 
 #[requires(true)]
@@ -846,4 +854,23 @@ fn is_falling_diphthong_before(previous: char, phoneme: char) -> bool {
 #[ensures(true)]
 fn is_fast_vowel_phoneme(phoneme: char) -> bool {
     matches!(phoneme, 'a' | 'e' | 'i' | 'o' | 'u')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bityzba::requires;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn grouped_word_type_filters_keep_letterals_and_phrases_out_of_brivla() {
+        assert!(matches_word_type_filter("letteral", "bu-letteral"));
+        assert!(!matches_word_type_filter("cmavo", "bu-letteral"));
+        assert!(!matches_word_type_filter("brivla", "bu-letteral"));
+        assert!(!matches_word_type_filter("brivla", "phrase"));
+        assert!(matches_word_type_filter("brivla", "gismu"));
+        assert!(matches_word_type_filter("brivla", "lujvo"));
+        assert!(matches_word_type_filter("brivla", "fu'ivla"));
+    }
 }

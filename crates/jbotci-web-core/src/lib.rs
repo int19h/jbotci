@@ -26,8 +26,8 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, format_votes, is_brivla_like, is_cmavo_like,
-    is_cmevla_like, is_fuhivla_like, is_gismu_like, is_lujvo_like, normalize_word_type_filter,
-    run_vlacku_requests,
+    is_cmevla_like, is_fuhivla_like, is_gismu_like, is_letteral_like, is_lujvo_like,
+    normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::{SourceId, SourceSpan};
@@ -2668,6 +2668,8 @@ fn dictionary_option_key(entry: &DictionaryEntry<'_>) -> String {
 fn grouped_word_type_filter_key(normalized: &str) -> String {
     if is_cmavo_like(normalized) {
         "cmavo".to_owned()
+    } else if is_letteral_like(normalized) {
+        "letteral".to_owned()
     } else if is_cmevla_like(normalized) {
         "cmevla".to_owned()
     } else if is_fuhivla_like(normalized) {
@@ -2684,7 +2686,7 @@ fn grouped_word_type_filter_key(normalized: &str) -> String {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn vlacku_brivla_child_filter_values() -> &'static [&'static str] {
-    &["fu'ivla", "gismu", "lujvo", "phrase"]
+    &["gismu", "lujvo", "fu'ivla"]
 }
 
 #[requires(true)]
@@ -2713,7 +2715,7 @@ fn vlacku_url_word_type_values(selected_values: &[String]) -> Vec<String> {
 fn is_visible_word_type_filter(value: &str) -> bool {
     matches!(
         value,
-        "cmavo" | "cmevla" | "brivla" | "fu'ivla" | "gismu" | "lujvo" | "phrase"
+        "brivla" | "gismu" | "lujvo" | "fu'ivla" | "cmavo" | "letteral" | "cmevla" | "phrase"
     )
 }
 
@@ -2755,7 +2757,7 @@ fn word_type_label(value: &str) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn word_type_section(value: &str) -> VlackuWordTypeSection {
-    if value == "cmavo" {
+    if value == "cmavo" || value == "letteral" {
         VlackuWordTypeSection::Cmavo
     } else if value == "cmevla" || value == "obsolete-cmevla" {
         VlackuWordTypeSection::Cmevla
@@ -2770,11 +2772,16 @@ fn word_type_section(value: &str) -> VlackuWordTypeSection {
 #[ensures(true)]
 fn word_type_order_key(section: VlackuWordTypeSection, value: &str) -> (u8, String) {
     let section_order = match section {
-        VlackuWordTypeSection::Cmavo => 0,
-        VlackuWordTypeSection::Cmevla => 1,
-        VlackuWordTypeSection::Brivla if value == "brivla" => 2,
+        VlackuWordTypeSection::Brivla if value == "brivla" => 0,
+        VlackuWordTypeSection::Brivla if value == "gismu" => 1,
+        VlackuWordTypeSection::Brivla if value == "lujvo" => 2,
+        VlackuWordTypeSection::Brivla if value == "fu'ivla" => 3,
         VlackuWordTypeSection::Brivla => 3,
-        VlackuWordTypeSection::Other => 4,
+        VlackuWordTypeSection::Cmavo if value == "cmavo" => 4,
+        VlackuWordTypeSection::Cmavo if value == "letteral" => 5,
+        VlackuWordTypeSection::Cmavo => 5,
+        VlackuWordTypeSection::Cmevla => 6,
+        VlackuWordTypeSection::Other => 7,
     };
     (section_order, value.to_owned())
 }
@@ -3375,12 +3382,7 @@ mod tests {
         assert_eq!(state.count, 40);
         assert_eq!(
             state.word_types,
-            vec![
-                "fu'ivla".to_owned(),
-                "gismu".to_owned(),
-                "lujvo".to_owned(),
-                "phrase".to_owned()
-            ]
+            vec!["gismu".to_owned(), "lujvo".to_owned(), "fu'ivla".to_owned()]
         );
         assert_eq!(
             vlacku_web_url("", &state),
@@ -3401,21 +3403,22 @@ mod tests {
         assert_eq!(
             values,
             vec![
-                "cmavo", "cmevla", "brivla", "fu'ivla", "gismu", "lujvo", "phrase"
+                "brivla", "gismu", "lujvo", "fu'ivla", "cmavo", "letteral", "cmevla", "phrase"
             ]
         );
 
         let brivla_children = toggle_vlacku_word_type_selection(&[], "brivla");
         assert_eq!(
             brivla_children,
-            vec![
-                "fu'ivla".to_owned(),
-                "gismu".to_owned(),
-                "lujvo".to_owned(),
-                "phrase".to_owned()
-            ]
+            vec!["gismu".to_owned(), "lujvo".to_owned(), "fu'ivla".to_owned()]
         );
+        assert!(!brivla_children.iter().any(|value| value == "phrase"));
+        assert!(!brivla_children.iter().any(|value| value == "letteral"));
         assert!(!vlacku_brivla_filter_indeterminate(&brivla_children));
+
+        let letteral_only = toggle_vlacku_word_type_selection(&[], "letteral");
+        assert_eq!(letteral_only, vec!["letteral".to_owned()]);
+        assert!(!vlacku_brivla_filter_indeterminate(&letteral_only));
 
         let gismu_only = toggle_vlacku_word_type_selection(&[], "gismu");
         assert_eq!(gismu_only, vec!["gismu".to_owned()]);

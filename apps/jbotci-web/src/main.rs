@@ -533,19 +533,23 @@ fn render_vlacku_controls(
     rsx! {
         div { class: "dictionary-form",
             div { class: "dictionary-controls",
-                div { class: "dictionary-fieldset",
-                    p { class: "dictionary-fieldset-title", "Search mode" }
+                div { class: "dictionary-fieldset dictionary-mode-fieldset",
                     div { class: "mode-toggle-row",
-                        div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
-                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
-                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Sound, "sound", false) }
-                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Word, "word", false) }
-                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
+                        div { class: "mode-selector-wrap",
+                            div { class: "mode-bracket-row", aria_hidden: "true",
+                                span { class: "mode-bracket-label", "similar to" }
+                                span { class: "mode-bracket-label", "exact match" }
+                            }
+                            div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
+                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
+                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Sound, "sound", false) }
+                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Word, "word", false) }
+                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
+                            }
                         }
                     }
                 }
                 div { class: "dictionary-fieldset",
-                    p { class: "dictionary-fieldset-title", "Word types" }
                     { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
                 }
             }
@@ -613,10 +617,38 @@ fn render_vlacku_word_type_controls(
 ) -> Element {
     rsx! {
         div { class: "word-type-grid", aria_label: "Word type filters",
-            for option in options.iter() {
-                { render_word_type_filter(vlacku_draft_state, vlacku_committed_state, option) }
+            div { class: "brivla-filter-group",
+                div { class: "brivla-filter-parent",
+                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "brivla") }
+                }
+                div { class: "brivla-filter-children",
+                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "gismu") }
+                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "lujvo") }
+                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "fu'ivla") }
+                }
+            }
+            div { class: "other-filter-grid",
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "cmavo") }
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "letteral") }
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "cmevla") }
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "phrase") }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_word_type_filter_value(
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    options: &[VlackuWordTypeOption],
+    value: &'static str,
+) -> Element {
+    if let Some(option) = options.iter().find(|option| option.value == value) {
+        render_word_type_filter(vlacku_draft_state, vlacku_committed_state, option)
+    } else {
+        rsx! {}
     }
 }
 
@@ -891,9 +923,8 @@ fn vlacku_word_type_tag_class(word_type_key: &str) -> &'static str {
         "lujvo" | "zei-lujvo" | "obsolete-zei-lujvo" => "is-lujvo",
         "cmevla" | "obsolete-cmevla" => "is-cmevla",
         "fu'ivla" | "obsolete-fu'ivla" => "is-fuhivla",
-        "cmavo" | "cmavo-compound" | "experimental-cmavo" | "obsolete-cmavo" | "bu-letteral" => {
-            "is-cmavo"
-        }
+        "cmavo" | "cmavo-compound" | "experimental-cmavo" | "obsolete-cmavo" => "is-cmavo",
+        "letteral" | "bu-letteral" => "is-letteral",
         _ => "is-other",
     }
 }

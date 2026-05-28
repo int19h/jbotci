@@ -1444,6 +1444,11 @@ body::-webkit-scrollbar-thumb:hover,
   align-self: stretch;
 }
 
+.dictionary-page .dictionary-mode-fieldset {
+  justify-content: end;
+  padding-top: 0.4rem;
+}
+
 .dictionary-page .dictionary-fieldset-title {
   margin: 0 0 0.5rem;
   font-size: 0.78rem;
@@ -1455,6 +1460,42 @@ body::-webkit-scrollbar-thumb:hover,
 .dictionary-page .mode-toggle-row {
   display: flex;
   align-items: center;
+}
+
+.dictionary-page .mode-selector-wrap {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.dictionary-page .mode-bracket-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0 0.18rem;
+  color: var(--app-muted);
+  font-size: 0.68rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dictionary-page .mode-bracket-label {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding-top: 0.33rem;
+}
+
+.dictionary-page .mode-bracket-label::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0.28rem;
+  left: 0.28rem;
+  height: 0.28rem;
+  border-top: 1px solid var(--app-border-strong);
+  border-right: 1px solid var(--app-border-strong);
+  border-left: 1px solid var(--app-border-strong);
+  border-radius: 0.45rem 0.45rem 0 0;
 }
 
 .dictionary-page .mode-toggle-group,
@@ -1534,9 +1575,39 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .dictionary-page .word-type-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: minmax(20rem, max-content) max-content;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+.dictionary-page .brivla-filter-group {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 0.42rem;
+  align-items: center;
+  padding: 0.38rem 0.5rem 0.5rem;
+  border: 1px dashed var(--app-border);
+  border-radius: 11px;
+}
+
+.dictionary-page .brivla-filter-parent {
+  grid-column: 1 / -1;
+  display: grid;
+}
+
+.dictionary-page .brivla-filter-children {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 0.42rem;
+}
+
+.dictionary-page .other-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: 0.42rem;
+  align-content: center;
 }
 
 .dictionary-page .compact-check {
@@ -1566,8 +1637,8 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .dictionary-page .compact-check-brivla {
+  justify-content: center;
   background: color-mix(in srgb, var(--app-surface-2) 74%, var(--app-surface-0));
-  border-style: dashed;
 }
 
 .dictionary-page .dictionary-results-grid {
@@ -1702,6 +1773,10 @@ body::-webkit-scrollbar-thumb:hover,
   color: #165f90;
 }
 
+.dictionary-page .dictionary-word-type-tag.is-letteral {
+  color: #416a22;
+}
+
 .dictionary-page .dictionary-word-type-tag.is-cmevla {
   color: #8c3159;
 }
@@ -1724,6 +1799,10 @@ body::-webkit-scrollbar-thumb:hover,
 
 .spa-shell.app-page.theme-night .dictionary-page .dictionary-word-type-tag.is-cmavo {
   color: #8fd6ff;
+}
+
+.spa-shell.app-page.theme-night .dictionary-page .dictionary-word-type-tag.is-letteral {
+  color: #bfe889;
 }
 
 .spa-shell.app-page.theme-night .dictionary-page .dictionary-word-type-tag.is-cmevla {
@@ -1749,6 +1828,10 @@ body::-webkit-scrollbar-thumb:hover,
 
   .spa-shell.app-page.theme-auto .dictionary-page .dictionary-word-type-tag.is-cmavo {
     color: #8fd6ff;
+  }
+
+  .spa-shell.app-page.theme-auto .dictionary-page .dictionary-word-type-tag.is-letteral {
+    color: #bfe889;
   }
 
   .spa-shell.app-page.theme-auto .dictionary-page .dictionary-word-type-tag.is-cmevla {
@@ -2330,6 +2413,23 @@ body::-webkit-scrollbar-thumb:hover,
     grid-template-columns: 1fr;
   }
 
+  .dictionary-page .word-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dictionary-page .brivla-filter-group,
+  .dictionary-page .brivla-filter-children {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dictionary-page .other-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dictionary-page .compact-check {
+    justify-content: center;
+  }
+
   .dictionary-page .dictionary-query-row {
     grid-template-columns: 1fr;
   }
@@ -2413,6 +2513,23 @@ body::-webkit-scrollbar-thumb:hover,
 
   .dictionary-page .dictionary-controls {
     grid-template-columns: 1fr;
+  }
+
+  .dictionary-page .word-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dictionary-page .brivla-filter-group,
+  .dictionary-page .brivla-filter-children {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dictionary-page .other-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dictionary-page .compact-check {
+    justify-content: center;
   }
 
   .dictionary-page .dictionary-query-row {
